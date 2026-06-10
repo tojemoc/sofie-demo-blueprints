@@ -93,6 +93,17 @@ function generatePlayoutDevices(config: BlueprintConfig): BlueprintResultApplySt
 				},
 			}),
 		}
+	} else if (config.studio.visionMixer.type === VisionMixerDevice.VMix) {
+		playoutDevices[config.studio.visionMixer.deviceId] = {
+			parentConfigId: 'playoutgateway',
+			options: literal<TSR.DeviceOptionsVmix>({
+				type: TSR.DeviceType.VMIX,
+				options: {
+					host: config.studio.visionMixer.host,
+					port: config.studio.visionMixer.port,
+				},
+			}),
+		}
 	}
 
 	playoutDevices[config.studio.audioMixer.deviceId] = {

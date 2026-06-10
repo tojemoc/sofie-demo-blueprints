@@ -18,6 +18,9 @@ export interface StudioConfig {
 	vmixSources: {
 		[k: string]: VmixInputConfig
 	}
+	vmixInputs?: {
+		[k: string]: VmixRegistryInputConfig
+	}
 	sisyfosSources: {
 		[k: string]: SiyfosSourceConfig
 	}
@@ -72,34 +75,24 @@ export interface CasparCGConfig {
 	 */
 	port: number
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface InputConfig {
 	input: number
 	type: SourceType
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface OutputConfig {
 	output: number
 	source: number
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface VmixInputConfig {
 	input: number
 	type: SourceType
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
+export interface VmixRegistryInputConfig {
+	input: number | string
+	overlay?: number
+	mix?: number
+	loop?: boolean
+}
 export interface SiyfosSourceConfig {
 	source: number
 	type: AudioSourceType

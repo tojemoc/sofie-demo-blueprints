@@ -10,6 +10,7 @@ export function preprocessConfig(
 	console.log('Core config', coreConfig)
 	const processedConfig: BlueprintConfig = {
 		studio: literal<Partial<StudioConfig>>({
+			vmixInputs: {},
 			...config,
 		}) as StudioConfig,
 	}

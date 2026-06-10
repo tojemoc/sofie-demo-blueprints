@@ -2,7 +2,24 @@ import { TSR } from '@sofie-automation/blueprints-integration'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
+import { VmixInputReference } from '../../studio/helpers/vmixInputs.js'
 import { AtemLayers, VMixLayers } from '../../studio/layers.js'
+
+function resolveAtemProgramInput(input: VmixInputReference): number {
+	if (typeof input === 'number') {
+		if (!Number.isFinite(input)) {
+			throw new Error(`Invalid ATEM program input: ${input}`)
+		}
+		return input
+	}
+
+	const parsed = Number.parseInt(input, 10)
+	if (Number.isNaN(parsed) || String(parsed) !== input.trim()) {
+		throw new Error(`Invalid ATEM program input label: ${JSON.stringify(input)}`)
+	}
+
+	return parsed
+}
 
 export function createAtemInputTimelineObjects(
 	input: number,
@@ -74,7 +91,7 @@ export function createAtemInputTimelineObjects(
 }
 
 export function createVMixTimelineObjects(
-	input: number,
+	input: VmixInputReference,
 	start = 0,
 	transitionDuration = 40,
 	transitionProps?: TSR.VMixTransition
@@ -124,7 +141,7 @@ export function createVMixTimelineObjects(
 
 export function createVisionMixerObjects(
 	config: StudioConfig,
-	input: number,
+	input: VmixInputReference,
 	start = 0,
 	transitionDuration = 40,
 	transitionProps?: {
@@ -133,7 +150,12 @@ export function createVisionMixerObjects(
 	}
 ): TimelineBlueprintExt<TSR.TimelineContentVMixAny | TSR.TimelineContentAtemAny>[] {
 	if (config.visionMixer.type === VisionMixerDevice.Atem) {
-		return createAtemInputTimelineObjects(input, start, transitionDuration, transitionProps?.atemTransitionProps)
+		return createAtemInputTimelineObjects(
+			resolveAtemProgramInput(input),
+			start,
+			transitionDuration,
+			transitionProps?.atemTransitionProps
+		)
 	} else if (config.visionMixer.type === VisionMixerDevice.VMix) {
 		return createVMixTimelineObjects(input, start, transitionDuration, transitionProps?.vmixTransitionProps)
 	} else {

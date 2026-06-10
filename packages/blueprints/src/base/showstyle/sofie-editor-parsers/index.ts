@@ -7,6 +7,7 @@ import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
 import { parseGfx } from './gfx.js'
+import { tryParseHelloVmix } from '../spreadsheet-parsers/helloVmix.js'
 import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
@@ -69,7 +70,10 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 			})
 
 			// process the pieces
-			if (partPayload.type?.match(/cam/i)) {
+			const helloVmixPart = tryParseHelloVmix(partPayload)
+			if (helloVmixPart) {
+				parts.push(helloVmixPart)
+			} else if (partPayload.type?.match(/cam/i)) {
 				parts.push(parseCamera(partPayload))
 			} else if (partPayload.type?.match(/dve/i)) {
 				parts.push(parseDVE(partPayload))
