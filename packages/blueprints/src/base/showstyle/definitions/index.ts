@@ -19,13 +19,30 @@ export enum PartType {
 	Titles = 'titles',
 	DVE = 'dve',
 	GFX = 'gfx',
+	HelloVmix = 'hello_vmix',
+}
+
+export enum HelloVmixAction {
+	Program = 'program',
+	Overlay = 'overlay',
+	InputPlayback = 'input_playback',
+	MixProgram = 'mix_program',
 }
 
 export enum PartInfo {
 	NORMAL = 0,
 }
 
-export type AllProps = CameraProps | RemoteProps | VTProps | VOProps | TitlesProps | DVEProps | GfxProps | InvalidProps
+export type AllProps =
+	| CameraProps
+	| RemoteProps
+	| VTProps
+	| VOProps
+	| TitlesProps
+	| DVEProps
+	| GfxProps
+	| HelloVmixProps
+	| InvalidProps
 
 export interface PartProps<T extends AllProps> extends IntermediatePart {
 	type: PartType | null
@@ -79,6 +96,11 @@ export interface DVEProps extends PartBaseProps {
 
 export interface GfxProps extends PartBaseProps {
 	graphic: GraphicObject
+}
+
+export interface HelloVmixProps extends PartBaseProps {
+	registryKey: string
+	action: HelloVmixAction
 }
 
 export interface InvalidProps extends PartBaseProps {

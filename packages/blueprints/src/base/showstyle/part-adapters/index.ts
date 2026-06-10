@@ -14,6 +14,7 @@ import {
 	CameraProps,
 	DVEProps,
 	GfxProps,
+	HelloVmixProps,
 	InvalidProps,
 	PartProps,
 	PartType,
@@ -25,6 +26,7 @@ import {
 import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
+import { generateHelloVmixPart } from './helloVmix.js'
 import { generateRemotePart } from './remote.js'
 import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
@@ -70,6 +72,9 @@ export function generateParts(context: ISegmentUserContext, intermediateSegment:
 				break
 			case PartType.GFX:
 				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>)
+				break
+			case PartType.HelloVmix:
+				newPart = generateHelloVmixPart(partContext, rawPart as unknown as PartProps<HelloVmixProps>)
 				break
 			case PartType.Invalid:
 				newPart = {

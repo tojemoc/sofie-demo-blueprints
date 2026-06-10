@@ -176,6 +176,45 @@
 				"required": ["input", "type"]
 			}
 		},
+		"vmixInputs": {
+			"type": "object",
+			"ui:title": "vMix Input Registry",
+			"ui:description": "Named vMix inputs for Hello vMix demonstration and production layouts. Keys are registry names; values map to vMix input numbers or names.",
+			"ui:category": "Inputs",
+			"default": {},
+			"additionalProperties": {
+				"type": "object",
+				"title": "VmixRegistryInputConfig",
+				"properties": {
+					"input": {
+						"oneOf": [{ "type": "integer" }, { "type": "string" }],
+						"ui:title": "Input",
+						"ui:description": "vMix input number or exact input name",
+						"ui:summaryTitle": "Input"
+					},
+					"overlay": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 4,
+						"ui:title": "Overlay",
+						"ui:description": "vMix overlay channel (1-4) when used as an overlay graphic"
+					},
+					"mix": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 16,
+						"ui:title": "Mix",
+						"ui:description": "vMix mix bus (1 = main program, 2-16 = additional mix outputs)"
+					},
+					"loop": {
+						"type": "boolean",
+						"ui:title": "Loop",
+						"ui:description": "Loop media input during playback"
+					}
+				},
+				"required": ["input"]
+			}
+		},
 		"sisyfosSources": {
 			"type": "object",
 			"ui:title": "Sisyfos Sources",

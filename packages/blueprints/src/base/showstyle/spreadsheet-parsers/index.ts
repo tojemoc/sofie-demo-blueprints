@@ -5,6 +5,7 @@ import { AllProps, PartProps, SegmentProps, SegmentType } from '../definitions/i
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
 import { parseGfx } from './gfx.js'
+import { tryParseHelloVmix } from './helloVmix.js'
 import { createInvalidProps } from './invalid.js'
 import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
@@ -30,7 +31,10 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: I
 		ingestSegment.parts.forEach((part) => {
 			const partPayload = part.payload as SpreadsheetIngestPart
 
-			if (partPayload.type.match(/cam/i)) {
+			const helloVmixPart = tryParseHelloVmix(partPayload)
+			if (helloVmixPart) {
+				parts.push(helloVmixPart)
+			} else if (partPayload.type.match(/cam/i)) {
 				parts.push(parseCamera(partPayload))
 			} else if (partPayload.type.match(/remote/i)) {
 				parts.push(parseRemote(partPayload))

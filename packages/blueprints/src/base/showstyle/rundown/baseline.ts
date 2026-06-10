@@ -1,6 +1,7 @@
 import { BlueprintResultBaseline, IShowStyleUserContext, TSR } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
+import { hasVmixInputRegistry } from '../../studio/helpers/vmixInputs.js'
 import { AtemLayers, CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { getSisyfosBaseline } from '../helpers/audio.js'
 import { DVEDesigns, DVELayouts } from '../helpers/dve.js'
@@ -128,6 +129,10 @@ function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 }
 
 function getVMixBaseline(config: StudioConfig): TimelineBlueprintExt[] {
+	if (hasVmixInputRegistry(config)) {
+		return []
+	}
+
 	const dskInput = Object.values<VmixInputConfig>(config.vmixSources).find(
 		(source) => source.type === SourceType.Graphics
 	)
