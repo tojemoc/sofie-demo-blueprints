@@ -36,6 +36,39 @@ describe('Hello vMix parser', () => {
 		expect(part?.payload.action).toBe(HelloVmixAction.Overlay)
 	})
 
+	it('maps L3D alias to lower third overlay', () => {
+		const part = tryParseHelloVmix({
+			...basePart,
+			type: 'L3D',
+			name: 'Lower Third',
+		})
+
+		expect(part?.payload.registryKey).toBe('LOWER_THIRD')
+		expect(part?.payload.action).toBe(HelloVmixAction.Overlay)
+	})
+
+	it('maps HEADLINE to overlay registry key', () => {
+		const part = tryParseHelloVmix({
+			...basePart,
+			type: 'HEADLINE',
+			name: 'Headline',
+		})
+
+		expect(part?.payload.registryKey).toBe('HEADLINE')
+		expect(part?.payload.action).toBe(HelloVmixAction.Overlay)
+	})
+
+	it('maps DOUBLEBOX to program cut registry key', () => {
+		const part = tryParseHelloVmix({
+			...basePart,
+			type: 'DOUBLEBOX',
+			name: 'Double Box',
+		})
+
+		expect(part?.payload.registryKey).toBe('DOUBLEBOX')
+		expect(part?.payload.action).toBe(HelloVmixAction.Program)
+	})
+
 	it('maps CLIP to BG_LOOP input playback', () => {
 		const part = tryParseHelloVmix({
 			...basePart,
@@ -47,13 +80,39 @@ describe('Hello vMix parser', () => {
 		expect(part?.payload.action).toBe(HelloVmixAction.InputPlayback)
 	})
 
-	it('returns undefined for unknown part types', () => {
+	it('maps BG_LOOP alias to input playback', () => {
 		const part = tryParseHelloVmix({
 			...basePart,
-			type: 'cam1',
-			name: 'Camera 1',
+			type: 'BG_LOOP',
+			name: 'Background',
 		})
 
-		expect(part).toBeUndefined()
+		expect(part?.payload.registryKey).toBe('BG_LOOP')
+		expect(part?.payload.action).toBe(HelloVmixAction.InputPlayback)
+	})
+
+	it('maps MIX3 and MIX3_FEED to mix program registry key', () => {
+		for (const type of ['MIX3', 'MIX3_FEED', 'mix3_feed']) {
+			const part = tryParseHelloVmix({
+				...basePart,
+				type,
+				name: 'Mix 3 Feed',
+			})
+
+			expect(part?.payload.registryKey).toBe('MIX3_FEED')
+			expect(part?.payload.action).toBe(HelloVmixAction.MixProgram)
+		}
+	})
+
+	it('returns undefined for spaced mix aliases that are not registered', () => {
+		for (const type of ['MIX 3', 'Mix 3 Feed', 'cam1']) {
+			const part = tryParseHelloVmix({
+				...basePart,
+				type,
+				name: 'Unknown',
+			})
+
+			expect(part).toBeUndefined()
+		}
 	})
 })

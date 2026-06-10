@@ -13,17 +13,18 @@ import {
 
 export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 	const vmixSources = config.vmixSources
+	const deviceId = config.visionMixer.deviceId
 	const mappings: BlueprintMappings = {
 		[VMixLayers.VMixMeProgram]: literal<BlueprintMapping<TSR.MappingVmixProgram>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.NONE,
 
 			options: { mappingType: TSR.MappingVmixType.Program, index: 1 },
 		}),
 		[VMixLayers.VMixMePreview]: literal<BlueprintMapping<TSR.MappingVmixPreview>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 
 			lookahead: LookaheadMode.WHEN_CLEAR,
 			lookaheadMaxSearchDistance: 1,
@@ -33,7 +34,7 @@ export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 		}),
 		[VMixLayers.VMixOverlayGraphics]: literal<BlueprintMapping<TSR.MappingVmixOverlay>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.NONE,
 
 			options: { mappingType: TSR.MappingVmixType.Overlay, index: 1 },
@@ -46,7 +47,7 @@ export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 	if (multiviewSource) {
 		mappings[VMixLayers.VMixDVEMultiView] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.WHEN_CLEAR,
 			lookaheadMaxSearchDistance: 1,
 
@@ -63,7 +64,7 @@ export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 	for (const [key, entry] of Object.entries<VmixRegistryInputConfig>(config.vmixInputs ?? {})) {
 		mappings[getVmixInputLayerId(key)] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.WHEN_CLEAR,
 			lookaheadMaxSearchDistance: 1,
 
@@ -77,7 +78,7 @@ export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 		if (entry.overlay !== undefined) {
 			mappings[getVmixOverlayLayerId(key)] = literal<BlueprintMapping<TSR.MappingVmixOverlay>>({
 				device: TSR.DeviceType.VMIX,
-				deviceId: 'vmix0',
+				deviceId,
 				lookahead: LookaheadMode.NONE,
 
 				options: {
@@ -99,7 +100,7 @@ export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 
 		mappings[programLayer] = literal<BlueprintMapping<TSR.MappingVmixProgram>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.NONE,
 
 			options: { mappingType: TSR.MappingVmixType.Program, index: mixIndex },
@@ -107,7 +108,7 @@ export function getVMixMappings(config: StudioConfig): BlueprintMappings {
 
 		mappings[previewLayer] = literal<BlueprintMapping<TSR.MappingVmixPreview>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 
 			lookahead: LookaheadMode.WHEN_CLEAR,
 			lookaheadMaxSearchDistance: 1,

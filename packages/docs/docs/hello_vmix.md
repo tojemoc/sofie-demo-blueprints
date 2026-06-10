@@ -135,7 +135,7 @@ Without it, TSR emits default preview commands (often `PREVIEW_INPUT` with `inpu
 
 In **Rundown Editor**, create a segment with parts whose **type** field matches exactly:
 
-```
+```text
 CAMERA
 LOWER THIRD
 DOUBLEBOX
@@ -174,7 +174,7 @@ Enable debug logging on Playout Gateway. Look for TSR state diffs referencing:
 
 Example log patterns:
 
-```
+```text
 Device vmix0: Sending command ACTIVE_INPUT ...
 Device vmix0: Sending command OVERLAY_INPUT_IN ...
 Device vmix0: Sending command PLAY_INPUT ...

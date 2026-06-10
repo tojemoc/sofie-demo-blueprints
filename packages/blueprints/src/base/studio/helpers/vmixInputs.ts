@@ -36,6 +36,17 @@ function normalizeRegistryKey(key: string): string {
 
 export function validateVmixInputsRegistry(config: StudioConfig): string[] {
 	const errors: string[] = []
+	const normalizedKeyOwners = new Map<string, string>()
+
+	for (const key of Object.keys(config.vmixInputs ?? {})) {
+		const normalized = normalizeRegistryKey(key)
+		const existing = normalizedKeyOwners.get(normalized)
+		if (existing !== undefined && existing !== key) {
+			errors.push(`vmixInputs registry key collision: "${existing}" and "${key}" both map to layer id "${normalized}"`)
+		} else {
+			normalizedKeyOwners.set(normalized, key)
+		}
+	}
 
 	for (const [key, entry] of Object.entries<VmixRegistryInputConfig>(config.vmixInputs ?? {})) {
 		if (entry.input === undefined || entry.input === '') {
