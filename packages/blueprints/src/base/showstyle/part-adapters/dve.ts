@@ -10,6 +10,11 @@ import { dveLayoutToContent, parseSuperSourceLayout, parseSuperSourceProps } fro
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
+import {
+	createRegistryProgramTimeline,
+	isVmixRegistryMode,
+	VMIX_REGISTRY_KEYS,
+} from '../helpers/vmixRegistryRouting.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
@@ -21,6 +26,11 @@ const SUPER_SOURCE_INPUT = 6000
 
 export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
+
+	if (isVmixRegistryMode(config)) {
+		return generateRegistryDVEPart(context, part, config)
+	}
+
 	// const sourceInfo = getSourceInfoFromRaw(config, part.payload.input1)
 
 	context.logDebug(JSON.stringify(part, null, 2))
@@ -227,6 +237,48 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
+			expectedDuration: part.payload.duration,
+		},
+		pieces,
+		adLibPieces: [...graphics.adLibPieces, ...clips],
+		actions: [],
+	}
+}
+
+function generateRegistryDVEPart(
+	context: PartContext,
+	part: PartProps<DVEProps>,
+	config: ReturnType<typeof parseConfig>['studio']
+): BlueprintResultPart {
+	const audioTlObj = getAudioPrimaryObject(config, [{ type: AudioSourceType.Host, index: 0 }])
+
+	const dvePiece: IBlueprintPiece = {
+		enable: {
+			start: 0,
+		},
+		externalId: part.payload.externalId,
+		name: 'DVE',
+		lifespan: PieceLifespan.WithinPart,
+		sourceLayerId: SourceLayer.DVE,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.DVE),
+		content: {
+			timelineObjects: [...createRegistryProgramTimeline(config, VMIX_REGISTRY_KEYS.DOUBLEBOX), audioTlObj],
+		},
+	}
+
+	const pieces = [dvePiece]
+	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
+	if (scriptPiece) pieces.push(scriptPiece)
+
+	const graphics = parseGraphicsFromObjects(config, part.objects)
+	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const clips = parseClipsFromObjects(context, config, part.objects)
+
+	return {
+		part: {
+			externalId: part.payload.externalId,
+			title: part.payload.name,
 			expectedDuration: part.payload.duration,
 		},
 		pieces,

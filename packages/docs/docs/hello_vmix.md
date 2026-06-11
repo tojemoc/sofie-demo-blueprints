@@ -1,3 +1,7 @@
+---
+sidebar_position: 10
+---
+
 # Hello vMix — Integration Demonstration
 
 This guide walks through connecting Sofie to vMix for the **Hello vMix** proof-of-integration workflow. It assumes you have Sofie Core (r53+), Playout Gateway, and vMix on the same network, but **no prior vMix + Sofie experience**.
@@ -212,7 +216,13 @@ Device vmix0: Sending command PLAY_INPUT ...
 
 ---
 
-## 8. Scope boundaries
+## 8. Stock rundown smoke test
+
+For a **normal** Rundown Editor rundown (part types `cam`, `gfx`, `dve`, `full`) without Hello-specific part types, see [vMix smoke test](vmix_smoke_test.md). Import `assets/hello-vmix-smoke-rundown.json` from the blueprints repository.
+
+---
+
+## 9. Scope boundaries
 
 The Hello vMix workflow intentionally does **not** include:
 

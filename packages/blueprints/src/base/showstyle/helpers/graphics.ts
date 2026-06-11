@@ -11,6 +11,12 @@ import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { getClipPlayerInput } from './clips.js'
+import {
+	createRegistryOverlayTimeline,
+	hasRegistryEntry,
+	isVmixRegistryMode,
+	resolveGraphicPieceRegistryKey,
+} from './vmixRegistryRouting.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 
@@ -47,6 +53,15 @@ function getGraphicTlObject(
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
+	if (isVmixRegistryMode(config)) {
+		const registryKey = resolveGraphicPieceRegistryKey(object)
+		if (registryKey && hasRegistryEntry(config, registryKey)) {
+			return createRegistryOverlayTimeline(config, registryKey)
+		}
+
+		return []
+	}
+
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = object.clipName.match(/fullscreen/i)
 
@@ -116,7 +131,7 @@ function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraph
 			start: object.objectTime,
 			duration: object.duration > 0 ? object.duration : undefined,
 		},
-		prerollDuration: config.casparcgLatency,
+		prerollDuration: isVmixRegistryMode(config) ? 0 : config.casparcgLatency,
 	}
 }
 export function parseAdlibGraphic(
@@ -137,7 +152,7 @@ export function parseAdlibGraphic(
 		lifespan,
 		sourceLayerId: sourceLayer,
 		outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
-		prerollDuration: isFullscreen ? config.casparcgLatency : 0,
+		prerollDuration: isVmixRegistryMode(config) ? 0 : isFullscreen ? config.casparcgLatency : 0,
 		content: {
 			timelineObjects: getGraphicTlObject(config, object, true),
 
