@@ -21,20 +21,27 @@ import { parseConfig } from '../helpers/config.js'
 
 export function generateCameraPart(context: PartContext, part: PartProps<CameraProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
-	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
+	const registryMode = isVmixRegistryMode(config)
 
 	const audioTlObj = getAudioPrimaryObject(config, [{ type: AudioSourceType.Host, index: 0 }]) // todo: all hosts?
 
-	const visionMixerTimeline = isVmixRegistryMode(config)
-		? createRegistryProgramTimeline(config, VMIX_REGISTRY_KEYS.CAMERA)
-		: createVisionMixerObjects(config, sourceInfo.input)
+	let visionMixerTimeline
+	let cameraName: string
+	if (registryMode) {
+		visionMixerTimeline = createRegistryProgramTimeline(config, VMIX_REGISTRY_KEYS.CAMERA)
+		cameraName = 'Cam'
+	} else {
+		const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
+		visionMixerTimeline = createVisionMixerObjects(config, sourceInfo.input)
+		cameraName = `Cam ${sourceInfo.id}`
+	}
 
 	const cameraPiece: IBlueprintPiece = {
 		enable: {
 			start: 0,
 		},
 		externalId: part.payload.externalId,
-		name: isVmixRegistryMode(config) ? 'Cam' : `Cam ${sourceInfo.id}`,
+		name: cameraName,
 		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.Camera,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Camera),

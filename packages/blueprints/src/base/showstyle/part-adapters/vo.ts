@@ -48,7 +48,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 				}),
 			]
 
-	const cameraPiece: IBlueprintPiece = {
+	const voPiece: IBlueprintPiece = {
 		enable: {
 			start: 0,
 		},
@@ -92,7 +92,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 				],
 	}
 
-	const pieces = [cameraPiece]
+	const pieces = [voPiece]
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 

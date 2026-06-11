@@ -48,20 +48,11 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	}
 }
 
-function getGraphicTlObject(
+function createDefaultGraphicTimeline(
 	config: StudioConfig,
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
-	if (isVmixRegistryMode(config)) {
-		const registryKey = resolveGraphicPieceRegistryKey(object)
-		if (registryKey && hasRegistryEntry(config, registryKey)) {
-			return createRegistryOverlayTimeline(config, registryKey)
-		}
-
-		return []
-	}
-
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = object.clipName.match(/fullscreen/i)
 
@@ -87,6 +78,21 @@ function getGraphicTlObject(
 		}),
 		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
 	]
+}
+
+function getGraphicTlObject(
+	config: StudioConfig,
+	object: GraphicObjectBase,
+	isAdlib?: boolean
+): TimelineBlueprintExt[] {
+	if (isVmixRegistryMode(config)) {
+		const registryKey = resolveGraphicPieceRegistryKey(object)
+		if (registryKey && hasRegistryEntry(config, registryKey)) {
+			return createRegistryOverlayTimeline(config, registryKey)
+		}
+	}
+
+	return createDefaultGraphicTimeline(config, object, isAdlib)
 }
 function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraphicObject): IBlueprintPiece {
 	const sourceLayer = getGraphicSourceLayer(object)

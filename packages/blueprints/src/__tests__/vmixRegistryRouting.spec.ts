@@ -184,4 +184,55 @@ describe('vmixRegistryRouting', () => {
 		)
 		expect(overlay?.enable).toEqual({ while: 1 })
 	})
+
+	it('falls back to CasparCG timeline when registry key is not configured', () => {
+		const result = parseGraphicsFromObjects(helloVmixConfig, [
+			{
+				id: 'strap1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/strap',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					location: 'Live',
+					text: 'Breaking',
+				},
+			},
+		])
+
+		const timeline = result.pieces[0]?.content.timelineObjects ?? []
+		const caspar = timeline.find(
+			(obj): obj is typeof obj & { content: TSR.TimelineContentCCGTemplate } =>
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+
+		expect(caspar).toBeDefined()
+	})
+
+	it('derives DVE audio from part inputs in registry mode', () => {
+		const result = generateDVEPart(mockPartContext(helloVmixConfig), {
+			type: PartType.DVE,
+			rawType: 'dve',
+			rawTitle: 'DVE',
+			info: PartInfo.NORMAL,
+			objects: [],
+			payload: {
+				externalId: 'dve-remote',
+				name: 'DVE',
+				duration: 5000,
+				script: '',
+				layout: 'TwoBox',
+				inputs: [
+					{ type: SourceType.Remote, id: 2 },
+					{ type: SourceType.Camera, id: 1 },
+				],
+			},
+		})
+
+		expect(result.pieces).toHaveLength(1)
+		expect(result.pieces[0]?.content.timelineObjects.length).toBeGreaterThan(1)
+	})
 })
