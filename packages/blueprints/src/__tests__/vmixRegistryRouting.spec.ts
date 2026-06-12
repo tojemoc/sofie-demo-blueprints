@@ -186,7 +186,8 @@ describe('vmixRegistryRouting', () => {
 	})
 
 	it('falls back to CasparCG timeline when registry key is not configured', () => {
-		const result = parseGraphicsFromObjects(helloVmixConfig, [
+		const config = { ...helloVmixConfig, casparcgLatency: 80 }
+		const result = parseGraphicsFromObjects(config, [
 			{
 				id: 'strap1',
 				objectType: ObjectType.Graphic,
@@ -210,6 +211,27 @@ describe('vmixRegistryRouting', () => {
 		)
 
 		expect(caspar).toBeDefined()
+		expect(result.pieces[0]?.prerollDuration).toBe(80)
+	})
+
+	it('uses zero preroll only for registry overlay graphics', () => {
+		const config = { ...helloVmixConfig, casparcgLatency: 80 }
+		const result = parseGraphicsFromObjects(config, [
+			{
+				id: 'l3d1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/l3d',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					name: 'Guest',
+					description: 'Reporter',
+				},
+			},
+		])
+
+		expect(result.pieces[0]?.prerollDuration).toBe(0)
 	})
 
 	it('derives DVE audio from part inputs in registry mode', () => {

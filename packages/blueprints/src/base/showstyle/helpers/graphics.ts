@@ -80,19 +80,43 @@ function createDefaultGraphicTimeline(
 	]
 }
 
+function usesRegistryOverlayTimeline(config: StudioConfig, object: GraphicObjectBase): boolean {
+	if (!isVmixRegistryMode(config)) {
+		return false
+	}
+
+	const registryKey = resolveGraphicPieceRegistryKey(object)
+	return registryKey !== undefined && hasRegistryEntry(config, registryKey)
+}
+
 function getGraphicTlObject(
 	config: StudioConfig,
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
-	if (isVmixRegistryMode(config)) {
-		const registryKey = resolveGraphicPieceRegistryKey(object)
-		if (registryKey && hasRegistryEntry(config, registryKey)) {
-			return createRegistryOverlayTimeline(config, registryKey)
-		}
+	const registryKey = resolveGraphicPieceRegistryKey(object)
+	if (registryKey && hasRegistryEntry(config, registryKey)) {
+		return createRegistryOverlayTimeline(config, registryKey)
 	}
 
 	return createDefaultGraphicTimeline(config, object, isAdlib)
+}
+
+function getGraphicPrerollDuration(
+	config: StudioConfig,
+	object: GraphicObjectBase,
+	isFullscreen: boolean,
+	prerollForNonFullscreen = false
+): number {
+	if (usesRegistryOverlayTimeline(config, object)) {
+		return 0
+	}
+
+	if (prerollForNonFullscreen || isFullscreen) {
+		return config.casparcgLatency
+	}
+
+	return 0
 }
 function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraphicObject): IBlueprintPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
@@ -137,7 +161,7 @@ function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraph
 			start: object.objectTime,
 			duration: object.duration > 0 ? object.duration : undefined,
 		},
-		prerollDuration: isVmixRegistryMode(config) ? 0 : config.casparcgLatency,
+		prerollDuration: getGraphicPrerollDuration(config, object, false, true),
 	}
 }
 export function parseAdlibGraphic(
@@ -158,7 +182,7 @@ export function parseAdlibGraphic(
 		lifespan,
 		sourceLayerId: sourceLayer,
 		outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
-		prerollDuration: isVmixRegistryMode(config) ? 0 : isFullscreen ? config.casparcgLatency : 0,
+		prerollDuration: getGraphicPrerollDuration(config, object, !!isFullscreen, false),
 		content: {
 			timelineObjects: getGraphicTlObject(config, object, true),
 
