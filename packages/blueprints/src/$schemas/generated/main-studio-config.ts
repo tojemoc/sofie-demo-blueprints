@@ -104,7 +104,7 @@ export interface VmixInputConfig {
  * via the `patternProperty` "".
  */
 export interface VmixRegistryInputConfig {
-	input: number | string
+	input: string
 	overlay?: number
 	mix?: number
 	loop?: boolean
