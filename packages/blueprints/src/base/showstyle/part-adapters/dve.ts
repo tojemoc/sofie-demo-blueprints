@@ -1,4 +1,10 @@
-import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import {
+	BlueprintResultPart,
+	IBlueprintAdLibPiece,
+	IBlueprintPiece,
+	PieceLifespan,
+	TSR,
+} from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { AudioSourceType, SourceType, VisionMixerDevice } from '../../studio/helpers/config.js'
@@ -10,6 +16,11 @@ import { dveLayoutToContent, parseSuperSourceLayout, parseSuperSourceProps } fro
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
+import {
+	createRegistryProgramTimeline,
+	isVmixRegistryMode,
+	VMIX_REGISTRY_KEYS,
+} from '../helpers/vmixRegistryRouting.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
@@ -19,8 +30,54 @@ import { parseConfig } from '../helpers/config.js'
 const SUPER_SOURCE_LATENCY = 80
 const SUPER_SOURCE_INPUT = 6000
 
+function getDveAudioSources(inputs: DVEProps['inputs']) {
+	return inputs
+		.map((input) => {
+			if ('fileName' in input) {
+				return {
+					type: AudioSourceType.Playback,
+					index: 0, // whihc player?
+				}
+			} else if (input.type === SourceType.Camera) {
+				return {
+					type: AudioSourceType.Host, // all hosts?
+					index: 0,
+				}
+			} else if (input.type === SourceType.Remote) {
+				return {
+					type: AudioSourceType.Remote,
+					index: input.id - 1,
+				}
+			}
+			return undefined
+		})
+		.filter<any>((p): p is any => p !== undefined)
+}
+
+function appendDveCommonPieces(
+	context: PartContext,
+	config: ReturnType<typeof parseConfig>['studio'],
+	part: PartProps<DVEProps>,
+	pieces: IBlueprintPiece[]
+): IBlueprintAdLibPiece[] {
+	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
+	if (scriptPiece) pieces.push(scriptPiece)
+
+	const graphics = parseGraphicsFromObjects(config, part.objects)
+	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const clips = parseClipsFromObjects(context, config, part.objects)
+
+	return [...graphics.adLibPieces, ...clips]
+}
+
 export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
+
+	if (isVmixRegistryMode(config)) {
+		return generateRegistryDVEPart(context, part, config)
+	}
+
 	// const sourceInfo = getSourceInfoFromRaw(config, part.payload.input1)
 
 	context.logDebug(JSON.stringify(part, null, 2))
@@ -39,30 +96,7 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 		}
 	})
 
-	const audioTlObj = getAudioPrimaryObject(
-		config,
-		part.payload.inputs
-			.map((input) => {
-				if ('fileName' in input) {
-					return {
-						type: AudioSourceType.Playback,
-						index: 0, // whihc player?
-					}
-				} else if (input.type === SourceType.Camera) {
-					return {
-						type: AudioSourceType.Host, // all hosts?
-						index: 0,
-					}
-				} else if (input.type === SourceType.Remote) {
-					return {
-						type: AudioSourceType.Remote,
-						index: input.id - 1,
-					}
-				}
-				return undefined
-			})
-			.filter<any>((p): p is any => p !== undefined)
-	)
+	const audioTlObj = getAudioPrimaryObject(config, getDveAudioSources(part.payload.inputs))
 
 	const vmixDVEInput =
 		Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.MultiView)?.input ??
@@ -214,13 +248,7 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 	}
 
 	const pieces = [dvePiece, retainPiece]
-	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
-	if (scriptPiece) pieces.push(scriptPiece)
-
-	const graphics = parseGraphicsFromObjects(config, part.objects)
-	if (graphics.pieces) pieces.push(...graphics.pieces)
-
-	const clips = parseClipsFromObjects(context, config, part.objects)
+	const adLibPieces = appendDveCommonPieces(context, config, part, pieces)
 
 	return {
 		part: {
@@ -230,7 +258,43 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 			expectedDuration: part.payload.duration,
 		},
 		pieces,
-		adLibPieces: [...graphics.adLibPieces, ...clips],
+		adLibPieces,
+		actions: [],
+	}
+}
+
+function generateRegistryDVEPart(
+	context: PartContext,
+	part: PartProps<DVEProps>,
+	config: ReturnType<typeof parseConfig>['studio']
+): BlueprintResultPart {
+	const audioTlObj = getAudioPrimaryObject(config, getDveAudioSources(part.payload.inputs))
+
+	const dvePiece: IBlueprintPiece = {
+		enable: {
+			start: 0,
+		},
+		externalId: part.payload.externalId,
+		name: 'DVE',
+		lifespan: PieceLifespan.WithinPart,
+		sourceLayerId: SourceLayer.DVE,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.DVE),
+		content: {
+			timelineObjects: [...createRegistryProgramTimeline(config, VMIX_REGISTRY_KEYS.DOUBLEBOX), audioTlObj],
+		},
+	}
+
+	const pieces = [dvePiece]
+	const adLibPieces = appendDveCommonPieces(context, config, part, pieces)
+
+	return {
+		part: {
+			externalId: part.payload.externalId,
+			title: part.payload.name,
+			expectedDuration: part.payload.duration,
+		},
+		pieces,
+		adLibPieces,
 		actions: [],
 	}
 }

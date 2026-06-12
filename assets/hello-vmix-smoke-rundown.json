@@ -1,0 +1,156 @@
+{
+	"rundown": {
+		"id": "hello-vmix-smoke-rundown",
+		"name": "Hello vMix Smoke Test",
+		"playlistId": null,
+		"sync": false,
+		"isTemplate": true,
+		"expectedStartTime": 1740000000000,
+		"expectedEndTime": 1740003600000,
+		"payload": {}
+	},
+	"isTemplate": true,
+	"segments": [
+		{
+			"id": "hello-vmix-smoke-segment",
+			"name": "vMix smoke test",
+			"rank": 0,
+			"float": false,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"isTemplate": false,
+			"segmentType": "normal",
+			"payload": {}
+		}
+	],
+	"parts": [
+		{
+			"id": "hello-vmix-smoke-cam",
+			"name": "Cam",
+			"rank": 0,
+			"float": false,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partType": "cam",
+			"duration": 5,
+			"script": "Program cut to CAMERA input.",
+			"payload": {}
+		},
+		{
+			"id": "hello-vmix-smoke-gfx",
+			"name": "GFX",
+			"rank": 1,
+			"float": false,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partType": "gfx",
+			"duration": 5,
+			"script": "Lower third on overlay 1.",
+			"payload": {}
+		},
+		{
+			"id": "hello-vmix-smoke-dve",
+			"name": "DVE",
+			"rank": 2,
+			"float": false,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partType": "dve",
+			"duration": 5,
+			"script": "Program cut to DOUBLEBOX input.",
+			"payload": {}
+		},
+		{
+			"id": "hello-vmix-smoke-full",
+			"name": "Full",
+			"rank": 3,
+			"float": false,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partType": "full",
+			"duration": 10,
+			"script": "Loop playback on BG_LOOP input.",
+			"payload": {}
+		}
+	],
+	"pieces": [
+		{
+			"id": "hello-vmix-smoke-cam-piece",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partId": "hello-vmix-smoke-cam",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "hello-vmix-smoke-l3d-piece",
+			"name": "Lower third",
+			"pieceType": "l3d",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partId": "hello-vmix-smoke-gfx",
+			"payload": {
+				"name": "Smoke Test",
+				"description": "vMix overlay 1"
+			}
+		},
+		{
+			"id": "hello-vmix-smoke-split-piece",
+			"name": "Two box",
+			"pieceType": "split",
+			"start": 0,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partId": "hello-vmix-smoke-dve",
+			"payload": { "layout": "TwoBox" }
+		},
+		{
+			"id": "hello-vmix-smoke-dve-cam1",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partId": "hello-vmix-smoke-dve",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "hello-vmix-smoke-dve-cam2",
+			"name": "Camera 2",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partId": "hello-vmix-smoke-dve",
+			"payload": { "camNo": 2 }
+		},
+		{
+			"id": "hello-vmix-smoke-video-piece",
+			"name": "BG loop clip",
+			"pieceType": "video",
+			"start": 0,
+			"duration": 10,
+			"rundownId": "hello-vmix-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "hello-vmix-smoke-segment",
+			"partId": "hello-vmix-smoke-full",
+			"payload": {
+				"fileName": "clips/smoke-test.mp4",
+				"sourceDuration": 10000
+			}
+		}
+	]
+}

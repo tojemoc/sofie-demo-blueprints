@@ -10,27 +10,43 @@ import { parseClipsFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
+import {
+	createRegistryProgramTimeline,
+	isVmixRegistryMode,
+	VMIX_REGISTRY_KEYS,
+} from '../helpers/vmixRegistryRouting.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { parseConfig } from '../helpers/config.js'
 
 export function generateCameraPart(context: PartContext, part: PartProps<CameraProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
-	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
+	const registryMode = isVmixRegistryMode(config)
 
 	const audioTlObj = getAudioPrimaryObject(config, [{ type: AudioSourceType.Host, index: 0 }]) // todo: all hosts?
+
+	let visionMixerTimeline
+	let cameraName: string
+	if (registryMode) {
+		visionMixerTimeline = createRegistryProgramTimeline(config, VMIX_REGISTRY_KEYS.CAMERA)
+		cameraName = 'Cam'
+	} else {
+		const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
+		visionMixerTimeline = createVisionMixerObjects(config, sourceInfo.input)
+		cameraName = `Cam ${sourceInfo.id}`
+	}
 
 	const cameraPiece: IBlueprintPiece = {
 		enable: {
 			start: 0,
 		},
 		externalId: part.payload.externalId,
-		name: `Cam ${sourceInfo.id}`,
+		name: cameraName,
 		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.Camera,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Camera),
 		content: {
-			timelineObjects: [...createVisionMixerObjects(config, sourceInfo.input), audioTlObj],
+			timelineObjects: [...visionMixerTimeline, audioTlObj],
 		},
 	}
 
