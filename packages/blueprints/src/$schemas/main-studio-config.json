@@ -194,10 +194,11 @@
 					"title": "VmixRegistryInputConfig",
 					"properties": {
 						"input": {
-							"oneOf": [{ "type": "integer" }, { "type": "string" }],
+							"type": "string",
 							"ui:title": "Input",
-							"ui:description": "vMix input number or exact input name",
-							"ui:summaryTitle": "Input"
+							"ui:description": "vMix input number or exact input name (e.g. 1 or CAMERA)",
+							"ui:summaryTitle": "Input",
+							"default": ""
 						},
 						"overlay": {
 							"type": "integer",
