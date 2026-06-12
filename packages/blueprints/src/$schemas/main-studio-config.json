@@ -108,22 +108,24 @@
 			"ui:title": "Atem Sources",
 			"ui:description": "Description of Atem inputs i.e. cameras, remotes etc.",
 			"ui:category": "Inputs",
-			"additionalProperties": {
-				"type": "object",
-				"title": "InputConfig",
-				"properties": {
-					"input": {
-						"type": "integer",
-						"ui:title": "Input",
-						"ui:description": "Input number on the atem, see https://atem.julusian.dev/enums#videosource",
-						"ui:summaryTitle": "Input",
-						"default": 1
+			"patternProperties": {
+				"": {
+					"type": "object",
+					"title": "InputConfig",
+					"properties": {
+						"input": {
+							"type": "integer",
+							"ui:title": "Input",
+							"ui:description": "Input number on the atem, see https://atem.julusian.dev/enums#videosource",
+							"ui:summaryTitle": "Input",
+							"default": 1
+						},
+						"type": {
+							"$ref": "#/$defs/SourceType"
+						}
 					},
-					"type": {
-						"$ref": "#/$defs/SourceType"
-					}
-				},
-				"required": ["input", "type"]
+					"required": ["input", "type"]
+				}
 			}
 		},
 		"atemOutputs": {
@@ -131,26 +133,28 @@
 			"ui:title": "Atem Outputs",
 			"ui:description": "Description of Atem outputs / auxes",
 			"ui:category": "Outputs",
-			"additionalProperties": {
-				"type": "object",
-				"title": "OutputConfig",
-				"properties": {
-					"output": {
-						"type": "integer",
-						"ui:title": "Output",
-						"ui:description": "Aux number on the atem",
-						"ui:summaryTitle": "Output",
-						"default": 1
+			"patternProperties": {
+				"": {
+					"type": "object",
+					"title": "OutputConfig",
+					"properties": {
+						"output": {
+							"type": "integer",
+							"ui:title": "Output",
+							"ui:description": "Aux number on the atem",
+							"ui:summaryTitle": "Output",
+							"default": 1
+						},
+						"source": {
+							"type": "integer",
+							"ui:title": "Source",
+							"ui:description": "Source number, see https://atem.julusian.dev/enums#videosource",
+							"ui:summaryTitle": "Source",
+							"default": 1
+						}
 					},
-					"source": {
-						"type": "integer",
-						"ui:title": "Source",
-						"ui:description": "Source number, see https://atem.julusian.dev/enums#videosource",
-						"ui:summaryTitle": "Source",
-						"default": 1
-					}
-				},
-				"required": ["output", "source"]
+					"required": ["output", "source"]
+				}
 			}
 		},
 		"vmixSources": {
@@ -158,22 +162,24 @@
 			"ui:title": "vMix Sources",
 			"ui:description": "Description of vMix inputs i.e. cameras, remotes etc.",
 			"ui:category": "Inputs",
-			"additionalProperties": {
-				"type": "object",
-				"title": "VmixInputConfig",
-				"properties": {
-					"input": {
-						"type": "integer",
-						"ui:title": "Input",
-						"ui:description": "Input number for the vmix source",
-						"ui:summaryTitle": "Input",
-						"default": 1
+			"patternProperties": {
+				"": {
+					"type": "object",
+					"title": "VmixInputConfig",
+					"properties": {
+						"input": {
+							"type": "integer",
+							"ui:title": "Input",
+							"ui:description": "Input number for the vmix source",
+							"ui:summaryTitle": "Input",
+							"default": 1
+						},
+						"type": {
+							"$ref": "#/$defs/SourceType"
+						}
 					},
-					"type": {
-						"$ref": "#/$defs/SourceType"
-					}
-				},
-				"required": ["input", "type"]
+					"required": ["input", "type"]
+				}
 			}
 		},
 		"vmixInputs": {
@@ -182,37 +188,39 @@
 			"ui:description": "Named vMix inputs for Hello vMix demonstration and production layouts. Keys are registry names; values map to vMix input numbers or names.",
 			"ui:category": "Inputs",
 			"default": {},
-			"additionalProperties": {
-				"type": "object",
-				"title": "VmixRegistryInputConfig",
-				"properties": {
-					"input": {
-						"oneOf": [{ "type": "integer" }, { "type": "string" }],
-						"ui:title": "Input",
-						"ui:description": "vMix input number or exact input name",
-						"ui:summaryTitle": "Input"
+			"patternProperties": {
+				"": {
+					"type": "object",
+					"title": "VmixRegistryInputConfig",
+					"properties": {
+						"input": {
+							"oneOf": [{ "type": "integer" }, { "type": "string" }],
+							"ui:title": "Input",
+							"ui:description": "vMix input number or exact input name",
+							"ui:summaryTitle": "Input"
+						},
+						"overlay": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 4,
+							"ui:title": "Overlay",
+							"ui:description": "vMix overlay channel (1-4) when used as an overlay graphic"
+						},
+						"mix": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 16,
+							"ui:title": "Mix",
+							"ui:description": "vMix mix bus (1 = main program, 2-16 = additional mix outputs)"
+						},
+						"loop": {
+							"type": "boolean",
+							"ui:title": "Loop",
+							"ui:description": "Loop media input during playback"
+						}
 					},
-					"overlay": {
-						"type": "integer",
-						"minimum": 1,
-						"maximum": 4,
-						"ui:title": "Overlay",
-						"ui:description": "vMix overlay channel (1-4) when used as an overlay graphic"
-					},
-					"mix": {
-						"type": "integer",
-						"minimum": 1,
-						"maximum": 16,
-						"ui:title": "Mix",
-						"ui:description": "vMix mix bus (1 = main program, 2-16 = additional mix outputs)"
-					},
-					"loop": {
-						"type": "boolean",
-						"ui:title": "Loop",
-						"ui:description": "Loop media input during playback"
-					}
-				},
-				"required": ["input"]
+					"required": ["input"]
+				}
 			}
 		},
 		"sisyfosSources": {
@@ -220,30 +228,32 @@
 			"ui:title": "Sisyfos Sources",
 			"ui:description": "Description of Sisyfos channels",
 			"ui:category": "Audio",
-			"additionalProperties": {
-				"type": "object",
-				"title": "SiyfosSourceConfig",
-				"properties": {
-					"source": {
-						"type": "integer",
-						"ui:title": "Source",
-						"ui:description": "Channel number of the sisyfos channel",
-						"ui:summaryTitle": "Source",
-						"default": 1
-					},
-					"type": {
-						"type": "string",
-						"ui:title": "Type",
-						"ui:description": "Input Type",
-						"ui:summaryTitle": "Type",
-						"default": "host",
+			"patternProperties": {
+				"": {
+					"type": "object",
+					"title": "SiyfosSourceConfig",
+					"properties": {
+						"source": {
+							"type": "integer",
+							"ui:title": "Source",
+							"ui:description": "Channel number of the sisyfos channel",
+							"ui:summaryTitle": "Source",
+							"default": 1
+						},
+						"type": {
+							"type": "string",
+							"ui:title": "Type",
+							"ui:description": "Input Type",
+							"ui:summaryTitle": "Type",
+							"default": "host",
 
-						"title": "AudioSourceType",
-						"enum": ["host", "guest", "remote", "playback"],
-						"tsEnumNames": ["Host", "Guest", "Remote", "Playback"]
-					}
-				},
-				"required": ["source", "type"]
+							"title": "AudioSourceType",
+							"enum": ["host", "guest", "remote", "playback"],
+							"tsEnumNames": ["Host", "Guest", "Remote", "Playback"]
+						}
+					},
+					"required": ["source", "type"]
+				}
 			}
 		},
 		"previewRenderer": {
