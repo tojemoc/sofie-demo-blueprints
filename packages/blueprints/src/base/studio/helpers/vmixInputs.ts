@@ -42,7 +42,9 @@ export function validateVmixInputsRegistry(config: StudioConfig): string[] {
 	const errors: string[] = []
 
 	if (config.playoutRouting === PlayoutRouting.VmixRegistry && !hasVmixInputRegistry(config)) {
-		errors.push('vmixInputs must contain at least one entry when playout routing is set to vMix registry')
+		errors.push(
+			'vmixInputs must contain at least one entry when playout routing is set to vMix registry. If the vMix Input Registry table appears empty after saving, run Config Fix Up on the studio blueprint configuration page.'
+		)
 	}
 
 	const normalizedKeyOwners = new Map<string, string>()

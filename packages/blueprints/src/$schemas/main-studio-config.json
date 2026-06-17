@@ -215,19 +215,22 @@
 							"minimum": 1,
 							"maximum": 4,
 							"ui:title": "Overlay",
-							"ui:description": "vMix overlay channel (1-4) when used as an overlay graphic"
+							"ui:description": "vMix overlay channel (1-4) when used as an overlay graphic",
+							"ui:summaryTitle": "Overlay"
 						},
 						"mix": {
 							"type": "integer",
 							"minimum": 1,
 							"maximum": 16,
 							"ui:title": "Mix",
-							"ui:description": "vMix mix bus (1 = main program, 2-16 = additional mix outputs)"
+							"ui:description": "vMix mix bus (1 = main program, 2-16 = additional mix outputs)",
+							"ui:summaryTitle": "Mix"
 						},
 						"loop": {
 							"type": "boolean",
 							"ui:title": "Loop",
-							"ui:description": "Loop media input during playback"
+							"ui:description": "Loop media input during playback",
+							"ui:summaryTitle": "Loop"
 						}
 					},
 					"required": ["input"]

@@ -50,7 +50,7 @@ describe('validateVmixInputsRegistry', () => {
 		})
 
 		expect(errors).toContainEqual(
-			'vmixInputs must contain at least one entry when playout routing is set to vMix registry'
+			'vmixInputs must contain at least one entry when playout routing is set to vMix registry. If the vMix Input Registry table appears empty after saving, run Config Fix Up on the studio blueprint configuration page.'
 		)
 	})
 })
