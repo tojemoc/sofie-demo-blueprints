@@ -179,9 +179,24 @@ jobs:
       contents: write
 
     steps:
+      - name: Resolve release ref
+        id: release_ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+            TAG="${TAG#refs/tags/}"
+            if ! git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+              echo "::error::Git tag '${TAG}' was not found on origin."
+              exit 1
+            fi
+            echo "ref=refs/tags/${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          ref: ${{ steps.release_ref.outputs.ref }}
 
       - name: Use Node.js 22.x
         uses: actions/setup-node@v6
