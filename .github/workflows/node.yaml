@@ -260,7 +260,6 @@ jobs:
     name: Pre-release Blueprints
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     needs: [lint, test]
     permissions:
       contents: write
