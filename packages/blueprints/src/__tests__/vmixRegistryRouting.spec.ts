@@ -1,7 +1,7 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { ObjectType } from '../common/definitions/objects.js'
-import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { SourceType, StudioConfig, VisionMixerDevice, PlayoutRouting } from '../base/studio/helpers/config.js'
 import { VMixLayers } from '../base/studio/layers.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { generateDVEPart } from '../base/showstyle/part-adapters/dve.js'
@@ -14,6 +14,7 @@ import { PartContext } from '../common/context.js'
 const helloVmixConfig: StudioConfig = {
 	previewRenderer: '',
 	casparcgLatency: 0,
+	playoutRouting: PlayoutRouting.VmixRegistry,
 	visionMixer: {
 		type: VisionMixerDevice.VMix,
 		host: '127.0.0.1',

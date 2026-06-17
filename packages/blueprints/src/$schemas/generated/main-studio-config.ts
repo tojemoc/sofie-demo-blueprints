@@ -18,6 +18,7 @@ export interface StudioConfig {
 	vmixSources: {
 		[k: string]: VmixInputConfig
 	}
+	playoutRouting: PlayoutRouting
 	vmixInputs?: {
 		[k: string]: VmixRegistryInputConfig
 	}
@@ -131,6 +132,10 @@ export enum SourceType {
 	MediaPlayer = 'mediaplayer',
 	Graphics = 'graphics',
 	MultiView = 'multiview',
+}
+export enum PlayoutRouting {
+	Hybrid = 'Hybrid',
+	VmixRegistry = 'VmixRegistry',
 }
 export enum AudioSourceType {
 	Host = 'host',

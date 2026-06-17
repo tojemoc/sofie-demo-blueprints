@@ -1,4 +1,4 @@
-import { SourceType, StudioConfig, VisionMixerDevice } from '../../../base/studio/helpers/config.js'
+import { SourceType, StudioConfig, VisionMixerDevice, PlayoutRouting } from '../../../base/studio/helpers/config.js'
 
 /**
  * Studio configuration for the Hello vMix integration demonstration.
@@ -9,6 +9,7 @@ import { SourceType, StudioConfig, VisionMixerDevice } from '../../../base/studi
 export const HelloVmixStudioConfig: StudioConfig = {
 	previewRenderer: '',
 	casparcgLatency: 0,
+	playoutRouting: PlayoutRouting.VmixRegistry,
 	visionMixer: {
 		type: VisionMixerDevice.VMix,
 		host: '127.0.0.1',

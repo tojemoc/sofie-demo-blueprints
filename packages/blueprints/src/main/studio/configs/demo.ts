@@ -1,8 +1,9 @@
-import { SourceType, StudioConfig, VisionMixerDevice } from '../../../base/studio/helpers/config.js'
+import { SourceType, StudioConfig, VisionMixerDevice, PlayoutRouting } from '../../../base/studio/helpers/config.js'
 
 export const DemoStudioConfig: StudioConfig = {
 	previewRenderer: 'sofie',
 	casparcgLatency: 0,
+	playoutRouting: PlayoutRouting.Hybrid,
 	visionMixer: {
 		type: VisionMixerDevice.Atem,
 		host: '0.0.0.0',

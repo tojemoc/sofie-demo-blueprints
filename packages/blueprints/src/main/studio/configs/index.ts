@@ -9,7 +9,7 @@ export const demoStudioConfigPresets: Record<string, IStudioConfigPreset<StudioC
 		config: DemoStudioConfig,
 	},
 	helloVmix: {
-		name: 'Hello vMix Demonstration',
+		name: 'vMix Registry (vMix only)',
 		config: HelloVmixStudioConfig,
 	},
 }
