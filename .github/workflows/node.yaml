@@ -3,7 +3,7 @@ name: Node CI
 on:
   push:
     branches:
-      - '**'
+      - 'vmix-demo-blueprints'
     tags:
       - 'v*'
       - '[0-9]*'
