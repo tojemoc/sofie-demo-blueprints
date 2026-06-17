@@ -8,6 +8,7 @@ import { getBaseline } from './getBaseline.js'
 import { getShowStyleId } from './getShowStyleId.js'
 import { validateConfig } from './validateConfig.js'
 import { preprocessConfig } from './preprocessConfig.js'
+import { fixUpStudioConfig } from './fixUpConfig.js'
 //import { getRundownPlaylistInfo } from './getRundownPlaylistInfo.js'
 import { applyConfig } from './applyConfig/index.js'
 import * as ConfigSchema from '../../$schemas/main-studio-config.json'
@@ -33,6 +34,7 @@ export const baseManifest: Omit<StudioBlueprintManifest<StudioConfig>, 'blueprin
 	//getRundownPlaylistInfo,
 
 	validateConfig,
+	fixUpConfig: fixUpStudioConfig,
 	applyConfig,
 	preprocessConfig,
 	// procesIngestData is a "middleware" between the ingestDataCache and the sofieIngestDataCache
