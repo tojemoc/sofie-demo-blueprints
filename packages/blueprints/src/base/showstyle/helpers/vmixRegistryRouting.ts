@@ -1,5 +1,5 @@
 import { GraphicObjectBase } from '../../../common/definitions/objects.js'
-import { StudioConfig } from '../../studio/helpers/config.js'
+import { PlayoutRouting, StudioConfig } from '../../studio/helpers/config.js'
 import { hasVmixInputRegistry, resolveVmixInput } from '../../studio/helpers/vmixInputs.js'
 import {
 	createHelloVmixInputPlaybackTimeline,
@@ -22,6 +22,12 @@ export const VMIX_REGISTRY_KEYS = {
 export type VmixRegistryKey = (typeof VMIX_REGISTRY_KEYS)[keyof typeof VMIX_REGISTRY_KEYS]
 
 export function isVmixRegistryMode(config: StudioConfig): boolean {
+	if (config.playoutRouting === PlayoutRouting.Hybrid) {
+		return false
+	}
+	if (config.playoutRouting === PlayoutRouting.VmixRegistry) {
+		return true
+	}
 	return hasVmixInputRegistry(config)
 }
 

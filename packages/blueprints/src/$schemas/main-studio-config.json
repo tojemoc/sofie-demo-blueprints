@@ -182,10 +182,20 @@
 				}
 			}
 		},
+		"playoutRouting": {
+			"type": "string",
+			"ui:title": "Playout Routing",
+			"ui:description": "How rundown parts are translated into playout commands. Hybrid uses CasparCG for graphics and media with vision-mixer switching. vMix registry routes rundown parts to vMix inputs only (no CasparCG timeline objects).",
+			"ui:category": "Playout",
+			"title": "PlayoutRouting",
+			"enum": ["Hybrid", "VmixRegistry"],
+			"tsEnumNames": ["Hybrid", "VmixRegistry"],
+			"default": "Hybrid"
+		},
 		"vmixInputs": {
 			"type": "object",
 			"ui:title": "vMix Input Registry",
-			"ui:description": "Named vMix inputs for Hello vMix demonstration and production layouts. Keys are registry names; values map to vMix input numbers or names.",
+			"ui:description": "Named vMix inputs used when playout routing is set to vMix registry. Keys are registry names (e.g. CAMERA, LOWER_THIRD); values map to vMix input numbers or names.",
 			"ui:category": "Inputs",
 			"default": {},
 			"patternProperties": {
@@ -275,6 +285,7 @@
 	"required": [
 		"previewRenderer",
 		"casparcgLatency",
+		"playoutRouting",
 		"sisyfosSources",
 		"vmixSources",
 		"atemOutputs",

@@ -1,4 +1,8 @@
-import { StudioConfig, VmixRegistryInputConfig } from '../../../$schemas/generated/main-studio-config.js'
+import {
+	StudioConfig,
+	VmixRegistryInputConfig,
+	PlayoutRouting,
+} from '../../../$schemas/generated/main-studio-config.js'
 
 export type VmixInputReference = number | string
 
@@ -36,6 +40,11 @@ function normalizeRegistryKey(key: string): string {
 
 export function validateVmixInputsRegistry(config: StudioConfig): string[] {
 	const errors: string[] = []
+
+	if (config.playoutRouting === PlayoutRouting.VmixRegistry && !hasVmixInputRegistry(config)) {
+		errors.push('vmixInputs must contain at least one entry when playout routing is set to vMix registry')
+	}
+
 	const normalizedKeyOwners = new Map<string, string>()
 
 	for (const key of Object.keys(config.vmixInputs ?? {})) {

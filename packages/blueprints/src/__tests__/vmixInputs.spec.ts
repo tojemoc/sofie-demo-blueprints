@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { StudioConfig, VisionMixerDevice, PlayoutRouting } from '../base/studio/helpers/config.js'
 import { validateVmixInputsRegistry } from '../base/studio/helpers/vmixInputs.js'
 
 const baseConfig: StudioConfig = {
 	previewRenderer: '',
 	casparcgLatency: 0,
+	playoutRouting: PlayoutRouting.Hybrid,
 	visionMixer: {
 		type: VisionMixerDevice.VMix,
 		host: '127.0.0.1',
@@ -38,6 +39,18 @@ describe('validateVmixInputsRegistry', () => {
 
 		expect(errors).toContainEqual(
 			'vmixInputs registry key collision: "LOWER-THIRD" and "LOWER_THIRD" both map to layer id "lower_third"'
+		)
+	})
+
+	it('requires vmixInputs when playout routing is vMix registry', () => {
+		const errors = validateVmixInputsRegistry({
+			...baseConfig,
+			playoutRouting: PlayoutRouting.VmixRegistry,
+			vmixInputs: {},
+		})
+
+		expect(errors).toContainEqual(
+			'vmixInputs must contain at least one entry when playout routing is set to vMix registry'
 		)
 	})
 })

@@ -240,3 +240,75 @@ jobs:
             ${{ steps.package.outputs.zip_name }}
             packages/blueprints/dist/bundle.json
           generate_release_notes: true
+
+  prerelease-blueprints:
+    name: Pre-release Blueprints
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: [lint, test]
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+
+      - name: restore node_modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Prepare Environment
+        run: |
+          corepack enable
+          yarn
+        env:
+          CI: true
+
+      - name: Build blueprints
+        run: |
+          cd packages/blueprints
+          yarn dist
+        env:
+          CI: true
+
+      - name: Package pre-release assets
+        id: package
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          ZIP_NAME="demo-blueprints-pre-${SHORT_SHA}.zip"
+          TAG_NAME="pre-${GITHUB_SHA}"
+
+          cd packages/blueprints/dist
+          zip "../../../${ZIP_NAME}" \
+            system-bundle.js \
+            demostudio-bundle.js \
+            demoshowstyle-bundle.js
+
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.tag_name }}
+          name: Pre-release ${{ steps.package.outputs.short_sha }}
+          prerelease: true
+          make_latest: false
+          body: |
+            Automated pre-release blueprint build for commit [`${{ steps.package.outputs.short_sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).
+
+            Upload the three `*-bundle.js` files from the zip into Sofie, or restore `bundle.json` in bulk.
+          files: |
+            ${{ steps.package.outputs.zip_name }}
+            packages/blueprints/dist/bundle.json
