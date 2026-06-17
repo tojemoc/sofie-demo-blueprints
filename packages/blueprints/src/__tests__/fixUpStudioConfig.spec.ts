@@ -4,10 +4,11 @@ import { StudioConfig, PlayoutRouting } from '../base/studio/helpers/config.js'
 
 describe('fixUpStudioConfig', () => {
 	it('adds vmixInputs to defaults when registry overrides are invalid', () => {
+		const defaults: Partial<StudioConfig> = {
+			playoutRouting: PlayoutRouting.VmixRegistry,
+		}
 		const configObject = {
-			defaults: {
-				playoutRouting: PlayoutRouting.VmixRegistry,
-			} satisfies Partial<StudioConfig>,
+			defaults,
 			overrides: [],
 		}
 
