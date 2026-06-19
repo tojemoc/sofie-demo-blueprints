@@ -161,13 +161,13 @@ describe('vmixRegistryRouting', () => {
 		expect(result.pieces[0]?.expectedPackages).toBeUndefined()
 	})
 
-	it('routes l3d pieces to LOWER_THIRD overlay layer', () => {
+	it('routes l3d pieces to LOWER_THIRD with GT text and overlay', () => {
 		const result = parseGraphicsFromObjects(helloVmixConfig, [
 			{
 				id: 'l3d1',
 				objectType: ObjectType.Graphic,
 				clipName: 'gfx/l3d',
-				objectTime: 0,
+				objectTime: 3000,
 				duration: 5000,
 				isAdlib: false,
 				attributes: {
@@ -177,9 +177,21 @@ describe('vmixRegistryRouting', () => {
 			},
 		])
 
-		const timeline = result.pieces[0]?.content.timelineObjects ?? []
+		const piece = result.pieces[0]
+		expect(piece?.enable).toEqual({ start: 3000, duration: 5000 })
+
+		const timeline = piece?.content.timelineObjects ?? []
+		const textInput = timeline.find(
+			(obj): obj is typeof obj & { content: TSR.TimelineContentVMixInput } =>
+				obj.layer === 'vmix_input_lower_third' &&
+				obj.content.deviceType === TSR.DeviceType.VMIX &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeVMix.INPUT
+		)
 		const overlay = timeline.find((obj) => obj.layer === 'vmix_overlay_lower_third')
 
+		expect(textInput?.enable).toEqual({ start: 0 })
+		expect(textInput?.content.text).toEqual({ Name: 'Guest', Description: 'Reporter' })
 		expect(overlay && 'type' in overlay.content && overlay.content.type === TSR.TimelineContentTypeVMix.OVERLAY).toBe(
 			true
 		)
