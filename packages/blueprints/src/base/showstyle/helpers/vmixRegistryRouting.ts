@@ -2,6 +2,7 @@ import { GraphicObjectBase } from '../../../common/definitions/objects.js'
 import { PlayoutRouting, StudioConfig } from '../../studio/helpers/config.js'
 import { hasVmixInputRegistry, resolveVmixInput } from '../../studio/helpers/vmixInputs.js'
 import {
+	createHelloVmixGraphicTimeline,
 	createHelloVmixInputPlaybackTimeline,
 	createHelloVmixOverlayTimeline,
 	createHelloVmixProgramTimeline,
@@ -60,6 +61,14 @@ export function createRegistryProgramTimeline(config: StudioConfig, registryKey:
 
 export function createRegistryOverlayTimeline(config: StudioConfig, registryKey: string): TimelineBlueprintExt[] {
 	return createHelloVmixOverlayTimeline(config, registryKey)
+}
+
+export function createRegistryGraphicTimeline(
+	config: StudioConfig,
+	registryKey: string,
+	attributes: Record<string, unknown>
+): TimelineBlueprintExt[] {
+	return createHelloVmixGraphicTimeline(config, registryKey, attributes)
 }
 
 export function createRegistryInputPlaybackTimeline(config: StudioConfig, registryKey: string): TimelineBlueprintExt[] {

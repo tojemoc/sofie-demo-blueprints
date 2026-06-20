@@ -12,7 +12,7 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { getClipPlayerInput } from './clips.js'
 import {
-	createRegistryOverlayTimeline,
+	createRegistryGraphicTimeline,
 	hasRegistryEntry,
 	isVmixRegistryMode,
 	resolveGraphicPieceRegistryKey,
@@ -96,7 +96,7 @@ function getGraphicTlObject(
 ): TimelineBlueprintExt[] {
 	const registryKey = resolveGraphicPieceRegistryKey(object)
 	if (registryKey && hasRegistryEntry(config, registryKey)) {
-		return createRegistryOverlayTimeline(config, registryKey)
+		return createRegistryGraphicTimeline(config, registryKey, object.attributes)
 	}
 
 	return createDefaultGraphicTimeline(config, object, isAdlib)
