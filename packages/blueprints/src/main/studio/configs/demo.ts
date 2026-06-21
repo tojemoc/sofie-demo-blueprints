@@ -20,6 +20,7 @@ export const DemoStudioConfig: StudioConfig = {
 	},
 	sisyfosSources: {},
 	vmixSources: {},
+	vmixAutomationMacros: {},
 	atemOutputs: {},
 	atemSources: {
 		camera1: { input: 1, type: SourceType.Camera },

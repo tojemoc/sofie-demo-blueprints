@@ -171,9 +171,81 @@
 					},
 					"type": {
 						"$ref": "#/$defs/SourceType"
+					},
+					"label": {
+						"type": "string",
+						"ui:title": "Label",
+						"ui:description": "Human-readable name matching the vMix input title (used in adLib shelves)",
+						"ui:summaryTitle": "Label"
+					},
+					"category": {
+						"$ref": "#/$defs/VmixSourceCategory"
+					},
+					"overlayChannel": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 4,
+						"ui:title": "Overlay Channel",
+						"ui:description": "Default vMix overlay channel (1-4) when this source is used as a graphic overlay",
+						"ui:summaryTitle": "Overlay"
+					},
+					"defaultVolume": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 100,
+						"ui:title": "Default Volume",
+						"ui:description": "Default audio volume (0-100) when cutting to this source",
+						"ui:summaryTitle": "Volume"
+					},
+					"inputLayer": {
+						"type": "string",
+						"ui:title": "Input Layer",
+						"ui:description": "vMix 27+ input layer name, when the source is a layer on a composite input"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"ui:title": "Tags",
+						"ui:description": "Free-form tags for grouping sources in adLib shelves (e.g. studio, spravy, weather)"
 					}
 				},
 				"required": ["input", "type"]
+			}
+		},
+		"vmixAutomationMacros": {
+			"type": "object",
+			"ui:title": "vMix Automation Macros",
+			"ui:description": "Companion-style multi-step automations mapped to Sofie adLib actions",
+			"ui:category": "Automations",
+			"additionalProperties": {
+				"type": "object",
+				"title": "VmixAutomationMacro",
+				"properties": {
+					"label": {
+						"type": "string",
+						"ui:title": "Label",
+						"ui:description": "Display name shown in the Sofie shelf",
+						"ui:summaryTitle": "Label"
+					},
+					"tags": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"ui:title": "Tags",
+						"ui:description": "Shelf grouping tags (e.g. studio-master, spravy, weather)"
+					},
+					"steps": {
+						"type": "array",
+						"ui:title": "Steps",
+						"items": {
+							"$ref": "#/$defs/VmixAutomationStep"
+						}
+					}
+				},
+				"required": ["label", "steps"]
 			}
 		},
 		"sisyfosSources": {
@@ -227,6 +299,7 @@
 		"casparcgLatency",
 		"sisyfosSources",
 		"vmixSources",
+		"vmixAutomationMacros",
 		"atemOutputs",
 		"atemSources",
 		"visionMixer",
@@ -244,6 +317,108 @@
 			"ui:description": "Input Type",
 			"ui:summaryTitle": "Type",
 			"default": "camera"
+		},
+		"VmixSourceCategory": {
+			"title": "VmixSourceCategory",
+			"type": "string",
+			"enum": ["video", "technical", "graphics"],
+			"tsEnumNames": ["Video", "Technical", "Graphics"],
+			"ui:title": "Category",
+			"ui:description": "Broad category for shelf grouping (video = live/VT, technical = mix buses/stingers, graphics = titles/overlays)",
+			"ui:summaryTitle": "Category",
+			"default": "video"
+		},
+		"VmixAutomationStep": {
+			"title": "VmixAutomationStep",
+			"type": "object",
+			"properties": {
+				"action": {
+					"type": "string",
+					"title": "VmixAutomationAction",
+					"enum": [
+						"programCut",
+						"previewInput",
+						"overlayIn",
+						"overlayOut",
+						"overlayOff",
+						"audioVolume",
+						"videoPlay",
+						"videoPause",
+						"videoRestart",
+						"wait",
+						"tsrAction",
+						"httpGet"
+					],
+					"tsEnumNames": [
+						"ProgramCut",
+						"PreviewInput",
+						"OverlayIn",
+						"OverlayOut",
+						"OverlayOff",
+						"AudioVolume",
+						"VideoPlay",
+						"VideoPause",
+						"VideoRestart",
+						"Wait",
+						"TsrAction",
+						"HttpGet"
+					],
+					"ui:title": "Action",
+					"ui:description": "Companion-equivalent operation type"
+				},
+				"sourceKey": {
+					"type": "string",
+					"ui:title": "Source Key",
+					"ui:description": "Key from vmixSources to resolve input number (e.g. cam1, stinger_headline)"
+				},
+				"input": {
+					"type": "integer",
+					"ui:title": "Input",
+					"ui:description": "Explicit vMix input number (overrides sourceKey)"
+				},
+				"overlayChannel": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 4,
+					"ui:title": "Overlay Channel",
+					"ui:description": "Overlay channel 1-4 (for overlayIn/Out/Off)"
+				},
+				"volume": {
+					"type": "integer",
+					"minimum": 0,
+					"maximum": 100,
+					"ui:title": "Volume",
+					"ui:description": "Audio volume 0-100 (for audioVolume)"
+				},
+				"fadeMs": {
+					"type": "integer",
+					"minimum": 0,
+					"ui:title": "Fade (ms)",
+					"ui:description": "Audio fade duration in milliseconds"
+				},
+				"delayMs": {
+					"type": "integer",
+					"minimum": 0,
+					"ui:title": "Delay (ms)",
+					"ui:description": "Wait duration in milliseconds (for wait action)"
+				},
+				"tsrActionId": {
+					"type": "string",
+					"ui:title": "TSR Action ID",
+					"ui:description": "TSR action name (e.g. browserReload, lastPreset)"
+				},
+				"tsrActionPayload": {
+					"type": "object",
+					"ui:title": "TSR Action Payload",
+					"ui:description": "JSON payload for the TSR action"
+				},
+				"url": {
+					"type": "string",
+					"ui:title": "HTTP URL",
+					"ui:description": "URL for httpGet (Companion HTTP module equivalent)"
+				}
+			},
+			"required": ["action"]
 		}
 	}
 }

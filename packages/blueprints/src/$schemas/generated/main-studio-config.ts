@@ -18,6 +18,9 @@ export interface StudioConfig {
 	vmixSources: {
 		[k: string]: VmixInputConfig
 	}
+	vmixAutomationMacros: {
+		[k: string]: VmixAutomationMacro
+	}
 	sisyfosSources: {
 		[k: string]: SiyfosSourceConfig
 	}
@@ -72,34 +75,41 @@ export interface CasparCGConfig {
 	 */
 	port: number
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface InputConfig {
 	input: number
 	type: SourceType
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface OutputConfig {
 	output: number
 	source: number
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface VmixInputConfig {
 	input: number
 	type: SourceType
+	label?: string
+	category?: VmixSourceCategory
+	overlayChannel?: number
+	defaultVolume?: number
+	inputLayer?: string
+	tags?: string[]
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
+export interface VmixAutomationMacro {
+	label: string
+	tags?: string[]
+	steps: VmixAutomationStep[]
+}
+export interface VmixAutomationStep {
+	action: VmixAutomationAction
+	sourceKey?: string
+	input?: number
+	overlayChannel?: number
+	volume?: number
+	fadeMs?: number
+	delayMs?: number
+	tsrActionId?: string
+	tsrActionPayload?: {}
+	url?: string
+}
 export interface SiyfosSourceConfig {
 	source: number
 	type: AudioSourceType
@@ -118,6 +128,25 @@ export enum SourceType {
 	MediaPlayer = 'mediaplayer',
 	Graphics = 'graphics',
 	MultiView = 'multiview',
+}
+export enum VmixSourceCategory {
+	Video = 'video',
+	Technical = 'technical',
+	Graphics = 'graphics',
+}
+export enum VmixAutomationAction {
+	ProgramCut = 'programCut',
+	PreviewInput = 'previewInput',
+	OverlayIn = 'overlayIn',
+	OverlayOut = 'overlayOut',
+	OverlayOff = 'overlayOff',
+	AudioVolume = 'audioVolume',
+	VideoPlay = 'videoPlay',
+	VideoPause = 'videoPause',
+	VideoRestart = 'videoRestart',
+	Wait = 'wait',
+	TsrAction = 'tsrAction',
+	HttpGet = 'httpGet',
 }
 export enum AudioSourceType {
 	Host = 'host',
