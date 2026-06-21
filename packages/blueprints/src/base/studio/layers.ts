@@ -10,7 +10,14 @@ export enum VMixLayers {
 	VMixMeProgram = 'vmix_me_program',
 	VMixMePreview = 'vmix_me_preview',
 	VMixOverlayGraphics = 'vmix_overlay_graphics',
+	VMixOverlay2 = 'vmix_overlay_2',
+	VMixOverlay3 = 'vmix_overlay_3',
+	VMixOverlay4 = 'vmix_overlay_4',
 	VMixDVEMultiView = 'vmix_dve_multiview',
+	VMixRecording = 'vmix_recording',
+	VMixStreaming = 'vmix_streaming',
+	VMixExternal = 'vmix_external',
+	VMixFadeToBlack = 'vmix_fade_to_black',
 }
 
 export enum CasparCGLayers {

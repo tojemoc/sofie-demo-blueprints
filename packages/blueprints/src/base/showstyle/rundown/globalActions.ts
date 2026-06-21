@@ -7,11 +7,15 @@ import { literal, t } from '../../../common/util.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { ActionId } from '../executeActions/actionDefinitions.js'
 import { exampleGraphicNextStepAdlibAction } from '../executeActions/steppedGraphicExample.js'
+import { getVmixAutomationActionManifests } from '../executeActions/vmixAutomation.js'
+import { parseConfig } from '../helpers/config.js'
 
 export function getGlobalActions(
-	_context: IShowStyleUserContext,
+	context: IShowStyleUserContext,
 	ingestRundown: ExtendedIngestRundown
 ): IBlueprintActionManifest[] {
+	const config = parseConfig(context).studio
+
 	return [
 		literal<IBlueprintActionManifest>({
 			actionId: ActionId.LastRemote,
@@ -36,5 +40,6 @@ export function getGlobalActions(
 			externalId: ingestRundown.externalId,
 		}),
 		exampleGraphicNextStepAdlibAction(ingestRundown),
+		...getVmixAutomationActionManifests(config, ingestRundown.externalId),
 	]
 }

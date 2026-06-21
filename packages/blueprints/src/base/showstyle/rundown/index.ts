@@ -12,6 +12,7 @@ import { RundownMetadata } from '../helpers/metadata.js'
 import { getBaseline } from './baseline.js'
 import { getGlobalActions } from './globalActions.js'
 import { getGlobalAdlibs } from './globalAdlibs.js'
+import { getGlobalVmixAdlibs } from './globalVmixAdlibs.js'
 
 export function getRundown(
 	context: IShowStyleUserContext,
@@ -41,7 +42,7 @@ export function getRundown(
 
 	const res: BlueprintResultRundown = {
 		rundown,
-		globalAdLibPieces: getGlobalAdlibs(context),
+		globalAdLibPieces: [...getGlobalAdlibs(context), ...getGlobalVmixAdlibs(context)],
 		globalActions: getGlobalActions(context, ingestRundown),
 		baseline: getBaseline(context),
 	}
