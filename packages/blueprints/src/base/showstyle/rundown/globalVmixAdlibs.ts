@@ -52,7 +52,8 @@ export function getGlobalVmixAdlibs(context: IShowStyleUserContext): IBlueprintA
 		if (source.type === SourceType.MultiView) continue
 
 		const baseRank = categoryRank(source.category)
-		const tagOffset = (source.tags?.[0]?.charCodeAt(0) ?? 0) % 20
+		const firstTag = source.tags?.[0]
+		const tagOffset = firstTag && firstTag.length > 0 ? firstTag.charCodeAt(0) % 20 : 0
 		const sourceLayer = sourceLayerForType(source.type)
 		const outputLayer = getOutputLayerForSourceLayer(sourceLayer)
 
@@ -66,12 +67,7 @@ export function getGlobalVmixAdlibs(context: IShowStyleUserContext): IBlueprintA
 				outputLayerId: outputLayer,
 				tags: ['vmix', 'program', ...(source.tags ?? [])],
 				content: {
-					timelineObjects: createVMixProgramCutPieceContent(
-						config,
-						source.input,
-						0,
-						source.defaultVolume
-					),
+					timelineObjects: createVMixProgramCutPieceContent(config, source.input, 0, source.defaultVolume),
 				},
 			})
 		)
@@ -91,7 +87,11 @@ export function getGlobalVmixAdlibs(context: IShowStyleUserContext): IBlueprintA
 			})
 		)
 
-		if (source.type === SourceType.Graphics || source.overlayChannel || source.category === VmixSourceCategory.Graphics) {
+		if (
+			source.type === SourceType.Graphics ||
+			source.overlayChannel ||
+			source.category === VmixSourceCategory.Graphics
+		) {
 			const overlayChannel = resolveVmixOverlayChannel(config, source.key, source.overlayChannel)
 
 			adlibs.push(

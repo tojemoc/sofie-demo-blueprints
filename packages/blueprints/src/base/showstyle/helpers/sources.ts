@@ -24,16 +24,24 @@ export function findSource(input: string | number | boolean | undefined, type: S
 }
 
 export function getSourceInfoFromRaw(config: StudioConfig, rawInfo: RawSourceInfo): SourceInfo {
-	let sourcesOfType = Object.values<InputConfig>(config.atemSources).filter((s) => s.type === rawInfo.type)
+	let sourcesOfType: Array<InputConfig | VmixInputConfig>
 
 	if (config.visionMixer.type === VisionMixerDevice.VMix) {
+		if (!config.vmixSources) {
+			return { ...rawInfo, input: 0 }
+		}
 		sourcesOfType = Object.values<VmixInputConfig>(config.vmixSources).filter((s) => s.type === rawInfo.type)
+	} else {
+		sourcesOfType = Object.values<InputConfig>(config.atemSources).filter((s) => s.type === rawInfo.type)
 	}
 
-	const input = sourcesOfType[rawInfo.id - 1]
+	const sourceIndex = rawInfo.id - 1
+	if (sourceIndex < 0 || sourceIndex >= sourcesOfType.length) {
+		return { ...rawInfo, input: 0 }
+	}
 
 	return {
 		...rawInfo,
-		input: input && input.input,
+		input: sourcesOfType[sourceIndex]?.input ?? 0,
 	}
 }

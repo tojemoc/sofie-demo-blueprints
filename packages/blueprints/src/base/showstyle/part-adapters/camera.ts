@@ -17,6 +17,9 @@ import { parseConfig } from '../helpers/config.js'
 export function generateCameraPart(context: PartContext, part: PartProps<CameraProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
+	if (!sourceInfo.input) {
+		throw new Error(`Invalid camera source: ${sourceInfo.type} ${sourceInfo.id}`)
+	}
 
 	const audioTlObj = getAudioPrimaryObject(config, [{ type: AudioSourceType.Host, index: 0 }]) // todo: all hosts?
 
