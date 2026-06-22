@@ -6,6 +6,8 @@ sidebar_position: 10
 
 This guide walks through connecting Sofie to vMix for the **Hello vMix** proof-of-integration workflow. It assumes you have Sofie Core (r53+), Playout Gateway, and vMix on the same network, but **no prior vMix + Sofie experience**.
 
+> **Broader routing map:** This preset uses **vMix registry** mode (fixed keys like `CAMERA`, `LOWER_THIRD`). For Hybrid mode, shelf ad-libs, macros, and Správy production gaps, see [Where vMix input selection is configured](./vmix/input-routing-guide.md).
+
 ## What this demonstrates
 
 A single Rundown Editor rundown can drive observable vMix changes:

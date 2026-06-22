@@ -2,6 +2,8 @@
 
 The demo blueprints include extended vMix support beyond the basic camera/remote adLibs.
 
+> **Where does input selection happen?** See [Where vMix input selection is configured](./input-routing-guide.md) for rundown vs shelf vs macro routing, Rundown Editor fields, and Správy workflow gaps.
+
 ## Studio config preset
 
 Use the **vMix Studio (granular sources + Companion macros)** preset in Studio Blueprint Config, or set `visionMixer.type` to `Vmix` manually.
@@ -36,7 +38,7 @@ Set `overlayChannel` on a source to target a specific bus.
 
 Define multi-step sequences in `vmixAutomationMacros`. These map to Companion button action chains.
 
-See [Granular vMix sources](./granular-sources.md) and the [Companion import tool](./companion-import-tool.md) for bulk migration from Companion backups.
+See the [Companion import tool](./companion-import-tool.md) for bulk migration from Companion backups.
 
 ## TSR mappings added per source
 
