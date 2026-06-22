@@ -108,12 +108,13 @@ function flattenStepActions(steps) {
 		for (const step of steps) {
 			if (!step || typeof step !== 'object') continue
 			const typed = /** @type {Record<string, unknown>} */ (step)
+			const actionSets = /** @type {Record<string, unknown>} */ (typed.action_sets ?? typed)
 			for (const key of ['down', 'up', 'rotate_left', 'rotate_right']) {
-				const bucket = typed[key]
+				const bucket = actionSets[key]
 				if (Array.isArray(bucket)) actions.push(...bucket)
 			}
 			for (const [key, value] of Object.entries(typed)) {
-				if (['down', 'up', 'rotate_left', 'rotate_right', 'name'].includes(key)) continue
+				if (['down', 'up', 'rotate_left', 'rotate_right', 'name', 'action_sets'].includes(key)) continue
 				if (value && typeof value === 'object' && 'actions' in value) {
 					const nested = /** @type {{ actions?: unknown[] }} */ (value).actions
 					if (Array.isArray(nested)) actions.push(...nested)

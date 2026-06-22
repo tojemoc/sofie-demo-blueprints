@@ -31,7 +31,7 @@ export function createVMixOverlayTimelineObject(
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixOverlay>>({
 		id: '',
 		enable: { start },
-		layer: getVmixLayerForOverlayChannel(overlayChannel) as VMixLayers,
+		layer: getVmixLayerForOverlayChannel(overlayChannel),
 		content: {
 			deviceType: TSR.DeviceType.VMIX,
 			type: TSR.TimelineContentTypeVMix.OVERLAY,
@@ -48,7 +48,7 @@ export function createVMixOverlayOffTimelineObject(
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixOverlay>>({
 		id: '',
 		enable: { start },
-		layer: getVmixLayerForOverlayChannel(overlayChannel) as VMixLayers,
+		layer: getVmixLayerForOverlayChannel(overlayChannel),
 		content: {
 			deviceType: TSR.DeviceType.VMIX,
 			type: TSR.TimelineContentTypeVMix.OVERLAY,

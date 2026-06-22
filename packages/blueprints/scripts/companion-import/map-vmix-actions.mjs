@@ -1,9 +1,4 @@
-import {
-	isDynamicCompanionExpression,
-	normalizeActionId,
-	parseInputNumber,
-	pickOption,
-} from './util.mjs'
+import { isDynamicCompanionExpression, normalizeActionId, parseInputNumber, parseVmixInputNumber, pickOption } from './util.mjs'
 
 /**
  * @typedef {object} MappedStep
@@ -78,7 +73,7 @@ function mapSingleAction(action, vmixInstance, httpInstance) {
 		return { warning: `Unmapped action "${action.actionId}" on connection "${action.connectionLabel}"` }
 	}
 
-	const input = parseInputNumber(pickOption(options, ['input', 'Input', 'inputNumber']))
+	const input = parseVmixInputNumber(pickOption(options, ['input', 'Input', 'inputNumber']))
 	const overlayChannel = parseInputNumber(pickOption(options, ['mix', 'overlay', 'overlayChannel', 'channel']))
 
 	if (actionId.includes('programcut') || actionId === 'cut' || actionId.includes('transition') && pickOption(options, ['function', 'transition']) === 'Cut') {
@@ -158,15 +153,13 @@ function mapSingleAction(action, vmixInstance, httpInstance) {
 	if (actionId.includes('title') && (actionId.includes('text') || actionId.includes('adjust'))) {
 		if (input === undefined) return { warning: `titleSetText missing input (${action.actionId})` }
 		const text = String(pickOption(options, ['value', 'text', 'title']) ?? '')
-		const layer = pickOption(options, ['layer', 'index', 'field'])
 		const host = String(vmixInstance?.config?.host ?? '127.0.0.1')
 		const port = Number(vmixInstance?.config?.port ?? 8088)
 		const selectedName = encodeURIComponent(String(pickOption(options, ['selectedName', 'name']) ?? ''))
 		const value = encodeURIComponent(text)
-		const url =
-			selectedName && layer !== undefined
-				? `http://${host}:${port}/api/?Function=SetText&Input=${input}&SelectedName=${selectedName}&Value=${value}`
-				: `http://${host}:${port}/api/?Function=SetText&Input=${input}&Value=${value}`
+		const url = selectedName
+			? `http://${host}:${port}/api/?Function=SetText&Input=${input}&SelectedName=${selectedName}&Value=${value}`
+			: `http://${host}:${port}/api/?Function=SetText&Input=${input}&Value=${value}`
 		if (isDynamicCompanionExpression(text)) {
 			return {
 				input,

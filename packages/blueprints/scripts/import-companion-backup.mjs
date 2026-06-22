@@ -25,6 +25,20 @@ Example:
 
 /**
  * @param {string[]} argv
+ * @param {number} index
+ * @param {string} optionName
+ * @returns {string}
+ */
+function readOptionValue(argv, index, optionName) {
+	const value = argv[index]
+	if (value === undefined || value.startsWith('--')) {
+		throw new Error(`Missing value for ${optionName}`)
+	}
+	return value
+}
+
+/**
+ * @param {string[]} argv
  */
 function parseArgs(argv) {
 	/** @type {{ backupPath?: string; vmixXmlPath?: string; outPath: string; reportPath: string; includeAllInputs: boolean; deviceId: string; help: boolean }} */
@@ -42,15 +56,15 @@ function parseArgs(argv) {
 		if (arg === '--help' || arg === '-h') {
 			args.help = true
 		} else if (arg === '--vmix-xml') {
-			args.vmixXmlPath = resolve(argv[++i])
+			args.vmixXmlPath = resolve(readOptionValue(argv, ++i, arg))
 		} else if (arg === '--out') {
-			args.outPath = resolve(argv[++i])
+			args.outPath = resolve(readOptionValue(argv, ++i, arg))
 		} else if (arg === '--report') {
-			args.reportPath = resolve(argv[++i])
+			args.reportPath = resolve(readOptionValue(argv, ++i, arg))
 		} else if (arg === '--include-all-inputs') {
 			args.includeAllInputs = true
 		} else if (arg === '--device-id') {
-			args.deviceId = argv[++i]
+			args.deviceId = readOptionValue(argv, ++i, arg)
 		} else if (arg.startsWith('-')) {
 			throw new Error(`Unknown option: ${arg}`)
 		} else {

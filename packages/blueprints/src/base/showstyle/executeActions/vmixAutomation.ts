@@ -163,22 +163,37 @@ function stepToTimelineObjects(
 async function executeHttpStep(context: IActionExecutionContext, url: string): Promise<void> {
 	const controller = new AbortController()
 	const timeoutId = setTimeout(() => controller.abort(), 8000)
+	const safeUrl = redactUrlForLog(url)
 
 	try {
 		const response = await fetch(url, { signal: controller.signal })
 		if (!response.ok) {
-			context.notifyUserWarning(`HTTP ${response.status} for ${url}`)
+			context.notifyUserWarning(`HTTP ${response.status} for ${safeUrl}`)
 		}
 	} catch (err) {
 		if (err instanceof DOMException && err.name === 'AbortError') {
-			context.notifyUserWarning(`HTTP request timed out: ${url}`)
-			context.logWarning(`HTTP request timed out: ${url}`)
+			context.notifyUserWarning(`HTTP request timed out: ${safeUrl}`)
+			context.logWarning(`HTTP request timed out: ${safeUrl}`)
 		} else {
-			context.notifyUserWarning(`HTTP request failed: ${url}`)
-			context.logWarning(`HTTP request failed: ${url} - ${err}`)
+			context.notifyUserWarning(`HTTP request failed: ${safeUrl}`)
+			context.logWarning(`HTTP request failed: ${safeUrl} - ${err}`)
 		}
 	} finally {
 		clearTimeout(timeoutId)
+	}
+}
+
+function redactUrlForLog(url: string): string {
+	try {
+		const parsed = new URL(url)
+		for (const [key] of parsed.searchParams.entries()) {
+			if (/token|secret|password|apikey|auth/i.test(key)) {
+				parsed.searchParams.set(key, '***')
+			}
+		}
+		return parsed.toString()
+	} catch {
+		return '[invalid URL]'
 	}
 }
 
@@ -193,16 +208,21 @@ async function executeTsrStep(
 		return
 	}
 
-	const devices = await context.listPlayoutDevices()
-	const vmixDevice = devices.find(
-		(device) => device.deviceType === TSR.DeviceType.VMIX && String(device.deviceId) === config.visionMixer.deviceId
-	)
-	if (!vmixDevice) {
-		context.notifyUserWarning('vMix playout device not found for TSR action')
-		return
-	}
+	try {
+		const devices = await context.listPlayoutDevices()
+		const vmixDevice = devices.find(
+			(device) => device.deviceType === TSR.DeviceType.VMIX && String(device.deviceId) === config.visionMixer.deviceId
+		)
+		if (!vmixDevice) {
+			context.notifyUserWarning('vMix playout device not found for TSR action')
+			return
+		}
 
-	await context.executeTSRAction(vmixDevice.deviceId, step.tsrActionId, step.tsrActionPayload ?? {})
+		await context.executeTSRAction(vmixDevice.deviceId, step.tsrActionId, step.tsrActionPayload ?? {})
+	} catch (err) {
+		context.notifyUserWarning(`vMix macro TSR step failed: ${step.tsrActionId}`)
+		context.logWarning(`vMix macro TSR step failed (${step.tsrActionId}): ${err}`)
+	}
 }
 
 export async function executeVmixAutomationMacro(context: IActionExecutionContext, macroKey: string): Promise<void> {

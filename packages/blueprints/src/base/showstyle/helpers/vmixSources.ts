@@ -1,4 +1,5 @@
 import { SourceType, StudioConfig, VisionMixerDevice, VmixInputConfig } from '../../studio/helpers/config.js'
+import { VMixLayers } from '../../studio/layers.js'
 
 export interface ResolvedVmixSource extends VmixInputConfig {
 	key: string
@@ -37,17 +38,17 @@ export function resolveVmixOverlayChannel(config: StudioConfig, sourceKey?: stri
 	return 1
 }
 
-export function getVmixLayerForOverlayChannel(channel: number): string {
+export function getVmixLayerForOverlayChannel(channel: number): VMixLayers {
 	switch (channel) {
 		case 1:
-			return 'vmix_overlay_graphics'
+			return VMixLayers.VMixOverlayGraphics
 		case 2:
-			return 'vmix_overlay_2'
+			return VMixLayers.VMixOverlay2
 		case 3:
-			return 'vmix_overlay_3'
+			return VMixLayers.VMixOverlay3
 		case 4:
-			return 'vmix_overlay_4'
+			return VMixLayers.VMixOverlay4
 		default:
-			return 'vmix_overlay_graphics'
+			return VMixLayers.VMixOverlayGraphics
 	}
 }

@@ -71,7 +71,7 @@ Your colleague's writeup maps to Sofie like this:
 
 Companion URLs like:
 
-```
+```http
 http://10.33.182.163:8088/api/?Function=AddInput&Value=Video|$(Google_Sheets:0_Sheet1_A24)\HEADLINE1.mov
 ```
 

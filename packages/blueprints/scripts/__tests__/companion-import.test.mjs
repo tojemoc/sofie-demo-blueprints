@@ -62,3 +62,84 @@ test('generateStudioConfig maps macros and sources', async () => {
 	assert.ok(loadSteps.some((s) => s.action === 'httpGet' && s.url?.includes('AddInput')))
 	assert.ok(loadSteps.some((s) => s.action === 'httpGet' && s.url?.includes('{{RUNDOWN_PATH}}')))
 })
+
+test('parseCompanionBackup reads legacy array steps with action_sets', async () => {
+	const backup = {
+		version: 9,
+		type: 'full',
+		instances: {
+			vmix0: { instance_type: 'vmix', label: 'vMix', config: { host: '127.0.0.1', port: 8088 } },
+		},
+		pages: {
+			'1': {
+				name: 'TEST',
+				controls: {
+					btn: {
+						type: 'button',
+						style: { text: 'Legacy Cut' },
+						steps: [
+							{
+								action_sets: {
+									down: [
+										{
+											actionId: 'programCut',
+											instance: 'vmix0',
+											options: { input: '1' },
+										},
+									],
+									up: [],
+								},
+							},
+						],
+					},
+				},
+			},
+		},
+	}
+
+	const parsed = parseCompanionBackup(backup)
+	assert.equal(parsed.buttons.length, 1)
+	assert.equal(parsed.buttons[0].actions.length, 1)
+	assert.equal(parsed.buttons[0].actions[0].actionId, 'programCut')
+})
+
+test('generateStudioConfig reuses source keys for repeated input numbers', async () => {
+	const backup = {
+		version: 9,
+		type: 'full',
+		instances: {
+			vmix0: { instance_type: 'vmix', label: 'vMix', config: { host: '127.0.0.1', port: 8088 } },
+		},
+		pages: {
+			'1': {
+				name: 'TEST',
+				controls: {
+					btn: {
+						type: 'button',
+						style: { text: 'Multi Cut' },
+						steps: {
+							'0': {
+								action_sets: {
+									down: [
+										{ actionId: 'programCut', instance: 'vmix0', options: { input: '30' } },
+										{ actionId: 'videoPlay', instance: 'vmix0', options: { input: '30' } },
+									],
+									up: [],
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	const parsed = parseCompanionBackup(backup)
+	const result = generateStudioConfig(parsed, [{ input: 30, title: 'ILU Player', type: 'VideoList' }])
+	const sourceKeys = Object.keys(result.studioConfig.vmixSources)
+
+	assert.equal(sourceKeys.length, 1)
+	const macro = Object.values(result.studioConfig.vmixAutomationMacros)[0]
+	const steps = /** @type {{ sourceKey?: string }[]} */ (/** @type {{ steps: unknown }} */ (macro).steps)
+	assert.equal(steps[0]?.sourceKey, steps[1]?.sourceKey)
+})

@@ -437,6 +437,7 @@
 				},
 				"input": {
 					"type": "integer",
+					"minimum": 1,
 					"ui:title": "Input",
 					"ui:description": "Explicit vMix input number (overrides sourceKey)"
 				},

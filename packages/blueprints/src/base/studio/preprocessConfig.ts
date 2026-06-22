@@ -11,6 +11,7 @@ export function preprocessConfig(
 		studio: literal<Partial<StudioConfig>>({
 			playoutRouting: PlayoutRouting.Hybrid,
 			vmixInputs: {},
+			vmixAutomationMacros: {},
 			...config,
 		}) as StudioConfig,
 	}

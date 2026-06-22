@@ -13,7 +13,7 @@ export function parseVmixProjectXml(xml) {
 	for (const match of xml.matchAll(inputTagRegex)) {
 		const attrs = parseAttributes(match[1] ?? '')
 		const input = Number(attrs.number)
-		if (!Number.isFinite(input)) continue
+		if (!Number.isInteger(input) || input <= 0) continue
 
 		inputs.push({
 			input,

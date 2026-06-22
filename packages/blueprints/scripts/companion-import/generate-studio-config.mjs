@@ -49,6 +49,34 @@ function inferTagsFromTitle(title) {
 }
 
 /**
+ * @param {Record<string, unknown>} vmixSources
+ * @param {number} input
+ * @returns {string | undefined}
+ */
+function findSourceKeyForInput(vmixSources, input) {
+	for (const [key, source] of Object.entries(vmixSources)) {
+		if (/** @type {{ input?: number }} */ (source).input === input) return key
+	}
+	return undefined
+}
+
+/**
+ * @param {number} input
+ * @param {Map<number, { title: string; type: string }>} xmlInputMap
+ * @param {Set<string>} usedKeys
+ * @param {Record<string, unknown>} vmixSources
+ * @returns {string}
+ */
+function ensureSourceKey(input, xmlInputMap, usedKeys, vmixSources) {
+	const existing = findSourceKeyForInput(vmixSources, input)
+	if (existing) return existing
+
+	const source = sourceFromInput(input, xmlInputMap, usedKeys)
+	vmixSources[source.key] = source.config
+	return source.key
+}
+
+/**
  * @param {import('./parse-backup.mjs').ReturnType<import('./parse-backup.mjs').parseCompanionBackup>} parsed
  * @param {Array<{ input: number; title: string; type: string }>} [vmixXmlInputs]
  * @param {GenerateOptions} [options]
@@ -91,10 +119,9 @@ export function generateStudioConfig(parsed, vmixXmlInputs = [], options = {}) {
 			tags: [...new Set([...(options.defaultTags ?? []), ...pageTags])],
 			steps: mapped.steps.map((step) => {
 				if (step.input !== undefined) {
-					const source = sourceFromInput(step.input, xmlInputMap, usedSourceKeys)
-					vmixSources[source.key] = source.config
+					const sourceKey = ensureSourceKey(step.input, xmlInputMap, usedSourceKeys, vmixSources)
 					const { input: _input, ...rest } = step
-					return { ...rest, sourceKey: source.key }
+					return { ...rest, sourceKey }
 				}
 				return step
 			}),
@@ -102,11 +129,8 @@ export function generateStudioConfig(parsed, vmixXmlInputs = [], options = {}) {
 	}
 
 	for (const input of referencedInputs) {
-		if ([...usedSourceKeys].some((key) => vmixSources[key] && /** @type {{ input: number }} */ (vmixSources[key]).input === input)) {
-			continue
-		}
-		const source = sourceFromInput(input, xmlInputMap, usedSourceKeys)
-		vmixSources[source.key] = source.config
+		if (findSourceKeyForInput(vmixSources, input)) continue
+		ensureSourceKey(input, xmlInputMap, usedSourceKeys, vmixSources)
 	}
 
 	const vmixHost = String(parsed.vmixInstance?.config?.host ?? '127.0.0.1')

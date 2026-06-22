@@ -101,11 +101,12 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 	const vmixDVEInput = Object.values<VmixInputConfig>(config.vmixSources ?? {}).find(
 		(source) => source.type === SourceType.MultiView
 	)?.input
+	const hasValidVmixDveInput = vmixDVEInput !== undefined && vmixDVEInput > 0
 
 	const dvePieceTimelineObjects: TimelineBlueprintExt[] = [audioTlObj]
 	if (config.visionMixer.type === VisionMixerDevice.Atem) {
 		dvePieceTimelineObjects.unshift(...createVisionMixerObjects(config, SUPER_SOURCE_INPUT, SUPER_SOURCE_LATENCY))
-	} else if (vmixDVEInput !== undefined && vmixDVEInput >= 0) {
+	} else if (hasValidVmixDveInput) {
 		dvePieceTimelineObjects.unshift(...createVisionMixerObjects(config, vmixDVEInput, SUPER_SOURCE_LATENCY))
 	}
 	if (config.visionMixer.type === VisionMixerDevice.Atem) {
@@ -138,22 +139,24 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 			})
 		)
 	} else if (config.visionMixer.type === VisionMixerDevice.VMix) {
-		dvePieceTimelineObjects.push(
-			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
-				id: '',
-				enable: { start: 0 },
-				priority: 1,
-				layer: VMixLayers.VMixDVEMultiView,
-				content: {
-					deviceType: TSR.DeviceType.VMIX,
-					type: TSR.TimelineContentTypeVMix.INPUT,
-					overlays: {
-						1: boxes[0]?.source ?? -1,
-						2: boxes[1]?.source ?? -1,
+		if (hasValidVmixDveInput) {
+			dvePieceTimelineObjects.push(
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+					id: '',
+					enable: { start: 0 },
+					priority: 1,
+					layer: VMixLayers.VMixDVEMultiView,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.INPUT,
+						overlays: {
+							1: boxes[0]?.source ?? -1,
+							2: boxes[1]?.source ?? -1,
+						},
 					},
-				},
-			})
-		)
+				})
+			)
+		}
 	} else {
 		assertUnreachable(config.visionMixer.type)
 	}
@@ -205,22 +208,24 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 			})
 		)
 	} else if (config.visionMixer.type === VisionMixerDevice.VMix) {
-		retainPieceTimelineObjects.push(
-			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
-				id: '',
-				enable: { start: 0 },
-				priority: 1,
-				layer: VMixLayers.VMixDVEMultiView,
-				content: {
-					deviceType: TSR.DeviceType.VMIX,
-					type: TSR.TimelineContentTypeVMix.INPUT,
-					overlays: {
-						1: boxes[0]?.source ?? -1,
-						2: boxes[1]?.source ?? -1,
+		if (hasValidVmixDveInput) {
+			retainPieceTimelineObjects.push(
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+					id: '',
+					enable: { start: 0 },
+					priority: 1,
+					layer: VMixLayers.VMixDVEMultiView,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.INPUT,
+						overlays: {
+							1: boxes[0]?.source ?? -1,
+							2: boxes[1]?.source ?? -1,
+						},
 					},
-				},
-			})
-		)
+				})
+			)
+		}
 	} else {
 		assertUnreachable(config.visionMixer.type)
 	}

@@ -35,9 +35,22 @@ export function uniqueKey(key, used) {
  * @returns {number | undefined}
  */
 export function parseInputNumber(value) {
-	if (value === undefined || value === null || value === '') return undefined
-	const n = Number(value)
+	if (value === undefined || value === null) return undefined
+	const trimmed = typeof value === 'string' ? value.trim() : value
+	if (trimmed === '') return undefined
+	const n = Number(trimmed)
 	return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * vMix input numbers must be positive integers.
+ * @param {unknown} value
+ * @returns {number | undefined}
+ */
+export function parseVmixInputNumber(value) {
+	const n = parseInputNumber(value)
+	if (n === undefined || !Number.isInteger(n) || n <= 0) return undefined
+	return n
 }
 
 /**
