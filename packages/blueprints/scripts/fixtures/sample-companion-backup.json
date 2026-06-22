@@ -1,0 +1,173 @@
+{
+	"version": 9,
+	"type": "full",
+	"companionBuild": "4.2.2+8755-stable-test",
+	"instances": {
+		"vmix0": {
+			"instance_type": "vmix",
+			"label": "vMix SPRAVY",
+			"config": {
+				"host": "10.33.182.163",
+				"port": 8088
+			}
+		},
+		"http0": {
+			"instance_type": "http",
+			"label": "HTTP",
+			"config": {}
+		},
+		"sheets0": {
+			"instance_type": "google-sheets",
+			"label": "Google Sheets",
+			"config": {}
+		}
+	},
+	"pages": {
+		"1": {
+			"name": "SPRAVY",
+			"controls": {
+				"bank_0_0": {
+					"type": "button",
+					"style": { "text": "Load HEADLINE1" },
+					"steps": {
+						"0": {
+							"action_sets": {
+								"down": [
+									{
+										"actionId": "get",
+										"instance": "http0",
+										"options": {
+											"url": "http://10.33.182.163:8088/api/?Function=AddInput&Value=Video|$(Google_Sheets:0_Sheet1_A24)\\HEADLINE1.mov"
+										},
+										"delay": 0
+									},
+									{
+										"actionId": "wait",
+										"instance": "internal",
+										"options": { "time": 3000 },
+										"delay": 0
+									},
+									{
+										"actionId": "setInputVolume",
+										"instance": "vmix0",
+										"options": { "input": "31", "volume": "85" },
+										"delay": 0
+									}
+								],
+								"up": []
+							}
+						}
+					}
+				},
+				"bank_0_1": {
+					"type": "button",
+					"style": { "text": "Ready to Start" },
+					"steps": {
+						"0": {
+							"action_sets": {
+								"down": [
+									{
+										"actionId": "openPreset",
+										"instance": "vmix0",
+										"options": { "preset": "Spravy Gabi" },
+										"delay": 0
+									},
+									{
+										"actionId": "programCut",
+										"instance": "vmix0",
+										"options": { "input": "1" },
+										"delay": 200
+									},
+									{
+										"actionId": "overlayFunctions",
+										"instance": "vmix0",
+										"options": { "function": "In", "input": "21", "mix": "2" },
+										"delay": 0
+									},
+									{
+										"actionId": "videoActions",
+										"instance": "vmix0",
+										"options": { "function": "Restart", "input": "30" },
+										"delay": 0
+									}
+								],
+								"up": []
+							}
+						}
+					}
+				},
+				"bank_0_2": {
+					"type": "button",
+					"style": { "text": "Next ILU" },
+					"steps": {
+						"0": {
+							"action_sets": {
+								"down": [
+									{
+										"actionId": "titleAdjustText",
+										"instance": "vmix0",
+										"options": {
+											"input": "22",
+											"selectedName": "Headline.Text",
+											"value": "$(custom:headline_text)"
+										},
+										"delay": 0
+									},
+									{
+										"actionId": "overlayFunctions",
+										"instance": "vmix0",
+										"options": { "function": "Out", "mix": "2" },
+										"delay": 500
+									},
+									{
+										"actionId": "programCut",
+										"instance": "vmix0",
+										"options": { "input": "30", "volume": "100" },
+										"delay": 0
+									},
+									{
+										"actionId": "videoActions",
+										"instance": "vmix0",
+										"options": { "function": "Play", "input": "30" },
+										"delay": 0
+									}
+								],
+								"up": []
+							}
+						}
+					}
+				}
+			}
+		},
+		"2": {
+			"name": "STUDIO MASTER",
+			"controls": {
+				"bank_1_0": {
+					"type": "button",
+					"style": { "text": "Studio TV ON" },
+					"steps": {
+						"0": {
+							"action_sets": {
+								"down": [
+									{
+										"actionId": "programCut",
+										"instance": "vmix0",
+										"options": { "input": "2" },
+										"delay": 0
+									},
+									{
+										"actionId": "setInputVolume",
+										"instance": "vmix0",
+										"options": { "input": "2", "volume": "100", "fade": "500" },
+										"delay": 0
+									}
+								],
+								"up": []
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

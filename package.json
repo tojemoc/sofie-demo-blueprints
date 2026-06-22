@@ -15,6 +15,8 @@
         "watch-sync-local": "yarn workspace blueprints watch-sync-local",
         "generate-schema-types": "yarn workspace blueprints generate-schema-types",
         "test:blueprints": "yarn workspace blueprints test",
+        "test:companion-import": "yarn workspace blueprints test:companion-import",
+        "import:companion": "yarn workspace blueprints import:companion",
         "build:docs": "yarn workspace docs build",
         "watch:docs": "yarn workspace docs start",
         "link-core": "zx ./scripts/link-core.mjs"

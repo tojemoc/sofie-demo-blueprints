@@ -36,7 +36,7 @@ Set `overlayChannel` on a source to target a specific bus.
 
 Define multi-step sequences in `vmixAutomationMacros`. These map to Companion button action chains.
 
-See [Companion Migration Guide](./companion-migration.md) for the full action mapping table.
+See [Granular vMix sources](./granular-sources.md) and the [Companion import tool](./companion-import-tool.md) for bulk migration from Companion backups.
 
 ## TSR mappings added per source
 

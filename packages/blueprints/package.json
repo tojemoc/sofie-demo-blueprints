@@ -20,6 +20,8 @@
 		"watch-types": "yarn check-types --watch",
 		"unit": "vitest",
 		"test": "run unit --run",
+		"test:companion-import": "node --test scripts/__tests__/companion-import.test.mjs",
+		"import:companion": "node ./scripts/import-companion-backup.mjs",
 		"link-integration": "yarn link @sofie-automation/blueprints-integration",
 		"translation:extract": "blueprint-extract-translations ./blueprint-map.mjs",
 		"generate-schema-types": "blueprint-schema-types ./src/\\$schemas/ ./src/\\$schemas/generated/"

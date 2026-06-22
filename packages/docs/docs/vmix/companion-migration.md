@@ -97,7 +97,7 @@ These Companion integrations are **not** replicated in demo blueprints and need 
 | **Google Sheets** | Rundown ingest (Spreadsheet Gateway / Rundown Editor) replaces sheet-driven loads |
 | **Stream Deck Timer** | Sofie countdown / part timing |
 
-## Step 4: Example — "Load z raidka" (Sheet-driven video load)
+## Step 4: Example — "Load z riadka" (Sheet-driven video load)
 
 Companion button flow:
 
@@ -116,6 +116,14 @@ Sofie equivalent:
 3. Follow with `{ "action": "videoPlay", "sourceKey": "ilu_player" }`
 
 Dynamic sheet-driven paths belong in **rundown data**, not static studio config.
+
+### Automated import
+
+Use the [Companion import tool](./companion-import-tool.md) to generate a starting `vmixSources` / `vmixAutomationMacros` JSON from your Companion backup and vMix `.vmix` project file:
+
+```bash
+yarn import:companion companion-backup.json --vmix-xml show.vmix --out studio-config.spravy.json
+```
 
 ## Step 5: Enable the vMix preset
 
