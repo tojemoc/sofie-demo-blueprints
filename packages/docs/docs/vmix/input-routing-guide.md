@@ -117,7 +117,7 @@ For **Správy / news production** you will almost certainly need **Hybrid** (`vm
 | Multi-step automation | Shelf → macro label | `vmixAutomationMacros.{macroKey}` with `steps[]` | `executeActions/vmixAutomation.ts` |
 | Step targets an input | — | `sourceKey` → key in `vmixSources`, or explicit `input` number | `helpers/vmixSources.ts` |
 
-Macro external IDs: `vmix-macro:{macroKey}` (for Device Triggers / Companion → Sofie).
+Macro external IDs: `vmixMacro:{macroKey}` (for Device Triggers / Companion → Sofie).
 
 ---
 
