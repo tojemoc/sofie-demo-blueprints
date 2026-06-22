@@ -94,7 +94,7 @@ export function dveLayoutToContent(
 	function boxSource(
 		info: DVEProps['inputs'][any],
 		atemBox: TSR.SuperSourceBox | undefined
-	): SplitsContentBoxContent & SplitsContentBoxProperties {
+	): (SplitsContentBoxContent & SplitsContentBoxProperties) | undefined {
 		const geometry = atemBox
 			? literal<SplitsContentBoxProperties['geometry']>({
 					x: (atemBox.x || 0) / 3200 + 0.5,
@@ -111,10 +111,16 @@ export function dveLayoutToContent(
 				})
 			: undefined
 
+		const switcherInput =
+			'fileName' in info ? getClipPlayerInput(config)?.input : getSourceInfoFromRaw(config, info).input
+
+		if (switcherInput === undefined || switcherInput < 0) {
+			return undefined
+		}
+
 		return literal<SplitsContentBoxContent & SplitsContentBoxProperties>({
 			studioLabel: 'fileName' in info ? info.fileName : `${info.type} ${info.id}`,
-			switcherInput:
-				'fileName' in info ? getClipPlayerInput(config)?.input || 0 : getSourceInfoFromRaw(config, info).input,
+			switcherInput,
 			type:
 				'fileName' in info
 					? SourceLayerType.VT
@@ -126,6 +132,8 @@ export function dveLayoutToContent(
 	}
 
 	return {
-		boxSourceConfiguration: allBoxes.map((b, i) => boxSource(b, ssrcLayout.boxes[i])),
+		boxSourceConfiguration: allBoxes
+			.map((b, i) => boxSource(b, ssrcLayout.boxes[i]))
+			.filter((b): b is SplitsContentBoxContent & SplitsContentBoxProperties => b !== undefined),
 	}
 }

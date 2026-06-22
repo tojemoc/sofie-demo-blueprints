@@ -6,7 +6,7 @@ import {
 	TSR,
 } from '@sofie-automation/blueprints-integration'
 import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
-import { assertUnreachable, literal } from '../../../common/util.js'
+import { assertUnreachable, literal, stripExtension } from '../../../common/util.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
@@ -96,7 +96,7 @@ export function clipToAdlib(
 						deviceType: TSR.DeviceType.CASPARCG,
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,
 
-						file: props.fileName,
+						file: stripExtension(props.fileName),
 					},
 					priority: 1,
 				}),

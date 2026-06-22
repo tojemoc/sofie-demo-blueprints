@@ -36,13 +36,10 @@ export function getMacroKeyFromActionId(actionId: string): string | undefined {
 	return actionId.slice(VMIX_MACRO_ACTION_PREFIX.length)
 }
 
-export function getVmixAutomationActionManifests(
-	config: StudioConfig,
-	externalId: string
-): IBlueprintActionManifest[] {
+export function getVmixAutomationActionManifests(config: StudioConfig, externalId: string): IBlueprintActionManifest[] {
 	if (!isVmixStudio(config)) return []
 
-	return Object.entries(config.vmixAutomationMacros ?? {}).map(([macroKey, macro]) =>
+	return Object.entries<VmixAutomationMacro>(config.vmixAutomationMacros ?? {}).map(([macroKey, macro]) =>
 		literal<IBlueprintActionManifest>({
 			actionId: getVmixMacroActionId(macroKey),
 			userData: { macroKey },
@@ -57,25 +54,59 @@ export function getVmixAutomationActionManifests(
 	)
 }
 
-function delay(ms: number): Promise<void> {
+async function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function stepToTimelineObjects(config: StudioConfig, step: VmixAutomationStep, start: number) {
+async function insertQueuedTimelineObjects(
+	context: IActionExecutionContext,
+	macroKey: string,
+	macroLabel: string,
+	timelineObjects: IBlueprintPiece['content']['timelineObjects']
+): Promise<void> {
+	if (timelineObjects.length === 0) return
+
+	const piece: IBlueprintPiece = {
+		externalId: `vmix-macro-${macroKey}-${Date.now()}`,
+		name: macroLabel,
+		lifespan: getDefaultVmixAdlibLifespan(),
+		sourceLayerId: SourceLayer.GFX,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.GFX),
+		enable: { start: 'now' },
+		content: { timelineObjects: [...timelineObjects] },
+	}
+	await context.insertPiece('current', piece)
+	timelineObjects.splice(0)
+}
+
+function stepToTimelineObjects(
+	config: StudioConfig,
+	step: VmixAutomationStep,
+	start: number
+): IBlueprintPiece['content']['timelineObjects'] {
 	const input = resolveVmixInput(config, step.sourceKey, step.input)
-	if (input === undefined && step.action !== VmixAutomationAction.OverlayOff && step.action !== VmixAutomationAction.Wait) {
+
+	if (
+		input === undefined &&
+		step.action !== VmixAutomationAction.OverlayOff &&
+		step.action !== VmixAutomationAction.OverlayOut &&
+		step.action !== VmixAutomationAction.Wait
+	) {
 		return []
 	}
 
 	switch (step.action) {
 		case VmixAutomationAction.ProgramCut:
-			return createVMixProgramCutPieceContent(config, input!, start, step.volume)
+			if (input === undefined) return []
+			return createVMixProgramCutPieceContent(config, input, start, step.volume)
 		case VmixAutomationAction.PreviewInput:
-			return [createVMixPreviewTimelineObject(input!, start)]
+			if (input === undefined) return []
+			return [createVMixPreviewTimelineObject(input, start)]
 		case VmixAutomationAction.OverlayIn:
+			if (input === undefined) return []
 			return [
 				createVMixOverlayTimelineObject(
-					input!,
+					input,
 					resolveVmixOverlayChannel(config, step.sourceKey, step.overlayChannel),
 					start
 				),
@@ -89,27 +120,41 @@ function stepToTimelineObjects(config: StudioConfig, step: VmixAutomationStep, s
 				),
 			]
 		case VmixAutomationAction.AudioVolume:
-			return [createVMixAudioTimelineObject(input!, step.volume ?? 100, step.fadeMs, start)]
+			if (input === undefined) return []
+			return [createVMixAudioTimelineObject(input, step.volume ?? 100, step.fadeMs, start)]
 		case VmixAutomationAction.VideoPlay:
-			return [createVMixInputPlaybackTimelineObject(input!, true, false, start)]
+			if (input === undefined) return []
+			return [createVMixInputPlaybackTimelineObject(input, true, false, start)]
 		case VmixAutomationAction.VideoPause:
-			return [createVMixInputPlaybackTimelineObject(input!, false, false, start)]
+			if (input === undefined) return []
+			return [createVMixInputPlaybackTimelineObject(input, false, false, start)]
 		case VmixAutomationAction.VideoRestart:
-			return [createVMixInputPlaybackTimelineObject(input!, true, true, start)]
+			if (input === undefined) return []
+			return [createVMixInputPlaybackTimelineObject(input, true, true, start)]
 		default:
 			return []
 	}
 }
 
 async function executeHttpStep(context: IActionExecutionContext, url: string): Promise<void> {
+	const controller = new AbortController()
+	const timeoutId = setTimeout(() => controller.abort(), 8000)
+
 	try {
-		const response = await fetch(url)
+		const response = await fetch(url, { signal: controller.signal })
 		if (!response.ok) {
 			context.notifyUserWarning(`HTTP ${response.status} for ${url}`)
 		}
 	} catch (err) {
-		context.notifyUserWarning(`HTTP request failed: ${url}`)
-		context.logWarning(`HTTP request failed: ${url} - ${err}`)
+		if (err instanceof DOMException && err.name === 'AbortError') {
+			context.notifyUserWarning(`HTTP request timed out: ${url}`)
+			context.logWarning(`HTTP request timed out: ${url}`)
+		} else {
+			context.notifyUserWarning(`HTTP request failed: ${url}`)
+			context.logWarning(`HTTP request failed: ${url} - ${err}`)
+		}
+	} finally {
+		clearTimeout(timeoutId)
 	}
 }
 
@@ -122,8 +167,7 @@ async function executeTsrStep(
 
 	const devices = await context.listPlayoutDevices()
 	const vmixDevice = devices.find(
-		(device) =>
-			device.deviceType === TSR.DeviceType.VMIX && String(device.deviceId) === config.visionMixer.deviceId
+		(device) => device.deviceType === TSR.DeviceType.VMIX && String(device.deviceId) === config.visionMixer.deviceId
 	)
 	if (!vmixDevice) {
 		context.notifyUserWarning('vMix playout device not found for TSR action')
@@ -133,10 +177,7 @@ async function executeTsrStep(
 	await context.executeTSRAction(vmixDevice.deviceId, step.tsrActionId, step.tsrActionPayload ?? {})
 }
 
-export async function executeVmixAutomationMacro(
-	context: IActionExecutionContext,
-	macroKey: string
-): Promise<void> {
+export async function executeVmixAutomationMacro(context: IActionExecutionContext, macroKey: string): Promise<void> {
 	const config = parseConfig(context).studio
 	if (config.visionMixer.type !== VisionMixerDevice.VMix) return
 
@@ -146,44 +187,31 @@ export async function executeVmixAutomationMacro(
 		return
 	}
 
-	let timelineOffset = 0
-	const timelineObjects = []
+	const timelineObjects: IBlueprintPiece['content']['timelineObjects'] = []
 
 	for (const step of macro.steps) {
 		if (step.action === VmixAutomationAction.Wait) {
-			timelineOffset += step.delayMs ?? 0
+			await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
+			await delay(step.delayMs ?? 0)
 			continue
 		}
 
 		if (step.action === VmixAutomationAction.HttpGet) {
 			if (step.url) {
-				if (timelineOffset > 0) await delay(timelineOffset)
+				await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
 				await executeHttpStep(context, step.url)
-				timelineOffset = 0
 			}
 			continue
 		}
 
 		if (step.action === VmixAutomationAction.TsrAction) {
-			if (timelineOffset > 0) await delay(timelineOffset)
+			await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
 			await executeTsrStep(context, config, step)
-			timelineOffset = 0
 			continue
 		}
 
-		timelineObjects.push(...stepToTimelineObjects(config, step, timelineOffset))
+		timelineObjects.push(...stepToTimelineObjects(config, step, 0))
 	}
 
-	if (timelineObjects.length > 0) {
-		const piece: IBlueprintPiece = {
-			externalId: `vmix-macro-${macroKey}`,
-			name: macro.label,
-			lifespan: getDefaultVmixAdlibLifespan(),
-			sourceLayerId: SourceLayer.GFX,
-			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.GFX),
-			enable: { start: 'now' },
-			content: { timelineObjects },
-		}
-		await context.insertPiece('current', piece)
-	}
+	await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
 }

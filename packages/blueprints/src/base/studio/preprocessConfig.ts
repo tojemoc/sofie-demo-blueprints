@@ -5,9 +5,8 @@ import { BlueprintConfig, StudioConfig, PlayoutRouting } from './helpers/config.
 export function preprocessConfig(
 	_context: ICommonContext,
 	config: Partial<StudioConfig>,
-	coreConfig: BlueprintConfigCoreConfig
+	_coreConfig: BlueprintConfigCoreConfig
 ): BlueprintConfig {
-	console.log('Core config', coreConfig)
 	const processedConfig: BlueprintConfig = {
 		studio: literal<Partial<StudioConfig>>({
 			playoutRouting: PlayoutRouting.Hybrid,

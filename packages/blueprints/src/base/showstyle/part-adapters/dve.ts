@@ -98,17 +98,16 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 
 	const audioTlObj = getAudioPrimaryObject(config, getDveAudioSources(part.payload.inputs))
 
-	const vmixDVEInput =
-		Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.MultiView)?.input ??
-		-1
-	const dvePieceTimelineObjects: TimelineBlueprintExt[] = [
-		...createVisionMixerObjects(
-			config,
-			config.visionMixer.type === VisionMixerDevice.Atem ? SUPER_SOURCE_INPUT : vmixDVEInput,
-			SUPER_SOURCE_LATENCY
-		),
-		audioTlObj,
-	]
+	const vmixDVEInput = Object.values<VmixInputConfig>(config.vmixSources ?? {}).find(
+		(source) => source.type === SourceType.MultiView
+	)?.input
+
+	const dvePieceTimelineObjects: TimelineBlueprintExt[] = [audioTlObj]
+	if (config.visionMixer.type === VisionMixerDevice.Atem) {
+		dvePieceTimelineObjects.unshift(...createVisionMixerObjects(config, SUPER_SOURCE_INPUT, SUPER_SOURCE_LATENCY))
+	} else if (vmixDVEInput !== undefined && vmixDVEInput >= 0) {
+		dvePieceTimelineObjects.unshift(...createVisionMixerObjects(config, vmixDVEInput, SUPER_SOURCE_LATENCY))
+	}
 	if (config.visionMixer.type === VisionMixerDevice.Atem) {
 		dvePieceTimelineObjects.push(
 			literal<TimelineBlueprintExt<TSR.TimelineContentAtemSsrcProps>>({

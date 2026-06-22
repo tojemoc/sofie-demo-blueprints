@@ -98,7 +98,10 @@ export function createVMixInputPlaybackTimelineObject(
 	})
 }
 
-export function createVMixRecordingTimelineObject(on: boolean, start = 0): TimelineBlueprintExt<TSR.TimelineContentVMixRecording> {
+export function createVMixRecordingTimelineObject(
+	on: boolean,
+	start = 0
+): TimelineBlueprintExt<TSR.TimelineContentVMixRecording> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixRecording>>({
 		id: '',
 		enable: { start },
@@ -112,7 +115,10 @@ export function createVMixRecordingTimelineObject(on: boolean, start = 0): Timel
 	})
 }
 
-export function createVMixStreamingTimelineObject(on: boolean, start = 0): TimelineBlueprintExt<TSR.TimelineContentVMixStreaming> {
+export function createVMixStreamingTimelineObject(
+	on: boolean,
+	start = 0
+): TimelineBlueprintExt<TSR.TimelineContentVMixStreaming> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixStreaming>>({
 		id: '',
 		enable: { start },
@@ -126,7 +132,10 @@ export function createVMixStreamingTimelineObject(on: boolean, start = 0): Timel
 	})
 }
 
-export function createVMixExternalTimelineObject(on: boolean, start = 0): TimelineBlueprintExt<TSR.TimelineContentVMixExternal> {
+export function createVMixExternalTimelineObject(
+	on: boolean,
+	start = 0
+): TimelineBlueprintExt<TSR.TimelineContentVMixExternal> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixExternal>>({
 		id: '',
 		enable: { start },

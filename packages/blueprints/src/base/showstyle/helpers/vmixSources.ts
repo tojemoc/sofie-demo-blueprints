@@ -1,9 +1,4 @@
-import {
-	SourceType,
-	StudioConfig,
-	VisionMixerDevice,
-	VmixInputConfig,
-} from '../../studio/helpers/config.js'
+import { SourceType, StudioConfig, VisionMixerDevice, VmixInputConfig } from '../../studio/helpers/config.js'
 
 export interface ResolvedVmixSource extends VmixInputConfig {
 	key: string
@@ -15,18 +10,14 @@ export function isVmixStudio(config: StudioConfig): boolean {
 }
 
 export function getVmixSources(config: StudioConfig): ResolvedVmixSource[] {
-	return Object.entries(config.vmixSources ?? {}).map(([key, source]) => ({
+	return Object.entries<VmixInputConfig>(config.vmixSources ?? {}).map(([key, source]) => ({
 		key,
 		...source,
 		displayName: source.label ?? `${source.type} ${source.input}`,
 	}))
 }
 
-export function resolveVmixInput(
-	config: StudioConfig,
-	sourceKey?: string,
-	explicitInput?: number
-): number | undefined {
+export function resolveVmixInput(config: StudioConfig, sourceKey?: string, explicitInput?: number): number | undefined {
 	if (explicitInput !== undefined) return explicitInput
 	if (!sourceKey) return undefined
 
@@ -34,11 +25,7 @@ export function resolveVmixInput(
 	return source?.input
 }
 
-export function resolveVmixOverlayChannel(
-	config: StudioConfig,
-	sourceKey?: string,
-	explicitChannel?: number
-): number {
+export function resolveVmixOverlayChannel(config: StudioConfig, sourceKey?: string, explicitChannel?: number): number {
 	if (explicitChannel !== undefined) return explicitChannel
 
 	if (sourceKey) {
