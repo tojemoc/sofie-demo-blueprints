@@ -280,33 +280,36 @@
 			"ui:title": "vMix Automation Macros",
 			"ui:description": "Companion-style multi-step automations mapped to Sofie adLib actions",
 			"ui:category": "Automations",
-			"additionalProperties": {
-				"type": "object",
-				"title": "VmixAutomationMacro",
-				"properties": {
-					"label": {
-						"type": "string",
-						"ui:title": "Label",
-						"ui:description": "Display name shown in the Sofie shelf",
-						"ui:summaryTitle": "Label"
-					},
-					"tags": {
-						"type": "array",
-						"items": {
-							"type": "string"
+			"default": {},
+			"patternProperties": {
+				"": {
+					"type": "object",
+					"title": "VmixAutomationMacro",
+					"properties": {
+						"label": {
+							"type": "string",
+							"ui:title": "Label",
+							"ui:description": "Display name shown in the Sofie shelf",
+							"ui:summaryTitle": "Label"
 						},
-						"ui:title": "Tags",
-						"ui:description": "Shelf grouping tags (e.g. studio-master, spravy, weather)"
-					},
-					"steps": {
-						"type": "array",
-						"ui:title": "Steps",
-						"items": {
-							"$ref": "#/$defs/VmixAutomationStep"
+						"tags": {
+							"type": "array",
+							"items": {
+								"type": "string"
+							},
+							"ui:title": "Tags",
+							"ui:description": "Shelf grouping tags (e.g. studio-master, spravy, weather)"
+						},
+						"steps": {
+							"type": "array",
+							"ui:title": "Steps",
+							"items": {
+								"$ref": "#/$defs/VmixAutomationStep"
+							}
 						}
-					}
-				},
-				"required": ["label", "steps"]
+					},
+					"required": ["label", "steps"]
+				}
 			}
 		},
 		"sisyfosSources": {
