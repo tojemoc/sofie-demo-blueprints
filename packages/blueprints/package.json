@@ -18,7 +18,7 @@
 		"lint": "run check-types && run lint:raw .",
 		"check-types": "tsc --noEmit",
 		"watch-types": "yarn check-types --watch",
-		"unit": "vitest",
+		"unit": "vitest --exclude 'scripts/**'",
 		"test": "run unit --run",
 		"test:companion-import": "node --test scripts/__tests__/companion-import.test.mjs",
 		"import:companion": "node ./scripts/import-companion-backup.mjs",
@@ -40,6 +40,9 @@
 	"private": true,
 	"engines": {
 		"node": ">=22.0.0"
+	},
+	"vitest": {
+		"exclude": ["scripts/**"]
 	},
 	"lint-staged": {
 		"*.{css,json,md,scss}": [

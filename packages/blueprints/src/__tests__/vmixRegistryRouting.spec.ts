@@ -32,6 +32,7 @@ const helloVmixConfig: StudioConfig = {
 	},
 	sisyfosSources: {},
 	vmixSources: {},
+	vmixAutomationMacros: {},
 	vmixInputs: {
 		CAMERA: { input: 'CAMERA' },
 		LOWER_THIRD: { input: 'LOWER_THIRD', overlay: 1 },

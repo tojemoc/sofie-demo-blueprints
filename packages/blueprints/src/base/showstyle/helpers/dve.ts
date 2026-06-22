@@ -114,7 +114,7 @@ export function dveLayoutToContent(
 		const switcherInput =
 			'fileName' in info ? getClipPlayerInput(config)?.input : getSourceInfoFromRaw(config, info).input
 
-		if (switcherInput === undefined || switcherInput < 0) {
+		if (switcherInput === undefined || switcherInput <= 0) {
 			return undefined
 		}
 

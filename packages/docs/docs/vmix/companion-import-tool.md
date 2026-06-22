@@ -49,6 +49,13 @@ Recommended: always pass `--vmix-xml` with your vMix project file so all ~127 in
 
 Your colleague's writeup maps to Sofie like this:
 
+| Term | Meaning | Sofie handling |
+|------|---------|----------------|
+| **ILU** | Video in double-box; presenter talks over it; ILU audio quiet/muted | DVE part + low `audioVolume` on ILU input (ruch level) |
+| **SYN** | Fullscreen video; presenter mic muted; video audio at full volume | Program cut to SYN input + `audioVolume` 100 |
+| **Príspevok** | Any imported daily media clip (ILU or SYN segment) | Rundown VT parts per clip; one vMix input per príspevok |
+| **Ruch** | Ambient audio bed under ILU (not fully muted) | `audioVolume` between mute and full (e.g. 15–30%) |
+
 | Companion / vMix habit | Sofie approach |
 |------------------------|----------------|
 | Load preset (Gabi/Miso) | Macro `httpGet` OpenPreset, or show-style preset switch |

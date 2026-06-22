@@ -23,6 +23,7 @@ const baseConfig: StudioConfig = {
 	},
 	sisyfosSources: {},
 	vmixSources: {},
+	vmixAutomationMacros: {},
 	atemOutputs: {},
 	atemSources: {},
 }

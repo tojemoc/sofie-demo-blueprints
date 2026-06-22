@@ -80,6 +80,7 @@ async function insertQueuedTimelineObjects(
 }
 
 function stepToTimelineObjects(
+	context: IActionExecutionContext,
 	config: StudioConfig,
 	step: VmixAutomationStep,
 	start: number
@@ -92,18 +93,29 @@ function stepToTimelineObjects(
 		step.action !== VmixAutomationAction.OverlayOut &&
 		step.action !== VmixAutomationAction.Wait
 	) {
+		context.notifyUserWarning(`vMix macro step skipped: ${step.action} requires input or sourceKey`)
+		context.logWarning(`vMix macro step skipped: ${step.action} missing input/sourceKey`)
 		return []
 	}
 
 	switch (step.action) {
 		case VmixAutomationAction.ProgramCut:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: programCut requires input or sourceKey')
+				return []
+			}
 			return createVMixProgramCutPieceContent(config, input, start, step.volume)
 		case VmixAutomationAction.PreviewInput:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: previewInput requires input or sourceKey')
+				return []
+			}
 			return [createVMixPreviewTimelineObject(input, start)]
 		case VmixAutomationAction.OverlayIn:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: overlayIn requires input or sourceKey')
+				return []
+			}
 			return [
 				createVMixOverlayTimelineObject(
 					input,
@@ -120,16 +132,28 @@ function stepToTimelineObjects(
 				),
 			]
 		case VmixAutomationAction.AudioVolume:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: audioVolume requires input or sourceKey')
+				return []
+			}
 			return [createVMixAudioTimelineObject(input, step.volume ?? 100, step.fadeMs, start)]
 		case VmixAutomationAction.VideoPlay:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: videoPlay requires input or sourceKey')
+				return []
+			}
 			return [createVMixInputPlaybackTimelineObject(input, true, false, start)]
 		case VmixAutomationAction.VideoPause:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: videoPause requires input or sourceKey')
+				return []
+			}
 			return [createVMixInputPlaybackTimelineObject(input, false, false, start)]
 		case VmixAutomationAction.VideoRestart:
-			if (input === undefined) return []
+			if (input === undefined) {
+				context.notifyUserWarning('vMix macro step skipped: videoRestart requires input or sourceKey')
+				return []
+			}
 			return [createVMixInputPlaybackTimelineObject(input, true, true, start)]
 		default:
 			return []
@@ -163,7 +187,11 @@ async function executeTsrStep(
 	config: StudioConfig,
 	step: VmixAutomationStep
 ): Promise<void> {
-	if (!step.tsrActionId) return
+	if (!step.tsrActionId) {
+		context.notifyUserWarning('vMix macro TSR step skipped: tsrActionId is required')
+		context.logWarning('vMix macro TSR step skipped: missing tsrActionId')
+		return
+	}
 
 	const devices = await context.listPlayoutDevices()
 	const vmixDevice = devices.find(
@@ -197,10 +225,13 @@ export async function executeVmixAutomationMacro(context: IActionExecutionContex
 		}
 
 		if (step.action === VmixAutomationAction.HttpGet) {
-			if (step.url) {
-				await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
-				await executeHttpStep(context, step.url)
+			if (!step.url) {
+				context.notifyUserWarning(`vMix macro "${macro.label}": httpGet step skipped (missing url)`)
+				context.logWarning(`vMix macro ${macroKey}: httpGet step missing url`)
+				continue
 			}
+			await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
+			await executeHttpStep(context, step.url)
 			continue
 		}
 
@@ -210,7 +241,7 @@ export async function executeVmixAutomationMacro(context: IActionExecutionContex
 			continue
 		}
 
-		timelineObjects.push(...stepToTimelineObjects(config, step, 0))
+		timelineObjects.push(...stepToTimelineObjects(context, config, step, 0))
 	}
 
 	await insertQueuedTimelineObjects(context, macroKey, macro.label, timelineObjects)
