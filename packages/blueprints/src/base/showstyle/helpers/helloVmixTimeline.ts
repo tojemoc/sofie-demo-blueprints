@@ -35,9 +35,9 @@ export function mapGraphicAttributesToVmixText(
 	const aliases = GRAPHIC_ATTRIBUTE_TO_VMIX_TEXT_FIELD[registryKey] ?? {}
 	const text: TSR.VMixText = {}
 
-	for (const [key, value] of Object.entries(attributes)) {
+	for (const [key, value] of Object.entries<unknown>(attributes)) {
 		if (value === undefined || value === null || value === '') continue
-		if (typeof value === 'boolean') continue
+		if (typeof value !== 'string' && typeof value !== 'number') continue
 
 		const fieldName = aliases[key] ?? key
 		text[fieldName] = String(value)

@@ -25,6 +25,7 @@ This repository is a **Yarn 4 monorepo** for Sofie TV studio automation demo blu
 | Lint docs | `cd packages/docs && yarn lint` |
 | Test | `yarn test:blueprints` |
 | Build blueprints | `cd packages/blueprints && yarn dist` |
+| Import Companion backup | `yarn import:companion backup.json --vmix-xml show.vmix` |
 | Build docs | `yarn build:docs` |
 | Docs dev server | `yarn watch:docs` (port **3030**, base path `/sofie-demo-blueprints/`) |
 

@@ -32,6 +32,9 @@ export function generateCameraPart(context: PartContext, part: PartProps<CameraP
 		cameraName = 'Cam'
 	} else {
 		const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
+		if (!sourceInfo.input || sourceInfo.input <= 0) {
+			throw new Error(`Invalid camera source: ${sourceInfo.type} ${sourceInfo.id}`)
+		}
 		visionMixerTimeline = createVisionMixerObjects(config, sourceInfo.input)
 		cameraName = `Cam ${sourceInfo.id}`
 	}

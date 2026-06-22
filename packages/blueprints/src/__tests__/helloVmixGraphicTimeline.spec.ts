@@ -27,6 +27,7 @@ const config: StudioConfig = {
 	},
 	sisyfosSources: {},
 	vmixSources: {},
+	vmixAutomationMacros: {},
 	vmixInputs: {
 		LOWER_THIRD: { input: 'LOWER_THIRD', overlay: 1 },
 		HEADLINE: { input: 'HEADLINE', overlay: 2 },

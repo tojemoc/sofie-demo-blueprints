@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vmix>
+	<input key="abc" number="1" title="CAM 1 Gabi" type="Capture" />
+	<input key="def" number="2" title="CAM 2 Studio" type="Capture" />
+	<input key="ghi" number="21" title="Headline Box" type="GTTitle" />
+	<input key="jkl" number="22" title="Lower Third" type="GTTitle" />
+	<input key="mno" number="30" title="ILU Player" type="VideoList" />
+	<input key="pqr" number="31" title="SYN Player" type="VideoList" />
+	<input key="stu" number="50" title="DVE MultiView" type="MultiView" />
+</vmix>

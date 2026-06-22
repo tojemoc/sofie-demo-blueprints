@@ -51,6 +51,7 @@ export const HelloVmixStudioConfig: StudioConfig = {
 			mix: 3,
 		},
 	},
+	vmixAutomationMacros: {},
 	atemOutputs: {},
 	atemSources: {
 		camera1: { input: 1, type: SourceType.Camera },
