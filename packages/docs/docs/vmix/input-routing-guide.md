@@ -103,10 +103,10 @@ For **Správy / news production** you will almost certainly need **Hybrid** (`vm
 
 | I want… | Operator action | Developer sets | Generated from |
 |---------|-----------------|----------------|----------------|
-| Cut to a specific input | Shelf → “Cut: {label}” | `vmixSources.{key}.input` | `rundown/globalVmixAdlibs.ts` |
-| Preview an input | Shelf → “Preview: {label}” | same | `globalVmixAdlibs.ts` |
-| Overlay on/off | Shelf → “Overlay IN/OUT: {label}” | `vmixSources.{key}.overlayChannel` or `type: graphics` | `globalVmixAdlibs.ts` |
-| Play / restart media | Shelf → “Play / Restart: {label}” | `vmixSources` mediaplayer / video category | `globalVmixAdlibs.ts` |
+| Cut to a specific input | Shelf → `Cut: {label}` | `vmixSources.{key}.input` | `rundown/globalVmixAdlibs.ts` |
+| Preview an input | Shelf → `Preview: {label}` | same | `globalVmixAdlibs.ts` |
+| Overlay on/off | Shelf → `Overlay IN/OUT: {label}` | `vmixSources.{key}.overlayChannel` or `type: graphics` | `globalVmixAdlibs.ts` |
+| Play / restart media | Shelf → `Play / Restart: {label}` | `vmixSources` mediaplayer / video category | `globalVmixAdlibs.ts` |
 | Quick camera (legacy) | Shelf → “Camera 1” | `vmixSources` or `atemSources` cameras in order | `rundown/globalAdlibs.ts` |
 | REC / STREAM / EXTERNAL | Shelf toggles | Device mappings (always present) | `globalVmixAdlibs.ts` |
 
