@@ -1,0 +1,267 @@
+[
+	{
+		"id": "video",
+		"entityType": "piece",
+		"name": "Video Clip",
+		"shortName": "VID",
+		"colour": "#1f77b4",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "File Name",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "sourceDuration",
+				"label": "Source Duration",
+				"type": "number"
+			}
+		]
+	},
+	{
+		"id": "camera",
+		"entityType": "piece",
+		"name": "Camera",
+		"shortName": "CAM",
+		"colour": "#ff7f0e",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "camNo",
+				"label": "Camera Number",
+				"type": "number",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "remote",
+		"entityType": "piece",
+		"name": "Remote Input",
+		"shortName": "REM",
+		"colour": "#2ca02c",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "input",
+				"label": "Input Number",
+				"type": "number",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "split",
+		"entityType": "piece",
+		"name": "Split Screen",
+		"shortName": "SPLIT",
+		"colour": "#d62728",
+		"includeTypeInName": true,
+		"payload": []
+	},
+	{
+		"id": "head",
+		"entityType": "piece",
+		"name": "Headline",
+		"shortName": "HEAD",
+		"colour": "#9467bd",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "text",
+				"label": "Text",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "l3d",
+		"entityType": "piece",
+		"name": "Lower Third",
+		"shortName": "L3D",
+		"colour": "#8c564b",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "name",
+				"label": "Name",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "title",
+				"label": "Title",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "ticker",
+		"entityType": "piece",
+		"name": "Ticker",
+		"shortName": "TICK",
+		"colour": "#e377c2",
+		"includeTypeInName": true,
+		"payload": []
+	},
+	{
+		"id": "strap",
+		"entityType": "piece",
+		"name": "Location Strap",
+		"shortName": "STRAP",
+		"colour": "#7f7f7f",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "location",
+				"label": "Location",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "fullscreen",
+		"entityType": "piece",
+		"name": "Fullscreen Graphic",
+		"shortName": "FS",
+		"colour": "#bcbd22",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "url",
+				"label": "URL",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "graphic",
+		"entityType": "piece",
+		"name": "Graphic",
+		"shortName": "GFX",
+		"colour": "#ff006e",
+		"payload": [
+			{
+				"id": "description",
+				"label": "Description",
+				"type": "string"
+			},
+			{
+				"id": "location",
+				"label": "Location",
+				"type": "string"
+			},
+			{
+				"id": "text",
+				"label": "Text",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "stepped-graphic",
+		"entityType": "piece",
+		"name": "Stepped Graphic",
+		"shortName": "STGFX",
+		"colour": "#ff006e",
+		"payload": [
+			{
+				"id": "description",
+				"label": "Description",
+				"type": "string"
+			},
+			{
+				"id": "location",
+				"label": "Location",
+				"type": "string"
+			},
+			{
+				"id": "text",
+				"label": "Text",
+				"type": "string"
+			},
+			{
+				"id": "stepCount",
+				"label": "Step Count",
+				"type": "number"
+			}
+		]
+	},
+	{
+		"id": "Titles",
+		"entityType": "part",
+		"name": "Titles",
+		"shortName": "Titles",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "VO",
+		"entityType": "part",
+		"name": "VO",
+		"shortName": "VO",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "Cam",
+		"entityType": "part",
+		"name": "Cam",
+		"shortName": "Cam",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "Full",
+		"entityType": "part",
+		"name": "Full",
+		"shortName": "Full",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "Remote",
+		"entityType": "part",
+		"name": "Remote",
+		"shortName": "Remote",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "GFX",
+		"entityType": "part",
+		"name": "GFX",
+		"shortName": "GFX",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "DVE",
+		"entityType": "part",
+		"name": "DVE",
+		"shortName": "DVE",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "normal",
+		"entityType": "segment",
+		"name": "Normal",
+		"shortName": "NRM",
+		"colour": "#666666",
+		"payload": []
+	},
+	{
+		"id": "opening",
+		"entityType": "segment",
+		"name": "Opening",
+		"shortName": "OP",
+		"colour": "#666666",
+		"payload": []
+	}
+]

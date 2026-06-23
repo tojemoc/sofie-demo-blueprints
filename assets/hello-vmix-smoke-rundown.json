@@ -16,10 +16,7 @@
 			"rank": 0,
 			"float": false,
 			"rundownId": "hello-vmix-smoke-rundown",
-			"playlistId": null,
-			"isTemplate": false,
-			"segmentType": "normal",
-			"payload": {}
+			"playlistId": null
 		}
 	],
 	"parts": [
@@ -31,10 +28,11 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "Cam",
-			"duration": 5,
-			"script": "Program cut to CAMERA input.",
-			"payload": {}
+			"payload": {
+				"type": "Cam",
+				"duration": 5,
+				"script": "Program cut to CAMERA input."
+			}
 		},
 		{
 			"id": "hello-vmix-smoke-gfx",
@@ -44,10 +42,11 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "GFX",
-			"duration": 5,
-			"script": "Lower third on overlay 1.",
-			"payload": {}
+			"payload": {
+				"type": "GFX",
+				"duration": 5,
+				"script": "Lower third on overlay 1."
+			}
 		},
 		{
 			"id": "hello-vmix-smoke-dve",
@@ -57,10 +56,11 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "DVE",
-			"duration": 5,
-			"script": "Program cut to DOUBLEBOX input.",
-			"payload": {}
+			"payload": {
+				"type": "DVE",
+				"duration": 5,
+				"script": "Program cut to DOUBLEBOX input."
+			}
 		},
 		{
 			"id": "hello-vmix-smoke-full",
@@ -70,10 +70,11 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "Full",
-			"duration": 10,
-			"script": "Loop playback on BG_LOOP input.",
-			"payload": {}
+			"payload": {
+				"type": "Full",
+				"duration": 10,
+				"script": "Loop playback on BG_LOOP input."
+			}
 		}
 	],
 	"pieces": [
