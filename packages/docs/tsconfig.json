@@ -1,7 +1,11 @@
 {
 	// This file is not used in compilation. It is here just for a nice editor experience and ESLint.
 	"extends": "@docusaurus/tsconfig",
-	"include": ["src/**/*", "../../node_modules/@docusaurus/module-type-aliases/src/index.d.ts"],
+	"include": [
+		"src/**/*",
+		"../../node_modules/@docusaurus/module-type-aliases/src/index.d.ts",
+		"../../node_modules/@docusaurus/theme-classic/src/theme-classic.d.ts"
+	],
 	"compilerOptions": {
 		"baseUrl": ".",
 		"types": ["node"],

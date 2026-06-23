@@ -2,6 +2,8 @@
 
 Convert a Bitfocus Companion full backup (`.json`) into a Sofie **studio config** fragment with `vmixSources` and `vmixAutomationMacros`.
 
+> After import, use [Where vMix input selection is configured](./input-routing-guide.md) to see which imported sources/macros are rundown-driven vs shelf-only.
+
 ## Quick start
 
 From the blueprints repo root:

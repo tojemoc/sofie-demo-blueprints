@@ -119,6 +119,10 @@ export interface VmixRegistryInputConfig {
 	mix?: number
 	loop?: boolean
 }
+/**
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "".
+ */
 export interface VmixAutomationMacro {
 	label: string
 	tags?: string[]

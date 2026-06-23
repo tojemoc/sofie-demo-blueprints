@@ -2,6 +2,8 @@
 
 This guide explains how to translate Bitfocus Companion button automations into Sofie demo blueprints, using the **vMix Studio** config preset and the new `vmixSources` / `vmixAutomationMacros` studio settings.
 
+> **Rundown vs shelf vs macros:** For a full map of where each vMix input is chosen (including Rundown Editor fields and what is *not* rundown-driven yet), read [Where vMix input selection is configured](./input-routing-guide.md) first.
+
 ## Architecture difference
 
 | Companion | Sofie |
