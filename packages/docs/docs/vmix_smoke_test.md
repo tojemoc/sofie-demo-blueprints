@@ -23,7 +23,7 @@ It complements the [Hello vMix](hello_vmix.md) demonstration, which uses dedicat
 4. Enable **Sync** on the rundown and ingest into Sofie.
 5. Activate the playlist and step through with **TAKE**.
 
-Part type IDs in the JSON must match Rundown Editor's built-in manifests exactly: `Cam`, `GFX`, `DVE`, and `Full` (case-sensitive). Lowercase values such as `cam` are rejected on import and produce an empty rundown.
+Part type IDs in the JSON must match Rundown Editor's built-in manifests exactly: `Cam`, `GFX`, `DVE`, and `Full` (case-sensitive). Lowercase values such as `cam` are rejected on import and produce an empty rundown. When this guide uses lowercase terms like `cam`, `gfx`, `dve`, or `full` elsewhere, that is informal shorthand for the part family; the JSON `partType` field must always use the exact manifest casing (`Cam`, `GFX`, `DVE`, `Full`).
 
 ## Expected behaviour
 
