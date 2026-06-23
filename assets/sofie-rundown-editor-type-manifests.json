@@ -92,8 +92,8 @@
 				"includeInName": true
 			},
 			{
-				"id": "title",
-				"label": "Title",
+				"id": "description",
+				"label": "Description",
 				"type": "string",
 				"includeInName": true
 			}
