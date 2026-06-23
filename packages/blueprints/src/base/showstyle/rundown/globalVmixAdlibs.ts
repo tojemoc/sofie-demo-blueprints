@@ -26,14 +26,15 @@ function categoryRank(category?: VmixSourceCategory): number {
 	return category ? CATEGORY_RANK[category] : CATEGORY_RANK[VmixSourceCategory.Video]
 }
 
-function sourceLayerForType(type: SourceType): SourceLayer {
+/** Shelf ad-lib layer mapping. MediaPlayer uses GFX (not VT) because these ad-libs only send vMix commands, not CasparCG file paths. */
+function shelfSourceLayerForType(type: SourceType): SourceLayer {
 	switch (type) {
 		case SourceType.Camera:
 			return SourceLayer.Camera
 		case SourceType.Remote:
 			return SourceLayer.Remote
 		case SourceType.MediaPlayer:
-			return SourceLayer.VT
+			return SourceLayer.GFX
 		case SourceType.Graphics:
 			return SourceLayer.GFX
 		default:
@@ -54,7 +55,7 @@ export function getGlobalVmixAdlibs(context: IShowStyleUserContext): IBlueprintA
 		const baseRank = categoryRank(source.category)
 		const firstTag = source.tags?.[0]
 		const tagOffset = firstTag && firstTag.length > 0 ? firstTag.charCodeAt(0) % 20 : 0
-		const sourceLayer = sourceLayerForType(source.type)
+		const sourceLayer = shelfSourceLayerForType(source.type)
 		const outputLayer = getOutputLayerForSourceLayer(sourceLayer)
 
 		adlibs.push(
@@ -122,15 +123,15 @@ export function getGlobalVmixAdlibs(context: IShowStyleUserContext): IBlueprintA
 			)
 		}
 
-		if (source.type === SourceType.MediaPlayer || source.category === VmixSourceCategory.Video) {
+		if (source.type === SourceType.MediaPlayer) {
 			adlibs.push(
 				literal<IBlueprintAdLibPiece>({
 					_rank: baseRank + 30 + tagOffset,
 					externalId: `vmix-play-${source.key}`,
 					name: `Play: ${source.displayName}`,
 					lifespan: getDefaultVmixAdlibLifespan(),
-					sourceLayerId: SourceLayer.VT,
-					outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VT),
+					sourceLayerId: sourceLayer,
+					outputLayerId: outputLayer,
 					tags: ['vmix', 'playback', ...(source.tags ?? [])],
 					content: {
 						timelineObjects: [createVMixInputPlaybackTimelineObject(source.input, true)],
@@ -141,8 +142,8 @@ export function getGlobalVmixAdlibs(context: IShowStyleUserContext): IBlueprintA
 					externalId: `vmix-restart-${source.key}`,
 					name: `Restart: ${source.displayName}`,
 					lifespan: getDefaultVmixAdlibLifespan(),
-					sourceLayerId: SourceLayer.VT,
-					outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VT),
+					sourceLayerId: sourceLayer,
+					outputLayerId: outputLayer,
 					tags: ['vmix', 'playback', ...(source.tags ?? [])],
 					content: {
 						timelineObjects: [createVMixInputPlaybackTimelineObject(source.input, true, true)],

@@ -18,9 +18,12 @@ It complements the [Hello vMix](hello_vmix.md) demonstration, which uses dedicat
 ## Import the rundown
 
 1. In **Sofie Rundown Editor**, open rundown properties and choose **Export** (or drag-and-drop import).
-2. Import [`hello-vmix-smoke-rundown.json`](https://github.com/tojemoc/sofie-demo-blueprints/blob/main/assets/hello-vmix-smoke-rundown.json) from the blueprints repository `assets/` folder.
-3. Enable **Sync** on the rundown and ingest into Sofie.
-4. Activate the playlist and step through with **TAKE**.
+2. Import [`hello-vmix-smoke-rundown.json`](https://github.com/tojemoc/sofie-demo-blueprints/blob/main/assets/hello-vmix-smoke-rundown.json) from the blueprints repository `assets/` folder. Import it as a **normal rundown** (not a template).
+3. Open the rundown in Rundown Editor — you should see one segment with four parts: **Cam**, **GFX**, **DVE**, and **Full**.
+4. Enable **Sync** on the rundown and ingest into Sofie.
+5. Activate the playlist and step through with **TAKE**.
+
+Part type IDs in the JSON must match Rundown Editor's built-in manifests exactly: `Cam`, `GFX`, `DVE`, and `Full` (case-sensitive). Lowercase values such as `cam` are rejected on import and produce an empty rundown.
 
 ## Expected behaviour
 
@@ -49,6 +52,9 @@ Add optional keys such as `STRAP` to `vmixInputs` with an `overlay` channel when
 
 | Symptom | Check |
 |---------|-------|
+| Rundown empty in Rundown Editor after import | Part types must be `Cam`, `GFX`, `DVE`, `Full` — not lowercase. Re-import the updated `hello-vmix-smoke-rundown.json`. |
+| Rundown won't sync to Sofie | `isTemplate` must be `false` on the rundown. Template rundowns cannot sync. |
+| `VT is missing a file path` on shelf ad-libs (Play: CAM 1, etc.) | You are on the **vMix Demo** hybrid preset, not Hello vMix. Those messages come from global shelf ad-libs, not the smoke test parts. Use preset **Hello vMix Demonstration** (`helloVmix`) for this test, or update blueprints so Play/Restart shelf ad-libs are not placed on the VT layer for cameras. |
 | Cam still uses `camNo` mapping | Confirm `vmixInputs` is non-empty in studio settings |
 | Gfx part does nothing | Gfx part must contain an `l3d` (or other mapped) piece |
 | Full part does not play | Assign media to `BG_LOOP` in vMix; filename on the piece is not loaded automatically (see Milestone 4) |
