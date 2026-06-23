@@ -3,13 +3,12 @@
 		"id": "hello-vmix-smoke-rundown",
 		"name": "Hello vMix Smoke Test",
 		"playlistId": null,
-		"sync": false,
-		"isTemplate": true,
+		"sync": true,
+		"isTemplate": false,
 		"expectedStartTime": 1740000000000,
 		"expectedEndTime": 1740003600000,
 		"payload": {}
 	},
-	"isTemplate": true,
 	"segments": [
 		{
 			"id": "hello-vmix-smoke-segment",
@@ -32,7 +31,7 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "cam",
+			"partType": "Cam",
 			"duration": 5,
 			"script": "Program cut to CAMERA input.",
 			"payload": {}
@@ -45,7 +44,7 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "gfx",
+			"partType": "GFX",
 			"duration": 5,
 			"script": "Lower third on overlay 1.",
 			"payload": {}
@@ -58,7 +57,7 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "dve",
+			"partType": "DVE",
 			"duration": 5,
 			"script": "Program cut to DOUBLEBOX input.",
 			"payload": {}
@@ -71,7 +70,7 @@
 			"rundownId": "hello-vmix-smoke-rundown",
 			"playlistId": null,
 			"segmentId": "hello-vmix-smoke-segment",
-			"partType": "full",
+			"partType": "Full",
 			"duration": 10,
 			"script": "Loop playback on BG_LOOP input.",
 			"payload": {}
