@@ -20,22 +20,26 @@ export interface GraphicsResult {
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
-	if (object.clipName.match(/ticker/i)) {
+	if (object.clipName.match(/logo-bug/i)) {
+		return SourceLayer.Logo
+	} else if (object.clipName.match(/ticker/i)) {
 		return SourceLayer.Ticker
 	} else if (object.clipName.match(/strap/i)) {
 		return SourceLayer.Strap
-	} else if (object.clipName.match(/fullscreen/i)) {
+	} else if (object.clipName.match(/fullscreen|outro/i)) {
 		return SourceLayer.GFX
 	} else {
 		return SourceLayer.LowerThird
 	}
 }
 function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
-	if (object.clipName.match(/ticker/i)) {
+	if (object.clipName.match(/logo-bug/i)) {
+		return CasparCGLayers.CasparCGGraphicsLogo
+	} else if (object.clipName.match(/ticker/i)) {
 		return CasparCGLayers.CasparCGGraphicsTicker
 	} else if (object.clipName.match(/strap/i)) {
 		return CasparCGLayers.CasparCGGraphicsStrap
-	} else if (object.clipName.match(/fullscreen/i)) {
+	} else if (object.clipName.match(/fullscreen|outro/i)) {
 		return CasparCGLayers.CasparCGClipPlayer1
 	} else {
 		return CasparCGLayers.CasparCGGraphicsLowerThird
@@ -92,10 +96,7 @@ function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraph
 			// so it should start from 1 for `NoraContent` (stepped graphics) !
 			step: 'stepCount' in object.attributes ? { current: 1, count: object.attributes.stepCount } : undefined,
 			templateData: {
-				name: object.attributes.name,
-				description: object.attributes.description,
-				location: object.attributes.location,
-				text: object.attributes.text,
+				...object.attributes,
 			},
 			// ToDo: This was the old way of doing it, but it doesn't work in R53:
 			// payload: {
@@ -142,10 +143,7 @@ export function parseAdlibGraphic(
 			timelineObjects: getGraphicTlObject(config, object, true),
 
 			templateData: {
-				name: object.attributes.name,
-				description: object.attributes.description,
-				location: object.attributes.location,
-				text: object.attributes.text,
+				...object.attributes,
 			},
 			// payload: {
 			// 	content: {

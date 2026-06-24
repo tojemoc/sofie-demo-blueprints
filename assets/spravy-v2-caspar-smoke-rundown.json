@@ -1,0 +1,136 @@
+{
+	"rundown": {
+		"id": "spravy-v2-caspar-smoke-rundown",
+		"name": "Spravy v2 Caspar Smoke Test",
+		"playlistId": null,
+		"sync": true,
+		"isTemplate": false,
+		"expectedStartTime": 1740000000000,
+		"expectedEndTime": 1740003600000,
+		"payload": {}
+	},
+	"segments": [
+		{
+			"id": "spravy-v2-caspar-smoke-segment",
+			"name": "Caspar v2 smoke test",
+			"rank": 0,
+			"float": false,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null
+		}
+	],
+	"parts": [
+		{
+			"id": "spravy-v2-caspar-smoke-cam",
+			"name": "Cam",
+			"rank": 0,
+			"float": false,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"payload": {
+				"type": "Cam",
+				"duration": 5,
+				"script": "Program cut to camera 1."
+			}
+		},
+		{
+			"id": "spravy-v2-caspar-smoke-tema",
+			"name": "L3D topic",
+			"rank": 1,
+			"float": false,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"payload": {
+				"type": "GFX",
+				"duration": 5,
+				"script": "Play gfx/l3d-tema on Caspar layer 111."
+			}
+		},
+		{
+			"id": "spravy-v2-caspar-smoke-mod",
+			"name": "L3D moderator",
+			"rank": 2,
+			"float": false,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"payload": {
+				"type": "GFX",
+				"duration": 5,
+				"script": "Play gfx/l3d-mod on Caspar layer 111."
+			}
+		},
+		{
+			"id": "spravy-v2-caspar-smoke-headline",
+			"name": "L3D headline",
+			"rank": 3,
+			"float": false,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"payload": {
+				"type": "GFX",
+				"duration": 5,
+				"script": "Play gfx/l3d-headline on Caspar layer 111."
+			}
+		}
+	],
+	"pieces": [
+		{
+			"id": "spravy-v2-caspar-smoke-cam-piece",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"partId": "spravy-v2-caspar-smoke-cam",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "spravy-v2-caspar-smoke-tema-piece",
+			"name": "Topic",
+			"pieceType": "l3d-tema",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"partId": "spravy-v2-caspar-smoke-tema",
+			"payload": {
+				"headline": "R. Fico o M. Ficovi"
+			}
+		},
+		{
+			"id": "spravy-v2-caspar-smoke-mod-piece",
+			"name": "Moderator",
+			"pieceType": "l3d-mod",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"partId": "spravy-v2-caspar-smoke-mod",
+			"payload": {
+				"name": "Moderátor"
+			}
+		},
+		{
+			"id": "spravy-v2-caspar-smoke-headline-piece",
+			"name": "Headline",
+			"pieceType": "l3d-headline",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "spravy-v2-caspar-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v2-caspar-smoke-segment",
+			"partId": "spravy-v2-caspar-smoke-headline",
+			"payload": {
+				"title": "Správy",
+				"subtitle": "18:00"
+			}
+		}
+	]
+}

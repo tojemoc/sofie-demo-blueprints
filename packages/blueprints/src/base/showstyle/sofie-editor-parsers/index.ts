@@ -34,11 +34,28 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 			// When using Sofie Rundown Editor you can get the segment type from partPayload.type
 
 			// convert graphic sub-types into graphic objects. to be parsed in a GFX part.
-			const graphicTypes = ['strap', 'head', 'l3d', 'fullscreen', 'stepped-graphic']
+			const graphicTypes = [
+				'strap',
+				'head',
+				'l3d',
+				'fullscreen',
+				'stepped-graphic',
+				'headline',
+				'l3d-headline',
+				'l3d-mod',
+				'l3d-tema',
+				'l3d-syn',
+				'l3d-sjv',
+				'l3d-sport',
+				'weather',
+				'outro',
+				'logo-bug',
+			]
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {
 					piece.clipName = String(piece.attributes.template || '')
 
+					// Legacy spreadsheet/generic graphic field remapping
 					if (piece.clipName === 'gfx/strap') {
 						piece.attributes.location = piece.attributes.field0
 						piece.attributes.text = piece.attributes.field1
@@ -58,8 +75,17 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 				piece.objectTime = piece.objectTime * 1000
 
 				if (graphicTypes.includes(piece.objectType)) {
-					piece.clipName = 'gfx/' + piece.objectType
+					const graphicPieceType = piece.objectType
+					piece.clipName = 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic
+
+					if (graphicPieceType === 'weather' && typeof piece.attributes.cities === 'string') {
+						try {
+							;(piece.attributes as Record<string, unknown>).cities = JSON.parse(piece.attributes.cities)
+						} catch {
+							context.logWarning(`Invalid weather cities JSON on piece ${piece.id}`)
+						}
+					}
 
 					// Pass piece name to template as an attribute if it exists
 					if (piece.name) {

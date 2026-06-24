@@ -30,6 +30,22 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+				id: '',
+				enable: { while: 1 },
+				priority: 0,
+				layer: CasparCGLayers.CasparCGGraphicsLogo,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+
+					templateType: 'html',
+					name: 'gfx/logo-bug',
+					data: {},
+					useStopCommand: true,
+				},
+			}),
+
 			literal<TimelineBlueprintExt<TSR.TimelineContentSisyfosChannels>>({
 				id: '',
 				enable: {
