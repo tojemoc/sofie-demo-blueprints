@@ -41,10 +41,14 @@ jobs:
           path: |
             node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-      - name: Prepare Environment
+      - name: Configure Yarn
         run: |
-          corepack enable
-          yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
+      - name: Prepare Environment
+        run: yarn
         env:
           CI: true
       - name: Run typecheck and linter
@@ -71,10 +75,14 @@ jobs:
           path: |
             node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
-      - name: Prepare Environment
+      - name: Configure Yarn
         run: |
-          corepack enable
-          yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
+      - name: Prepare Environment
+        run: yarn
         env:
           CI: true
       - name: Run tests
@@ -96,10 +104,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 22.x
-      - name: Prepare Environment
+      - name: Configure Yarn
         run: |
-          corepack enable
-          yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
+      - name: Prepare Environment
+        run: yarn
         env:
           CI: true
       - name: Run docusaurus
@@ -209,10 +221,14 @@ jobs:
             node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
 
-      - name: Prepare Environment
+      - name: Configure Yarn
         run: |
-          corepack enable
-          yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
+      - name: Prepare Environment
+        run: yarn
         env:
           CI: true
 
@@ -281,10 +297,14 @@ jobs:
             node_modules
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
 
-      - name: Prepare Environment
+      - name: Configure Yarn
         run: |
-          corepack enable
-          yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
+      - name: Prepare Environment
+        run: yarn
         env:
           CI: true
 
