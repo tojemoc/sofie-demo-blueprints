@@ -2,8 +2,19 @@ import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-
 import { literal } from '../../../../common/util.js'
 import { BlueprintConfig } from '../../helpers/config.js'
 import { CasparCGLayers } from '../../layers.js'
+import { LedChannelLayers, PgmChannelLayers } from './casparcgLayers.js'
 
-export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings {
+export function getHypercomposedChannels(config: BlueprintConfig): { ledChannel: number; pgmChannel: number } {
+	const hypercomposed = config.studio.casparcg.hypercomposed
+	return {
+		ledChannel: hypercomposed?.ledChannel ?? 1,
+		pgmChannel: hypercomposed?.pgmChannel ?? 2,
+	}
+}
+
+export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
+	const { ledChannel, pgmChannel } = getHypercomposedChannels(config)
+
 	const mappings: BlueprintMappings = {
 		[CasparCGLayers.CasparCGClipPlayer1]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
 			device: TSR.DeviceType.CASPARCG,
@@ -12,8 +23,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 1,
-				layer: 110,
+				channel: ledChannel,
+				layer: LedChannelLayers.ClipPlayer,
 			},
 		}),
 		[CasparCGLayers.CasparCGClipPlayer2]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
@@ -23,8 +34,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 2,
-				layer: 110,
+				channel: pgmChannel,
+				layer: PgmChannelLayers.ClipPlayer,
 			},
 		}),
 
@@ -34,8 +45,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 1,
-				layer: 100,
+				channel: ledChannel,
+				layer: LedChannelLayers.ClipPreview,
 			},
 		}),
 
@@ -45,8 +56,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 3,
-				layer: 200,
+				channel: ledChannel,
+				layer: LedChannelLayers.EffectsPlayer,
 			},
 		}),
 		[CasparCGLayers.CasparCGGraphicsTicker]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
@@ -55,8 +66,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 3,
-				layer: 110,
+				channel: ledChannel,
+				layer: LedChannelLayers.GraphicsTicker,
 			},
 		}),
 		[CasparCGLayers.CasparCGGraphicsLowerThird]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
@@ -65,8 +76,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 3,
-				layer: 111,
+				channel: ledChannel,
+				layer: LedChannelLayers.GraphicsLowerThird,
 			},
 		}),
 		[CasparCGLayers.CasparCGGraphicsStrap]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
@@ -75,8 +86,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 3,
-				layer: 112,
+				channel: ledChannel,
+				layer: LedChannelLayers.GraphicsStrap,
 			},
 		}),
 		[CasparCGLayers.CasparCGGraphicsLogo]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
@@ -85,8 +96,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 3,
-				layer: 113,
+				channel: ledChannel,
+				layer: LedChannelLayers.GraphicsLogo,
 			},
 		}),
 		[CasparCGLayers.CasparCGAudioBed]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
@@ -95,8 +106,8 @@ export function getCasparCGMappings(_config: BlueprintConfig): BlueprintMappings
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: 3,
-				layer: 80,
+				channel: ledChannel,
+				layer: LedChannelLayers.AudioBed,
 			},
 		}),
 	}

@@ -98,6 +98,31 @@
 					"ui:title": "Port",
 					"ui:description": "Port of CasparCG (default is 5250)",
 					"default": 5250
+				},
+				"hypercomposed": {
+					"type": "object",
+					"title": "HypercomposedChannels",
+					"description": "LED and PGM CasparCG channel assignment for hypercomposed playout",
+					"ui:category": "Output topology",
+					"ui:title": "Hypercomposed output channels",
+					"properties": {
+						"ledChannel": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 1,
+							"ui:title": "LED channel",
+							"ui:description": "CasparCG channel routed to the LED output consumer (graphics + primary clip stack)"
+						},
+						"pgmChannel": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 2,
+							"ui:title": "PGM channel",
+							"ui:description": "CasparCG channel routed to the PGM output consumer (secondary clip stack)"
+						}
+					},
+					"required": ["ledChannel", "pgmChannel"],
+					"additionalProperties": false
 				}
 			},
 			"required": ["host", "port"],

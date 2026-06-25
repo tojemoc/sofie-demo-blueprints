@@ -17,6 +17,10 @@ export const DemoStudioConfig: StudioConfig = {
 	casparcg: {
 		host: 'localhost',
 		port: 5250,
+		hypercomposed: {
+			ledChannel: 1,
+			pgmChannel: 2,
+		},
 	},
 	sisyfosSources: {},
 	vmixSources: {},
