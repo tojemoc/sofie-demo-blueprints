@@ -1,7 +1,7 @@
 import { ITranslatableMessage } from '@sofie-automation/blueprints-integration'
 import { SomeObject } from '../../../common/definitions/objects.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
-import { InvalidProps, PartInfo, PartProps, PartType } from '../definitions/index.js'
+import { InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseBaseProps } from './base.js'
 
 export function createInvalidProps(
@@ -12,7 +12,6 @@ export function createInvalidProps(
 		type: PartType.Invalid,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),

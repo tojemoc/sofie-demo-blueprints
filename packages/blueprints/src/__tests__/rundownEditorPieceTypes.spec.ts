@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES } from '../common/definitions/rundownEditorTypes.js'
 
 type RundownEditorPayloadManifest = {
 	id: string
@@ -10,9 +11,9 @@ type RundownEditorPayloadManifest = {
 	includeInName?: boolean
 }
 
-type RundownEditorPieceTypeManifest = {
+type RundownEditorTypeManifest = {
 	id: string
-	entityType: 'piece'
+	entityType: 'piece' | 'part' | 'segment'
 	name: string
 	payload: RundownEditorPayloadManifest[]
 }
@@ -30,18 +31,20 @@ function isPayloadManifest(value: unknown): value is RundownEditorPayloadManifes
 	)
 }
 
-/** Mirrors Rundown Editor import validation, with stricter shape checks for our asset file. */
-function verifyRundownEditorPieceTypesImport(data: unknown): data is RundownEditorPieceTypeManifest[] {
+function verifyRundownEditorTypesImport(
+	data: unknown,
+	entityType: RundownEditorTypeManifest['entityType']
+): data is RundownEditorTypeManifest[] {
 	return (
 		Array.isArray(data) &&
-		data.every((entry): entry is RundownEditorPieceTypeManifest => {
+		data.every((entry): entry is RundownEditorTypeManifest => {
 			if (typeof entry !== 'object' || entry === null) return false
 
 			const manifest = entry as Record<string, unknown>
 
 			return (
 				typeof manifest.id === 'string' &&
-				manifest.entityType === 'piece' &&
+				manifest.entityType === entityType &&
 				typeof manifest.name === 'string' &&
 				Array.isArray(manifest.payload) &&
 				manifest.payload.every(isPayloadManifest)
@@ -50,14 +53,44 @@ function verifyRundownEditorPieceTypesImport(data: unknown): data is RundownEdit
 	)
 }
 
+const assetsDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../assets')
+
 describe('sofie-rundown-editor-piece-types.json', () => {
 	it('matches Rundown Editor piece type import validation', () => {
-		const filePath = resolve(
-			dirname(fileURLToPath(import.meta.url)),
-			'../../../../assets/sofie-rundown-editor-piece-types.json'
-		)
-		const data: unknown = JSON.parse(readFileSync(filePath, 'utf8'))
+		const data: unknown = JSON.parse(readFileSync(resolve(assetsDir, 'sofie-rundown-editor-piece-types.json'), 'utf8'))
 
-		expect(verifyRundownEditorPieceTypesImport(data)).toBe(true)
+		expect(verifyRundownEditorTypesImport(data, 'piece')).toBe(true)
+	})
+
+	it('graphic piece ids stay in sync with blueprint normalization', () => {
+		const data = JSON.parse(
+			readFileSync(resolve(assetsDir, 'sofie-rundown-editor-piece-types.json'), 'utf8')
+		) as Array<{
+			id: string
+		}>
+
+		const graphicIds = data
+			.map((entry) => entry.id)
+			.filter((id) => (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(id))
+
+		expect(graphicIds.sort()).toEqual([...RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES].sort())
+	})
+})
+
+describe('sofie-rundown-editor-part-types.json', () => {
+	it('matches Rundown Editor part type import validation', () => {
+		const data: unknown = JSON.parse(readFileSync(resolve(assetsDir, 'sofie-rundown-editor-part-types.json'), 'utf8'))
+
+		expect(verifyRundownEditorTypesImport(data, 'part')).toBe(true)
+	})
+})
+
+describe('sofie-rundown-editor-segment-types.json', () => {
+	it('matches Rundown Editor segment type import validation', () => {
+		const data: unknown = JSON.parse(
+			readFileSync(resolve(assetsDir, 'sofie-rundown-editor-segment-types.json'), 'utf8')
+		)
+
+		expect(verifyRundownEditorTypesImport(data, 'segment')).toBe(true)
 	})
 })

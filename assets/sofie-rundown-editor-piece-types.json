@@ -1,5 +1,7 @@
 [
 	{
+		"id": "camera",
+		"entityType": "piece",
 		"name": "Camera",
 		"shortName": "Cam",
 		"colour": "#18791C",
@@ -11,13 +13,13 @@
 				"type": "number",
 				"includeInName": true
 			}
-		],
-		"id": "camera",
-		"entityType": "piece"
+		]
 	},
 	{
+		"id": "video",
+		"entityType": "piece",
 		"name": "Video",
-		"shortName": "VT",
+		"shortName": "SOT",
 		"colour": "#0a20ed",
 		"payload": [
 			{
@@ -33,14 +35,15 @@
 				"type": "number",
 				"includeInName": false
 			}
-		],
-		"id": "video",
-		"entityType": "piece"
+		]
 	},
 	{
+		"id": "remote",
+		"entityType": "piece",
 		"name": "Remote",
-		"colour": "#e80064",
 		"shortName": "REMI",
+		"colour": "#e80064",
+		"includeTypeInName": true,
 		"payload": [
 			{
 				"id": "input",
@@ -48,14 +51,14 @@
 				"type": "number",
 				"includeInName": true
 			}
-		],
-		"includeTypeInName": true,
-		"id": "remote",
-		"entityType": "piece"
+		]
 	},
 	{
+		"id": "split",
+		"entityType": "piece",
 		"name": "Split",
 		"shortName": "DVE",
+		"colour": "#666666",
 		"payload": [
 			{
 				"id": "layout",
@@ -80,14 +83,45 @@
 				"type": "string",
 				"includeInName": true
 			}
-		],
-		"id": "split",
-		"entityType": "piece",
-		"colour": "#666666"
+		]
 	},
 	{
-		"name": "Lower third",
-		"shortName": "L3d",
+		"id": "guest",
+		"entityType": "piece",
+		"name": "Studio Guest",
+		"shortName": "Guest",
+		"colour": "#666666",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "count",
+				"label": "Guest Count",
+				"type": "number",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "l3d-tema",
+		"entityType": "piece",
+		"name": "L3D topic",
+		"shortName": "L3D-T",
+		"colour": "#ED7200",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "headline",
+				"label": "Headline",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "l3d-mod",
+		"entityType": "piece",
+		"name": "L3D moderator",
+		"shortName": "L3D-M",
 		"colour": "#ED7200",
 		"includeTypeInName": true,
 		"payload": [
@@ -96,18 +130,12 @@
 				"label": "Name",
 				"type": "string",
 				"includeInName": true
-			},
-			{
-				"id": "description",
-				"label": "Function",
-				"type": "string",
-				"includeInName": true
 			}
-		],
-		"id": "l3d",
-		"entityType": "piece"
+		]
 	},
 	{
+		"id": "l3d-headline",
+		"entityType": "piece",
 		"name": "L3D headline",
 		"shortName": "L3D-H",
 		"colour": "#ED7200",
@@ -125,43 +153,11 @@
 				"type": "string",
 				"includeInName": true
 			}
-		],
-		"id": "l3d-headline",
-		"entityType": "piece"
+		]
 	},
 	{
-		"name": "L3D moderator",
-		"shortName": "L3D-M",
-		"colour": "#ED7200",
-		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "name",
-				"label": "Name",
-				"type": "string",
-				"includeInName": true
-			}
-		],
-		"id": "l3d-mod",
-		"entityType": "piece"
-	},
-	{
-		"name": "L3D topic",
-		"shortName": "L3D-T",
-		"colour": "#ED7200",
-		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "headline",
-				"label": "Headline",
-				"type": "string",
-				"includeInName": true
-			}
-		],
-		"id": "l3d-tema",
-		"entityType": "piece"
-	},
-	{
+		"id": "l3d-syn",
+		"entityType": "piece",
 		"name": "L3D guest",
 		"shortName": "L3D-S",
 		"colour": "#ED7200",
@@ -179,51 +175,13 @@
 				"type": "string",
 				"includeInName": true
 			}
-		],
-		"id": "l3d-syn",
-		"entityType": "piece"
+		]
 	},
 	{
-		"name": "L3D SJV",
-		"shortName": "L3D-SJV",
-		"colour": "#ED7200",
-		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "headline",
-				"label": "Headline",
-				"type": "string",
-				"includeInName": true
-			}
-		],
-		"id": "l3d-sjv",
-		"entityType": "piece"
-	},
-	{
-		"name": "L3D sport",
-		"shortName": "L3D-SP",
-		"colour": "#ED7200",
-		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "headline",
-				"label": "Headline",
-				"type": "string",
-				"includeInName": true
-			},
-			{
-				"id": "source",
-				"label": "Source",
-				"type": "string",
-				"includeInName": true
-			}
-		],
-		"id": "l3d-sport",
-		"entityType": "piece"
-	},
-	{
+		"id": "headline",
+		"entityType": "piece",
 		"name": "Headline + ILU",
-		"shortName": "Head",
+		"shortName": "ILU",
 		"colour": "#ED7200",
 		"includeTypeInName": true,
 		"payload": [
@@ -240,117 +198,24 @@
 				"type": "string",
 				"includeInName": true
 			}
-		],
-		"id": "headline",
-		"entityType": "piece"
+		]
 	},
 	{
-		"name": "Weather",
-		"shortName": "Wx",
-		"colour": "#ED7200",
-		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "cities",
-				"label": "Cities (JSON array)",
-				"type": "string",
-				"includeInName": false
-			}
-		],
-		"id": "weather",
-		"entityType": "piece"
-	},
-	{
-		"name": "Outro",
-		"shortName": "Outro",
-		"colour": "#ED7200",
-		"includeTypeInName": true,
-		"payload": [],
-		"id": "outro",
-		"entityType": "piece"
-	},
-	{
+		"id": "logo-bug",
+		"entityType": "piece",
 		"name": "Logo bug",
 		"shortName": "Logo",
 		"colour": "#ED7200",
 		"includeTypeInName": false,
-		"payload": [],
-		"id": "logo-bug",
-		"entityType": "piece"
+		"payload": []
 	},
 	{
-		"name": "Live strap",
-		"shortName": "Live",
-		"colour": "#ED7200",
-		"payload": [
-			{
-				"id": "location",
-				"label": "Text",
-				"type": "string",
-				"includeInName": true
-			},
-			{
-				"id": "text",
-				"label": "Label",
-				"type": "string"
-			}
-		],
-		"id": "strap",
-		"entityType": "piece"
-	},
-	{
-		"name": "Ticker",
-		"shortName": "Ticker",
-		"colour": "#ED7200",
-		"payload": [],
-		"id": "ticker",
-		"entityType": "piece"
-	},
-	{
-		"name": "Studio Guest",
-		"shortName": "Guest",
-		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "count",
-				"label": "Guest Count",
-				"type": "number",
-				"includeInName": true
-			}
-		],
-		"id": "guest",
+		"id": "outro",
 		"entityType": "piece",
-		"colour": "#666666"
-	},
-	{
-		"name": "Fullscreen",
-		"shortName": "GFX",
+		"name": "Outro",
+		"shortName": "Outro",
 		"colour": "#ED7200",
 		"includeTypeInName": true,
-		"payload": [
-			{
-				"id": "url",
-				"label": "URL",
-				"type": "string"
-			}
-		],
-		"id": "fullscreen",
-		"entityType": "piece"
-	},
-	{
-		"name": "Head",
-		"shortName": "head",
-		"colour": "#ED7200",
-		"includeTypeInName": false,
-		"payload": [
-			{
-				"id": "text",
-				"label": "Text",
-				"type": "string",
-				"includeInName": true
-			}
-		],
-		"id": "head",
-		"entityType": "piece"
+		"payload": []
 	}
 ]

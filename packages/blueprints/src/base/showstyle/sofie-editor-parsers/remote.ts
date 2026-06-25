@@ -2,7 +2,7 @@ import { ObjectType, SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
-import { InvalidProps, PartInfo, PartProps, PartType, RemoteProps } from '../definitions/index.js'
+import { InvalidProps, PartProps, PartType, RemoteProps } from '../definitions/index.js'
 import { findSource } from '../helpers/sources.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
@@ -22,7 +22,6 @@ export function parseRemote(ingestPart: EditorIngestPart): PartProps<RemoteProps
 		type: PartType.Remote,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),

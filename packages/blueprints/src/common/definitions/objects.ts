@@ -5,13 +5,7 @@ export type SomeObject =
 	| VideoObject
 	| GraphicObject
 	| SplitObject
-	| OverlayObject
-	| LightsObject
-	| TransitionObject
 	| RemoteObject
-	| PipObject
-	| VoiceoverObject
-	| ScriptObject
 	| StudioGuestObject
 	| GraphicObjectBase
 	| SteppedGraphicObject
@@ -24,13 +18,7 @@ export enum ObjectType {
 	Graphic = 'graphic',
 	SteppedGraphic = 'stepped-graphic',
 	Split = 'split',
-	Overlay = 'overlay',
-	Lights = 'lights',
-	Transition = 'transition',
 	Remote = 'remote',
-	Pip = 'pip',
-	Voiceover = 'voiceover',
-	Script = 'script',
 	StudioGuest = 'guest',
 }
 
@@ -96,32 +84,11 @@ export interface SplitObject extends BaseObject {
 		input2: string
 	}
 }
-export interface OverlayObject extends BaseObject {
-	objectType: ObjectType.Overlay
-}
-export interface LightsObject extends BaseObject {
-	objectType: ObjectType.Lights
-}
-export interface TransitionObject extends BaseObject {
-	objectType: ObjectType.Transition
-	attributes: {
-		type: string
-	}
-}
 export interface RemoteObject extends BaseObject {
 	objectType: ObjectType.Remote
 	attributes: {
 		source: string
 	}
-}
-export interface PipObject extends BaseObject {
-	objectType: ObjectType.Pip
-}
-export interface VoiceoverObject extends BaseObject {
-	objectType: ObjectType.Voiceover
-}
-export interface ScriptObject extends BaseObject {
-	objectType: ObjectType.Script
 }
 
 export interface StudioGuestObject extends BaseObject {

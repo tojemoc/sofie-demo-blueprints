@@ -1,8 +1,9 @@
 import { IRundownUserContext, SofieIngestSegment } from '@sofie-automation/blueprints-integration'
 import { ObjectType } from '../../../common/definitions/objects.js'
+import { isRundownEditorGraphicPieceType, resolveSegmentType } from '../../../common/definitions/rundownEditorTypes.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
-import { AllProps, PartProps, SegmentProps, SegmentType } from '../definitions/index.js'
+import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
 import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
@@ -11,6 +12,44 @@ import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
 import { parseVT } from './vt.js'
+
+function hasCameraPiece(part: EditorIngestPart): boolean {
+	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Camera)
+}
+
+function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
+	const partType = partPayload.type ?? ''
+
+	if (partType.match(/ilu/i)) {
+		return hasCameraPiece(partPayload) ? parseCamera(partPayload) : parseGfx(partPayload)
+	}
+	if (partType.match(/syn/i)) {
+		return parseVO(partPayload)
+	}
+	if (partType.match(/cam/i)) {
+		return parseCamera(partPayload)
+	}
+	if (partType.match(/dve/i)) {
+		return parseDVE(partPayload)
+	}
+	if (partType.match(/gfx/i)) {
+		return parseGfx(partPayload)
+	}
+	if (partType.match(/remote/i)) {
+		return parseRemote(partPayload)
+	}
+	if (partType.match(/titles/i)) {
+		return parseOpener(partPayload)
+	}
+	if (partType.match(/vo/i)) {
+		return parseVO(partPayload)
+	}
+	if (partType.match(/vt|full|package/i)) {
+		return parseVT(partPayload)
+	}
+
+	return createInvalidProps(t('Unknown part type'), partPayload)
+}
 
 /**
  * This function converts from raw ingest segments to parsed segments, we
@@ -22,35 +61,15 @@ import { parseVT } from './vt.js'
  */
 export function convertIngestData(context: IRundownUserContext, ingestSegment: SofieIngestSegment): SegmentProps {
 	const parts: PartProps<AllProps>[] = []
-	let type = SegmentType.NORMAL // When using Sofie Rundown Editor you can get the segment type from ingestSegment.payload.type
+	let type = resolveSegmentType({ name: ingestSegment.name })
 
 	if (ingestSegment.payload) {
 		const payload = ingestSegment.payload as EditorIngestSegment
-
-		if (payload.name.match(/intro/i)) type = SegmentType.OPENING
+		type = resolveSegmentType(payload)
 
 		ingestSegment.parts.forEach((part) => {
 			const partPayload = part.payload as EditorIngestPart
-			// When using Sofie Rundown Editor you can get the segment type from partPayload.type
 
-			// convert graphic sub-types into graphic objects. to be parsed in a GFX part.
-			const graphicTypes = [
-				'strap',
-				'head',
-				'l3d',
-				'fullscreen',
-				'stepped-graphic',
-				'headline',
-				'l3d-headline',
-				'l3d-mod',
-				'l3d-tema',
-				'l3d-syn',
-				'l3d-sjv',
-				'l3d-sport',
-				'weather',
-				'outro',
-				'logo-bug',
-			]
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {
 					piece.clipName = String(piece.attributes.template || '')
@@ -74,18 +93,10 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 				piece.duration = piece.duration * 1000
 				piece.objectTime = piece.objectTime * 1000
 
-				if (graphicTypes.includes(piece.objectType)) {
+				if (isRundownEditorGraphicPieceType(piece.objectType)) {
 					const graphicPieceType = piece.objectType
 					piece.clipName = 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic
-
-					if (graphicPieceType === 'weather' && typeof piece.attributes.cities === 'string') {
-						try {
-							;(piece.attributes as Record<string, unknown>).cities = JSON.parse(piece.attributes.cities)
-						} catch {
-							context.logWarning(`Invalid weather cities JSON on piece ${piece.id}`)
-						}
-					}
 
 					// Pass piece name to template as an attribute if it exists
 					if (piece.name) {
@@ -94,24 +105,7 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 				}
 			})
 
-			// process the pieces
-			if (partPayload.type?.match(/cam/i)) {
-				parts.push(parseCamera(partPayload))
-			} else if (partPayload.type?.match(/dve/i)) {
-				parts.push(parseDVE(partPayload))
-			} else if (partPayload.type?.match(/gfx/i)) {
-				parts.push(parseGfx(partPayload))
-			} else if (partPayload.type?.match(/remote/i)) {
-				parts.push(parseRemote(partPayload))
-			} else if (partPayload.type?.match(/titles/i)) {
-				parts.push(parseOpener(partPayload))
-			} else if (partPayload.type?.match(/vo/i)) {
-				parts.push(parseVO(partPayload))
-			} else if (partPayload.type?.match(/vt|full|package/i)) {
-				parts.push(parseVT(partPayload))
-			} else {
-				parts.push(createInvalidProps(t('Unknown part type'), partPayload))
-			}
+			parts.push(parseEditorPart(partPayload))
 		})
 	} else {
 		context.logError('Missing segment payload')

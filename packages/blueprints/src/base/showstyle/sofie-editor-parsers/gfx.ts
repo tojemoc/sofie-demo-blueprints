@@ -1,7 +1,7 @@
 import { GraphicObject, ObjectType, SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
-import { GfxProps, InvalidProps, PartInfo, PartProps, PartType } from '../definitions/index.js'
+import { GfxProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
 
@@ -18,7 +18,6 @@ export function parseGfx(ingestPart: EditorIngestPart): PartProps<GfxProps | Inv
 		type: PartType.GFX,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),

@@ -1,7 +1,7 @@
 import { ObjectType, SomeObject, SplitObject, VideoObject } from '../../../common/definitions/objects.js'
 import { SpreadsheetIngestPart } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
-import { DVEProps, InvalidProps, PartInfo, PartProps, PartType } from '../definitions/index.js'
+import { DVEProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseClipProps } from '../helpers/clips.js'
 import { findSource } from '../helpers/sources.js'
 import { parseBaseProps } from './base.js'
@@ -30,7 +30,6 @@ export function parseDVE(ingestPart: SpreadsheetIngestPart): PartProps<DVEProps 
 		type: PartType.DVE,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),
