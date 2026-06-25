@@ -31,8 +31,8 @@ const baseStudioConfig: StudioConfig = {
 	},
 }
 
-function getMappingOptions(layer: CasparCGLayers) {
-	const mappings = getCasparCGMappings({ studio: baseStudioConfig })
+function getMappingOptions(layer: CasparCGLayers, studioConfig: StudioConfig = baseStudioConfig) {
+	const mappings = getCasparCGMappings({ studio: studioConfig })
 	const mapping = mappings[layer]
 	if (!mapping || mapping.options.mappingType !== TSR.MappingCasparCGType.Layer) {
 		throw new Error(`Expected CasparCG layer mapping for ${layer}`)
@@ -49,6 +49,26 @@ describe('casparcgMappings', () => {
 	})
 
 	it('uses configured hypercomposed channels when present', () => {
+		const overrideConfig: StudioConfig = {
+			...baseStudioConfig,
+			casparcg: {
+				...baseStudioConfig.casparcg,
+				hypercomposed: {
+					ledChannel: 4,
+					pgmChannel: 5,
+				},
+			},
+		}
+
+		expect(getHypercomposedChannels({ studio: overrideConfig })).toEqual({
+			ledChannel: 4,
+			pgmChannel: 5,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer1, overrideConfig).channel).toBe(4)
+		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2, overrideConfig).channel).toBe(5)
+	})
+
+	it('corrects identical LED and PGM channels to a distinct pair', () => {
 		expect(
 			getHypercomposedChannels({
 				studio: {
@@ -56,15 +76,15 @@ describe('casparcgMappings', () => {
 					casparcg: {
 						...baseStudioConfig.casparcg,
 						hypercomposed: {
-							ledChannel: 4,
-							pgmChannel: 5,
+							ledChannel: 3,
+							pgmChannel: 3,
 						},
 					},
 				},
 			})
 		).toEqual({
-			ledChannel: 4,
-			pgmChannel: 5,
+			ledChannel: 3,
+			pgmChannel: 4,
 		})
 	})
 

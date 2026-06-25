@@ -6,10 +6,14 @@ import { LedChannelLayers, PgmChannelLayers } from './casparcgLayers.js'
 
 export function getHypercomposedChannels(config: BlueprintConfig): { ledChannel: number; pgmChannel: number } {
 	const hypercomposed = config.studio.casparcg.hypercomposed
-	return {
-		ledChannel: hypercomposed?.ledChannel ?? 1,
-		pgmChannel: hypercomposed?.pgmChannel ?? 2,
+	const ledChannel = hypercomposed?.ledChannel ?? 1
+	let pgmChannel = hypercomposed?.pgmChannel ?? 2
+
+	if (ledChannel === pgmChannel) {
+		pgmChannel = ledChannel + 1
 	}
+
+	return { ledChannel, pgmChannel }
 }
 
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
