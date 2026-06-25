@@ -7,6 +7,14 @@ on:
     tags:
       - 'v**'
   pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to attach release assets to'
+        required: true
+      asset_suffix:
+        description: 'Zip filename suffix (e.g. r53). Defaults to the tag name without a leading v.'
+        required: false
 
 jobs:
   lint:
@@ -159,3 +167,162 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          
+  release-blueprints:
+    name: Release Blueprints
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    needs: [lint, test]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Resolve release ref
+        id: release_ref
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+            TAG="${TAG#refs/tags/}"
+            if ! git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+              echo "::error::Git tag '${TAG}' was not found on origin."
+              exit 1
+            fi
+            echo "ref=refs/tags/${TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release_ref.outputs.ref }}
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+
+      - name: restore node_modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Prepare Environment
+        run: |
+          corepack enable
+          yarn
+        env:
+          CI: true
+
+      - name: Build blueprints
+        run: |
+          cd packages/blueprints
+          yarn dist
+        env:
+          CI: true
+
+      - name: Package release assets
+        id: package
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.tag }}"
+            SUFFIX="${{ inputs.asset_suffix }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+            SUFFIX=""
+          fi
+          VERSION="${VERSION#v}"
+          SUFFIX="${SUFFIX:-$VERSION}"
+          ZIP_NAME="demo-blueprints-${SUFFIX}.zip"
+
+          cd packages/blueprints/dist
+          zip "../../../${ZIP_NAME}" \
+            system-bundle.js \
+            demostudio-bundle.js \
+            demoshowstyle-bundle.js
+
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.release_tag }}
+          files: |
+            ${{ steps.package.outputs.zip_name }}
+            packages/blueprints/dist/bundle.json
+          generate_release_notes: true
+
+  prerelease-blueprints:
+    name: Pre-release Blueprints
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 15
+    needs: [lint, test]
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.x
+
+      - name: restore node_modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Prepare Environment
+        run: |
+          corepack enable
+          yarn
+        env:
+          CI: true
+
+      - name: Build blueprints
+        run: |
+          cd packages/blueprints
+          yarn dist
+        env:
+          CI: true
+
+      - name: Package pre-release assets
+        id: package
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          ZIP_NAME="demo-blueprints-pre-${SHORT_SHA}.zip"
+          TAG_NAME="pre-${GITHUB_SHA}"
+
+          cd packages/blueprints/dist
+          zip "../../../${ZIP_NAME}" \
+            system-bundle.js \
+            demostudio-bundle.js \
+            demoshowstyle-bundle.js
+
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.package.outputs.tag_name }}
+          name: Pre-release ${{ steps.package.outputs.short_sha }}
+          prerelease: true
+          make_latest: false
+          body: |
+            Automated pre-release blueprint build for commit [`${{ steps.package.outputs.short_sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}).
+
+            Upload the three `*-bundle.js` files from the zip into Sofie, or restore `bundle.json` in bulk.
+          files: |
+            ${{ steps.package.outputs.zip_name }}
+            packages/blueprints/dist/bundle.json
