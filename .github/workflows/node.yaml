@@ -43,8 +43,10 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
       - name: Configure Yarn
         run: |
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > /usr/local/bin/yarn
-          chmod +x /usr/local/bin/yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
         run: yarn
         env:
@@ -75,8 +77,10 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('yarn.lock') }}
       - name: Configure Yarn
         run: |
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > /usr/local/bin/yarn
-          chmod +x /usr/local/bin/yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
         run: yarn
         env:
@@ -102,8 +106,10 @@ jobs:
           node-version: 22.x
       - name: Configure Yarn
         run: |
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > /usr/local/bin/yarn
-          chmod +x /usr/local/bin/yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
         run: yarn
         env:
@@ -217,8 +223,10 @@ jobs:
 
       - name: Configure Yarn
         run: |
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > /usr/local/bin/yarn
-          chmod +x /usr/local/bin/yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
         run: yarn
         env:
@@ -291,8 +299,10 @@ jobs:
 
       - name: Configure Yarn
         run: |
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > /usr/local/bin/yarn
-          chmod +x /usr/local/bin/yarn
+          mkdir -p .github/bin
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          chmod +x .github/bin/yarn
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
         run: yarn
         env:
