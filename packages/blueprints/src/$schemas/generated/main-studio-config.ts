@@ -71,35 +71,27 @@ export interface CasparCGConfig {
 	 * Port of CasparCG
 	 */
 	port: number
+	hypercomposed?: HypercomposedChannels
 }
 /**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
+ * LED and PGM CasparCG channel assignment for hypercomposed playout
  */
+export interface HypercomposedChannels {
+	ledChannel: number
+	pgmChannel: number
+}
 export interface InputConfig {
 	input: number
 	type: SourceType
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface OutputConfig {
 	output: number
 	source: number
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface VmixInputConfig {
 	input: number
 	type: SourceType
 }
-/**
- * This interface was referenced by `undefined`'s JSON-Schema definition
- * via the `patternProperty` "".
- */
 export interface SiyfosSourceConfig {
 	source: number
 	type: AudioSourceType
