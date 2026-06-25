@@ -9,7 +9,7 @@ import { parseConfig } from '../helpers/config.js'
 export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
-	const graphic = parseGraphicsFromObjects(config, [part.payload.graphic])
+	const graphic = parseGraphicsFromObjects(config, [part.payload.graphic], context)
 	if (!graphic.pieces[0]) context.notifyUserError('Missing fullscreen graphic')
 
 	const fullscreenPiece = graphic.pieces[0]
@@ -18,7 +18,7 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 
-	const graphics = parseGraphicsFromObjects(config, part.objects)
+	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)

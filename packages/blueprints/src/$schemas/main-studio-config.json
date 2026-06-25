@@ -245,6 +245,34 @@
 			"ui:description": "Delay in ms before SDI signal hits the mixer",
 			"ui:category": "Playback",
 			"min": 0
+		},
+		"mediaPackages": {
+			"type": "object",
+			"title": "MediaPackagesConfig",
+			"description": "Package Manager folder paths for ingest staging and CasparCG playout",
+			"ui:category": "Package Manager",
+			"ui:title": "Media package containers",
+			"properties": {
+				"casparcgMediaFolder": {
+					"type": "string",
+					"ui:title": "CasparCG media folder",
+					"ui:description": "Local folder where Package Manager copies media for CasparCG playout (e.g. c:/casparcg/media)",
+					"default": "c:/casparcg/media"
+				},
+				"ingestMediaFolder": {
+					"type": "string",
+					"ui:title": "Ingest media folder",
+					"ui:description": "Staging folder where editors drop source media; Package Manager copies from here to CasparCG (e.g. c:/casparcg/media-ingest)",
+					"default": "c:/casparcg/media-ingest"
+				},
+				"httpProxyBaseUrl": {
+					"type": "string",
+					"ui:title": "HTTP proxy base URL",
+					"ui:description": "Base URL for the Package Manager HTTP proxy used for previews and thumbnails",
+					"default": "http://localhost:8080/package"
+				}
+			},
+			"additionalProperties": false
 		}
 	},
 	"required": [

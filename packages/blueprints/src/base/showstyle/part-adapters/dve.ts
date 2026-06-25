@@ -217,7 +217,7 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 
-	const graphics = parseGraphicsFromObjects(config, part.objects)
+	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)

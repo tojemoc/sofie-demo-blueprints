@@ -23,6 +23,7 @@ export interface StudioConfig {
 	}
 	previewRenderer: string
 	casparcgLatency: number
+	mediaPackages?: MediaPackagesConfig
 }
 /**
  * Vision mixer device configuration
@@ -95,6 +96,14 @@ export interface VmixInputConfig {
 export interface SiyfosSourceConfig {
 	source: number
 	type: AudioSourceType
+}
+/**
+ * Package Manager folder paths for ingest staging and CasparCG playout
+ */
+export interface MediaPackagesConfig {
+	casparcgMediaFolder?: string
+	ingestMediaFolder?: string
+	httpProxyBaseUrl?: string
 }
 
 /**

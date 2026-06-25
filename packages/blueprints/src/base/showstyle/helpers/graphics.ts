@@ -1,4 +1,10 @@
-import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import {
+	IBlueprintAdLibPiece,
+	IBlueprintPiece,
+	ICommonContext,
+	PieceLifespan,
+	TSR,
+} from '@sofie-automation/blueprints-integration'
 import {
 	GraphicObject,
 	GraphicObjectAttributes,
@@ -14,6 +20,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getClipPlayerInput } from './clips.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { createMediaFileExpectedPackage } from './mediaPackages.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -87,7 +94,27 @@ function getGraphicTlObject(
 		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
 	]
 }
-function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraphicObject): IBlueprintPiece {
+function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
+	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile
+}
+
+function getIluExpectedPackages(context: ICommonContext | undefined, object: GraphicObjectBase) {
+	if (!context || !isHeadlineWithIlu(object)) {
+		return undefined
+	}
+
+	return [
+		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [
+			CasparCGLayers.CasparCGGraphicsLowerThird,
+		]),
+	]
+}
+
+function parseGraphic(
+	config: StudioConfig,
+	object: GraphicObject | SteppedGraphicObject,
+	context?: ICommonContext
+): IBlueprintPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
 
@@ -128,12 +155,14 @@ function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraph
 			duration: object.duration > 0 ? object.duration : undefined,
 		},
 		prerollDuration: config.casparcgLatency,
+		expectedPackages: getIluExpectedPackages(context, object),
 	}
 }
 export function parseAdlibGraphic(
 	config: StudioConfig,
 	object: GraphicObjectBase,
-	index: number
+	index: number,
+	context?: ICommonContext
 ): IBlueprintAdLibPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
@@ -170,15 +199,20 @@ export function parseAdlibGraphic(
 		},
 		_rank: index, // todo - probably some offset for ordering
 		expectedDuration: object.duration,
+		expectedPackages: getIluExpectedPackages(context, object),
 	}
 }
 
-export function parseGraphicsFromObjects(config: StudioConfig, objects: SomeObject[]): GraphicsResult {
+export function parseGraphicsFromObjects(
+	config: StudioConfig,
+	objects: SomeObject[],
+	context?: ICommonContext
+): GraphicsResult {
 	const graphicsObjects = objects.filter((o): o is GraphicObject => o.objectType === ObjectType.Graphic)
 
 	return {
-		pieces: graphicsObjects.filter((o) => !o.isAdlib).map((o) => parseGraphic(config, o)),
-		adLibPieces: graphicsObjects.filter((o) => !!o.isAdlib).map((o, i) => parseAdlibGraphic(config, o, i)),
+		pieces: graphicsObjects.filter((o) => !o.isAdlib).map((o) => parseGraphic(config, o, context)),
+		adLibPieces: graphicsObjects.filter((o) => !!o.isAdlib).map((o, i) => parseAdlibGraphic(config, o, i, context)),
 	}
 }
 function getGraphicLifespan(sourceLayer: SourceLayer, object: GraphicObjectBase): PieceLifespan {

@@ -12,6 +12,12 @@ import { preprocessConfig } from '../preprocessConfig.js'
 import { literal } from '../../../common/util.js'
 // eslint-disable-next-line n/no-missing-import
 import { StudioPackageContainer } from '@sofie-automation/shared-lib/dist/core/model/PackageContainer.js'
+import {
+	CASPARCG_PACKAGE_CONTAINER_ID,
+	getMediaPackagesConfig,
+	HTTP_PROXY_PACKAGE_CONTAINER_ID,
+	INGEST_PACKAGE_CONTAINER_ID,
+} from '../../showstyle/helpers/mediaPackages.js'
 
 export function applyConfig(
 	context: ICommonContext,
@@ -27,7 +33,7 @@ export function applyConfig(
 		inputDevices: {},
 		ingestDevices: generateIngestDevices(),
 
-		packageContainers: generatePackageContainers(),
+		packageContainers: generatePackageContainers(parsedConfig),
 
 		studioSettings: {
 			frameRate: 25,
@@ -114,9 +120,11 @@ function generateIngestDevices(): BlueprintResultApplyStudioConfig['ingestDevice
 	return ingestDevices
 }
 
-function generatePackageContainers(): Record<string, StudioPackageContainer> {
+function generatePackageContainers(config: BlueprintConfig): Record<string, StudioPackageContainer> {
+	const mediaPackages = getMediaPackagesConfig(config.studio)
+
 	return {
-		httpProxy0: {
+		[HTTP_PROXY_PACKAGE_CONTAINER_ID]: {
 			deviceIds: [],
 			container: {
 				label: 'Proxy for thumbnails & preview',
@@ -126,12 +134,27 @@ function generatePackageContainers(): Record<string, StudioPackageContainer> {
 						label: 'HTTP',
 						allowRead: true,
 						allowWrite: true,
-						baseUrl: 'http://localhost:8080/package', // TODO - config driven?
+						baseUrl: mediaPackages.httpProxyBaseUrl,
 					},
 				},
 			},
 		},
-		casparcg0: {
+		[INGEST_PACKAGE_CONTAINER_ID]: {
+			deviceIds: [],
+			container: {
+				label: 'Ingest media folder',
+				accessors: {
+					ingest0: {
+						type: Accessor.AccessType.LOCAL_FOLDER,
+						label: 'Local',
+						allowRead: true,
+						allowWrite: true,
+						folderPath: mediaPackages.ingestMediaFolder,
+					},
+				},
+			},
+		},
+		[CASPARCG_PACKAGE_CONTAINER_ID]: {
 			deviceIds: ['casparcg0'],
 			container: {
 				label: 'CasparCG Media folder',
@@ -140,8 +163,8 @@ function generatePackageContainers(): Record<string, StudioPackageContainer> {
 						type: Accessor.AccessType.LOCAL_FOLDER,
 						label: 'Local',
 						allowRead: true,
-						allowWrite: false,
-						folderPath: 'c:/casparcg/media', // TODO - config driven?
+						allowWrite: true,
+						folderPath: mediaPackages.casparcgMediaFolder,
 					},
 				},
 			},

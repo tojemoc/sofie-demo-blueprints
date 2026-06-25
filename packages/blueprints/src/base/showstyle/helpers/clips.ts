@@ -1,10 +1,4 @@
-import {
-	ExpectedPackage,
-	IBlueprintAdLibPiece,
-	ICommonContext,
-	PieceLifespan,
-	TSR,
-} from '@sofie-automation/blueprints-integration'
+import { IBlueprintAdLibPiece, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
@@ -13,6 +7,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
+import { createMediaFileExpectedPackage } from './mediaPackages.js'
 
 export interface ClipProps {
 	fileName: string
@@ -69,17 +64,8 @@ export function clipToAdlib(
 		sourceLayerId: SourceLayer.VO,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VO),
 		expectedPackages: [
-			literal<ExpectedPackage.ExpectedPackageMediaFile>({
-				_id: context.getHashId(props.fileName, true),
-				layers: [CasparCGLayers.CasparCGClipPlayer1],
-				type: ExpectedPackage.PackageType.MEDIA_FILE,
-				content: {
-					filePath: props.fileName,
-				},
-				version: {},
-				contentVersionHash: '',
-				sources: [],
-				sideEffect: {},
+			createMediaFileExpectedPackage(context, props.fileName, [CasparCGLayers.CasparCGClipPlayer1], {
+				includeSideEffects: false,
 			}),
 		],
 		content: {
