@@ -1,6 +1,7 @@
 import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import {
 	GraphicObject,
+	GraphicObjectAttributes,
 	GraphicObjectBase,
 	ObjectType,
 	SomeObject,
@@ -17,6 +18,15 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
 	adLibPieces: IBlueprintAdLibPiece[]
+}
+
+function isFullscreenGraphic(clipName: string): boolean {
+	return !!clipName.match(/fullscreen|outro/i)
+}
+
+function getTemplateAttributes(attributes: GraphicObjectAttributes): GraphicObjectAttributes {
+	const { pieceName: _pieceName, ...templateAttributes } = attributes
+	return templateAttributes
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
@@ -52,7 +62,7 @@ function getGraphicTlObject(
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
 	const fullscreenAtemInput = getClipPlayerInput(config)
-	const isFullscreen = object.clipName.match(/fullscreen/i)
+	const isFullscreen = isFullscreenGraphic(object.clipName)
 
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
@@ -69,7 +79,7 @@ function getGraphicTlObject(
 				templateType: 'html',
 				name: object.clipName,
 				data: {
-					...object.attributes,
+					...getTemplateAttributes(object.attributes),
 				},
 				useStopCommand: isFullscreen ? false : true,
 			},
@@ -96,7 +106,7 @@ function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraph
 			// so it should start from 1 for `NoraContent` (stepped graphics) !
 			step: 'stepCount' in object.attributes ? { current: 1, count: object.attributes.stepCount } : undefined,
 			templateData: {
-				...object.attributes,
+				...getTemplateAttributes(object.attributes),
 			},
 			// ToDo: This was the old way of doing it, but it doesn't work in R53:
 			// payload: {
@@ -127,7 +137,7 @@ export function parseAdlibGraphic(
 ): IBlueprintAdLibPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
-	const isFullscreen = object.clipName.match(/fullscreen/i)
+	const isFullscreen = isFullscreenGraphic(object.clipName)
 
 	return {
 		externalId: object.id,
@@ -143,7 +153,7 @@ export function parseAdlibGraphic(
 			timelineObjects: getGraphicTlObject(config, object, true),
 
 			templateData: {
-				...object.attributes,
+				...getTemplateAttributes(object.attributes),
 			},
 			// payload: {
 			// 	content: {

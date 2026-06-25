@@ -142,6 +142,47 @@ describe('casparV2Graphics', () => {
 		expect((logo?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
+	it('excludes internal pieceName from Caspar data and templateData', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'tema1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/l3d-tema',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					headline: 'Test headline',
+					pieceName: 'Topic label',
+				},
+			},
+		])
+
+		const piece = result.pieces[0]
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toEqual({ headline: 'Test headline' })
+		expect(piece?.content).toMatchObject({
+			templateData: { headline: 'Test headline' },
+		})
+	})
+
+	it('applies preroll for gfx/outro adlibs like fullscreen graphics', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'outro1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/outro',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: true,
+				attributes: {},
+			},
+		])
+
+		expect(result.adLibPieces[0]?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
+	})
+
 	it('maps Rundown Editor v2 piece types to gfx clipNames and template data', () => {
 		const segment = convertIngestData(
 			{
