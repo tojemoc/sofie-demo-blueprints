@@ -1,18 +1,13 @@
-import {
-	BlueprintResultPart,
-	ExpectedPackage,
-	IBlueprintPiece,
-	PieceLifespan,
-	TSR,
-} from '@sofie-automation/blueprints-integration'
+import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
-import { changeExtension, literal, stripExtension } from '../../../common/util.js'
+import { literal, stripExtension } from '../../../common/util.js'
 import { AudioSourceType } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { PartProps, VTProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
 import { getClipPlayerInput } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
+import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
@@ -65,26 +60,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 			sourceDuration: part.payload.clipProps.sourceDuration,
 		},
 		expectedPackages: [
-			literal<ExpectedPackage.ExpectedPackageMediaFile>({
-				_id: context.getHashId(part.payload.clipProps.fileName, true),
-				layers: [CasparCGLayers.CasparCGClipPlayer1],
-				type: ExpectedPackage.PackageType.MEDIA_FILE,
-				content: {
-					filePath: part.payload.clipProps.fileName,
-				},
-				version: {},
-				contentVersionHash: '',
-				sources: [],
-				sideEffect: {
-					previewPackageSettings: {
-						path: `previews/${changeExtension(part.payload.clipProps.fileName, 'webm')}`,
-					},
-					thumbnailPackageSettings: {
-						path: `thumbnails/${changeExtension(part.payload.clipProps.fileName, 'jpg')}`,
-						seekTime: 0,
-					},
-				},
-			}),
+			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [CasparCGLayers.CasparCGClipPlayer1]),
 		],
 	}
 
@@ -92,7 +68,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 
-	const graphics = parseGraphicsFromObjects(config, part.objects)
+	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
 
 	return {

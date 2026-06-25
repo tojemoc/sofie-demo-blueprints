@@ -24,7 +24,8 @@
 				"id": "fileName",
 				"label": "File name",
 				"type": "string",
-				"includeInName": true
+				"includeInName": true,
+				"description": "CasparCG media path, e.g. spravy/<rundownId>/clips/clip.mp4"
 			},
 			{
 				"id": "sourceDuration",
@@ -230,7 +231,8 @@
 				"id": "iluFile",
 				"label": "ILU file",
 				"type": "string",
-				"includeInName": true
+				"includeInName": true,
+				"description": "CasparCG media path for the ILU clip, e.g. spravy/<rundownId>/clips/foo.mp4"
 			},
 			{
 				"id": "source",

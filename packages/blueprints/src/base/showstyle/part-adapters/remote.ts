@@ -45,7 +45,7 @@ export function generateRemotePart(context: PartContext, part: PartProps<RemoteP
 			)
 	)
 
-	const graphics = parseGraphicsFromObjects(config, part.objects)
+	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
