@@ -12,7 +12,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "camera"
+		"id": "camera",
+		"entityType": "piece"
 	},
 	{
 		"name": "Video",
@@ -32,7 +33,8 @@
 				"includeInName": false
 			}
 		],
-		"id": "video"
+		"id": "video",
+		"entityType": "piece"
 	},
 	{
 		"name": "Remote",
@@ -47,7 +49,8 @@
 			}
 		],
 		"includeTypeInName": true,
-		"id": "remote"
+		"id": "remote",
+		"entityType": "piece"
 	},
 	{
 		"name": "Split",
@@ -77,7 +80,9 @@
 				"includeInName": true
 			}
 		],
-		"id": "split"
+		"id": "split",
+		"entityType": "piece",
+		"colour": "#666666"
 	},
 	{
 		"name": "Lower third",
@@ -98,7 +103,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d"
+		"id": "l3d",
+		"entityType": "piece"
 	},
 	{
 		"name": "L3D headline",
@@ -119,7 +125,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d-headline"
+		"id": "l3d-headline",
+		"entityType": "piece"
 	},
 	{
 		"name": "L3D moderator",
@@ -134,7 +141,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d-mod"
+		"id": "l3d-mod",
+		"entityType": "piece"
 	},
 	{
 		"name": "L3D topic",
@@ -149,7 +157,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d-tema"
+		"id": "l3d-tema",
+		"entityType": "piece"
 	},
 	{
 		"name": "L3D guest",
@@ -170,7 +179,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d-syn"
+		"id": "l3d-syn",
+		"entityType": "piece"
 	},
 	{
 		"name": "L3D SJV",
@@ -185,7 +195,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d-sjv"
+		"id": "l3d-sjv",
+		"entityType": "piece"
 	},
 	{
 		"name": "L3D sport",
@@ -206,7 +217,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "l3d-sport"
+		"id": "l3d-sport",
+		"entityType": "piece"
 	},
 	{
 		"name": "Headline + ILU",
@@ -227,7 +239,8 @@
 				"includeInName": true
 			}
 		],
-		"id": "headline"
+		"id": "headline",
+		"entityType": "piece"
 	},
 	{
 		"name": "Weather",
@@ -242,7 +255,8 @@
 				"includeInName": false
 			}
 		],
-		"id": "weather"
+		"id": "weather",
+		"entityType": "piece"
 	},
 	{
 		"name": "Outro",
@@ -250,7 +264,8 @@
 		"colour": "#ED7200",
 		"includeTypeInName": true,
 		"payload": [],
-		"id": "outro"
+		"id": "outro",
+		"entityType": "piece"
 	},
 	{
 		"name": "Logo bug",
@@ -258,7 +273,8 @@
 		"colour": "#ED7200",
 		"includeTypeInName": false,
 		"payload": [],
-		"id": "logo-bug"
+		"id": "logo-bug",
+		"entityType": "piece"
 	},
 	{
 		"name": "Live strap",
@@ -277,14 +293,16 @@
 				"type": "string"
 			}
 		],
-		"id": "strap"
+		"id": "strap",
+		"entityType": "piece"
 	},
 	{
 		"name": "Ticker",
 		"shortName": "Ticker",
 		"colour": "#ED7200",
 		"payload": [],
-		"id": "ticker"
+		"id": "ticker",
+		"entityType": "piece"
 	},
 	{
 		"name": "Studio Guest",
@@ -298,7 +316,9 @@
 				"includeInName": true
 			}
 		],
-		"id": "guest"
+		"id": "guest",
+		"entityType": "piece",
+		"colour": "#666666"
 	},
 	{
 		"name": "Fullscreen",
@@ -312,7 +332,8 @@
 				"type": "string"
 			}
 		],
-		"id": "fullscreen"
+		"id": "fullscreen",
+		"entityType": "piece"
 	},
 	{
 		"name": "Head",
@@ -327,6 +348,7 @@
 				"includeInName": true
 			}
 		],
-		"id": "head"
+		"id": "head",
+		"entityType": "piece"
 	}
 ]
