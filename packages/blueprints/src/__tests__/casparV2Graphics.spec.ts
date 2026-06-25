@@ -1,7 +1,7 @@
 import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { ObjectType } from '../common/definitions/objects.js'
-import { SourceType, StudioConfig, VisionMixerDevice, PlayoutRouting } from '../base/studio/helpers/config.js'
+import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
@@ -11,7 +11,6 @@ import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 const hybridCasparConfig: StudioConfig = {
 	previewRenderer: '',
 	casparcgLatency: 50,
-	playoutRouting: PlayoutRouting.Hybrid,
 	visionMixer: {
 		type: VisionMixerDevice.Atem,
 		host: '127.0.0.1',
@@ -29,7 +28,6 @@ const hybridCasparConfig: StudioConfig = {
 	},
 	sisyfosSources: {},
 	vmixSources: {},
-	vmixAutomationMacros: {},
 	atemOutputs: {},
 	atemSources: {
 		camera1: { input: 1, type: SourceType.Camera },
