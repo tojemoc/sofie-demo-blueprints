@@ -2,7 +2,7 @@ import { CameraObject, ObjectType, SomeObject } from '../../../common/definition
 import { t } from '../../../common/util.js'
 import { SpreadsheetIngestPart } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
-import { CameraProps, InvalidProps, PartInfo, PartProps, PartType } from '../definitions/index.js'
+import { CameraProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { findSource } from '../helpers/sources.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
@@ -24,7 +24,6 @@ export function parseCamera(ingestPart: SpreadsheetIngestPart): PartProps<Camera
 		type: PartType.Camera,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),

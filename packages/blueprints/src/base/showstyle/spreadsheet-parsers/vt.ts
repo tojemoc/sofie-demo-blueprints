@@ -1,7 +1,7 @@
 import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { SpreadsheetIngestPart } from '../../../code-copy/spreadsheet-gateway/index.js'
-import { InvalidProps, PartInfo, PartProps, PartType, VTProps } from '../definitions/index.js'
+import { InvalidProps, PartProps, PartType, VTProps } from '../definitions/index.js'
 import { parseClipProps } from '../helpers/clips.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
@@ -21,7 +21,6 @@ export function parseVT(ingestPart: SpreadsheetIngestPart): PartProps<VTProps | 
 		type: PartType.VT,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),

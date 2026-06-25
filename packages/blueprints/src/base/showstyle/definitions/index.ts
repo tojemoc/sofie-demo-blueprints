@@ -4,13 +4,16 @@ import { ClipProps } from '../helpers/clips.js'
 import { RawSourceInfo } from '../helpers/sources.js'
 import { IntermediatePart, IntermediateSegment } from './intermediate.js'
 
+/** Editorial segment presets from Rundown Editor (metadata for future automation). */
 export enum SegmentType {
 	NORMAL = 'normal',
 	OPENING = 'opening',
+	HEADLINES = 'headlines',
+	STORY = 'story',
 }
 
+/** Technical part adapters used by blueprints after ingest. */
 export enum PartType {
-	// UNKNOWN = '',
 	Invalid = 'invalid',
 	Camera = 'camera',
 	Remote = 'remote',
@@ -21,17 +24,12 @@ export enum PartType {
 	GFX = 'gfx',
 }
 
-export enum PartInfo {
-	NORMAL = 0,
-}
-
 export type AllProps = CameraProps | RemoteProps | VTProps | VOProps | TitlesProps | DVEProps | GfxProps | InvalidProps
 
 export interface PartProps<T extends AllProps> extends IntermediatePart {
 	type: PartType | null
 	rawType: string
 	rawTitle: string
-	info: PartInfo
 	payload: T
 	objects: SomeObject[]
 }

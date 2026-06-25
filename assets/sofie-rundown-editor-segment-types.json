@@ -1,0 +1,50 @@
+[
+	{
+		"id": "normal",
+		"entityType": "segment",
+		"name": "Story block",
+		"shortName": "Story",
+		"colour": "#444444",
+		"payload": [],
+		"defaultParts": []
+	},
+	{
+		"id": "opening",
+		"entityType": "segment",
+		"name": "Opening",
+		"shortName": "Open",
+		"colour": "#ED7200",
+		"payload": [],
+		"defaultParts": [
+			{ "partType": "gfx", "name": "L3D topic", "payload": { "duration": 5, "script": "Play gfx/l3d-tema." } },
+			{ "partType": "gfx", "name": "L3D moderator", "payload": { "duration": 5, "script": "Play gfx/l3d-mod." } },
+			{ "partType": "gfx", "name": "L3D headline", "payload": { "duration": 5, "script": "Play gfx/l3d-headline." } }
+		]
+	},
+	{
+		"id": "headlines",
+		"entityType": "segment",
+		"name": "Headlines",
+		"shortName": "HL",
+		"colour": "#ED7200",
+		"payload": [],
+		"defaultParts": [
+			{ "partType": "ilu", "name": "Headline 1", "payload": { "duration": 8, "script": "First headline with ILU." } },
+			{ "partType": "ilu", "name": "Headline 2", "payload": { "duration": 8, "script": "Second headline with ILU." } },
+			{ "partType": "ilu", "name": "Headline 3", "payload": { "duration": 8, "script": "Third headline with ILU." } }
+		]
+	},
+	{
+		"id": "story",
+		"entityType": "segment",
+		"name": "Long story",
+		"shortName": "Long",
+		"colour": "#18791C",
+		"payload": [],
+		"defaultParts": [
+			{ "partType": "cam", "name": "Intro", "payload": { "duration": 5, "script": "Anchor intro on camera." } },
+			{ "partType": "syn", "name": "Sync", "payload": { "duration": 30, "script": "Sync interview with guest lower third and SOT." } },
+			{ "partType": "vo", "name": "VO", "payload": { "duration": 20, "script": "Voice over package." } }
+		]
+	}
+]

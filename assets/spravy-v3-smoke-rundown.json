@@ -1,0 +1,305 @@
+{
+	"rundown": {
+		"id": "spravy-v3-smoke-rundown",
+		"name": "Spravy v3 Smoke Test",
+		"playlistId": null,
+		"sync": true,
+		"isTemplate": false,
+		"expectedStartTime": 1740000000000,
+		"expectedEndTime": 1740007200000,
+		"payload": {}
+	},
+	"segments": [
+		{
+			"id": "spravy-v3-smoke-opening",
+			"name": "Opening",
+			"rank": 0,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"payload": { "type": "opening" }
+		},
+		{
+			"id": "spravy-v3-smoke-headlines",
+			"name": "Headlines",
+			"rank": 1,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"payload": { "type": "headlines" }
+		},
+		{
+			"id": "spravy-v3-smoke-story",
+			"name": "Long story",
+			"rank": 2,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"payload": { "type": "story" }
+		}
+	],
+	"parts": [
+		{
+			"id": "spravy-v3-smoke-tema",
+			"name": "L3D topic",
+			"rank": 0,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-opening",
+			"payload": { "type": "GFX", "duration": 5, "script": "Play gfx/l3d-tema on Caspar layer 111." }
+		},
+		{
+			"id": "spravy-v3-smoke-mod",
+			"name": "L3D moderator",
+			"rank": 1,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-opening",
+			"payload": { "type": "GFX", "duration": 5, "script": "Play gfx/l3d-mod on Caspar layer 111." }
+		},
+		{
+			"id": "spravy-v3-smoke-headline-l3d",
+			"name": "L3D headline",
+			"rank": 2,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-opening",
+			"payload": { "type": "GFX", "duration": 5, "script": "Play gfx/l3d-headline on Caspar layer 111." }
+		},
+		{
+			"id": "spravy-v3-smoke-hl1",
+			"name": "Headline 1",
+			"rank": 0,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"payload": { "type": "ILU", "duration": 8, "script": "First headline with ILU on LED and anchor on camera." }
+		},
+		{
+			"id": "spravy-v3-smoke-hl2",
+			"name": "Headline 2",
+			"rank": 1,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"payload": { "type": "ILU", "duration": 8, "script": "Second headline with ILU." }
+		},
+		{
+			"id": "spravy-v3-smoke-hl3",
+			"name": "Headline 3",
+			"rank": 2,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"payload": { "type": "ILU", "duration": 8, "script": "Third headline with ILU." }
+		},
+		{
+			"id": "spravy-v3-smoke-cam",
+			"name": "Intro",
+			"rank": 0,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"payload": { "type": "Cam", "duration": 5, "script": "Anchor intro on camera 1." }
+		},
+		{
+			"id": "spravy-v3-smoke-syn",
+			"name": "Sync",
+			"rank": 1,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"payload": { "type": "SYN", "duration": 30, "script": "Sync interview — SOT on LED, guest L3D, no live camera." }
+		},
+		{
+			"id": "spravy-v3-smoke-vo",
+			"name": "VO",
+			"rank": 2,
+			"float": false,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"payload": { "type": "VO", "duration": 20, "script": "Voice over package with mics open." }
+		}
+	],
+	"pieces": [
+		{
+			"id": "spravy-v3-smoke-tema-piece",
+			"name": "Topic",
+			"pieceType": "l3d-tema",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-opening",
+			"partId": "spravy-v3-smoke-tema",
+			"payload": { "headline": "R. Fico o M. Ficovi" }
+		},
+		{
+			"id": "spravy-v3-smoke-mod-piece",
+			"name": "Moderator",
+			"pieceType": "l3d-mod",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-opening",
+			"partId": "spravy-v3-smoke-mod",
+			"payload": { "name": "Moderátor" }
+		},
+		{
+			"id": "spravy-v3-smoke-headline-l3d-piece",
+			"name": "Headline",
+			"pieceType": "l3d-headline",
+			"start": 0,
+			"duration": 5,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-opening",
+			"partId": "spravy-v3-smoke-headline-l3d",
+			"payload": { "title": "Správy", "subtitle": "18:00" }
+		},
+		{
+			"id": "spravy-v3-smoke-hl1-headline",
+			"name": "ILU 1",
+			"pieceType": "headline",
+			"start": 0,
+			"duration": 8,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl1",
+			"payload": {
+				"iluFile": "spravy/spravy-v3-smoke-rundown/clips/hl1.mp4",
+				"source": "TASR"
+			}
+		},
+		{
+			"id": "spravy-v3-smoke-hl1-cam",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl1",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "spravy-v3-smoke-hl1-sot",
+			"name": "LED SOT",
+			"pieceType": "video",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl1",
+			"payload": { "fileName": "spravy/spravy-v3-smoke-rundown/clips/hl1-led.mp4" }
+		},
+		{
+			"id": "spravy-v3-smoke-hl2-headline",
+			"name": "ILU 2",
+			"pieceType": "headline",
+			"start": 0,
+			"duration": 8,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl2",
+			"payload": {
+				"iluFile": "spravy/spravy-v3-smoke-rundown/clips/hl2.mp4",
+				"source": "Reuters"
+			}
+		},
+		{
+			"id": "spravy-v3-smoke-hl2-cam",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl2",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "spravy-v3-smoke-hl3-headline",
+			"name": "ILU 3",
+			"pieceType": "headline",
+			"start": 0,
+			"duration": 8,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl3",
+			"payload": {
+				"iluFile": "spravy/spravy-v3-smoke-rundown/clips/hl3.mp4",
+				"source": "AP"
+			}
+		},
+		{
+			"id": "spravy-v3-smoke-hl3-cam",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-headlines",
+			"partId": "spravy-v3-smoke-hl3",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "spravy-v3-smoke-cam-piece",
+			"name": "Camera 1",
+			"pieceType": "camera",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"partId": "spravy-v3-smoke-cam",
+			"payload": { "camNo": 1 }
+		},
+		{
+			"id": "spravy-v3-smoke-syn-l3d",
+			"name": "Guest",
+			"pieceType": "l3d-syn",
+			"start": 0,
+			"duration": 30,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"partId": "spravy-v3-smoke-syn",
+			"payload": { "name": "Ján Novák", "role": "Minister" }
+		},
+		{
+			"id": "spravy-v3-smoke-syn-sot",
+			"name": "SOT",
+			"pieceType": "video",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"partId": "spravy-v3-smoke-syn",
+			"payload": { "fileName": "spravy/spravy-v3-smoke-rundown/clips/syn-sot.mp4" }
+		},
+		{
+			"id": "spravy-v3-smoke-vo-video",
+			"name": "VO clip",
+			"pieceType": "video",
+			"start": 0,
+			"rundownId": "spravy-v3-smoke-rundown",
+			"playlistId": null,
+			"segmentId": "spravy-v3-smoke-story",
+			"partId": "spravy-v3-smoke-vo",
+			"payload": { "fileName": "spravy/spravy-v3-smoke-rundown/clips/vo.mp4" }
+		}
+	]
+}

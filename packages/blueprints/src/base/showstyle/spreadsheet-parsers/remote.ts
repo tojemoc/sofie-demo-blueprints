@@ -2,7 +2,7 @@ import { ObjectType, RemoteObject, SomeObject } from '../../../common/definition
 import { t } from '../../../common/util.js'
 import { SpreadsheetIngestPart } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
-import { InvalidProps, PartInfo, PartProps, PartType, RemoteProps } from '../definitions/index.js'
+import { InvalidProps, PartProps, PartType, RemoteProps } from '../definitions/index.js'
 import { findSource } from '../helpers/sources.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
@@ -24,7 +24,6 @@ export function parseRemote(ingestPart: SpreadsheetIngestPart): PartProps<Remote
 		type: PartType.Remote,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),

@@ -1,7 +1,7 @@
 import { ObjectType, SomeObject, SplitObject, VideoObject } from '../../../common/definitions/objects.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
-import { DVEProps, InvalidProps, PartInfo, PartProps, PartType } from '../definitions/index.js'
+import { DVEProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseClipEditorProps } from '../helpers/clips.js'
 import { findSource } from '../helpers/sources.js'
 import { parseBaseProps } from './base.js'
@@ -30,7 +30,6 @@ export function parseDVE(ingestPart: EditorIngestPart): PartProps<DVEProps | Inv
 		type: PartType.DVE,
 		rawType: ingestPart.type,
 		rawTitle: ingestPart.name,
-		info: PartInfo.NORMAL,
 		objects: ingestPart.pieces as SomeObject[],
 		payload: {
 			...parseBaseProps(ingestPart),
