@@ -1,6 +1,7 @@
 import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import {
 	GraphicObject,
+	GraphicObjectAttributes,
 	GraphicObjectBase,
 	ObjectType,
 	SomeObject,
@@ -19,23 +20,36 @@ export interface GraphicsResult {
 	adLibPieces: IBlueprintAdLibPiece[]
 }
 
+function isFullscreenGraphic(clipName: string): boolean {
+	return !!clipName.match(/fullscreen|outro/i)
+}
+
+function getTemplateAttributes(attributes: GraphicObjectAttributes): GraphicObjectAttributes {
+	const { pieceName: _pieceName, ...templateAttributes } = attributes
+	return templateAttributes
+}
+
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
-	if (object.clipName.match(/ticker/i)) {
+	if (object.clipName.match(/logo-bug/i)) {
+		return SourceLayer.Logo
+	} else if (object.clipName.match(/ticker/i)) {
 		return SourceLayer.Ticker
 	} else if (object.clipName.match(/strap/i)) {
 		return SourceLayer.Strap
-	} else if (object.clipName.match(/fullscreen/i)) {
+	} else if (object.clipName.match(/fullscreen|outro/i)) {
 		return SourceLayer.GFX
 	} else {
 		return SourceLayer.LowerThird
 	}
 }
 function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
-	if (object.clipName.match(/ticker/i)) {
+	if (object.clipName.match(/logo-bug/i)) {
+		return CasparCGLayers.CasparCGGraphicsLogo
+	} else if (object.clipName.match(/ticker/i)) {
 		return CasparCGLayers.CasparCGGraphicsTicker
 	} else if (object.clipName.match(/strap/i)) {
 		return CasparCGLayers.CasparCGGraphicsStrap
-	} else if (object.clipName.match(/fullscreen/i)) {
+	} else if (object.clipName.match(/fullscreen|outro/i)) {
 		return CasparCGLayers.CasparCGClipPlayer1
 	} else {
 		return CasparCGLayers.CasparCGGraphicsLowerThird
@@ -48,7 +62,7 @@ function getGraphicTlObject(
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
 	const fullscreenAtemInput = getClipPlayerInput(config)
-	const isFullscreen = object.clipName.match(/fullscreen/i)
+	const isFullscreen = isFullscreenGraphic(object.clipName)
 
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
@@ -65,7 +79,7 @@ function getGraphicTlObject(
 				templateType: 'html',
 				name: object.clipName,
 				data: {
-					...object.attributes,
+					...getTemplateAttributes(object.attributes),
 				},
 				useStopCommand: isFullscreen ? false : true,
 			},
@@ -92,10 +106,7 @@ function parseGraphic(config: StudioConfig, object: GraphicObject | SteppedGraph
 			// so it should start from 1 for `NoraContent` (stepped graphics) !
 			step: 'stepCount' in object.attributes ? { current: 1, count: object.attributes.stepCount } : undefined,
 			templateData: {
-				name: object.attributes.name,
-				description: object.attributes.description,
-				location: object.attributes.location,
-				text: object.attributes.text,
+				...getTemplateAttributes(object.attributes),
 			},
 			// ToDo: This was the old way of doing it, but it doesn't work in R53:
 			// payload: {
@@ -126,7 +137,7 @@ export function parseAdlibGraphic(
 ): IBlueprintAdLibPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
-	const isFullscreen = object.clipName.match(/fullscreen/i)
+	const isFullscreen = isFullscreenGraphic(object.clipName)
 
 	return {
 		externalId: object.id,
@@ -142,10 +153,7 @@ export function parseAdlibGraphic(
 			timelineObjects: getGraphicTlObject(config, object, true),
 
 			templateData: {
-				name: object.attributes.name,
-				description: object.attributes.description,
-				location: object.attributes.location,
-				text: object.attributes.text,
+				...getTemplateAttributes(object.attributes),
 			},
 			// payload: {
 			// 	content: {

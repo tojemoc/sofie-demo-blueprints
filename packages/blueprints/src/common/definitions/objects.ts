@@ -49,19 +49,28 @@ export interface VideoObject extends BaseObject {
 	objectType: ObjectType.Video
 	adlibVariant?: string
 }
-export interface GraphicObjectBase extends BaseObject {
+export interface GraphicObjectBase extends Omit<BaseObject, 'attributes'> {
 	objectType: ObjectType.Graphic | ObjectType.SteppedGraphic
 	adlibVariant?: string
+	attributes: GraphicObjectAttributes
 }
 export interface GraphicObject extends GraphicObjectBase {
 	objectType: ObjectType.Graphic
 	attributes: GraphicObjectAttributes
 }
 export type GraphicObjectAttributes = {
-	name: string
-	description: string // TODO - need to allow undefined here..
+	name?: string
+	description?: string
 	location?: string
 	text?: string
+	title?: string
+	subtitle?: string
+	headline?: string
+	role?: string
+	source?: string
+	iluFile?: string
+	url?: string
+	pieceName?: string
 }
 /*
 Note that we are not using the interfaces defined in Sofie,
