@@ -104,6 +104,7 @@
 		"entityType": "part",
 		"name": "Guest",
 		"shortName": "Guest",
+		"buttonLabel": "Guest",
 		"ingestType": "Guest",
 		"colour": "#2ca02c",
 		"showInToolbar": false,

@@ -30,7 +30,7 @@ function parseSpreadsheetPart(partPayload: SpreadsheetIngestPart): PartProps<All
 	if (partType.match(/cam/i)) {
 		return parseCamera(partPayload)
 	}
-	if (partType.match(/remi|remote/i)) {
+	if (/^(remi|remote)$/i.test(partType)) {
 		return parseRemote(partPayload)
 	}
 	if (partType.match(/(full|vt|package)/i)) {

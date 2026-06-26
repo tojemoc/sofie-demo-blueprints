@@ -36,7 +36,7 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	if (partType.match(/gfx/i)) {
 		return parseGfx(partPayload)
 	}
-	if (partType.match(/remi|remote/i)) {
+	if (/^(remi|remote)$/i.test(partType)) {
 		return parseRemote(partPayload)
 	}
 	if (partType.match(/guest/i)) {

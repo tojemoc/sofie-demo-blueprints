@@ -29,7 +29,7 @@ function isPayloadManifest(value: unknown): value is RundownEditorPayloadManifes
 		typeof field.label === 'string' &&
 		(field.type === 'string' || field.type === 'number' || field.type === 'boolean' || field.type === 'mediaPick') &&
 		(!('includeInName' in field) || typeof field.includeInName === 'boolean') &&
-		(!('subdir' in field) || typeof field.subdir === 'string')
+		(!('subdir' in field) || (field.type === 'mediaPick' && typeof field.subdir === 'string'))
 	)
 }
 

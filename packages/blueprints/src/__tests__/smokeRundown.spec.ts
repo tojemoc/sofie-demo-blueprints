@@ -53,7 +53,7 @@ function smokeExportToIngestSegment(
 					.map((piece) => ({
 						id: piece.id,
 						objectType: piece.pieceType,
-						objectTime: piece.start ?? 0,
+						...(piece.start !== undefined ? { objectTime: piece.start } : {}),
 						duration: piece.duration ?? 0,
 						clipName: '',
 						attributes: piece.payload,
