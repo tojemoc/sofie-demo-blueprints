@@ -54,6 +54,7 @@ export type GraphicObjectAttributes = {
 	title?: string
 	subtitle?: string
 	headline?: string
+	subline?: string
 	role?: string
 	source?: string
 	iluFile?: string

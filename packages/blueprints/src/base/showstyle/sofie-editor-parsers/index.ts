@@ -8,6 +8,7 @@ import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
 import { parseGfx } from './gfx.js'
+import { parseGuest } from './guest.js'
 import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
@@ -35,8 +36,11 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	if (partType.match(/gfx/i)) {
 		return parseGfx(partPayload)
 	}
-	if (partType.match(/remote/i)) {
+	if (/^(remi|remote)$/i.test(partType)) {
 		return parseRemote(partPayload)
+	}
+	if (partType.match(/guest/i)) {
+		return parseGuest(partPayload)
 	}
 	if (partType.match(/titles/i)) {
 		return parseOpener(partPayload)

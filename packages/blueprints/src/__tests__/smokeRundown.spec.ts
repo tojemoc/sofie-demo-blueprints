@@ -12,13 +12,16 @@ type SmokeRundownExport = {
 		id: string
 		name: string
 		segmentId: string
-		payload: { type: string; duration: number; script: string }
+		partType?: string
+		duration?: number
+		script?: string
+		payload: { type: string; duration?: number; script?: string }
 	}>
 	pieces: Array<{
 		id: string
 		partId: string
 		pieceType: string
-		start: number
+		start?: number
 		duration?: number
 		payload: Record<string, string | number>
 	}>
@@ -43,14 +46,14 @@ function smokeExportToIngestSegment(
 				name: part.name,
 				type: part.payload.type,
 				float: false,
-				script: part.payload.script,
-				duration: part.payload.duration,
+				script: part.script ?? part.payload.script ?? '',
+				duration: part.duration ?? part.payload.duration ?? 0,
 				pieces: exportData.pieces
 					.filter((piece) => piece.partId === part.id)
 					.map((piece) => ({
 						id: piece.id,
 						objectType: piece.pieceType,
-						objectTime: piece.start,
+						...(piece.start !== undefined ? { objectTime: piece.start } : {}),
 						duration: piece.duration ?? 0,
 						clipName: '',
 						attributes: piece.payload,
@@ -93,7 +96,7 @@ describe('spravy-v3-smoke-rundown.json', () => {
 	})
 
 	it('parses opening GFX parts with Caspar L3D piece types', () => {
-		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'spravy-v3-smoke-opening'))
+		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'seg-opening'))
 
 		expect(segment.type).toBe(SegmentType.OPENING)
 		expect(segment.parts).toHaveLength(3)
@@ -102,7 +105,7 @@ describe('spravy-v3-smoke-rundown.json', () => {
 	})
 
 	it('parses ILU headline parts as camera parts with headline graphics', () => {
-		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'spravy-v3-smoke-headlines'))
+		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 
 		expect(segment.type).toBe(SegmentType.HEADLINES)
 		expect(segment.parts).toHaveLength(3)
@@ -110,13 +113,14 @@ describe('spravy-v3-smoke-rundown.json', () => {
 
 		const firstHeadline = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/headline')
 		expect(firstHeadline?.attributes).toMatchObject({
-			iluFile: 'spravy/spravy-v3-smoke-rundown/clips/hl1.mp4',
+			text: 'Headline one',
+			iluFile: 'spravy/spravy-v3-smoke/clips/headline1.mp4',
 			source: 'TASR',
 		})
 	})
 
 	it('parses SYN as VO and Cam as camera in story segment', () => {
-		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'spravy-v3-smoke-story'))
+		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'seg-story'))
 
 		expect(segment.type).toBe(SegmentType.STORY)
 		expect(segment.parts.map((part) => part.type)).toEqual([PartType.Camera, PartType.VO, PartType.VO])

@@ -7,8 +7,9 @@ import { RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES } from '../common/definitions/rundow
 type RundownEditorPayloadManifest = {
 	id: string
 	label: string
-	type: 'string' | 'number' | 'boolean'
+	type: 'string' | 'number' | 'boolean' | 'mediaPick'
 	includeInName?: boolean
+	subdir?: string
 }
 
 type RundownEditorTypeManifest = {
@@ -26,8 +27,9 @@ function isPayloadManifest(value: unknown): value is RundownEditorPayloadManifes
 	return (
 		typeof field.id === 'string' &&
 		typeof field.label === 'string' &&
-		(field.type === 'string' || field.type === 'number' || field.type === 'boolean') &&
-		(!('includeInName' in field) || typeof field.includeInName === 'boolean')
+		(field.type === 'string' || field.type === 'number' || field.type === 'boolean' || field.type === 'mediaPick') &&
+		(!('includeInName' in field) || typeof field.includeInName === 'boolean') &&
+		(!('subdir' in field) || (field.type === 'mediaPick' && typeof field.subdir === 'string'))
 	)
 }
 
