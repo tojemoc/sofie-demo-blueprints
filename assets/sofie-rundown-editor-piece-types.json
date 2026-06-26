@@ -18,22 +18,22 @@
 	{
 		"id": "video",
 		"entityType": "piece",
-		"name": "Video",
+		"name": "SOT",
 		"shortName": "SOT",
 		"colour": "#0a20ed",
+		"includeTypeInName": true,
 		"payload": [
 			{
 				"id": "fileName",
 				"label": "File name",
-				"type": "string",
-				"includeInName": true,
-				"description": "CasparCG media path, e.g. spravy/<rundownId>/clips/clip.mp4"
+				"type": "mediaPick",
+				"subdir": "clips",
+				"includeInName": true
 			},
 			{
 				"id": "sourceDuration",
-				"label": "Source duration (in milliseconds)",
-				"type": "number",
-				"includeInName": false
+				"label": "Source duration (ms)",
+				"type": "number"
 			}
 		]
 	},
@@ -58,7 +58,8 @@
 		"entityType": "piece",
 		"name": "Split",
 		"shortName": "DVE",
-		"colour": "#666666",
+		"colour": "#d62728",
+		"includeTypeInName": true,
 		"payload": [
 			{
 				"id": "layout",
@@ -90,12 +91,12 @@
 		"entityType": "piece",
 		"name": "Studio Guest",
 		"shortName": "Guest",
-		"colour": "#666666",
+		"colour": "#2ca02c",
 		"includeTypeInName": true,
 		"payload": [
 			{
 				"id": "count",
-				"label": "Guest Count",
+				"label": "Guest count",
 				"type": "number",
 				"includeInName": true
 			}
@@ -104,64 +105,77 @@
 	{
 		"id": "l3d-tema",
 		"entityType": "piece",
-		"name": "L3D topic",
-		"shortName": "L3D-T",
-		"colour": "#ED7200",
+		"name": "L3D Téma",
+		"shortName": "L3DT",
+		"colour": "#8c564b",
 		"includeTypeInName": true,
+		"previewTemplate": "l3d-tema",
 		"payload": [
 			{
 				"id": "headline",
 				"label": "Headline",
 				"type": "string",
 				"includeInName": true
+			},
+			{
+				"id": "subline",
+				"label": "Subline",
+				"type": "string"
 			}
 		]
 	},
 	{
 		"id": "l3d-mod",
 		"entityType": "piece",
-		"name": "L3D moderator",
-		"shortName": "L3D-M",
-		"colour": "#ED7200",
+		"name": "L3D Moderátor",
+		"shortName": "L3DM",
+		"colour": "#a0522d",
 		"includeTypeInName": true,
+		"previewTemplate": "l3d-mod",
 		"payload": [
 			{
 				"id": "name",
 				"label": "Name",
 				"type": "string",
 				"includeInName": true
+			},
+			{
+				"id": "title",
+				"label": "Title",
+				"type": "string"
 			}
 		]
 	},
 	{
 		"id": "l3d-headline",
 		"entityType": "piece",
-		"name": "L3D headline",
-		"shortName": "L3D-H",
-		"colour": "#ED7200",
+		"name": "L3D Headline",
+		"shortName": "L3DH",
+		"colour": "#9467bd",
 		"includeTypeInName": true,
+		"previewTemplate": "headline",
 		"payload": [
 			{
-				"id": "title",
-				"label": "Title",
+				"id": "headline",
+				"label": "Headline",
 				"type": "string",
 				"includeInName": true
 			},
 			{
-				"id": "subtitle",
-				"label": "Subtitle",
-				"type": "string",
-				"includeInName": true
+				"id": "subline",
+				"label": "Subline",
+				"type": "string"
 			}
 		]
 	},
 	{
 		"id": "l3d-syn",
 		"entityType": "piece",
-		"name": "L3D guest",
-		"shortName": "L3D-S",
+		"name": "L3D SYN",
+		"shortName": "L3DS",
 		"colour": "#ED7200",
 		"includeTypeInName": true,
+		"previewTemplate": "l3d-tema",
 		"payload": [
 			{
 				"id": "name",
@@ -172,41 +186,45 @@
 			{
 				"id": "role",
 				"label": "Role",
-				"type": "string",
-				"includeInName": true
+				"type": "string"
 			}
 		]
 	},
 	{
 		"id": "headline",
 		"entityType": "piece",
-		"name": "Headline + ILU",
+		"name": "ILU Headline",
 		"shortName": "ILU",
-		"colour": "#ED7200",
+		"colour": "#9467bd",
 		"includeTypeInName": true,
+		"previewTemplate": "headline",
 		"payload": [
 			{
-				"id": "iluFile",
-				"label": "ILU file",
+				"id": "text",
+				"label": "Headline",
 				"type": "string",
-				"includeInName": true,
-				"description": "CasparCG media path for the ILU clip, e.g. spravy/<rundownId>/clips/foo.mp4"
+				"includeInName": true
+			},
+			{
+				"id": "iluFile",
+				"label": "Illustration",
+				"type": "mediaPick",
+				"subdir": "clips"
 			},
 			{
 				"id": "source",
 				"label": "Source",
-				"type": "string",
-				"includeInName": true
+				"type": "string"
 			}
 		]
 	},
 	{
 		"id": "logo-bug",
 		"entityType": "piece",
-		"name": "Logo bug",
+		"name": "Logo Bug",
 		"shortName": "Logo",
-		"colour": "#ED7200",
-		"includeTypeInName": false,
+		"colour": "#7f7f7f",
+		"includeTypeInName": true,
 		"payload": []
 	},
 	{
@@ -214,7 +232,7 @@
 		"entityType": "piece",
 		"name": "Outro",
 		"shortName": "Outro",
-		"colour": "#ED7200",
+		"colour": "#bcbd22",
 		"includeTypeInName": true,
 		"payload": []
 	}

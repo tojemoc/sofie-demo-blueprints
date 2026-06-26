@@ -89,7 +89,7 @@ describe('casparV2Graphics', () => {
 				objectTime: 0,
 				duration: 3000,
 				isAdlib: false,
-				attributes: { name: 'Moderátor' },
+				attributes: { name: 'Moderátor', title: 'Anchor' },
 			},
 		]).pieces[0]
 
@@ -101,15 +101,15 @@ describe('casparV2Graphics', () => {
 				objectTime: 0,
 				duration: 3000,
 				isAdlib: false,
-				attributes: { title: 'Správy', subtitle: '18:00' },
+				attributes: { headline: 'Breaking', subline: 'Tonight' },
 			},
 		]).pieces[0]
 
 		const modCaspar = mod?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
 		const headCaspar = headline?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
 
-		expect(modCaspar.data).toEqual({ name: 'Moderátor' })
-		expect(headCaspar.data).toEqual({ title: 'Správy', subtitle: '18:00' })
+		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
+		expect(headCaspar.data).toEqual({ headline: 'Breaking', subline: 'Tonight' })
 	})
 
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {

@@ -1,203 +1,113 @@
 [
 	{
-		"id": "cam",
-		"entityType": "part",
-		"name": "Camera",
-		"shortName": "Cam",
-		"colour": "#18791C",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			},
-			{
-				"id": "script",
-				"label": "Script",
-				"type": "string",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "camera", "payload": { "camNo": 1 } }
-		]
-	},
-	{
 		"id": "ilu",
 		"entityType": "part",
-		"name": "Headline (ILU)",
+		"name": "ILU",
 		"shortName": "ILU",
-		"colour": "#ED7200",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			},
-			{
-				"id": "script",
-				"label": "Script",
-				"type": "string",
-				"includeInName": false
-			}
-		],
+		"buttonLabel": "ILU",
+		"ingestType": "ILU",
+		"colour": "#9467bd",
+		"showInToolbar": true,
+		"payload": [],
 		"defaultPieces": [
-			{ "pieceType": "headline", "payload": { "iluFile": "", "source": "" } },
+			{ "pieceType": "headline" },
 			{ "pieceType": "camera", "payload": { "camNo": 1 } },
-			{ "pieceType": "video", "payload": { "fileName": "" } }
+			{ "pieceType": "video", "optional": true }
 		]
 	},
 	{
 		"id": "syn",
 		"entityType": "part",
-		"name": "Sync interview (SYN)",
+		"name": "SYN",
 		"shortName": "SYN",
-		"colour": "#e80064",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			},
-			{
-				"id": "script",
-				"label": "Script",
-				"type": "string",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "l3d-syn", "payload": { "name": "", "role": "" } },
-			{ "pieceType": "video", "payload": { "fileName": "" } }
-		]
+		"buttonLabel": "SYN",
+		"ingestType": "SYN",
+		"colour": "#ED7200",
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "l3d-syn" }, { "pieceType": "video" }]
+	},
+	{
+		"id": "cam",
+		"entityType": "part",
+		"name": "Cam",
+		"shortName": "Cam",
+		"buttonLabel": "Cam",
+		"ingestType": "Cam",
+		"colour": "#18791C",
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "camera", "payload": { "camNo": 1 } }]
 	},
 	{
 		"id": "vo",
 		"entityType": "part",
-		"name": "Voice over (VO)",
+		"name": "VO",
 		"shortName": "VO",
-		"colour": "#0a20ed",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			},
-			{
-				"id": "script",
-				"label": "Script",
-				"type": "string",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "video", "payload": { "fileName": "" } }
-		]
+		"buttonLabel": "VO",
+		"ingestType": "VO",
+		"colour": "#1f77b4",
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "video" }]
 	},
 	{
 		"id": "vt",
 		"entityType": "part",
-		"name": "Package (VT)",
+		"name": "VT",
 		"shortName": "VT",
+		"buttonLabel": "VT",
+		"ingestType": "VT",
 		"colour": "#0a20ed",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			},
-			{
-				"id": "script",
-				"label": "Script",
-				"type": "string",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "video", "payload": { "fileName": "" } }
-		]
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "video" }]
 	},
 	{
 		"id": "gfx",
 		"entityType": "part",
-		"name": "Graphics (GFX)",
+		"name": "GFX",
 		"shortName": "GFX",
-		"colour": "#ED7200",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			},
-			{
-				"id": "script",
-				"label": "Script",
-				"type": "string",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "l3d-tema", "payload": { "headline": "" } }
-		]
+		"buttonLabel": "GFX",
+		"ingestType": "GFX",
+		"colour": "#8c564b",
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "l3d-tema" }]
 	},
 	{
-		"id": "remote",
+		"id": "remi",
 		"entityType": "part",
-		"name": "Remote",
+		"name": "REMI",
 		"shortName": "REMI",
+		"buttonLabel": "REMI",
+		"ingestType": "REMI",
 		"colour": "#e80064",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "remote", "payload": { "input": 1 } }
-		]
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "remote" }]
 	},
 	{
 		"id": "dve",
 		"entityType": "part",
 		"name": "DVE",
 		"shortName": "DVE",
-		"colour": "#666666",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "split", "payload": { "layout": "", "in1": "", "in2": "" } }
-		]
+		"buttonLabel": "DVE",
+		"ingestType": "DVE",
+		"colour": "#d62728",
+		"showInToolbar": true,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "split" }]
 	},
 	{
-		"id": "titles",
+		"id": "guest-part",
 		"entityType": "part",
-		"name": "Titles",
-		"shortName": "Open",
-		"colour": "#ED7200",
-		"payload": [
-			{
-				"id": "duration",
-				"label": "Duration (seconds)",
-				"type": "number",
-				"includeInName": false
-			}
-		],
-		"defaultPieces": [
-			{ "pieceType": "video", "payload": { "fileName": "" } }
-		]
+		"name": "Guest",
+		"shortName": "Guest",
+		"ingestType": "Guest",
+		"colour": "#2ca02c",
+		"showInToolbar": false,
+		"payload": [],
+		"defaultPieces": [{ "pieceType": "guest" }]
 	}
 ]
