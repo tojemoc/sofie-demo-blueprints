@@ -142,6 +142,19 @@ describe('casparV2Graphics', () => {
 		expect((logo?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
+	it('loops LED background clip on Caspar clip player in rundown baseline', () => {
+		const baseline = getBaseline(mockRundownContext())
+		const loop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
+
+		expect(loop?.enable).toEqual({ while: 1 })
+		expect(loop?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'loops/360_loop',
+			loop: true,
+		})
+	})
+
 	it('excludes internal pieceName from Caspar data and templateData', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
