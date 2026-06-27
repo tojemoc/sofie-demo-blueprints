@@ -1,10 +1,17 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { PartType, SegmentType } from '../base/showstyle/definitions/index.js'
+import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
+import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { PartContext } from '../common/context.js'
+import { ObjectType } from '../common/definitions/objects.js'
 import { resolveSegmentType } from '../common/definitions/rundownEditorTypes.js'
+import { GfxProps, PartProps } from '../base/showstyle/definitions/index.js'
 
 type SmokeRundownExport = {
 	segments: Array<{ id: string; name: string; payload?: { type?: string } }>
@@ -25,6 +32,32 @@ type SmokeRundownExport = {
 		duration?: number
 		payload: Record<string, string | number>
 	}>
+}
+
+const hybridCasparConfig: StudioConfig = {
+	previewRenderer: '',
+	casparcgLatency: 50,
+	visionMixer: {
+		type: VisionMixerDevice.Atem,
+		host: '127.0.0.1',
+		port: 9910,
+		deviceId: 'atem0',
+	},
+	audioMixer: {
+		host: 'localhost',
+		port: 1176,
+		deviceId: 'sisyfos0',
+	},
+	casparcg: {
+		host: 'localhost',
+		port: 5250,
+	},
+	sisyfosSources: {},
+	vmixSources: {},
+	atemOutputs: {},
+	atemSources: {
+		camera1: { input: 1, type: SourceType.Camera },
+	},
 }
 
 function smokeExportToIngestSegment(
@@ -81,6 +114,29 @@ const mockContext = {
 	logWarning: () => undefined,
 } as never
 
+function mockSegmentContext() {
+	return {
+		getStudioConfig: () => ({ studio: hybridCasparConfig }),
+		getShowStyleConfig: () => ({ dvePresets: {} }),
+		getStudioMappings: () => ({}),
+		getShowStyleSourceLayers: () => ({}),
+		getShowStyleOutputLayers: () => ({}),
+		getPackageInfo: () => [],
+		hackGetMediaObjectDuration: async () => undefined,
+		rundownId: 'spravy-v3-smoke',
+		studioId: 'studio0',
+		playlistId: 'playlist0',
+		rundown: { _id: 'spravy-v3-smoke' },
+		logDebug: () => undefined,
+		logInfo: () => undefined,
+		logWarning: () => undefined,
+		logError: () => undefined,
+		notifyUserError: () => undefined,
+		notifyUserWarning: () => undefined,
+		notifyUserInfo: () => undefined,
+	} as never
+}
+
 describe('spravy-v3-smoke-rundown.json', () => {
 	const exportData: SmokeRundownExport = JSON.parse(
 		readFileSync(
@@ -102,6 +158,49 @@ describe('spravy-v3-smoke-rundown.json', () => {
 		expect(segment.parts).toHaveLength(3)
 		expect(segment.parts.every((part) => part.type === PartType.GFX)).toBe(true)
 		expect(segment.parts[0]?.objects[0]?.clipName).toBe('gfx/l3d-tema')
+	})
+
+	it('does not mark editor graphics without start as adlibs', () => {
+		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'seg-opening'))
+
+		for (const part of segment.parts) {
+			const timelineGraphics = part.objects.filter((obj) => obj.objectType === ObjectType.Graphic)
+			expect(timelineGraphics.every((obj) => !obj.isAdlib)).toBe(true)
+			expect(timelineGraphics.every((obj) => obj.objectTime === 0)).toBe(true)
+		}
+	})
+
+	it('generates GFX timeline pieces for opening without adlib-only primary graphic', () => {
+		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'seg-opening'))
+		const segmentContext = mockSegmentContext()
+
+		for (const rawPart of segment.parts) {
+			const partContext = new PartContext(segmentContext, rawPart.payload.externalId)
+			const result = generateGfxPart(partContext, rawPart as PartProps<GfxProps>)
+
+			expect(result.pieces.length).toBeGreaterThan(0)
+			expect(result.pieces.some((piece) => piece.content.timelineObjects?.length)).toBe(true)
+		}
+	})
+
+	it('maps l3d-headline ingest fields to title/subtitle for Caspar templates', () => {
+		const segment = convertIngestData(mockContext, smokeExportToIngestSegment(exportData, 'seg-opening'))
+		const headlinePart = segment.parts.find((part) => part.payload.name === 'Headline L3D')
+		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
+
+		expect(headlineObject?.attributes).toMatchObject({
+			headline: 'Breaking',
+			subline: 'Tonight',
+		})
+
+		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
+		const piece = graphics.pieces.find((p) => p.name.startsWith('gfx/l3d-headline'))
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
+		expect(piece?.content).toMatchObject({
+			templateData: { title: 'Breaking', subtitle: 'Tonight' },
+		})
 	})
 
 	it('parses ILU headline parts as camera parts with headline graphics', () => {
