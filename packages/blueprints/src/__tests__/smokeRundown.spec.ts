@@ -68,10 +68,13 @@ describe('spravy-v3-smoke-rundown.json', () => {
 
 		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
 		const piece = graphics.pieces.find((p) => p.name.startsWith('gfx/l3d-headline'))
-		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate | undefined
+		expect(piece, 'gfx/l3d-headline timeline piece missing from parseGraphicsFromObjects').toBeDefined()
+		expect(caspar, 'Caspar template timeline content missing on gfx/l3d-headline piece').toBeDefined()
+		if (!piece || !caspar) return
 
 		expect(caspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
-		expect(piece?.content).toMatchObject({
+		expect(piece.content).toMatchObject({
 			templateData: { title: 'Breaking', subtitle: 'Tonight' },
 		})
 	})
