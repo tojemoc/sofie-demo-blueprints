@@ -119,7 +119,7 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 		context.logError('Missing segment payload')
 	}
 
-	// process the pieces
+	// Adlib is driven only by explicit attributes.adlib; missing objectTime defaults to 0 above.
 	parts.forEach((part) => {
 		part.objects.forEach((piece) => {
 			const adlibAttr = (piece.attributes as { adlib?: string | boolean }).adlib
@@ -127,8 +127,6 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 				piece.isAdlib = true
 			} else if (adlibAttr === false || adlibAttr === 'false') {
 				piece.isAdlib = false
-			} else if (!piece.objectTime && piece.objectTime !== 0) {
-				piece.isAdlib = true
 			}
 		})
 	})
