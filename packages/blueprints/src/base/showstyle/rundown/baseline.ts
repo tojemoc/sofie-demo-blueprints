@@ -8,6 +8,9 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
 
+/** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
+export const LED_BACKGROUND_LOOP_FILE = 'loops/360_loop'
+
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
 
@@ -15,6 +18,20 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 		timelineObjects: [
 			...(config.visionMixer.type === VisionMixerDevice.Atem ? getAtemBaseline(config) : []),
 			...(config.visionMixer.type === VisionMixerDevice.VMix ? getVMixBaseline(config) : []),
+
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: { while: 1 },
+				priority: 0,
+				layer: CasparCGLayers.CasparCGClipPlayer1,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+
+					file: LED_BACKGROUND_LOOP_FILE,
+					loop: true,
+				},
+			}),
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
 				id: '',

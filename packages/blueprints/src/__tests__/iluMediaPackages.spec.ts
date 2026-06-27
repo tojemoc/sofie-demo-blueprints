@@ -1,4 +1,4 @@
-import { ExpectedPackage, ICommonContext } from '@sofie-automation/blueprints-integration'
+import { ExpectedPackage, ICommonContext, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { PartType } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
@@ -16,6 +16,7 @@ import {
 	getSpravyClipPath,
 	INGEST_PACKAGE_CONTAINER_ID,
 	isSpravyClipPath,
+	toCasparPlayPath,
 } from '../base/showstyle/helpers/mediaPackages.js'
 import {
 	loadSmokeRundownExport,
@@ -60,6 +61,10 @@ describe('spravy media paths', () => {
 		expect(isSpravyClipPath('spravy/rundown-1/clips/foo.mp4')).toBe(true)
 		expect(isSpravyClipPath('assets/foo.mp4')).toBe(false)
 	})
+
+	it('strips extensions for Caspar PLAY paths', () => {
+		expect(toCasparPlayPath('spravy/rundown-1/clips/foo.mp4')).toBe('spravy/rundown-1/clips/foo')
+	})
 })
 
 describe('gfx/headline ILU expectedPackages', () => {
@@ -100,7 +105,10 @@ describe('gfx/headline ILU expectedPackages', () => {
 		const expectedPackage = piece?.expectedPackages?.[0]
 		expect(expectedPackage?.type).toBe(ExpectedPackage.PackageType.MEDIA_FILE)
 		expect(expectedPackage?.content).toEqual({ filePath: iluFile })
-		expect(expectedPackage?.layers).toEqual([CasparCGLayers.CasparCGGraphicsLowerThird])
+		expect(expectedPackage?.layers).toEqual([
+			CasparCGLayers.CasparCGClipPlayer1,
+			CasparCGLayers.CasparCGGraphicsLowerThird,
+		])
 		expect(expectedPackage?.sources).toEqual([
 			{
 				containerId: INGEST_PACKAGE_CONTAINER_ID,
@@ -151,6 +159,40 @@ describe('gfx/headline ILU expectedPackages', () => {
 		])
 
 		expect(result.pieces[0]?.expectedPackages).toBeUndefined()
+	})
+
+	it('emits a Caspar MEDIA timeline object on the clip player for iluFile', () => {
+		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
+
+		const result = parseGraphicsFromObjects(
+			hybridCasparConfig,
+			[
+				{
+					id: 'headline1',
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/headline',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {
+						iluFile,
+						source: 'Reuters',
+					},
+				},
+			],
+			context
+		)
+
+		const piece = result.pieces[0]
+		expect(piece?.content.timelineObjects).toHaveLength(2)
+
+		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
+		expect(media?.layer).toBe(CasparCGLayers.CasparCGClipPlayer1)
+		expect(media?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'spravy/rundown-1/clips/foo',
+		})
 	})
 })
 

@@ -29,6 +29,11 @@ export function getSpravyClipPath(rundownExternalId: string, fileName: string): 
 	return `spravy/${rundownExternalId}/clips/${basename}`
 }
 
+/** Strip container extension for Caspar PLAY / MEDIA timeline (CLS paths omit extension). */
+export function toCasparPlayPath(filePath: string): string {
+	return filePath.replace(/\.(mp4|mov|mxf|mkv|webm)$/i, '')
+}
+
 export function getMediaPackagesConfig(config: StudioConfig): Required<MediaPackagesConfig> {
 	return {
 		casparcgMediaFolder: config.mediaPackages?.casparcgMediaFolder ?? 'c:/casparcg/sofie-demo-media',
