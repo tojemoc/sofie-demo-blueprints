@@ -256,14 +256,14 @@
 				"casparcgMediaFolder": {
 					"type": "string",
 					"ui:title": "CasparCG media folder",
-					"ui:description": "Local folder where Package Manager copies media for CasparCG playout (e.g. c:/casparcg/media)",
-					"default": "c:/casparcg/media"
+					"ui:description": "Local folder where Package Manager copies media for CasparCG playout (e.g. c:/casparcg/sofie-demo-media)",
+					"default": "c:/casparcg/sofie-demo-media"
 				},
 				"ingestMediaFolder": {
 					"type": "string",
 					"ui:title": "Ingest media folder",
-					"ui:description": "Staging folder where editors drop source media; Package Manager copies from here to CasparCG (e.g. c:/casparcg/media-ingest)",
-					"default": "c:/casparcg/media-ingest"
+					"ui:description": "Staging folder where editors drop source media; Package Manager copies from here to CasparCG (e.g. c:/casparcg/sofie-demo-media-ingest)",
+					"default": "c:/casparcg/sofie-demo-media-ingest"
 				},
 				"httpProxyBaseUrl": {
 					"type": "string",

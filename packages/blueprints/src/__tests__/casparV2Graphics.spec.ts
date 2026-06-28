@@ -109,7 +109,7 @@ describe('casparV2Graphics', () => {
 		const headCaspar = headline?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
 
 		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
-		expect(headCaspar.data).toEqual({ headline: 'Breaking', subline: 'Tonight' })
+		expect(headCaspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
 	})
 
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {

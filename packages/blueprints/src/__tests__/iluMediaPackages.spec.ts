@@ -1,17 +1,29 @@
 import { ExpectedPackage, ICommonContext, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { ObjectType } from '../common/definitions/objects.js'
+import { PartType } from '../base/showstyle/definitions/index.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
+import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
-import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
+import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { PartContext } from '../common/context.js'
+import { ObjectType } from '../common/definitions/objects.js'
 import {
 	CASPARCG_PACKAGE_CONTAINER_ID,
+	getMediaPackagesConfig,
 	getSpravyClipPath,
 	INGEST_PACKAGE_CONTAINER_ID,
 	isSpravyClipPath,
 	toCasparPlayPath,
 } from '../base/showstyle/helpers/mediaPackages.js'
+import {
+	loadSmokeRundownExport,
+	mockIngestContext,
+	mockSegmentContext,
+	smokeExportToIngestSegment,
+} from './helpers/smokeRundownIngest.js'
 
 const hybridCasparConfig: StudioConfig = {
 	previewRenderer: '',
@@ -184,6 +196,13 @@ describe('gfx/headline ILU expectedPackages', () => {
 })
 
 describe('applyConfig package containers', () => {
+	it('uses sofie-demo-media paths by default', () => {
+		const defaults = getMediaPackagesConfig(hybridCasparConfig)
+
+		expect(defaults.casparcgMediaFolder).toBe('c:/casparcg/sofie-demo-media')
+		expect(defaults.ingestMediaFolder).toBe('c:/casparcg/sofie-demo-media-ingest')
+	})
+
 	it('generates config-driven ingest and caspar containers for copy workflow', () => {
 		const config: StudioConfig = {
 			...hybridCasparConfig,
@@ -208,5 +227,49 @@ describe('applyConfig package containers', () => {
 		expect(containers?.httpProxy0?.container.accessors.http0).toMatchObject({
 			baseUrl: 'http://pm.example/package',
 		})
+	})
+})
+
+describe('spravy-v3-smoke expectedPackages', () => {
+	const exportData = loadSmokeRundownExport()
+
+	it('emits ILU expectedPackages for all three headline clips', () => {
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
+		const segmentContext = mockSegmentContext()
+
+		const iluPaths = segment.parts.flatMap((part) => {
+			const partContext = new PartContext(segmentContext, part.payload.externalId)
+			const result = generateCameraPart(partContext, part as never)
+			return result.pieces.flatMap(
+				(piece) =>
+					piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
+			)
+		})
+
+		expect(iluPaths).toEqual([
+			'spravy/spravy-v3-smoke/clips/headline1.mp4',
+			'spravy/spravy-v3-smoke/clips/headline2.mp4',
+			'spravy/spravy-v3-smoke/clips/headline3.mp4',
+		])
+	})
+
+	it('emits expectedPackages for syn-sot and vo-package video pieces', () => {
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-story'))
+		const segmentContext = mockSegmentContext()
+
+		const voParts = segment.parts.filter((part) => part.type === PartType.VO)
+		const mediaPaths = voParts.flatMap((part) => {
+			const partContext = new PartContext(segmentContext, part.payload.externalId)
+			const result = generateVOPart(partContext, part as never)
+			return result.pieces.flatMap(
+				(piece) =>
+					piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
+			)
+		})
+
+		expect(mediaPaths).toEqual([
+			'spravy/spravy-v3-smoke/clips/syn-sot.mp4',
+			'spravy/spravy-v3-smoke/clips/vo-package.mp4',
+		])
 	})
 })

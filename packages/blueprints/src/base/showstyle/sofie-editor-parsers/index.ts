@@ -94,8 +94,12 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					piece.clipName = piece.attributes.fileName as string
 				}
 
-				piece.duration = piece.duration * 1000
-				piece.objectTime = piece.objectTime * 1000
+				piece.duration = (piece.duration ?? 0) * 1000
+				if (piece.objectTime === undefined || piece.objectTime === null || Number.isNaN(piece.objectTime)) {
+					piece.objectTime = 0
+				} else {
+					piece.objectTime = piece.objectTime * 1000
+				}
 
 				if (isRundownEditorGraphicPieceType(piece.objectType)) {
 					const graphicPieceType = piece.objectType
@@ -115,11 +119,14 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 		context.logError('Missing segment payload')
 	}
 
-	// process the pieces
+	// Adlib is driven only by explicit attributes.adlib; missing objectTime defaults to 0 above.
 	parts.forEach((part) => {
 		part.objects.forEach((piece) => {
-			if (!piece.objectTime && piece.objectTime !== 0) {
+			const adlibAttr = (piece.attributes as { adlib?: string | boolean }).adlib
+			if (adlibAttr === true || adlibAttr === 'true') {
 				piece.isAdlib = true
+			} else if (adlibAttr === false || adlibAttr === 'false') {
+				piece.isAdlib = false
 			}
 		})
 	})

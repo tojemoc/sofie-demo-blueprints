@@ -10,7 +10,7 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 	const config = parseConfig(context).studio
 
 	const graphic = parseGraphicsFromObjects(config, [part.payload.graphic], context)
-	if (!graphic.pieces[0]) context.notifyUserError('Missing fullscreen graphic')
+	if (!graphic.pieces[0]) context.notifyUserError('Missing primary graphic on timeline')
 
 	const fullscreenPiece = graphic.pieces[0]
 

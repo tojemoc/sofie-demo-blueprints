@@ -171,6 +171,7 @@
 			"partId": "part-ilu-1",
 			"name": "ILU Headline",
 			"pieceType": "headline",
+			"start": 0,
 			"payload": {
 				"text": "Headline one",
 				"iluFile": "spravy/spravy-v3-smoke/clips/headline1.mp4",
@@ -185,6 +186,7 @@
 			"partId": "part-ilu-1",
 			"name": "Camera",
 			"pieceType": "camera",
+			"start": 0,
 			"payload": { "camNo": 1 }
 		},
 		{
@@ -195,6 +197,7 @@
 			"partId": "part-ilu-2",
 			"name": "ILU Headline",
 			"pieceType": "headline",
+			"start": 0,
 			"payload": {
 				"text": "Headline two",
 				"iluFile": "spravy/spravy-v3-smoke/clips/headline2.mp4",
@@ -209,6 +212,7 @@
 			"partId": "part-ilu-2",
 			"name": "Camera",
 			"pieceType": "camera",
+			"start": 0,
 			"payload": { "camNo": 1 }
 		},
 		{
@@ -219,6 +223,7 @@
 			"partId": "part-ilu-3",
 			"name": "ILU Headline",
 			"pieceType": "headline",
+			"start": 0,
 			"payload": {
 				"text": "Headline three",
 				"iluFile": "spravy/spravy-v3-smoke/clips/headline3.mp4",
@@ -233,6 +238,7 @@
 			"partId": "part-ilu-3",
 			"name": "Camera",
 			"pieceType": "camera",
+			"start": 0,
 			"payload": { "camNo": 1 }
 		},
 		{
@@ -243,6 +249,7 @@
 			"partId": "part-cam-intro",
 			"name": "Camera",
 			"pieceType": "camera",
+			"start": 0,
 			"payload": { "camNo": 1 }
 		},
 		{
@@ -253,6 +260,7 @@
 			"partId": "part-syn",
 			"name": "L3D SYN",
 			"pieceType": "l3d-syn",
+			"start": 0,
 			"payload": { "name": "Guest Name", "role": "Analyst" }
 		},
 		{
@@ -263,6 +271,7 @@
 			"partId": "part-syn",
 			"name": "SOT",
 			"pieceType": "video",
+			"start": 0,
 			"payload": { "fileName": "spravy/spravy-v3-smoke/clips/syn-sot.mp4" }
 		},
 		{
@@ -273,6 +282,7 @@
 			"partId": "part-vo",
 			"name": "SOT",
 			"pieceType": "video",
+			"start": 0,
 			"payload": { "fileName": "spravy/spravy-v3-smoke/clips/vo-package.mp4" }
 		},
 		{
@@ -283,6 +293,7 @@
 			"partId": "part-gfx-tema",
 			"name": "L3D Téma",
 			"pieceType": "l3d-tema",
+			"start": 0,
 			"payload": { "headline": "Správy", "subline": "Téma" }
 		},
 		{
@@ -293,6 +304,7 @@
 			"partId": "part-gfx-mod",
 			"name": "L3D Moderátor",
 			"pieceType": "l3d-mod",
+			"start": 0,
 			"payload": { "name": "Moderátor", "title": "Anchor" }
 		},
 		{
@@ -303,6 +315,7 @@
 			"partId": "part-gfx-headline",
 			"name": "L3D Headline",
 			"pieceType": "l3d-headline",
+			"start": 0,
 			"payload": { "headline": "Breaking", "subline": "Tonight" }
 		},
 		{
@@ -313,6 +326,7 @@
 			"partId": "part-gfx-tema",
 			"name": "Logo Bug",
 			"pieceType": "logo-bug",
+			"start": 0,
 			"payload": {}
 		}
 	]

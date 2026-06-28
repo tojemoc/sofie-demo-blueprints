@@ -31,8 +31,22 @@ function isFullscreenGraphic(clipName: string): boolean {
 	return !!clipName.match(/fullscreen|outro/i)
 }
 
-function getTemplateAttributes(attributes: GraphicObjectAttributes): GraphicObjectAttributes {
+function getTemplateAttributes(clipName: string, attributes: GraphicObjectAttributes): GraphicObjectAttributes {
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
+
+	if (clipName === 'gfx/l3d-headline') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		if (mapped.headline !== undefined && mapped.title === undefined) {
+			mapped.title = mapped.headline
+		}
+		if (mapped.subline !== undefined && mapped.subtitle === undefined) {
+			mapped.subtitle = mapped.subline
+		}
+		delete mapped.headline
+		delete mapped.subline
+		return mapped
+	}
+
 	return templateAttributes
 }
 
@@ -86,7 +100,7 @@ function getGraphicTlObject(
 				templateType: 'html',
 				name: object.clipName,
 				data: {
-					...getTemplateAttributes(object.attributes),
+					...getTemplateAttributes(object.clipName, object.attributes),
 				},
 				useStopCommand: isFullscreen ? false : true,
 			},
@@ -133,7 +147,7 @@ function parseGraphic(
 			// so it should start from 1 for `NoraContent` (stepped graphics) !
 			step: 'stepCount' in object.attributes ? { current: 1, count: object.attributes.stepCount } : undefined,
 			templateData: {
-				...getTemplateAttributes(object.attributes),
+				...getTemplateAttributes(object.clipName, object.attributes),
 			},
 			// ToDo: This was the old way of doing it, but it doesn't work in R53:
 			// payload: {
@@ -182,7 +196,7 @@ export function parseAdlibGraphic(
 			timelineObjects: getGraphicTlObject(config, object, true),
 
 			templateData: {
-				...getTemplateAttributes(object.attributes),
+				...getTemplateAttributes(object.clipName, object.attributes),
 			},
 			// payload: {
 			// 	content: {

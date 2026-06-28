@@ -36,8 +36,8 @@ export function toCasparPlayPath(filePath: string): string {
 
 export function getMediaPackagesConfig(config: StudioConfig): Required<MediaPackagesConfig> {
 	return {
-		casparcgMediaFolder: config.mediaPackages?.casparcgMediaFolder ?? 'c:/casparcg/media',
-		ingestMediaFolder: config.mediaPackages?.ingestMediaFolder ?? 'c:/casparcg/media-ingest',
+		casparcgMediaFolder: config.mediaPackages?.casparcgMediaFolder ?? 'c:/casparcg/sofie-demo-media',
+		ingestMediaFolder: config.mediaPackages?.ingestMediaFolder ?? 'c:/casparcg/sofie-demo-media-ingest',
 		httpProxyBaseUrl: config.mediaPackages?.httpProxyBaseUrl ?? 'http://localhost:8080/package',
 	}
 }
