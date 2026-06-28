@@ -105,10 +105,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		const expectedPackage = piece?.expectedPackages?.[0]
 		expect(expectedPackage?.type).toBe(ExpectedPackage.PackageType.MEDIA_FILE)
 		expect(expectedPackage?.content).toEqual({ filePath: iluFile })
-		expect(expectedPackage?.layers).toEqual([
-			CasparCGLayers.CasparCGClipPlayer1,
-			CasparCGLayers.CasparCGGraphicsLowerThird,
-		])
+		expect(expectedPackage?.layers).toEqual([CasparCGLayers.CasparCGGraphicsLowerThird])
 		expect(expectedPackage?.sources).toEqual([
 			{
 				containerId: INGEST_PACKAGE_CONTAINER_ID,
@@ -161,7 +158,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(result.pieces[0]?.expectedPackages).toBeUndefined()
 	})
 
-	it('emits a Caspar MEDIA timeline object on the clip player for iluFile', () => {
+	it('does not emit a Caspar MEDIA timeline object for iluFile (video plays in template)', () => {
 		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
 
 		const result = parseGraphicsFromObjects(
@@ -184,14 +181,16 @@ describe('gfx/headline ILU expectedPackages', () => {
 		)
 
 		const piece = result.pieces[0]
-		expect(piece?.content.timelineObjects).toHaveLength(2)
+		expect(piece?.content.timelineObjects).toHaveLength(1)
 
 		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
-		expect(media?.layer).toBe(CasparCGLayers.CasparCGClipPlayer1)
-		expect(media?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'spravy/rundown-1/clips/foo',
+		expect(media).toBeUndefined()
+
+		const template = piece?.content.timelineObjects?.[0]
+		expect(template?.layer).toBe(CasparCGLayers.CasparCGGraphicsLowerThird)
+		expect(template?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+			name: 'gfx/headline',
 		})
 	})
 })

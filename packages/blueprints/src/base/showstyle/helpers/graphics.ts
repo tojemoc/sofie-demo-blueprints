@@ -20,7 +20,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getClipPlayerInput } from './clips.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
+import { createMediaFileExpectedPackage } from './mediaPackages.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -112,28 +112,6 @@ function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
 	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile
 }
 
-function getIluMediaTimelineObject(
-	object: GraphicObjectBase
-): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> | undefined {
-	if (!isHeadlineWithIlu(object)) {
-		return undefined
-	}
-
-	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-		id: '',
-		enable: {
-			start: 0,
-		},
-		layer: CasparCGLayers.CasparCGClipPlayer1,
-		priority: 0,
-		content: {
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: toCasparPlayPath(object.attributes.iluFile as string),
-		},
-	})
-}
-
 function getIluExpectedPackages(context: ICommonContext | undefined, object: GraphicObjectBase) {
 	if (!context || !isHeadlineWithIlu(object)) {
 		return undefined
@@ -141,7 +119,6 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 
 	return [
 		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [
-			CasparCGLayers.CasparCGClipPlayer1,
 			CasparCGLayers.CasparCGGraphicsLowerThird,
 		]),
 	]
@@ -155,8 +132,6 @@ function parseGraphic(
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
 
-	const iluMedia = getIluMediaTimelineObject(object)
-
 	return {
 		externalId: object.id,
 		name: `${object.clipName} | ${Object.values<any>(object.attributes)
@@ -166,7 +141,7 @@ function parseGraphic(
 		sourceLayerId: sourceLayer,
 		outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
 		content: {
-			timelineObjects: [...getGraphicTlObject(config, object, false), ...(iluMedia ? [iluMedia] : [])],
+			timelineObjects: getGraphicTlObject(config, object, false),
 
 			// Be careful the numbering of the current step is 1-based
 			// so it should start from 1 for `NoraContent` (stepped graphics) !
@@ -206,7 +181,6 @@ export function parseAdlibGraphic(
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
 	const isFullscreen = isFullscreenGraphic(object.clipName)
-	const iluMedia = getIluMediaTimelineObject(object)
 
 	return {
 		externalId: object.id,
@@ -219,7 +193,7 @@ export function parseAdlibGraphic(
 		outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
 		prerollDuration: isFullscreen ? config.casparcgLatency : 0,
 		content: {
-			timelineObjects: [...getGraphicTlObject(config, object, true), ...(iluMedia ? [iluMedia] : [])],
+			timelineObjects: getGraphicTlObject(config, object, true),
 
 			templateData: {
 				...getTemplateAttributes(object.clipName, object.attributes),
