@@ -1,0 +1,6 @@
+[
+  { "id": "opening", "entityType": "segment", "name": "Opening", "shortName": "OP", "colour": "#666666", "payload": [] },
+  { "id": "headlines", "entityType": "segment", "name": "Headlines", "shortName": "HL", "colour": "#666666", "payload": [] },
+  { "id": "story", "entityType": "segment", "name": "Story", "shortName": "ST", "colour": "#666666", "payload": [] },
+  { "id": "normal", "entityType": "segment", "name": "Normal", "shortName": "NRM", "colour": "#666666", "payload": [] }
+]

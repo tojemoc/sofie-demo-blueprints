@@ -1,0 +1,97 @@
+[
+  {
+    "id": "headline",
+    "entityType": "piece",
+    "name": "Headline ILU",
+    "shortName": "ILU",
+    "colour": "#9467bd",
+    "includeTypeInName": true,
+    "payload": [
+      { "id": "text", "label": "Text", "type": "string", "includeInName": true },
+      { "id": "iluFile", "label": "ILU clip", "type": "mediaPick", "subdir": "clips" },
+      { "id": "source", "label": "Source", "type": "string" },
+      { "id": "iluFallback", "label": "Use Caspar media fallback", "type": "boolean" }
+    ]
+  },
+  {
+    "id": "l3d-headline",
+    "entityType": "piece",
+    "name": "Headline L3D",
+    "shortName": "HL3D",
+    "colour": "#8c564b",
+    "includeTypeInName": true,
+    "payload": [
+      { "id": "headline", "label": "Headline", "type": "string", "includeInName": true },
+      { "id": "subline", "label": "Subline", "type": "string" }
+    ]
+  },
+  {
+    "id": "l3d-mod",
+    "entityType": "piece",
+    "name": "Moderator L3D",
+    "shortName": "MOD",
+    "colour": "#8c564b",
+    "includeTypeInName": true,
+    "payload": [{ "id": "name", "label": "Name", "type": "string", "includeInName": true }]
+  },
+  {
+    "id": "l3d-tema",
+    "entityType": "piece",
+    "name": "Topic L3D",
+    "shortName": "TEMA",
+    "colour": "#8c564b",
+    "includeTypeInName": true,
+    "payload": [{ "id": "headline", "label": "Headline", "type": "string", "includeInName": true }]
+  },
+  {
+    "id": "l3d-syn",
+    "entityType": "piece",
+    "name": "SYN L3D",
+    "shortName": "SYN",
+    "colour": "#8c564b",
+    "includeTypeInName": true,
+    "payload": [
+      { "id": "name", "label": "Name", "type": "string", "includeInName": true },
+      { "id": "role", "label": "Role", "type": "string" }
+    ]
+  },
+  {
+    "id": "outro",
+    "entityType": "piece",
+    "name": "Outro",
+    "shortName": "OUT",
+    "colour": "#bcbd22",
+    "includeTypeInName": true,
+    "payload": []
+  },
+  {
+    "id": "logo-bug",
+    "entityType": "piece",
+    "name": "Logo bug",
+    "shortName": "BUG",
+    "colour": "#17becf",
+    "includeTypeInName": false,
+    "payload": []
+  },
+  {
+    "id": "video",
+    "entityType": "piece",
+    "name": "Video clip",
+    "shortName": "VID",
+    "colour": "#1f77b4",
+    "includeTypeInName": true,
+    "payload": [
+      { "id": "fileName", "label": "File name", "type": "mediaPick", "subdir": "clips" },
+      { "id": "sourceDuration", "label": "Source duration", "type": "number" }
+    ]
+  },
+  {
+    "id": "camera",
+    "entityType": "piece",
+    "name": "Camera",
+    "shortName": "CAM",
+    "colour": "#ff7f0e",
+    "includeTypeInName": true,
+    "payload": [{ "id": "camNo", "label": "Camera number", "type": "number", "includeInName": true }]
+  }
+]
