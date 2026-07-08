@@ -90,12 +90,13 @@ function getGraphicTlObject(
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
-	const clipName = useHeadlineIluFallback(object) ? 'gfx/headline-fallback' : object.clipName
+	const iluFallback = useHeadlineIluFallback(object)
+	const clipName = iluFallback ? 'gfx/headline-fallback' : object.clipName
 	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = isFullscreenGraphic(clipName)
 	const fallbackIluMediaObject =
-		useHeadlineIluFallback(object) && iluFile
+		iluFallback && iluFile
 			? [
 					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 						id: '',

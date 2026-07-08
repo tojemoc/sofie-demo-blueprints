@@ -18,13 +18,13 @@ if command -v nvm >/dev/null 2>&1 || [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; the
 fi
 
 corepack enable
-corepack prepare yarn@4.12.0 --activate
+YARN_VERSION="$(node -p "require('./package.json').packageManager.replace(/^yarn@/, '')")"
+corepack prepare "yarn@${YARN_VERSION}" --activate
 
 yarn install
 
 if [ ! -f assets/spravy-v3-smoke-rundown.json ]; then
-  echo "Missing blueprints test fixtures under assets/ — cannot run yarn test:blueprints" >&2
-  exit 1
+  echo "Warning: missing blueprints test fixtures under assets/ — yarn test:blueprints will fail until present." >&2
 fi
 
-yarn test:blueprints
+echo "Cloud bootstrap complete. Run yarn test:blueprints separately to verify tests."

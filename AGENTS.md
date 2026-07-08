@@ -19,8 +19,8 @@ This repository is a **Yarn 4 monorepo** for Sofie TV studio automation demo blu
 ### Cloud environment bootstrap
 
 Cursor Cloud can run `bash scripts/cloud-agent-setup.sh` (also referenced from
-`.cursor/environment.json`) to enable Corepack, install dependencies, verify test fixtures
-under `assets/`, and run `yarn test:blueprints`.
+`.cursor/environment.json`) to enable Corepack, install dependencies, and warn if test
+fixtures under `assets/` are missing. Run `yarn test:blueprints` separately to verify tests.
 
 ### Common commands (from repo root)
 
