@@ -193,6 +193,48 @@ describe('gfx/headline ILU expectedPackages', () => {
 			name: 'gfx/headline',
 		})
 	})
+
+	it('emits a Caspar MEDIA timeline object when iluFallback is enabled', () => {
+		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
+
+		const result = parseGraphicsFromObjects(
+			hybridCasparConfig,
+			[
+				{
+					id: 'headline1',
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/headline',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {
+						iluFile,
+						iluFallback: true,
+						source: 'Reuters',
+					},
+				},
+			],
+			context
+		)
+
+		const piece = result.pieces[0]
+		expect(piece?.content.timelineObjects).toHaveLength(2)
+
+		const template = piece?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
+		)
+		expect(template?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+			name: 'gfx/headline-fallback',
+		})
+
+		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
+		expect(media?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'spravy/rundown-1/clips/foo',
+		})
+		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGClipPlayer1])
+	})
 })
 
 describe('applyConfig package containers', () => {

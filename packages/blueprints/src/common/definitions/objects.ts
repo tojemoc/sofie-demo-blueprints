@@ -58,6 +58,7 @@ export type GraphicObjectAttributes = {
 	role?: string
 	source?: string
 	iluFile?: string
+	iluFallback?: boolean | string
 	url?: string
 	pieceName?: string
 }
