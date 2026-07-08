@@ -1,0 +1,9 @@
+[
+  { "id": "ILU", "entityType": "part", "name": "ILU", "shortName": "ILU", "colour": "#9467bd", "payload": [] },
+  { "id": "GFX", "entityType": "part", "name": "GFX", "shortName": "GFX", "colour": "#8c564b", "payload": [] },
+  { "id": "Cam", "entityType": "part", "name": "Cam", "shortName": "Cam", "colour": "#ff7f0e", "payload": [] },
+  { "id": "SYN", "entityType": "part", "name": "SYN", "shortName": "SYN", "colour": "#1f77b4", "payload": [] },
+  { "id": "VO", "entityType": "part", "name": "VO", "shortName": "VO", "colour": "#1f77b4", "payload": [] },
+  { "id": "VT", "entityType": "part", "name": "VT", "shortName": "VT", "colour": "#1f77b4", "payload": [] },
+  { "id": "Titles", "entityType": "part", "name": "Titles", "shortName": "Titles", "colour": "#666666", "payload": [] }
+]
