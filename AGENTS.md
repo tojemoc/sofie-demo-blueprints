@@ -16,6 +16,12 @@ This repository is a **Yarn 4 monorepo** for Sofie TV studio automation demo blu
 - **Node.js 22+** (see `.node-version`)
 - **Yarn 4.12.0** via Corepack (`packageManager` in root `package.json`)
 
+### Cloud environment bootstrap
+
+Cursor Cloud can run `bash scripts/cloud-agent-setup.sh` (also referenced from
+`.cursor/environment.json`) to enable Corepack, install dependencies, and warn if test
+fixtures under `assets/` are missing. Run `yarn test:blueprints` separately to verify tests.
+
 ### Common commands (from repo root)
 
 | Task | Command |

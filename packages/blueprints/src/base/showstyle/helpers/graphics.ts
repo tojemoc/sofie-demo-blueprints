@@ -20,7 +20,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getClipPlayerInput } from './clips.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { createMediaFileExpectedPackage } from './mediaPackages.js'
+import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -33,6 +33,7 @@ function isFullscreenGraphic(clipName: string): boolean {
 
 function getTemplateAttributes(clipName: string, attributes: GraphicObjectAttributes): GraphicObjectAttributes {
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
+	delete templateAttributes.iluFallback
 
 	if (clipName === 'gfx/l3d-headline') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
@@ -48,6 +49,13 @@ function getTemplateAttributes(clipName: string, attributes: GraphicObjectAttrib
 	}
 
 	return templateAttributes
+}
+
+function useHeadlineIluFallback(object: GraphicObjectBase): boolean {
+	const rawFallback = object.attributes.iluFallback
+	const fallbackEnabled =
+		rawFallback === true || (typeof rawFallback === 'string' && rawFallback.toLowerCase() === 'true')
+	return object.clipName === 'gfx/headline' && fallbackEnabled && !!object.attributes.iluFile
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
@@ -82,8 +90,29 @@ function getGraphicTlObject(
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
+	const iluFallback = useHeadlineIluFallback(object)
+	const clipName = iluFallback ? 'gfx/headline-fallback' : object.clipName
+	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
 	const fullscreenAtemInput = getClipPlayerInput(config)
-	const isFullscreen = isFullscreenGraphic(object.clipName)
+	const isFullscreen = isFullscreenGraphic(clipName)
+	const fallbackIluMediaObject =
+		iluFallback && iluFile
+			? [
+					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+						id: '',
+						enable: {
+							start: 0,
+						},
+						layer: CasparCGLayers.CasparCGClipPlayer1,
+						priority: 1 + (isAdlib ? 10 : 0),
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: toCasparPlayPath(iluFile),
+						},
+					}),
+				]
+			: []
 
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
@@ -98,13 +127,14 @@ function getGraphicTlObject(
 				type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
 
 				templateType: 'html',
-				name: object.clipName,
+				name: clipName,
 				data: {
-					...getTemplateAttributes(object.clipName, object.attributes),
+					...getTemplateAttributes(clipName, object.attributes),
 				},
 				useStopCommand: isFullscreen ? false : true,
 			},
 		}),
+		...fallbackIluMediaObject,
 		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
 	]
 }
@@ -117,11 +147,11 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		return undefined
 	}
 
-	return [
-		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [
-			CasparCGLayers.CasparCGGraphicsLowerThird,
-		]),
-	]
+	const targetLayer = useHeadlineIluFallback(object)
+		? CasparCGLayers.CasparCGClipPlayer1
+		: CasparCGLayers.CasparCGGraphicsLowerThird
+
+	return [createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [targetLayer])]
 }
 
 function parseGraphic(

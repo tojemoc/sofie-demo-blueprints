@@ -1,0 +1,168 @@
+{
+  "segments": [
+    { "id": "seg-opening", "name": "Opening", "payload": { "type": "opening" } },
+    { "id": "seg-headlines", "name": "Headlines", "payload": { "type": "headlines" } },
+    { "id": "seg-story", "name": "Long story", "payload": { "type": "story" } }
+  ],
+  "parts": [
+    {
+      "id": "part-tema",
+      "name": "Téma",
+      "segmentId": "seg-opening",
+      "payload": { "type": "GFX", "duration": 5 }
+    },
+    {
+      "id": "part-mod",
+      "name": "Moderátor",
+      "segmentId": "seg-opening",
+      "payload": { "type": "GFX", "duration": 5 }
+    },
+    {
+      "id": "part-headline-l3d",
+      "name": "Headline L3D",
+      "segmentId": "seg-opening",
+      "payload": { "type": "GFX", "duration": 5 }
+    },
+    {
+      "id": "part-ilu-1",
+      "name": "ILU 1",
+      "segmentId": "seg-headlines",
+      "payload": { "type": "ILU", "duration": 8 }
+    },
+    {
+      "id": "part-ilu-2",
+      "name": "ILU 2",
+      "segmentId": "seg-headlines",
+      "payload": { "type": "ILU", "duration": 8 }
+    },
+    {
+      "id": "part-ilu-3",
+      "name": "ILU 3",
+      "segmentId": "seg-headlines",
+      "payload": { "type": "ILU", "duration": 8 }
+    },
+    {
+      "id": "part-cam-intro",
+      "name": "Cam Intro",
+      "segmentId": "seg-story",
+      "payload": { "type": "Cam", "duration": 5 }
+    },
+    {
+      "id": "part-syn",
+      "name": "SYN",
+      "segmentId": "seg-story",
+      "payload": { "type": "SYN", "duration": 10 }
+    },
+    {
+      "id": "part-vo",
+      "name": "VO",
+      "segmentId": "seg-story",
+      "payload": { "type": "VO", "duration": 10 }
+    }
+  ],
+  "pieces": [
+    {
+      "id": "piece-tema",
+      "partId": "part-tema",
+      "pieceType": "l3d-tema",
+      "duration": 5,
+      "payload": { "headline": "Téma večera" }
+    },
+    {
+      "id": "piece-mod",
+      "partId": "part-mod",
+      "pieceType": "l3d-mod",
+      "duration": 5,
+      "payload": { "name": "Moderátor" }
+    },
+    {
+      "id": "piece-headline-l3d",
+      "partId": "part-headline-l3d",
+      "pieceType": "l3d-headline",
+      "duration": 5,
+      "payload": { "headline": "Breaking", "subline": "Tonight" }
+    },
+    {
+      "id": "piece-ilu-1-cam",
+      "partId": "part-ilu-1",
+      "pieceType": "camera",
+      "duration": 8,
+      "payload": { "camNo": 1 }
+    },
+    {
+      "id": "piece-ilu-1-headline",
+      "partId": "part-ilu-1",
+      "pieceType": "headline",
+      "duration": 8,
+      "payload": {
+        "text": "Headline one",
+        "iluFile": "spravy/spravy-v3-smoke/clips/headline1.mp4",
+        "source": "TASR"
+      }
+    },
+    {
+      "id": "piece-ilu-2-cam",
+      "partId": "part-ilu-2",
+      "pieceType": "camera",
+      "duration": 8,
+      "payload": { "camNo": 1 }
+    },
+    {
+      "id": "piece-ilu-2-headline",
+      "partId": "part-ilu-2",
+      "pieceType": "headline",
+      "duration": 8,
+      "payload": {
+        "text": "Headline two",
+        "iluFile": "spravy/spravy-v3-smoke/clips/headline2.mp4",
+        "source": "TASR"
+      }
+    },
+    {
+      "id": "piece-ilu-3-cam",
+      "partId": "part-ilu-3",
+      "pieceType": "camera",
+      "duration": 8,
+      "payload": { "camNo": 1 }
+    },
+    {
+      "id": "piece-ilu-3-headline",
+      "partId": "part-ilu-3",
+      "pieceType": "headline",
+      "duration": 8,
+      "payload": {
+        "text": "Headline three",
+        "iluFile": "spravy/spravy-v3-smoke/clips/headline3.mp4",
+        "source": "TASR"
+      }
+    },
+    {
+      "id": "piece-cam-intro",
+      "partId": "part-cam-intro",
+      "pieceType": "camera",
+      "duration": 5,
+      "payload": { "camNo": 1 }
+    },
+    {
+      "id": "piece-syn-video",
+      "partId": "part-syn",
+      "pieceType": "video",
+      "duration": 10,
+      "payload": { "fileName": "spravy/spravy-v3-smoke/clips/syn-sot.mp4" }
+    },
+    {
+      "id": "piece-syn-graphic",
+      "partId": "part-syn",
+      "pieceType": "l3d-syn",
+      "duration": 10,
+      "payload": { "name": "SYN", "role": "Reporter" }
+    },
+    {
+      "id": "piece-vo-video",
+      "partId": "part-vo",
+      "pieceType": "video",
+      "duration": 10,
+      "payload": { "fileName": "spravy/spravy-v3-smoke/clips/vo-package.mp4" }
+    }
+  ]
+}
