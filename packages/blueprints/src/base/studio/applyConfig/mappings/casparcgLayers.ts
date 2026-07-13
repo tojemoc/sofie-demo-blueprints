@@ -16,4 +16,5 @@ export const LedChannelLayers = {
 
 export const PgmChannelLayers = {
 	ClipPlayer: 110,
+	GraphicsLowerThird: 121,
 } as const

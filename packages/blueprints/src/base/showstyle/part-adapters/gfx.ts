@@ -9,17 +9,14 @@ import { parseConfig } from '../helpers/config.js'
 export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
-	const graphic = parseGraphicsFromObjects(config, [part.payload.graphic], context)
-	if (!graphic.pieces[0]) context.notifyUserError('Missing primary graphic on timeline')
+	const graphics = parseGraphicsFromObjects(config, part.objects, context)
+	if (!graphics.pieces.length) {
+		context.notifyUserError('Missing primary graphic on timeline')
+	}
 
-	const fullscreenPiece = graphic.pieces[0]
-
-	const pieces = fullscreenPiece ? [fullscreenPiece] : []
+	const pieces = [...graphics.pieces]
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
-
-	const graphics = parseGraphicsFromObjects(config, part.objects, context)
-	if (graphics.pieces) pieces.push(...graphics.pieces)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

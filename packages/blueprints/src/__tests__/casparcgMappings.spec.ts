@@ -129,6 +129,14 @@ describe('casparcgMappings', () => {
 		})
 	})
 
+	it('routes l3d-headline overlay graphics to PGM channel 2', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.GraphicsLowerThird,
+		})
+	})
+
 	it('keeps HTML graphics layers distinct from clip player layer on LED channel', () => {
 		const clipPlayerLayer = getMappingOptions(CasparCGLayers.CasparCGClipPlayer1).layer
 		const gfxLayers = [

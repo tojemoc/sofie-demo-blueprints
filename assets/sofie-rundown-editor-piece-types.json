@@ -9,7 +9,7 @@
     "payload": [
       { "id": "text", "label": "Text", "type": "string", "includeInName": true },
       { "id": "iluFile", "label": "ILU clip", "type": "mediaPick", "subdir": "clips" },
-      { "id": "source", "label": "Source", "type": "string" },
+      { "id": "source", "label": "Source", "type": "string", "options": ["", "TASR", "ČTK", "Reuters", "AP"] },
       { "id": "iluFallback", "label": "Use Caspar media fallback", "type": "boolean" }
     ]
   },
