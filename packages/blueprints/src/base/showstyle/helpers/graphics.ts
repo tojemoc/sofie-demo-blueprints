@@ -70,6 +70,25 @@ function shouldPlayHeadlineIluOnMediaLayer(object: GraphicObjectBase): boolean {
 	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile && !useHeadlineIluFallback(object)
 }
 
+function createHeadlineIluMediaTimelineObject(
+	iluFile: string,
+	isAdlib?: boolean
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: {
+			start: 0,
+		},
+		layer: CasparCGLayers.CasparCGClipPlayer1,
+		priority: 1 + (isAdlib ? 10 : 0),
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: toCasparPlayPath(iluFile),
+		},
+	})
+}
+
 function getHeadlineIluMediaObject(
 	object: GraphicObjectBase,
 	isAdlib?: boolean
@@ -79,21 +98,7 @@ function getHeadlineIluMediaObject(
 		return []
 	}
 
-	return [
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			enable: {
-				start: 0,
-			},
-			layer: CasparCGLayers.CasparCGClipPlayer1,
-			priority: 1 + (isAdlib ? 10 : 0),
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: toCasparPlayPath(iluFile),
-			},
-		}),
-	]
+	return [createHeadlineIluMediaTimelineObject(iluFile, isAdlib)]
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
@@ -136,24 +141,7 @@ function getGraphicTlObject(
 	const omitIluFileFromTemplate = shouldPlayHeadlineIluOnMediaLayer(object)
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = isFullscreenGraphic(clipName)
-	const fallbackIluMediaObject =
-		iluFallback && iluFile
-			? [
-					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-						id: '',
-						enable: {
-							start: 0,
-						},
-						layer: CasparCGLayers.CasparCGClipPlayer1,
-						priority: 1 + (isAdlib ? 10 : 0),
-						content: {
-							deviceType: TSR.DeviceType.CASPARCG,
-							type: TSR.TimelineContentTypeCasparCg.MEDIA,
-							file: toCasparPlayPath(iluFile),
-						},
-					}),
-				]
-			: []
+	const fallbackIluMediaObject = iluFallback && iluFile ? [createHeadlineIluMediaTimelineObject(iluFile, isAdlib)] : []
 	const headlineIluMediaObject = getHeadlineIluMediaObject(object, isAdlib)
 
 	return [
@@ -190,9 +178,10 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		return undefined
 	}
 
-	const targetLayer = useHeadlineIluFallback(object) || shouldPlayHeadlineIluOnMediaLayer(object)
-		? CasparCGLayers.CasparCGClipPlayer1
-		: CasparCGLayers.CasparCGGraphicsLowerThird
+	const targetLayer =
+		useHeadlineIluFallback(object) || shouldPlayHeadlineIluOnMediaLayer(object)
+			? CasparCGLayers.CasparCGClipPlayer1
+			: CasparCGLayers.CasparCGGraphicsLowerThird
 
 	return [createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [targetLayer])]
 }
