@@ -20,6 +20,7 @@ export enum CasparCGLayers {
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',
+	CasparCGGraphicsPgmLowerThird = 'casparcg_graphics_pgm_l3d',
 	CasparCGGraphicsTicker = 'casparcg_graphics_ticker',
 	CasparCGGraphicsStrap = 'casparcg_graphics_strap',
 	CasparCGGraphicsLogo = 'casparcg_graphics_logo',

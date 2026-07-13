@@ -31,9 +31,17 @@ function isFullscreenGraphic(clipName: string): boolean {
 	return !!clipName.match(/fullscreen|outro/i)
 }
 
-function getTemplateAttributes(clipName: string, attributes: GraphicObjectAttributes): GraphicObjectAttributes {
+function getTemplateAttributes(
+	clipName: string,
+	attributes: GraphicObjectAttributes,
+	options?: { omitIluFile?: boolean }
+): GraphicObjectAttributes {
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
 	delete templateAttributes.iluFallback
+
+	if (options?.omitIluFile) {
+		delete templateAttributes.iluFile
+	}
 
 	if (clipName === 'gfx/l3d-headline') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
@@ -58,6 +66,36 @@ function useHeadlineIluFallback(object: GraphicObjectBase): boolean {
 	return object.clipName === 'gfx/headline' && fallbackEnabled && !!object.attributes.iluFile
 }
 
+function shouldPlayHeadlineIluOnMediaLayer(object: GraphicObjectBase): boolean {
+	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile && !useHeadlineIluFallback(object)
+}
+
+function getHeadlineIluMediaObject(
+	object: GraphicObjectBase,
+	isAdlib?: boolean
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
+	if (!iluFile || !shouldPlayHeadlineIluOnMediaLayer(object)) {
+		return []
+	}
+
+	return [
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: {
+				start: 0,
+			},
+			layer: CasparCGLayers.CasparCGClipPlayer1,
+			priority: 1 + (isAdlib ? 10 : 0),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: toCasparPlayPath(iluFile),
+			},
+		}),
+	]
+}
+
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 	if (object.clipName.match(/logo-bug/i)) {
 		return SourceLayer.Logo
@@ -80,6 +118,8 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 		return CasparCGLayers.CasparCGGraphicsStrap
 	} else if (object.clipName.match(/fullscreen|outro/i)) {
 		return CasparCGLayers.CasparCGClipPlayer1
+	} else if (object.clipName === 'gfx/l3d-headline') {
+		return CasparCGLayers.CasparCGGraphicsPgmLowerThird
 	} else {
 		return CasparCGLayers.CasparCGGraphicsLowerThird
 	}
@@ -93,6 +133,7 @@ function getGraphicTlObject(
 	const iluFallback = useHeadlineIluFallback(object)
 	const clipName = iluFallback ? 'gfx/headline-fallback' : object.clipName
 	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
+	const omitIluFileFromTemplate = shouldPlayHeadlineIluOnMediaLayer(object)
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = isFullscreenGraphic(clipName)
 	const fallbackIluMediaObject =
@@ -113,6 +154,7 @@ function getGraphicTlObject(
 					}),
 				]
 			: []
+	const headlineIluMediaObject = getHeadlineIluMediaObject(object, isAdlib)
 
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
@@ -129,11 +171,12 @@ function getGraphicTlObject(
 				templateType: 'html',
 				name: clipName,
 				data: {
-					...getTemplateAttributes(clipName, object.attributes),
+					...getTemplateAttributes(clipName, object.attributes, { omitIluFile: omitIluFileFromTemplate }),
 				},
 				useStopCommand: isFullscreen ? false : true,
 			},
 		}),
+		...headlineIluMediaObject,
 		...fallbackIluMediaObject,
 		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
 	]
@@ -147,11 +190,17 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		return undefined
 	}
 
-	const targetLayer = useHeadlineIluFallback(object)
+	const targetLayer = useHeadlineIluFallback(object) || shouldPlayHeadlineIluOnMediaLayer(object)
 		? CasparCGLayers.CasparCGClipPlayer1
 		: CasparCGLayers.CasparCGGraphicsLowerThird
 
 	return [createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [targetLayer])]
+}
+
+function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttributes {
+	return getTemplateAttributes(object.clipName, object.attributes, {
+		omitIluFile: shouldPlayHeadlineIluOnMediaLayer(object),
+	})
 }
 
 function parseGraphic(
@@ -161,6 +210,7 @@ function parseGraphic(
 ): IBlueprintPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
+	const templateData = getGraphicTemplateData(object)
 
 	return {
 		externalId: object.id,
@@ -176,9 +226,7 @@ function parseGraphic(
 			// Be careful the numbering of the current step is 1-based
 			// so it should start from 1 for `NoraContent` (stepped graphics) !
 			step: 'stepCount' in object.attributes ? { current: 1, count: object.attributes.stepCount } : undefined,
-			templateData: {
-				...getTemplateAttributes(object.clipName, object.attributes),
-			},
+			templateData,
 			// ToDo: This was the old way of doing it, but it doesn't work in R53:
 			// payload: {
 			// 	content: {
@@ -211,6 +259,7 @@ export function parseAdlibGraphic(
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
 	const isFullscreen = isFullscreenGraphic(object.clipName)
+	const templateData = getGraphicTemplateData(object)
 
 	return {
 		externalId: object.id,
@@ -225,9 +274,7 @@ export function parseAdlibGraphic(
 		content: {
 			timelineObjects: getGraphicTlObject(config, object, true),
 
-			templateData: {
-				...getTemplateAttributes(object.clipName, object.attributes),
-			},
+			templateData,
 			// payload: {
 			// 	content: {
 			// 		...object.attributes,

@@ -84,6 +84,16 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 				layer: LedChannelLayers.GraphicsLowerThird,
 			},
 		}),
+		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+			device: TSR.DeviceType.CASPARCG,
+			deviceId: 'casparcg0',
+			lookahead: LookaheadMode.NONE,
+			options: {
+				mappingType: TSR.MappingCasparCGType.Layer,
+				channel: pgmChannel,
+				layer: PgmChannelLayers.GraphicsLowerThird,
+			},
+		}),
 		[CasparCGLayers.CasparCGGraphicsStrap]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
 			device: TSR.DeviceType.CASPARCG,
 			deviceId: 'casparcg0',

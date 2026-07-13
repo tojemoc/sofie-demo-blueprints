@@ -53,6 +53,9 @@ describe('spravy-v3-smoke-rundown.json', () => {
 
 			expect(result.pieces.length).toBeGreaterThan(0)
 			expect(result.pieces.some((piece) => piece.content.timelineObjects?.length)).toBe(true)
+
+			const externalIds = result.pieces.map((piece) => piece.externalId)
+			expect(new Set(externalIds).size).toBe(externalIds.length)
 		}
 	})
 
