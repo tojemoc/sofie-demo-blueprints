@@ -5,24 +5,52 @@ import { ISegmentUserContext } from '@sofie-automation/blueprints-integration'
 import { convertIngestData } from '../../base/showstyle/sofie-editor-parsers/index.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../base/studio/helpers/config.js'
 
+/** Rundown Editor SerializedRundown export (also used as blueprint smoke-test fixture). */
 export type SmokeRundownExport = {
-	segments: Array<{ id: string; name: string; payload?: { type?: string } }>
+	rundown: {
+		id: string
+		name: string
+		playlistId: string | null
+		sync: boolean
+		isTemplate?: boolean
+		payload?: Record<string, unknown>
+	}
+	segments: Array<{
+		id: string
+		name: string
+		rundownId: string
+		playlistId: string | null
+		rank: number
+		float?: boolean
+		isTemplate?: boolean
+		segmentType?: string
+		payload?: { type?: string; name?: string }
+	}>
 	parts: Array<{
 		id: string
 		name: string
 		segmentId: string
+		rundownId: string
+		playlistId: string | null
+		rank: number
+		float?: boolean
 		partType?: string
 		duration?: number
 		script?: string
+		fromPreset?: boolean
 		payload: { type: string; duration?: number; script?: string }
 	}>
 	pieces: Array<{
 		id: string
 		partId: string
+		segmentId: string
+		rundownId: string
+		playlistId: string | null
+		name: string
 		pieceType: string
 		start?: number
 		duration?: number
-		payload: Record<string, string | number>
+		payload: Record<string, string | number | boolean>
 	}>
 }
 
