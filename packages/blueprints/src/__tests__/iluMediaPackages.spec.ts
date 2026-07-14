@@ -187,6 +187,9 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(media?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'spravy/rundown-1/clips/foo',
+			mixer: {
+				fill: { x: 0.08, y: 0.15, xScale: 0.62, yScale: 0.73 },
+			},
 		})
 
 		const template = piece?.content.timelineObjects?.find(
@@ -240,8 +243,59 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(media?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'spravy/rundown-1/clips/foo',
+			mixer: {
+				fill: { x: 0.08, y: 0.15, xScale: 0.62, yScale: 0.73 },
+			},
 		})
 		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGClipPlayer1])
+	})
+
+	it('omits source from template data when sourceEnabled is false or source is empty', () => {
+		const resultDisabled = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'headline1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/headline',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					text: 'Hello',
+					sourceEnabled: false,
+					source: 'Reuters',
+				},
+			},
+		])
+
+		const templateDisabled = resultDisabled.pieces[0]?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
+		)
+		expect((templateDisabled?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
+			text: 'Hello',
+		})
+
+		const resultEmpty = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'headline2',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/headline',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					text: 'Hello',
+					sourceEnabled: true,
+					source: '   ',
+				},
+			},
+		])
+
+		const templateEmpty = resultEmpty.pieces[0]?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
+		)
+		expect((templateEmpty?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
+			text: 'Hello',
+		})
 	})
 })
 

@@ -57,6 +57,7 @@ export type GraphicObjectAttributes = {
 	subline?: string
 	role?: string
 	source?: string
+	sourceEnabled?: boolean | string
 	iluFile?: string
 	iluFallback?: boolean | string
 	url?: string
