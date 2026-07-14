@@ -31,6 +31,10 @@ function isFullscreenGraphic(clipName: string): boolean {
 	return !!clipName.match(/fullscreen|outro/i)
 }
 
+function isTruthyAttribute(value: boolean | string | undefined): boolean {
+	return value === true || (typeof value === 'string' && value.toLowerCase() === 'true')
+}
+
 function getTemplateAttributes(
 	clipName: string,
 	attributes: GraphicObjectAttributes,
@@ -38,6 +42,20 @@ function getTemplateAttributes(
 ): GraphicObjectAttributes {
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
 	delete templateAttributes.iluFallback
+
+	const rawSourceEnabled = templateAttributes.sourceEnabled
+	delete templateAttributes.sourceEnabled
+
+	const trimmedSource = typeof templateAttributes.source === 'string' ? templateAttributes.source.trim() : undefined
+	const sourceEnabled =
+		rawSourceEnabled === undefined
+			? !!trimmedSource // legacy: keep non-empty source when toggle is absent
+			: isTruthyAttribute(rawSourceEnabled)
+	if (!sourceEnabled || !trimmedSource) {
+		delete templateAttributes.source
+	} else {
+		templateAttributes.source = trimmedSource
+	}
 
 	if (options?.omitIluFile) {
 		delete templateAttributes.iluFile
@@ -60,14 +78,23 @@ function getTemplateAttributes(
 }
 
 function useHeadlineIluFallback(object: GraphicObjectBase): boolean {
-	const rawFallback = object.attributes.iluFallback
-	const fallbackEnabled =
-		rawFallback === true || (typeof rawFallback === 'string' && rawFallback.toLowerCase() === 'true')
-	return object.clipName === 'gfx/headline' && fallbackEnabled && !!object.attributes.iluFile
+	return (
+		object.clipName === 'gfx/headline' &&
+		isTruthyAttribute(object.attributes.iluFallback) &&
+		!!object.attributes.iluFile
+	)
 }
 
 function shouldPlayHeadlineIluOnMediaLayer(object: GraphicObjectBase): boolean {
 	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile && !useHeadlineIluFallback(object)
+}
+
+/** Matches sofie-demo-assets HTML #ilu-slide frame: left 8%, top 15%, width 62%, height 73%. */
+const HEADLINE_ILU_MIXER_FILL = {
+	x: 0.08,
+	y: 0.15,
+	xScale: 0.62,
+	yScale: 0.73,
 }
 
 function createHeadlineIluMediaTimelineObject(
@@ -85,6 +112,9 @@ function createHeadlineIluMediaTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
+			mixer: {
+				fill: HEADLINE_ILU_MIXER_FILL,
+			},
 		},
 	})
 }
