@@ -15,18 +15,46 @@ export interface ClipProps {
 	sourceDuration?: number
 }
 
-export function parseClipProps(object: VideoObject): ClipProps {
+function resolveVideoFileName(object: VideoObject): string | undefined {
+	const fromAttributes = object.attributes?.fileName
+	if (typeof fromAttributes === 'string' && fromAttributes.trim()) {
+		return fromAttributes.trim()
+	}
+	if (typeof object.clipName === 'string' && object.clipName.trim()) {
+		return object.clipName.trim()
+	}
+	return undefined
+}
+
+export function parseClipProps(object: VideoObject): ClipProps | undefined {
+	const fileName = resolveVideoFileName(object)
+	if (!fileName) {
+		return undefined
+	}
+
 	return {
-		fileName: object.clipName,
+		fileName,
 		duration: object.duration,
 	}
 }
 
-export function parseClipEditorProps(object: VideoObject): ClipProps {
+/**
+ * Clip props from Rundown Editor ingest.
+ * Duration is already milliseconds after sofie-editor-parsers/index.ts conversion — do not multiply again.
+ */
+export function parseClipEditorProps(object: VideoObject): ClipProps | undefined {
+	const fileName = resolveVideoFileName(object)
+	if (!fileName) {
+		return undefined
+	}
+
+	const sourceDurationRaw = object.attributes?.sourceDuration
+	const sourceDuration = typeof sourceDurationRaw === 'number' ? sourceDurationRaw : undefined
+
 	return {
-		fileName: object.attributes.fileName as string,
-		duration: object.duration * 1000,
-		sourceDuration: object.attributes.sourceDuration as number,
+		fileName,
+		duration: object.duration,
+		sourceDuration,
 	}
 }
 
@@ -52,14 +80,18 @@ export function clipToAdlib(
 	context: ICommonContext,
 	config: StudioConfig,
 	clipObject: VideoObject
-): IBlueprintAdLibPiece {
+): IBlueprintAdLibPiece | undefined {
 	const props = parseClipProps(clipObject)
+	if (!props) {
+		return undefined
+	}
+
 	const visionMixerInput = getClipPlayerInput(config)
 
 	return literal<IBlueprintAdLibPiece>({
 		_rank: 0,
 		externalId: clipObject.id,
-		name: `${props.fileName || 'Missing file name'}`,
+		name: props.fileName,
 		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.VO,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VO),
@@ -98,5 +130,8 @@ export function parseClipsFromObjects(
 ): IBlueprintAdLibPiece[] {
 	const clips = objects.filter((o): o is VideoObject => o.objectType === ObjectType.Video)
 
-	return clips.map((o) => clipToAdlib(context, config, o))
+	return clips.flatMap((o) => {
+		const adlib = clipToAdlib(context, config, o)
+		return adlib ? [adlib] : []
+	})
 }

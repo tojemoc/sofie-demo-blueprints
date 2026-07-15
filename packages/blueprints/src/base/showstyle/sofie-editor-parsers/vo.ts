@@ -13,6 +13,9 @@ export function parseVO(ingestPart: EditorIngestPart): PartProps<VOProps | Inval
 	}
 
 	const clipProps = parseClipEditorProps(videoObject)
+	if (!clipProps) {
+		return createInvalidProps(t('Video clip is missing file name'), ingestPart)
+	}
 
 	return {
 		type: PartType.VO,

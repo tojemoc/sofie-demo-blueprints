@@ -14,7 +14,7 @@ export function parseVT(ingestPart: EditorIngestPart): PartProps<VTProps | Inval
 
 	const clipProps = parseClipEditorProps(videoObject)
 	if (!clipProps) {
-		return createInvalidProps(t('Could not parse clip properties'), ingestPart)
+		return createInvalidProps(t('Video clip is missing file name'), ingestPart)
 	}
 
 	return {

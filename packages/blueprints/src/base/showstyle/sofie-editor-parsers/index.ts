@@ -18,6 +18,10 @@ function hasCameraPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Camera)
 }
 
+function hasVideoPiece(part: EditorIngestPart): boolean {
+	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Video)
+}
+
 function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	const partType = partPayload.type ?? ''
 
@@ -48,7 +52,13 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	if (partType.match(/vo/i)) {
 		return parseVO(partPayload)
 	}
-	if (partType.match(/vt|full|package/i)) {
+	// VID / SOT / clip / video are sometimes used as part labels; VT / FULL / PACKAGE are standard.
+	if (/^(vt|full|package|vid|sot|clip|video)$/i.test(partType)) {
+		return parseVT(partPayload)
+	}
+
+	// Content fallback: a part whose only (or primary) object is a video file.
+	if (hasVideoPiece(partPayload)) {
 		return parseVT(partPayload)
 	}
 

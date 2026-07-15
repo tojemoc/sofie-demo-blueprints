@@ -20,9 +20,11 @@ export function parseDVE(ingestPart: SpreadsheetIngestPart): PartProps<DVEProps 
 			const source = findSource(p.attributes.source, SourceType.Remote)
 			if (source) splitInputs.push(source)
 		} else if ((p.objectType as ObjectType) === ObjectType.Video && !hasVideo) {
-			hasVideo = true
 			const clipProps = parseClipProps(p as VideoObject)
-			splitInputs.push(clipProps)
+			if (clipProps) {
+				hasVideo = true
+				splitInputs.push(clipProps)
+			}
 		}
 	})
 

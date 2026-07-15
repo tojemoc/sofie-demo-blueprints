@@ -20,9 +20,11 @@ export function parseDVE(ingestPart: EditorIngestPart): PartProps<DVEProps | Inv
 			const source = findSource(p.attributes.input, SourceType.Remote)
 			if (source) splitInputs.push(source)
 		} else if ((p.objectType as ObjectType) === ObjectType.Video && !hasVideo) {
-			hasVideo = true
 			const clipProps = parseClipEditorProps(p as VideoObject)
-			splitInputs.push(clipProps)
+			if (clipProps) {
+				hasVideo = true
+				splitInputs.push(clipProps)
+			}
 		}
 	})
 
