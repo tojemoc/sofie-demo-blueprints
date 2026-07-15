@@ -13,6 +13,9 @@ export function parseVO(ingestPart: SpreadsheetIngestPart): PartProps<VOProps | 
 	}
 
 	const clipProps = parseClipProps(videoObject)
+	if (!clipProps) {
+		return createInvalidProps(t('Video clip is missing file name'), ingestPart)
+	}
 
 	return {
 		type: PartType.VO,

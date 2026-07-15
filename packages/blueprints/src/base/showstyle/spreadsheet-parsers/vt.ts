@@ -14,7 +14,7 @@ export function parseVT(ingestPart: SpreadsheetIngestPart): PartProps<VTProps | 
 
 	const clipProps = parseClipProps(videoObject)
 	if (!clipProps) {
-		return createInvalidProps(t('Could not parse clip properties'), ingestPart)
+		return createInvalidProps(t('Video clip is missing file name'), ingestPart)
 	}
 
 	return {

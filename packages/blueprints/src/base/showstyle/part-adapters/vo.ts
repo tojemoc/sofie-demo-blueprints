@@ -21,7 +21,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 			start: 0,
 		},
 		externalId: part.payload.externalId,
-		name: `${part.payload.clipProps.fileName || 'Missing file name'}`,
+		name: part.payload.clipProps.fileName,
 		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.VO,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VO),
