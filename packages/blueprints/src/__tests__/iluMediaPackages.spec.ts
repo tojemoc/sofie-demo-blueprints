@@ -309,7 +309,22 @@ describe('applyConfig package containers', () => {
 		const defaults = getMediaPackagesConfig(hybridCasparConfig)
 
 		expect(defaults.casparcgMediaFolder).toBe('c:/casparcg/sofie-demo-media')
-		expect(defaults.ingestMediaFolder).toBe('c:/casparcg/sofie-demo-media-ingest')
+		expect(defaults.ingestMediaFolder).toBe('c:/casparcg/sofie-demo-media')
+	})
+
+	it('normalizes Windows backslashes to forward slashes', () => {
+		const config: StudioConfig = {
+			...hybridCasparConfig,
+			mediaPackages: {
+				casparcgMediaFolder: 'c:\\casparcg\\sofie-demo-media',
+				ingestMediaFolder: 'c:\\casparcg\\sofie-demo-media',
+			},
+		}
+
+		expect(getMediaPackagesConfig(config)).toMatchObject({
+			casparcgMediaFolder: 'c:/casparcg/sofie-demo-media',
+			ingestMediaFolder: 'c:/casparcg/sofie-demo-media',
+		})
 	})
 
 	it('generates config-driven ingest and caspar containers for copy workflow', () => {

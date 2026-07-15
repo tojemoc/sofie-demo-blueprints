@@ -34,11 +34,24 @@ export function toCasparPlayPath(filePath: string): string {
 	return filePath.replace(/\.(mp4|mov|mxf|mkv|webm)$/i, '')
 }
 
+export function normalizeLocalFolderPath(folderPath: string): string {
+	// Softie studio config is JSON — backslashes are treated as escapes in the UI and
+	// often get mangled/dropped on save. Normalize to forward slashes (valid on Windows).
+	return folderPath.trim().replace(/\\/g, '/')
+}
+
 export function getMediaPackagesConfig(config: StudioConfig): Required<MediaPackagesConfig> {
+	const casparcgMediaFolder = normalizeLocalFolderPath(
+		config.mediaPackages?.casparcgMediaFolder ?? 'c:/casparcg/sofie-demo-media'
+	)
+	// Default ingest to the same folder as Caspar so demo hosts with media already under
+	// sofie-demo-media work without a separate staging directory.
+	const ingestMediaFolder = normalizeLocalFolderPath(config.mediaPackages?.ingestMediaFolder ?? casparcgMediaFolder)
+
 	return {
-		casparcgMediaFolder: config.mediaPackages?.casparcgMediaFolder ?? 'c:/casparcg/sofie-demo-media',
-		ingestMediaFolder: config.mediaPackages?.ingestMediaFolder ?? 'c:/casparcg/sofie-demo-media-ingest',
-		httpProxyBaseUrl: config.mediaPackages?.httpProxyBaseUrl ?? 'http://localhost:8080/package',
+		casparcgMediaFolder,
+		ingestMediaFolder,
+		httpProxyBaseUrl: (config.mediaPackages?.httpProxyBaseUrl ?? 'http://localhost:8080/package').trim(),
 	}
 }
 
