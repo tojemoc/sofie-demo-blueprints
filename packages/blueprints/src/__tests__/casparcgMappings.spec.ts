@@ -137,8 +137,19 @@ describe('casparcgMappings', () => {
 		})
 	})
 
+	it('routes ILU player above clip player on LED channel so FILL does not affect bg loop', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGIluPlayer)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 1,
+			layer: LedChannelLayers.IluPlayer,
+		})
+		expect(LedChannelLayers.IluPlayer).toBeGreaterThan(LedChannelLayers.ClipPlayer)
+		expect(LedChannelLayers.IluPlayer).toBeLessThan(LedChannelLayers.GraphicsTicker)
+	})
+
 	it('keeps HTML graphics layers distinct from clip player layer on LED channel', () => {
 		const clipPlayerLayer = getMappingOptions(CasparCGLayers.CasparCGClipPlayer1).layer
+		const iluPlayerLayer = getMappingOptions(CasparCGLayers.CasparCGIluPlayer).layer
 		const gfxLayers = [
 			getMappingOptions(CasparCGLayers.CasparCGGraphicsTicker).layer,
 			getMappingOptions(CasparCGLayers.CasparCGGraphicsLowerThird).layer,
@@ -146,8 +157,10 @@ describe('casparcgMappings', () => {
 			getMappingOptions(CasparCGLayers.CasparCGGraphicsLogo).layer,
 		]
 
+		expect(iluPlayerLayer).not.toBe(clipPlayerLayer)
 		for (const layer of gfxLayers) {
 			expect(layer).not.toBe(clipPlayerLayer)
+			expect(layer).not.toBe(iluPlayerLayer)
 		}
 	})
 })

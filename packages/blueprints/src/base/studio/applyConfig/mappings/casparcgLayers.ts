@@ -1,12 +1,14 @@
 /**
  * Caspar layer numbers on the LED channel.
- * Clip preview (100) and clip player (110) share the LED stack with HTML graphics;
+ * Clip preview (100) and clip player (110) hold background/fullscreen media;
+ * ILU (115) sits above the bg loop so MIXER FILL does not transform layer 110;
  * gfx layers use 120+ to avoid collisions.
  */
 export const LedChannelLayers = {
 	AudioBed: 80,
 	ClipPreview: 100,
 	ClipPlayer: 110,
+	IluPlayer: 115,
 	GraphicsTicker: 120,
 	GraphicsLowerThird: 121,
 	GraphicsStrap: 122,

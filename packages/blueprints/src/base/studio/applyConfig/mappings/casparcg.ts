@@ -43,6 +43,18 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 			},
 		}),
 
+		[CasparCGLayers.CasparCGIluPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+			device: TSR.DeviceType.CASPARCG,
+			deviceId: 'casparcg0',
+			lookahead: LookaheadMode.NONE,
+
+			options: {
+				mappingType: TSR.MappingCasparCGType.Layer,
+				channel: ledChannel,
+				layer: LedChannelLayers.IluPlayer,
+			},
+		}),
+
 		[CasparCGLayers.CasparCGClipPlayerPreview]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
 			device: TSR.DeviceType.CASPARCG,
 			deviceId: 'casparcg0',
