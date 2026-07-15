@@ -17,6 +17,8 @@ export enum CasparCGLayers {
 	CasparCGClipPlayer1 = 'casparcg_clip_player1',
 	CasparCGClipPlayer2 = 'casparcg_clip_player2',
 	CasparCGClipPlayerPreview = 'casparcg_clip_player_preview',
+	/** Headline ILU media framed with MIXER FILL — must not share ClipPlayer1 with the bg loop. */
+	CasparCGIluPlayer = 'casparcg_ilu_player',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',

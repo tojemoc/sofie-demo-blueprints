@@ -106,7 +106,8 @@ function createHeadlineIluMediaTimelineObject(
 		enable: {
 			start: 0,
 		},
-		layer: CasparCGLayers.CasparCGClipPlayer1,
+		// Dedicated ILU layer (115) — never ClipPlayer1 (110), so FILL does not affect the bg loop.
+		layer: CasparCGLayers.CasparCGIluPlayer,
 		priority: 1 + (isAdlib ? 10 : 0),
 		content: {
 			deviceType: TSR.DeviceType.CASPARCG,
@@ -210,7 +211,7 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 
 	const targetLayer =
 		useHeadlineIluFallback(object) || shouldPlayHeadlineIluOnMediaLayer(object)
-			? CasparCGLayers.CasparCGClipPlayer1
+			? CasparCGLayers.CasparCGIluPlayer
 			: CasparCGLayers.CasparCGGraphicsLowerThird
 
 	return [createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [targetLayer])]
