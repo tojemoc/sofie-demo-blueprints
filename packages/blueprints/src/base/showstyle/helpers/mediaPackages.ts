@@ -42,7 +42,7 @@ export function toCasparPlayPath(filePath: string): string {
 }
 
 export function normalizeLocalFolderPath(folderPath: string): string {
-	// Softie studio config is JSON — backslashes are treated as escapes in the UI and
+	// Sofie studio config is JSON — backslashes are treated as escapes in the UI and
 	// often get mangled/dropped on save. Normalize to forward slashes (valid on Windows).
 	return folderPath.trim().replace(/\\/g, '/')
 }
@@ -55,7 +55,7 @@ type LegacyMediaPackages = {
 
 /**
  * Resolve Package Manager folder paths from studio config.
- * Prefers flat top-level fields (Softie UI persists these reliably); falls back to the
+ * Prefers flat top-level fields (Sofie UI persists these reliably); falls back to the
  * legacy nested `mediaPackages` object if still present in an older studio config.
  */
 export function getMediaPackagesConfig(config: StudioConfig): MediaPackagesConfig {
