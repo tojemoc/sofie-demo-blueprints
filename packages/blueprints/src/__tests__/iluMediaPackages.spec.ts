@@ -111,11 +111,16 @@ describe('gfx/headline ILU expectedPackages', () => {
 				containerId: INGEST_PACKAGE_CONTAINER_ID,
 				accessors: {
 					ingest0: {
+						type: 'local_folder',
 						filePath: iluFile,
 					},
 				},
 			},
 		])
+		expect(expectedPackage?.sideEffect).toMatchObject({
+			previewContainerId: 'httpProxy0',
+			thumbnailContainerId: 'httpProxy0',
+		})
 	})
 
 	it('does not emit expectedPackages without iluFile', () => {
