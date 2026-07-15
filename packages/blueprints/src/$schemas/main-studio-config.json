@@ -246,33 +246,26 @@
 			"ui:category": "Playback",
 			"min": 0
 		},
-		"mediaPackages": {
-			"type": "object",
-			"title": "MediaPackagesConfig",
-			"description": "Package Manager folder paths for ingest staging and CasparCG playout",
+		"casparcgMediaFolder": {
+			"type": "string",
+			"ui:title": "CasparCG media folder",
+			"ui:description": "Local folder where Package Manager copies media for CasparCG playout. Use forward slashes only (e.g. c:/casparcg/sofie-demo-media).",
 			"ui:category": "Package Manager",
-			"ui:title": "Media package containers",
-			"properties": {
-				"casparcgMediaFolder": {
-					"type": "string",
-					"ui:title": "CasparCG media folder",
-					"ui:description": "Local folder where Package Manager copies media for CasparCG playout (e.g. c:/casparcg/sofie-demo-media)",
-					"default": "c:/casparcg/sofie-demo-media"
-				},
-				"ingestMediaFolder": {
-					"type": "string",
-					"ui:title": "Ingest media folder",
-					"ui:description": "Staging folder where editors drop source media; Package Manager copies from here to CasparCG (e.g. c:/casparcg/sofie-demo-media-ingest)",
-					"default": "c:/casparcg/sofie-demo-media-ingest"
-				},
-				"httpProxyBaseUrl": {
-					"type": "string",
-					"ui:title": "HTTP proxy base URL",
-					"ui:description": "Base URL for the Package Manager HTTP proxy used for previews and thumbnails",
-					"default": "http://localhost:8080/package"
-				}
-			},
-			"additionalProperties": false
+			"default": "c:/casparcg/sofie-demo-media"
+		},
+		"ingestMediaFolder": {
+			"type": "string",
+			"ui:title": "Ingest media folder",
+			"ui:description": "Staging folder where editors drop source media; Package Manager copies from here to CasparCG. Use forward slashes only. For demo, use the same path as CasparCG media folder.",
+			"ui:category": "Package Manager",
+			"default": "c:/casparcg/sofie-demo-media"
+		},
+		"httpProxyBaseUrl": {
+			"type": "string",
+			"ui:title": "HTTP proxy base URL",
+			"ui:description": "Base URL for the Package Manager HTTP proxy used for previews and thumbnails",
+			"ui:category": "Package Manager",
+			"default": "http://localhost:8080/package"
 		}
 	},
 	"required": [
@@ -284,7 +277,10 @@
 		"atemSources",
 		"visionMixer",
 		"audioMixer",
-		"casparcg"
+		"casparcg",
+		"casparcgMediaFolder",
+		"ingestMediaFolder",
+		"httpProxyBaseUrl"
 	],
 	"$defs": {
 		"SourceType": {

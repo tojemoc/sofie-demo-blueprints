@@ -1,6 +1,13 @@
 import { Accessor, ExpectedPackage, ICommonContext } from '@sofie-automation/blueprints-integration'
 import { changeExtension, literal } from '../../../common/util.js'
-import { MediaPackagesConfig, StudioConfig } from '../../studio/helpers/config.js'
+import { StudioConfig } from '../../studio/helpers/config.js'
+
+/** Resolved Package Manager folder paths used by applyConfig. */
+export interface MediaPackagesConfig {
+	casparcgMediaFolder: string
+	ingestMediaFolder: string
+	httpProxyBaseUrl: string
+}
 
 /** Package container id for the ingest/staging folder (source for copy workflow). */
 export const INGEST_PACKAGE_CONTAINER_ID = 'ingest0'
@@ -34,11 +41,37 @@ export function toCasparPlayPath(filePath: string): string {
 	return filePath.replace(/\.(mp4|mov|mxf|mkv|webm)$/i, '')
 }
 
-export function getMediaPackagesConfig(config: StudioConfig): Required<MediaPackagesConfig> {
+export function normalizeLocalFolderPath(folderPath: string): string {
+	// Sofie studio config is JSON — backslashes are treated as escapes in the UI and
+	// often get mangled/dropped on save. Normalize to forward slashes (valid on Windows).
+	return folderPath.trim().replace(/\\/g, '/')
+}
+
+type LegacyMediaPackages = {
+	casparcgMediaFolder?: string
+	ingestMediaFolder?: string
+	httpProxyBaseUrl?: string
+}
+
+/**
+ * Resolve Package Manager folder paths from studio config.
+ * Prefers flat top-level fields (Sofie UI persists these reliably); falls back to the
+ * legacy nested `mediaPackages` object if still present in an older studio config.
+ */
+export function getMediaPackagesConfig(config: StudioConfig): MediaPackagesConfig {
+	const legacy = (config as StudioConfig & { mediaPackages?: LegacyMediaPackages }).mediaPackages
+
+	const casparcgMediaFolder = normalizeLocalFolderPath(
+		config.casparcgMediaFolder ?? legacy?.casparcgMediaFolder ?? 'c:/casparcg/sofie-demo-media'
+	)
+	const ingestMediaFolder = normalizeLocalFolderPath(
+		config.ingestMediaFolder ?? legacy?.ingestMediaFolder ?? casparcgMediaFolder
+	)
+
 	return {
-		casparcgMediaFolder: config.mediaPackages?.casparcgMediaFolder ?? 'c:/casparcg/sofie-demo-media',
-		ingestMediaFolder: config.mediaPackages?.ingestMediaFolder ?? 'c:/casparcg/sofie-demo-media-ingest',
-		httpProxyBaseUrl: config.mediaPackages?.httpProxyBaseUrl ?? 'http://localhost:8080/package',
+		casparcgMediaFolder,
+		ingestMediaFolder,
+		httpProxyBaseUrl: (config.httpProxyBaseUrl ?? legacy?.httpProxyBaseUrl ?? 'http://localhost:8080/package').trim(),
 	}
 }
 
