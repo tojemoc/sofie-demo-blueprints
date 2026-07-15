@@ -1,4 +1,4 @@
-import { ExpectedPackage, ICommonContext } from '@sofie-automation/blueprints-integration'
+import { Accessor, ExpectedPackage, ICommonContext } from '@sofie-automation/blueprints-integration'
 import { changeExtension, literal } from '../../../common/util.js'
 import { MediaPackagesConfig, StudioConfig } from '../../studio/helpers/config.js'
 
@@ -47,7 +47,10 @@ export function createIngestMediaFileSource(filePath: string): ExpectedPackage.E
 		{
 			containerId: INGEST_PACKAGE_CONTAINER_ID,
 			accessors: {
+				// `type` must match the studio packageContainer accessor so Package Manager can
+				// deep-merge (otherwise type stays undefined → getAccessorStaticHandle throws).
 				ingest0: {
+					type: Accessor.AccessType.LOCAL_FOLDER,
 					filePath,
 				},
 			},
@@ -75,6 +78,8 @@ export function createMediaFileExpectedPackage(
 		sources: createIngestMediaFileSource(filePath),
 		sideEffect: includeSideEffects
 			? {
+					previewContainerId: HTTP_PROXY_PACKAGE_CONTAINER_ID,
+					thumbnailContainerId: HTTP_PROXY_PACKAGE_CONTAINER_ID,
 					previewPackageSettings: {
 						path: `previews/${changeExtension(filePath, 'webm')}`,
 					},
