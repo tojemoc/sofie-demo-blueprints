@@ -3,6 +3,9 @@ import { SourceType, StudioConfig, VisionMixerDevice } from '../../../base/studi
 export const DemoStudioConfig: StudioConfig = {
 	previewRenderer: 'sofie',
 	casparcgLatency: 0,
+	casparcgMediaFolder: 'c:/casparcg/sofie-demo-media',
+	ingestMediaFolder: 'c:/casparcg/sofie-demo-media',
+	httpProxyBaseUrl: 'http://localhost:8080/package',
 	visionMixer: {
 		type: VisionMixerDevice.Atem,
 		host: '0.0.0.0',

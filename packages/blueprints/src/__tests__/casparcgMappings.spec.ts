@@ -8,6 +8,9 @@ import { LedChannelLayers, PgmChannelLayers } from '../base/studio/applyConfig/m
 const baseStudioConfig: StudioConfig = {
 	previewRenderer: '',
 	casparcgLatency: 0,
+	casparcgMediaFolder: 'c:/casparcg/sofie-demo-media',
+	ingestMediaFolder: 'c:/casparcg/sofie-demo-media',
+	httpProxyBaseUrl: 'http://localhost:8080/package',
 	visionMixer: {
 		type: VisionMixerDevice.Atem,
 		host: '127.0.0.1',

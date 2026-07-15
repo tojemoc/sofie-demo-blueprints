@@ -28,6 +28,9 @@ import {
 const hybridCasparConfig: StudioConfig = {
 	previewRenderer: '',
 	casparcgLatency: 50,
+	casparcgMediaFolder: 'c:/casparcg/sofie-demo-media',
+	ingestMediaFolder: 'c:/casparcg/sofie-demo-media',
+	httpProxyBaseUrl: 'http://localhost:8080/package',
 	visionMixer: {
 		type: VisionMixerDevice.Atem,
 		host: '127.0.0.1',
@@ -315,10 +318,8 @@ describe('applyConfig package containers', () => {
 	it('normalizes Windows backslashes to forward slashes', () => {
 		const config: StudioConfig = {
 			...hybridCasparConfig,
-			mediaPackages: {
-				casparcgMediaFolder: 'c:\\casparcg\\sofie-demo-media',
-				ingestMediaFolder: 'c:\\casparcg\\sofie-demo-media',
-			},
+			casparcgMediaFolder: 'c:\\casparcg\\sofie-demo-media',
+			ingestMediaFolder: 'c:\\casparcg\\sofie-demo-media',
 		}
 
 		expect(getMediaPackagesConfig(config)).toMatchObject({
@@ -327,14 +328,30 @@ describe('applyConfig package containers', () => {
 		})
 	})
 
+	it('reads legacy nested mediaPackages when flat fields are absent', () => {
+		const { casparcgMediaFolder: _c, ingestMediaFolder: _i, httpProxyBaseUrl: _h, ...withoutFlat } = hybridCasparConfig
+		const config = {
+			...withoutFlat,
+			mediaPackages: {
+				casparcgMediaFolder: 'e:/legacy/media',
+				ingestMediaFolder: 'e:/legacy/ingest',
+				httpProxyBaseUrl: 'http://legacy/package',
+			},
+		} as unknown as StudioConfig
+
+		expect(getMediaPackagesConfig(config)).toEqual({
+			casparcgMediaFolder: 'e:/legacy/media',
+			ingestMediaFolder: 'e:/legacy/ingest',
+			httpProxyBaseUrl: 'http://legacy/package',
+		})
+	})
+
 	it('generates config-driven ingest and caspar containers for copy workflow', () => {
 		const config: StudioConfig = {
 			...hybridCasparConfig,
-			mediaPackages: {
-				casparcgMediaFolder: 'd:/playout/media',
-				ingestMediaFolder: 'd:/playout/ingest',
-				httpProxyBaseUrl: 'http://pm.example/package',
-			},
+			casparcgMediaFolder: 'd:/playout/media',
+			ingestMediaFolder: 'd:/playout/ingest',
+			httpProxyBaseUrl: 'http://pm.example/package',
 		}
 
 		const result = applyConfig({} as never, config, {} as never)
