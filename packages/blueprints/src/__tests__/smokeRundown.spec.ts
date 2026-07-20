@@ -99,8 +99,8 @@ describe('spravy-v3-smoke-rundown.json', () => {
 
 		const firstL3d = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 		expect(firstL3d?.attributes).toMatchObject({
-			headline: 'Headline one',
-			subline: 'Source one',
+			headline: 'fico v bruseli?',
+			subline: 'narobil bordel',
 		})
 	})
 

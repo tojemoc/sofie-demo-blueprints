@@ -132,7 +132,7 @@ describe('casparcgMappings', () => {
 		})
 	})
 
-	it('routes l3d-headline overlay graphics to PGM channel 2', () => {
+	it('routes l3d-headline overlay graphics to PGM channel 2 mapping (available for hypercomposed)', () => {
 		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 2,

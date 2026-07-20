@@ -113,7 +113,7 @@ describe('casparV2Graphics', () => {
 
 		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
 		expect(headCaspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
-		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsLowerThird)
 	})
 
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {

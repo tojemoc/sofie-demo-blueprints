@@ -21,8 +21,10 @@ describe('intro overlay + bg-loop layered videos', () => {
 	it('parses Intro part with overlay on EffectsPlayer and bg-loop on ClipPlayer1', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 		const introPart = segment.parts.find((part) => part.payload.name === 'Intro')
+		const intro2 = segment.parts.find((part) => part.payload.name === 'Intro 2nd attempt')
 
 		expect(introPart?.type).toBe(PartType.Intro)
+		expect(intro2?.type).toBe(PartType.Intro)
 
 		const overlay = introPart?.objects.find(
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'effects'

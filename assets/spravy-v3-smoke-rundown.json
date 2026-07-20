@@ -202,6 +202,21 @@
 			"payload": {
 				"type": "Intro"
 			}
+		},
+		{
+			"id": "part-intro-2",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"name": "Intro 2nd attempt",
+			"rank": 4,
+			"float": false,
+			"partType": "intro",
+			"duration": 8,
+			"fromPreset": true,
+			"payload": {
+				"type": "Intro"
+			}
 		}
 	],
 	"pieces": [
@@ -401,11 +416,11 @@
 			"playlistId": null,
 			"segmentId": "seg-headlines",
 			"partId": "part-ilu-1",
-			"name": "L3D Headline",
+			"name": "Headline L3D",
 			"pieceType": "l3d-headline",
 			"payload": {
-				"headline": "Headline one",
-				"subline": "Source one"
+				"headline": "fico v bruseli?",
+				"subline": "narobil bordel"
 			},
 			"start": 0
 		},
@@ -462,6 +477,31 @@
 				"fileName": "loops/360_loop"
 			},
 			"start": 0
+		},
+		{
+			"id": "piece-intro-2-overlay",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"partId": "part-intro-2",
+			"name": "Intro overlay",
+			"pieceType": "intro",
+			"payload": {
+				"fileName": "spravy/spravy-v3-smoke/clips/introMichal.mov"
+			},
+			"start": 0
+		},
+		{
+			"id": "38dae2bc-7759-4d11-8abf-69bd5a5d2396",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-story",
+			"partId": "part-cam-intro",
+			"name": "Video clip",
+			"pieceType": "video",
+			"payload": {},
+			"start": 0,
+			"duration": 18
 		}
 	]
 }
