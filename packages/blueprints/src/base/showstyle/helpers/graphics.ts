@@ -154,9 +154,10 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 		return CasparCGLayers.CasparCGGraphicsStrap
 	} else if (object.clipName.match(/fullscreen|outro/i)) {
 		return CasparCGLayers.CasparCGClipPlayer1
+	} else if (object.clipName === 'gfx/l3d-headline') {
+		// PGM overlay (channel 2) — LED watches channel 1; headline L3D is intended for PGM.
+		return CasparCGLayers.CasparCGGraphicsPgmLowerThird
 	} else {
-		// All SPRÁVY L3Ds (including l3d-headline) on LED lower-third for single-channel demos.
-		// PGM-channel split returns with hypercomposed PR2 when LED ≠ PGM consumers are live.
 		return CasparCGLayers.CasparCGGraphicsLowerThird
 	}
 }
