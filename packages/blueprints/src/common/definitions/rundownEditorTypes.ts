@@ -11,6 +11,9 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'l3d-mod',
 	'l3d-tema',
 	'l3d-syn',
+	'l3d-sjv',
+	'l3d-sport',
+	'weather',
 	'outro',
 	'logo-bug',
 ] as const
