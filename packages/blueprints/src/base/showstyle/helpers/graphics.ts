@@ -74,6 +74,18 @@ function getTemplateAttributes(
 		return mapped
 	}
 
+	if (clipName === 'gfx/weather' && typeof templateAttributes.cities === 'string') {
+		try {
+			const parsed = JSON.parse(templateAttributes.cities) as unknown
+			if (Array.isArray(parsed)) {
+				const { cities: _citiesJson, ...rest } = templateAttributes
+				return { ...rest, cities: parsed } as unknown as GraphicObjectAttributes
+			}
+		} catch {
+			// leave raw string for the template bridge
+		}
+	}
+
 	return templateAttributes
 }
 

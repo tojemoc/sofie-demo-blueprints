@@ -50,7 +50,7 @@ export type SmokeRundownExport = {
 		pieceType: string
 		start?: number
 		duration?: number
-		payload: Record<string, string | number | boolean | Array<Record<string, string>>>
+		payload: Record<string, string | number | boolean>
 	}>
 }
 

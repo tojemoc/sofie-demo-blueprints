@@ -74,8 +74,11 @@ export type GraphicObjectAttributes = {
 	iluFallback?: boolean | string
 	url?: string
 	pieceName?: string
-	/** Weather template city rows (demo-assets gfx/weather). */
-	cities?: Array<{ name?: string; temp?: string; condition?: string }> | string
+	/**
+	 * Weather city rows for gfx/weather.
+	 * Prefer a JSON string from the editor; arrays are accepted from smoke fixtures.
+	 */
+	cities?: string
 }
 /*
 Note that we are not using the interfaces defined in Sofie,

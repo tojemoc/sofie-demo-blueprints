@@ -2163,23 +2163,7 @@
 			"name": "Weather",
 			"pieceType": "weather",
 			"payload": {
-				"cities": [
-					{
-						"name": "Bratislava",
-						"temp": "21",
-						"condition": "partly-cloudy"
-					},
-					{
-						"name": "Košice",
-						"temp": "19",
-						"condition": "partly-cloudy"
-					},
-					{
-						"name": "Žilina",
-						"temp": "17",
-						"condition": "rain"
-					}
-				]
+				"cities": "[{\"name\": \"Bratislava\", \"temp\": \"21\", \"condition\": \"partly-cloudy\"}, {\"name\": \"Košice\", \"temp\": \"19\", \"condition\": \"partly-cloudy\"}, {\"name\": \"Žilina\", \"temp\": \"17\", \"condition\": \"rain\"}]"
 			},
 			"start": 0
 		},
