@@ -28,7 +28,7 @@ export interface GraphicsResult {
 }
 
 function isFullscreenGraphic(clipName: string): boolean {
-	return !!clipName.match(/fullscreen|outro/i)
+	return !!clipName.match(/fullscreen|outro|weather/i)
 }
 
 function isTruthyAttribute(value: boolean | string | undefined): boolean {
@@ -139,7 +139,7 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 		return SourceLayer.Ticker
 	} else if (object.clipName.match(/strap/i)) {
 		return SourceLayer.Strap
-	} else if (object.clipName.match(/fullscreen|outro/i)) {
+	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		return SourceLayer.GFX
 	} else {
 		return SourceLayer.LowerThird
@@ -152,7 +152,7 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 		return CasparCGLayers.CasparCGGraphicsTicker
 	} else if (object.clipName.match(/strap/i)) {
 		return CasparCGLayers.CasparCGGraphicsStrap
-	} else if (object.clipName.match(/fullscreen|outro/i)) {
+	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		return CasparCGLayers.CasparCGClipPlayer1
 	} else if (object.clipName === 'gfx/l3d-headline') {
 		// PGM overlay (channel 2) — LED watches channel 1; headline L3D is intended for PGM.

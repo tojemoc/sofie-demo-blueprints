@@ -57,6 +57,36 @@
     ]
   },
   {
+    "id": "l3d-sjv",
+    "entityType": "piece",
+    "name": "L3D SJV",
+    "shortName": "SJV",
+    "colour": "#8c564b",
+    "includeTypeInName": true,
+    "payload": [{ "id": "headline", "label": "Headline", "type": "string", "includeInName": true }]
+  },
+  {
+    "id": "l3d-sport",
+    "entityType": "piece",
+    "name": "L3D Šport",
+    "shortName": "SPORT",
+    "colour": "#8c564b",
+    "includeTypeInName": true,
+    "payload": [
+      { "id": "headline", "label": "Headline", "type": "string", "includeInName": true },
+      { "id": "source", "label": "Source", "type": "string" }
+    ]
+  },
+  {
+    "id": "weather",
+    "entityType": "piece",
+    "name": "Weather",
+    "shortName": "WX",
+    "colour": "#17becf",
+    "includeTypeInName": true,
+    "payload": []
+  },
+  {
     "id": "outro",
     "entityType": "piece",
     "name": "Outro",

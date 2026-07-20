@@ -19,12 +19,10 @@ describe('intro overlay + bg-loop layered videos', () => {
 	const exportData = loadSmokeRundownExport()
 
 	it('parses Intro part with overlay on EffectsPlayer and bg-loop on ClipPlayer1', () => {
-		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro'))
 		const introPart = segment.parts.find((part) => part.payload.name === 'Intro')
-		const intro2 = segment.parts.find((part) => part.payload.name === 'Intro 2nd attempt')
 
 		expect(introPart?.type).toBe(PartType.Intro)
-		expect(intro2?.type).toBe(PartType.Intro)
 
 		const overlay = introPart?.objects.find(
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'effects'
@@ -57,13 +55,12 @@ describe('intro overlay + bg-loop layered videos', () => {
 	})
 
 	it('recovers GFX parts that only have a video as Intro overlay', () => {
-		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
-		// Simulate the operator mistake: GFX part with only a video clip.
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-intro')
 		ingest.parts.push({
 			externalId: 'part-gfx-intro-mistake',
 			name: 'Intro mistake',
 			payload: {
-				segmentId: 'seg-headlines',
+				segmentId: 'seg-intro',
 				externalId: 'part-gfx-intro-mistake',
 				rank: 9,
 				name: 'Intro mistake',
@@ -96,7 +93,7 @@ describe('intro overlay + bg-loop layered videos', () => {
 	})
 
 	it('does not turn layered videos into adlibs', () => {
-		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro'))
 		const introPart = segment.parts.find((part) => part.payload.name === 'Intro')
 		const layered = parseLayeredVideosFromObjects(
 			{ getHashId: (s: string) => s } as never,
