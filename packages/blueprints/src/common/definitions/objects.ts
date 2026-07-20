@@ -36,6 +36,18 @@ export interface CameraObject extends BaseObject {
 export interface VideoObject extends BaseObject {
 	objectType: ObjectType.Video
 	adlibVariant?: string
+	attributes: VideoObjectAttributes
+}
+
+/** Caspar play routing for layered video pieces from the Rundown Editor. */
+export type VideoPlayLayer = 'effects' | 'background'
+
+export type VideoObjectAttributes = {
+	fileName?: string
+	sourceDuration?: number
+	/** `effects` = intro overlay (layer 200); `background` = LED bg loop (layer 110). */
+	playLayer?: VideoPlayLayer | string
+	loop?: boolean | string
 }
 export interface GraphicObjectBase extends Omit<BaseObject, 'attributes'> {
 	objectType: ObjectType.Graphic | ObjectType.SteppedGraphic

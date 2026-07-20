@@ -3,7 +3,7 @@ import { PartContext } from '../../../common/context.js'
 import { literal, stripExtension } from '../../../common/util.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { PartProps, VOProps } from '../definitions/index.js'
-import { getClipPlayerInput } from '../helpers/clips.js'
+import { getClipPlayerInput, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -60,6 +60,9 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
+	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	return {
 		part: {

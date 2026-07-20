@@ -11,7 +11,12 @@ export function parseGfx(ingestPart: EditorIngestPart): PartProps<GfxProps | Inv
 			(p.objectType as ObjectType) === ObjectType.Graphic || (p.objectType as ObjectType) === ObjectType.SteppedGraphic
 	)
 	if (!gfxObject) {
-		return createInvalidProps(t('No graphic object'), ingestPart)
+		return createInvalidProps(
+			t(
+				'No graphic object. Add an L3D/graphic piece, or use an Intro part for overlay video that plays on top of everything.'
+			),
+			ingestPart
+		)
 	}
 
 	return {
