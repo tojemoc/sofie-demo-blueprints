@@ -14,6 +14,7 @@ import {
 	CameraProps,
 	DVEProps,
 	GfxProps,
+	IntroProps,
 	InvalidProps,
 	PartProps,
 	PartType,
@@ -25,6 +26,7 @@ import {
 import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
+import { generateIntroPart } from './intro.js'
 import { generateRemotePart } from './remote.js'
 import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
@@ -64,6 +66,9 @@ export function generateParts(context: ISegmentUserContext, intermediateSegment:
 				break
 			case PartType.Titles:
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
+				break
+			case PartType.Intro:
+				newPart = generateIntroPart(partContext, rawPart as unknown as PartProps<IntroProps>)
 				break
 			case PartType.DVE:
 				newPart = generateDVEPart(partContext, rawPart as unknown as PartProps<DVEProps>)

@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES } from '../common/definitions/rundownEditorTypes.js'
+import {
+	RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES,
+	RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES,
+} from '../common/definitions/rundownEditorTypes.js'
 
 type RundownEditorPayloadManifest = {
 	id: string
@@ -76,6 +79,20 @@ describe('sofie-rundown-editor-piece-types.json', () => {
 			.filter((id) => (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(id))
 
 		expect(graphicIds.sort()).toEqual([...RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES].sort())
+	})
+
+	it('layered video piece ids stay in sync with blueprint normalization', () => {
+		const data = JSON.parse(
+			readFileSync(resolve(assetsDir, 'sofie-rundown-editor-piece-types.json'), 'utf8')
+		) as Array<{
+			id: string
+		}>
+
+		const layeredIds = data
+			.map((entry) => entry.id)
+			.filter((id) => (RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES as readonly string[]).includes(id))
+
+		expect(layeredIds.sort()).toEqual([...RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES].sort())
 	})
 })
 

@@ -1,25 +1,30 @@
 import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
-import { GfxProps, PartProps } from '../definitions/index.js'
+import { IntroProps, PartProps } from '../definitions/index.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 
-export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>): BlueprintResultPart {
+/**
+ * Intro part: overlay video on Caspar EffectsPlayer (layer 200) so it plays on top of
+ * headlines / camera / L3Ds. Optional `bg-loop` piece stays on ClipPlayer1 (layer 110).
+ */
+export function generateIntroPart(context: PartContext, part: PartProps<IntroProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
-	const graphics = parseGraphicsFromObjects(config, part.objects, context)
-	if (!graphics.pieces.length) {
-		context.notifyUserError('Missing primary graphic on timeline')
+	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
+	const hasOverlay = layeredVideos.some((piece) => piece.name.startsWith('Intro |'))
+	if (!hasOverlay) {
+		context.notifyUserError('Missing intro overlay video on timeline')
 	}
 
-	const pieces = [...graphics.pieces]
-	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
-	if (layeredVideos.length) pieces.push(...layeredVideos)
-
+	const pieces = [...layeredVideos]
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
+
+	const graphics = parseGraphicsFromObjects(config, part.objects, context)
+	if (graphics.pieces) pieces.push(...graphics.pieces)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
@@ -28,7 +33,7 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
+			expectedDuration: part.payload.duration || part.payload.clipProps.duration || undefined,
 			autoNext: true,
 		},
 		pieces,

@@ -1,7 +1,7 @@
 {
 	"rundown": {
 		"id": "spravy-v3-smoke",
-		"name": "Správy v3 Smoke",
+		"name": "Spr\u00e1vy v3 Smoke",
 		"playlistId": null,
 		"sync": false,
 		"isTemplate": false,
@@ -148,7 +148,7 @@
 			"rundownId": "spravy-v3-smoke",
 			"playlistId": null,
 			"segmentId": "seg-opening",
-			"name": "Téma",
+			"name": "T\u00e9ma",
 			"rank": 0,
 			"float": false,
 			"partType": "gfx",
@@ -163,7 +163,7 @@
 			"rundownId": "spravy-v3-smoke",
 			"playlistId": null,
 			"segmentId": "seg-opening",
-			"name": "Moderátor",
+			"name": "Moder\u00e1tor",
 			"rank": 1,
 			"float": false,
 			"partType": "gfx",
@@ -186,6 +186,21 @@
 			"fromPreset": true,
 			"payload": {
 				"type": "GFX"
+			}
+		},
+		{
+			"id": "part-intro",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"name": "Intro",
+			"rank": 3,
+			"float": false,
+			"partType": "intro",
+			"duration": 8,
+			"fromPreset": true,
+			"payload": {
+				"type": "Intro"
 			}
 		}
 	],
@@ -333,11 +348,11 @@
 			"playlistId": null,
 			"segmentId": "seg-opening",
 			"partId": "part-gfx-tema",
-			"name": "L3D Téma",
+			"name": "L3D T\u00e9ma",
 			"pieceType": "l3d-tema",
 			"payload": {
-				"headline": "Správy",
-				"subline": "Téma"
+				"headline": "Spr\u00e1vy",
+				"subline": "T\u00e9ma"
 			},
 			"start": 0
 		},
@@ -347,10 +362,10 @@
 			"playlistId": null,
 			"segmentId": "seg-opening",
 			"partId": "part-gfx-mod",
-			"name": "L3D Moderátor",
+			"name": "L3D Moder\u00e1tor",
 			"pieceType": "l3d-mod",
 			"payload": {
-				"name": "Moderátor",
+				"name": "Moder\u00e1tor",
 				"title": "Anchor"
 			},
 			"start": 0
@@ -378,6 +393,74 @@
 			"name": "Logo Bug",
 			"pieceType": "logo-bug",
 			"payload": {},
+			"start": 0
+		},
+		{
+			"id": "piece-h1-l3d",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"partId": "part-ilu-1",
+			"name": "L3D Headline",
+			"pieceType": "l3d-headline",
+			"payload": {
+				"headline": "Headline one",
+				"subline": "Source one"
+			},
+			"start": 0
+		},
+		{
+			"id": "piece-h2-l3d",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"partId": "part-ilu-2",
+			"name": "L3D Headline",
+			"pieceType": "l3d-headline",
+			"payload": {
+				"headline": "Headline two",
+				"subline": "Source two"
+			},
+			"start": 0
+		},
+		{
+			"id": "piece-h3-l3d",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"partId": "part-ilu-3",
+			"name": "L3D Headline",
+			"pieceType": "l3d-headline",
+			"payload": {
+				"headline": "Headline three",
+				"subline": "Source three"
+			},
+			"start": 0
+		},
+		{
+			"id": "piece-intro-overlay",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"partId": "part-intro",
+			"name": "Intro overlay",
+			"pieceType": "intro",
+			"payload": {
+				"fileName": "spravy/spravy-v3-smoke/clips/introMichal.mov"
+			},
+			"start": 0
+		},
+		{
+			"id": "piece-intro-bg",
+			"rundownId": "spravy-v3-smoke",
+			"playlistId": null,
+			"segmentId": "seg-headlines",
+			"partId": "part-intro",
+			"name": "Background loop",
+			"pieceType": "bg-loop",
+			"payload": {
+				"fileName": "loops/360_loop"
+			},
 			"start": 0
 		}
 	]

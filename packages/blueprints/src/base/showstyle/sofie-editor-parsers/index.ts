@@ -1,14 +1,21 @@
 import { IRundownUserContext, SofieIngestSegment } from '@sofie-automation/blueprints-integration'
 import { ObjectType } from '../../../common/definitions/objects.js'
-import { isRundownEditorGraphicPieceType, resolveSegmentType } from '../../../common/definitions/rundownEditorTypes.js'
+import {
+	isRundownEditorGraphicPieceType,
+	isRundownEditorLayeredVideoPieceType,
+	playLayerForVideoPieceType,
+	resolveSegmentType,
+} from '../../../common/definitions/rundownEditorTypes.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
 import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
+import { DEFAULT_BG_LOOP_FILE } from '../helpers/clips.js'
 import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
 import { parseGfx } from './gfx.js'
 import { parseGuest } from './guest.js'
+import { parseIntro } from './intro.js'
 import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
@@ -20,6 +27,14 @@ function hasCameraPiece(part: EditorIngestPart): boolean {
 
 function hasVideoPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Video)
+}
+
+function hasGraphicPiece(part: EditorIngestPart): boolean {
+	return part.pieces.some(
+		(piece) =>
+			(piece.objectType as ObjectType) === ObjectType.Graphic ||
+			(piece.objectType as ObjectType) === ObjectType.SteppedGraphic
+	)
 }
 
 function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
@@ -38,7 +53,14 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 		return parseDVE(partPayload)
 	}
 	if (partType.match(/gfx/i)) {
+		// Operator recovery: GFX + video-only was used for overlay intros → treat as Intro.
+		if (!hasGraphicPiece(partPayload) && hasVideoPiece(partPayload)) {
+			return parseIntro(partPayload)
+		}
 		return parseGfx(partPayload)
+	}
+	if (partType.match(/intro/i)) {
+		return parseIntro(partPayload)
 	}
 	if (/^(remi|remote)$/i.test(partType)) {
 		return parseRemote(partPayload)
@@ -111,7 +133,22 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					piece.objectTime = piece.objectTime * 1000
 				}
 
-				if (isRundownEditorGraphicPieceType(piece.objectType)) {
+				if (isRundownEditorLayeredVideoPieceType(piece.objectType)) {
+					const layeredType = piece.objectType
+					const playLayer = playLayerForVideoPieceType(layeredType)
+					const fileName =
+						(typeof piece.attributes.fileName === 'string' && piece.attributes.fileName.trim()) ||
+						(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : '')
+
+					piece.objectType = ObjectType.Video
+					piece.clipName = fileName
+					piece.attributes = {
+						...piece.attributes,
+						fileName: fileName || piece.attributes.fileName,
+						playLayer,
+						...(playLayer === 'background' && piece.attributes.loop === undefined ? { loop: true } : {}),
+					}
+				} else if (isRundownEditorGraphicPieceType(piece.objectType)) {
 					const graphicPieceType = piece.objectType
 					piece.clipName = 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic

@@ -1,4 +1,5 @@
 import { SegmentType } from '../../base/showstyle/definitions/index.js'
+import type { VideoPlayLayer } from './objects.js'
 
 /**
  * Rundown Editor piece type ids that normalize to gfx/* Caspar templates.
@@ -18,6 +19,27 @@ export type RundownEditorGraphicPieceType = (typeof RUNDOWN_EDITOR_GRAPHIC_PIECE
 
 export function isRundownEditorGraphicPieceType(pieceType: string): pieceType is RundownEditorGraphicPieceType {
 	return (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(pieceType)
+}
+
+/**
+ * Video piece types that play on dedicated Caspar layers (not VT/ClipPlayer takeover).
+ * - `intro` → EffectsPlayer (200), on top of headlines / camera / gfx
+ * - `bg-loop` → ClipPlayer1 (110), LED background behind camera
+ */
+export const RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES = ['intro', 'bg-loop'] as const
+
+export type RundownEditorLayeredVideoPieceType = (typeof RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES)[number]
+
+export type { VideoPlayLayer }
+
+export function isRundownEditorLayeredVideoPieceType(
+	pieceType: string
+): pieceType is RundownEditorLayeredVideoPieceType {
+	return (RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES as readonly string[]).includes(pieceType)
+}
+
+export function playLayerForVideoPieceType(pieceType: RundownEditorLayeredVideoPieceType): VideoPlayLayer {
+	return pieceType === 'intro' ? 'effects' : 'background'
 }
 
 export function resolveSegmentType(segmentPayload: { type?: string; name?: string }): SegmentType {

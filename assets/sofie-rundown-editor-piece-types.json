@@ -87,6 +87,34 @@
     ]
   },
   {
+    "id": "intro",
+    "entityType": "piece",
+    "name": "Intro overlay",
+    "shortName": "INTRO",
+    "colour": "#666666",
+    "includeTypeInName": true,
+    "payload": [
+      { "id": "fileName", "label": "Overlay clip", "type": "mediaPick", "subdir": "clips", "includeInName": true }
+    ]
+  },
+  {
+    "id": "bg-loop",
+    "entityType": "piece",
+    "name": "Background loop",
+    "shortName": "BG",
+    "colour": "#4a5568",
+    "includeTypeInName": true,
+    "payload": [
+      {
+        "id": "fileName",
+        "label": "Loop file",
+        "type": "mediaPick",
+        "subdir": "loops",
+        "includeInName": true
+      }
+    ]
+  },
+  {
     "id": "camera",
     "entityType": "piece",
     "name": "Camera",

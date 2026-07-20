@@ -82,18 +82,25 @@ describe('spravy-v3-smoke-rundown.json', () => {
 		})
 	})
 
-	it('parses ILU headline parts as camera parts with headline graphics', () => {
+	it('parses ILU headline parts as camera parts with headline graphics and L3Ds', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 
 		expect(segment.type).toBe(SegmentType.HEADLINES)
-		expect(segment.parts).toHaveLength(3)
-		expect(segment.parts.every((part) => part.type === PartType.Camera)).toBe(true)
+		const iluParts = segment.parts.filter((part) => part.type === PartType.Camera)
+		expect(iluParts).toHaveLength(3)
+		expect(segment.parts.some((part) => part.type === PartType.Intro)).toBe(true)
 
 		const firstHeadline = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/headline')
 		expect(firstHeadline?.attributes).toMatchObject({
 			text: 'Headline one',
 			iluFile: 'spravy/spravy-v3-smoke/clips/headline1.mp4',
 			source: 'TASR',
+		})
+
+		const firstL3d = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
+		expect(firstL3d?.attributes).toMatchObject({
+			headline: 'Headline one',
+			subline: 'Source one',
 		})
 	})
 

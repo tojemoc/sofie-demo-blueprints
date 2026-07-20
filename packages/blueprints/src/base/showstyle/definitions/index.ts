@@ -20,11 +20,22 @@ export enum PartType {
 	VT = 'vt',
 	VO = 'vo',
 	Titles = 'titles',
+	/** Overlay intro (EffectsPlayer) with optional controllable bg-loop piece. */
+	Intro = 'intro',
 	DVE = 'dve',
 	GFX = 'gfx',
 }
 
-export type AllProps = CameraProps | RemoteProps | VTProps | VOProps | TitlesProps | DVEProps | GfxProps | InvalidProps
+export type AllProps =
+	| CameraProps
+	| RemoteProps
+	| VTProps
+	| VOProps
+	| TitlesProps
+	| IntroProps
+	| DVEProps
+	| GfxProps
+	| InvalidProps
 
 export interface PartProps<T extends AllProps> extends IntermediatePart {
 	type: PartType | null
@@ -56,6 +67,11 @@ export interface CameraProps extends PartBaseProps {
 
 export interface TitlesProps extends PartBaseProps {
 	variant: string
+}
+
+export interface IntroProps extends PartBaseProps {
+	/** Overlay clip props (EffectsPlayer / Caspar layer 200). */
+	clipProps: ClipProps
 }
 
 export interface RemoteProps extends PartBaseProps {

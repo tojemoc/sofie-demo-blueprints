@@ -378,14 +378,16 @@ describe('spravy-v3-smoke expectedPackages', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 		const segmentContext = mockSegmentContext()
 
-		const iluPaths = segment.parts.flatMap((part) => {
-			const partContext = new PartContext(segmentContext, part.payload.externalId)
-			const result = generateCameraPart(partContext, part as never)
-			return result.pieces.flatMap(
-				(piece) =>
-					piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
-			)
-		})
+		const iluPaths = segment.parts
+			.filter((part) => part.type === PartType.Camera)
+			.flatMap((part) => {
+				const partContext = new PartContext(segmentContext, part.payload.externalId)
+				const result = generateCameraPart(partContext, part as never)
+				return result.pieces.flatMap(
+					(piece) =>
+						piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
+				)
+			})
 
 		expect(iluPaths).toEqual([
 			'spravy/spravy-v3-smoke/clips/headline1.mp4',

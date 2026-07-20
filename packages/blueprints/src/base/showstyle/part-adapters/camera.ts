@@ -6,7 +6,7 @@ import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
 import { SisyfosLayers } from '../../studio/layers.js'
 import { CameraProps, PartProps } from '../definitions/index.js'
 import { getAudioObjectOnLayer, getAudioPrimaryObject } from '../helpers/audio.js'
-import { parseClipsFromObjects } from '../helpers/clips.js'
+import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
@@ -40,6 +40,9 @@ export function generateCameraPart(context: PartContext, part: PartProps<CameraP
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
+	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
