@@ -1,0 +1,14 @@
+# CodeRabbit configuration
+# https://docs.coderabbit.ai/reference/configuration
+
+language: en-US
+
+reviews:
+  profile: chill
+  tools:
+    # CodeRabbit's Checkov runner fails with ModuleNotFoundError in this environment.
+    checkov:
+      enabled: false
+    # Yarn 4 workspace ESLint install fails in CodeRabbit's sandbox; CI runs eslint via yarn.
+    eslint:
+      enabled: false
