@@ -85,6 +85,34 @@ jobs:
         run: yarn
         env:
           CI: true
+      - name: Fetch sofie megarepo assets
+        run: |
+          set -euo pipefail
+          DEST="$GITHUB_WORKSPACE/.sofie-assets"
+          mkdir -p "$DEST"
+          BASE="https://raw.githubusercontent.com/tojemoc/sofie"
+          FILES=(
+            spravy-v3-smoke-rundown.json
+            sofie-rundown-editor-piece-types.json
+            sofie-rundown-editor-part-types.json
+            sofie-rundown-editor-segment-types.json
+          )
+          for ref in main cursor/megarepo-assets-home-3555; do
+            ok=1
+            for f in "${FILES[@]}"; do
+              if ! curl -fsSL -o "$DEST/$f" "$BASE/$ref/assets/$f"; then
+                ok=0
+                break
+              fi
+            done
+            if [ "$ok" -eq 1 ]; then
+              echo "SOFIE_MEGAREPO_ASSETS=$DEST" >> "$GITHUB_ENV"
+              echo "Fetched sofie megarepo assets from $ref"
+              exit 0
+            fi
+          done
+          echo "::error::Could not fetch sofie megarepo assets/ (tried main and cursor/megarepo-assets-home-3555)"
+          exit 1
       - name: Run tests
         run: |
           cd packages/blueprints

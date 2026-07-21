@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { ISegmentUserContext } from '@sofie-automation/blueprints-integration'
 import { convertIngestData } from '../../base/showstyle/sofie-editor-parsers/index.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../base/studio/helpers/config.js'
+import { resolveMegarepoAsset } from './megarepoAssets.js'
 
 /** Rundown Editor SerializedRundown export (also used as blueprint smoke-test fixture). */
 export type SmokeRundownExport = {
@@ -84,33 +83,7 @@ export const hybridCasparConfig: StudioConfig = {
 }
 
 function resolveSmokeRundownPath(): string {
-	const here = dirname(fileURLToPath(import.meta.url))
-	const filename = 'spravy-v3-smoke-rundown.json'
-	const candidates = [
-		// Explicit override (CI / standalone checkout)
-		process.env.SOFIE_MEGAREPO_ASSETS
-			? resolve(process.env.SOFIE_MEGAREPO_ASSETS, filename)
-			: undefined,
-		// Nested in tojemoc/sofie megarepo: blueprints/packages/blueprints/src/__tests__/helpers → ../../../../../../assets
-		resolve(here, '../../../../../../assets', filename),
-		// Legacy in-repo path (removed; kept last for clear error context)
-		resolve(here, '../../../../../assets', filename),
-	].filter((p): p is string => Boolean(p))
-
-	for (const filePath of candidates) {
-		try {
-			readFileSync(filePath)
-			return filePath
-		} catch {
-			/* try next */
-		}
-	}
-
-	throw new Error(
-		`Smoke rundown not found (${filename}). Canonical copy lives in the sofie megarepo at assets/. ` +
-			`Set SOFIE_MEGAREPO_ASSETS to that directory when not nested under the megarepo. Tried:\n` +
-			candidates.map((p) => `  - ${p}`).join('\n')
-	)
+	return resolveMegarepoAsset('spravy-v3-smoke-rundown.json')
 }
 
 export function loadSmokeRundownExport(): SmokeRundownExport {

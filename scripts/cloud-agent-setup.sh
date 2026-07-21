@@ -30,7 +30,8 @@ if [ -n "${SOFIE_MEGAREPO_ASSETS:-}" ] && [ -f "${SOFIE_MEGAREPO_ASSETS}/spravy-
 elif [ -f ../assets/spravy-v3-smoke-rundown.json ]; then
   # Nested as blueprints/ under tojemoc/sofie
   SMOKE_FIXTURE="../assets/spravy-v3-smoke-rundown.json"
-  export SOFIE_MEGAREPO_ASSETS="$(cd ../assets && pwd)"
+  SOFIE_MEGAREPO_ASSETS="$(cd ../assets && pwd)"
+  export SOFIE_MEGAREPO_ASSETS
 fi
 
 if [ -z "$SMOKE_FIXTURE" ]; then
