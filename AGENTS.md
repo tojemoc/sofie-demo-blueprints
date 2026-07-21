@@ -19,8 +19,23 @@ This repository is a **Yarn 4 monorepo** for Sofie TV studio automation demo blu
 ### Cloud environment bootstrap
 
 Cursor Cloud can run `bash scripts/cloud-agent-setup.sh` (also referenced from
-`.cursor/environment.json`) to enable Corepack, install dependencies, and warn if test
-fixtures under `assets/` are missing. Run `yarn test:blueprints` separately to verify tests.
+`.cursor/environment.json`) to enable Corepack, install dependencies, and warn if the
+megarepo smoke rundown is missing. Run `yarn test:blueprints` separately to verify tests.
+
+### Shared type manifests & smoke rundown (not in this repo)
+
+**Canonical home:** [`tojemoc/sofie` → `assets/`](https://github.com/tojemoc/sofie/tree/main/assets)
+
+| File | Used for |
+|------|----------|
+| `sofie-rundown-editor-piece-types.json` | RE piece contract (keep TS graphic piece ids in sync) |
+| `sofie-rundown-editor-part-types.json` | RE part presets |
+| `sofie-rundown-editor-segment-types.json` | RE segment presets |
+| `spravy-v3-smoke-rundown.json` | Blueprint ingest smoke tests |
+
+Do **not** add copies under `assets/` in this repo. When this clone is nested as
+`sofie/blueprints/`, tests resolve `../assets/` automatically. Standalone checkouts should
+set `SOFIE_MEGAREPO_ASSETS` to the megarepo `assets/` directory.
 
 ### Common commands (from repo root)
 

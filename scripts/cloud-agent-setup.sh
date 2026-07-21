@@ -23,8 +23,18 @@ corepack prepare "yarn@${YARN_VERSION}" --activate
 
 yarn install
 
-if [ ! -f assets/spravy-v3-smoke-rundown.json ]; then
-  echo "Warning: missing blueprints test fixtures under assets/ — yarn test:blueprints will fail until present." >&2
+# Smoke rundown lives in the sofie megarepo (assets/), not this repo.
+SMOKE_FIXTURE=""
+if [ -n "${SOFIE_MEGAREPO_ASSETS:-}" ] && [ -f "${SOFIE_MEGAREPO_ASSETS}/spravy-v3-smoke-rundown.json" ]; then
+  SMOKE_FIXTURE="${SOFIE_MEGAREPO_ASSETS}/spravy-v3-smoke-rundown.json"
+elif [ -f ../assets/spravy-v3-smoke-rundown.json ]; then
+  # Nested as blueprints/ under tojemoc/sofie
+  SMOKE_FIXTURE="../assets/spravy-v3-smoke-rundown.json"
+  export SOFIE_MEGAREPO_ASSETS="$(cd ../assets && pwd)"
+fi
+
+if [ -z "$SMOKE_FIXTURE" ]; then
+  echo "Warning: spravy-v3-smoke-rundown.json not found — expected in sofie megarepo assets/. Set SOFIE_MEGAREPO_ASSETS or nest this clone under sofie/blueprints/. yarn test:blueprints may fail." >&2
 fi
 
 echo "Cloud bootstrap complete. Run yarn test:blueprints separately to verify tests."

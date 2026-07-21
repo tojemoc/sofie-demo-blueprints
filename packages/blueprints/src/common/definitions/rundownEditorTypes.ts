@@ -3,7 +3,7 @@ import type { VideoPlayLayer } from './objects.js'
 
 /**
  * Rundown Editor piece type ids that normalize to gfx/* Caspar templates.
- * Keep in sync with assets/sofie-rundown-editor-piece-types.json.
+ * Keep in sync with sofie megarepo assets/sofie-rundown-editor-piece-types.json.
  */
 export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'headline',
