@@ -82,6 +82,11 @@ export interface CasparCGConfig {
 export interface HypercomposedChannels {
 	ledChannel: number
 	pgmChannel: number
+	/**
+	 * Caspar PLAY path for CAM1 on PGM (e.g. dshow://video=OBS Virtual Camera).
+	 * When set, camera pieces also PLAY on PGM layer 116 with DoubleBox FILL.
+	 */
+	pgmCameraProducer?: string
 }
 export interface InputConfig {
 	input: number

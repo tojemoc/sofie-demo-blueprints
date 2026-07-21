@@ -119,6 +119,11 @@
 							"default": 2,
 							"ui:title": "PGM channel",
 							"ui:description": "CasparCG channel routed to the PGM output consumer (secondary clip stack)"
+						},
+						"pgmCameraProducer": {
+							"type": "string",
+							"ui:title": "PGM camera producer",
+							"ui:description": "Caspar PLAY path for CAM1 on PGM (e.g. dshow://video=OBS Virtual Camera). When set, camera pieces also PLAY on PGM layer 116 with DoubleBox FILL."
 						}
 					},
 					"required": ["ledChannel", "pgmChannel"],

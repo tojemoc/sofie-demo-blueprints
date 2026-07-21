@@ -20,6 +20,10 @@ export enum CasparCGLayers {
 	/** Headline ILU media framed with MIXER FILL — must not share ClipPlayer1 with the bg loop. */
 	CasparCGIluPlayer = 'casparcg_ilu_player',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
+	/** PGM story-block alpha wipe (channel 2 layer 200). */
+	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',
+	/** PGM CAM / UVC (OBS Virtual Camera) framed into the DoubleBox right window. */
+	CasparCGPgmCamera = 'casparcg_pgm_camera',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',
 	CasparCGGraphicsPgmLowerThird = 'casparcg_graphics_pgm_l3d',

@@ -10,6 +10,7 @@ import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
 import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
 import { DEFAULT_BG_LOOP_FILE } from '../helpers/clips.js'
+import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
@@ -138,7 +139,8 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					const playLayer = playLayerForVideoPieceType(layeredType)
 					const fileName =
 						(typeof piece.attributes.fileName === 'string' && piece.attributes.fileName.trim()) ||
-						(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : '')
+						(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : '') ||
+						(playLayer === 'wipe' ? DEFAULT_WIPE_FILE : '')
 
 					piece.objectType = ObjectType.Video
 					piece.clipName = fileName

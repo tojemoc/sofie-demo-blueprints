@@ -1,9 +1,11 @@
-import { BlueprintResultPart, IBlueprintPiece, PieceLifespan } from '@sofie-automation/blueprints-integration'
+import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { ObjectType, StudioGuestObject } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
 import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
-import { SisyfosLayers } from '../../studio/layers.js'
+import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
+import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { CameraProps, PartProps } from '../definitions/index.js'
 import { getAudioObjectOnLayer, getAudioPrimaryObject } from '../helpers/audio.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
@@ -13,6 +15,28 @@ import { getSourceInfoFromRaw } from '../helpers/sources.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { parseConfig } from '../helpers/config.js'
+
+function createPgmCameraTimelineObjects(config: StudioConfig): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	const producer = config.casparcg.hypercomposed?.pgmCameraProducer?.trim()
+	if (!producer) return []
+
+	return [
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer: CasparCGLayers.CasparCGPgmCamera,
+			priority: 1,
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: producer,
+				mixer: {
+					fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
+				},
+			},
+		}),
+	]
+}
 
 export function generateCameraPart(context: PartContext, part: PartProps<CameraProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
@@ -30,7 +54,11 @@ export function generateCameraPart(context: PartContext, part: PartProps<CameraP
 		sourceLayerId: SourceLayer.Camera,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Camera),
 		content: {
-			timelineObjects: [...createVisionMixerObjects(config, sourceInfo.input), audioTlObj],
+			timelineObjects: [
+				...createVisionMixerObjects(config, sourceInfo.input),
+				...createPgmCameraTimelineObjects(config),
+				audioTlObj,
+			],
 		},
 	}
 
