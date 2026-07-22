@@ -19,6 +19,7 @@ import { parseDVE } from './dve.js'
 import { parseGfx } from './gfx.js'
 import { parseGuest } from './guest.js'
 import { parseIntro } from './intro.js'
+import { parseLayeredVideo } from './layeredVideo.js'
 import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
@@ -28,15 +29,19 @@ function hasCameraPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Camera)
 }
 
-function hasVideoPiece(part: EditorIngestPart): boolean {
-	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Video)
-}
-
 /** True when the part has a take-over VT/VO clip (not intro / bg-loop / wipe). */
 function hasMainVideoPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => {
 		if ((piece.objectType as ObjectType) !== ObjectType.Video) return false
 		return !isLayeredVideoObject(piece as VideoObject)
+	})
+}
+
+/** True when the part has at least one wipe / bg-loop / intro overlay video. */
+function hasLayeredVideoPiece(part: EditorIngestPart): boolean {
+	return part.pieces.some((piece) => {
+		if ((piece.objectType as ObjectType) !== ObjectType.Video) return false
+		return isLayeredVideoObject(piece as VideoObject)
 	})
 }
 
@@ -64,10 +69,16 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 		return parseDVE(partPayload)
 	}
 	if (partType.match(/gfx/i)) {
-		// Operator recovery: GFX + video-only was used for overlay intros → treat as Intro.
-		// Ignore wipe/bg-loop-only parts — those are layered videos, not intro overlays.
-		if (!hasGraphicPiece(partPayload) && hasMainVideoPiece(partPayload)) {
+		if (hasGraphicPiece(partPayload)) {
+			return parseGfx(partPayload)
+		}
+		// Operator recovery: GFX + plain video-only was used for overlay intros → Intro.
+		if (hasMainVideoPiece(partPayload)) {
 			return parseIntro(partPayload)
+		}
+		// Wipe / bg-loop only — not GFX (no graphic) and not Intro (no overlay clip).
+		if (hasLayeredVideoPiece(partPayload)) {
+			return parseLayeredVideo(partPayload)
 		}
 		return parseGfx(partPayload)
 	}
@@ -95,9 +106,9 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	if (hasMainVideoPiece(partPayload)) {
 		return parseVT(partPayload)
 	}
-	// Wipe / bg-loop alone on an unknown part type — still emit as GFX so layered videos play.
-	if (hasVideoPiece(partPayload)) {
-		return parseGfx(partPayload)
+	// Wipe / bg-loop alone on an unknown part type.
+	if (hasLayeredVideoPiece(partPayload)) {
+		return parseLayeredVideo(partPayload)
 	}
 
 	return createInvalidProps(t('Unknown part type'), partPayload)

@@ -24,6 +24,8 @@ export enum PartType {
 	Intro = 'intro',
 	DVE = 'dve',
 	GFX = 'gfx',
+	/** Video-only wipe / bg-loop (no graphic, no take-over VT). */
+	LayeredVideo = 'layeredVideo',
 }
 
 export type AllProps =
@@ -35,6 +37,7 @@ export type AllProps =
 	| IntroProps
 	| DVEProps
 	| GfxProps
+	| LayeredVideoProps
 	| InvalidProps
 
 export interface PartProps<T extends AllProps> extends IntermediatePart {
@@ -94,6 +97,9 @@ export interface DVEProps extends PartBaseProps {
 export interface GfxProps extends PartBaseProps {
 	graphic: GraphicObject
 }
+
+/** Payload for parts that only carry layered videos (wipe / bg-loop). */
+export type LayeredVideoProps = PartBaseProps
 
 export interface InvalidProps extends PartBaseProps {
 	invalidReason: ITranslatableMessage

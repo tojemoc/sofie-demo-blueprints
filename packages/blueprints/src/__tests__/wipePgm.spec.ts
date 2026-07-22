@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { PartType, VOProps, VTProps, PartProps } from '../base/showstyle/definitions/index.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { generateVTPart } from '../base/showstyle/part-adapters/vt.js'
+import { generateLayeredVideoPart } from '../base/showstyle/part-adapters/layeredVideo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
@@ -94,5 +95,43 @@ describe('wipe piece type → PGM effects player', () => {
 		expect(
 			result.pieces[0]?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
 		).toBe(true)
+	})
+
+	it('routes wipe-only GFX parts to LayeredVideo (not Invalid GFX)', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		ingest.parts.push({
+			externalId: 'part-wipe-only',
+			name: 'Wipe only',
+			payload: {
+				segmentId: 'seg-tema-1',
+				externalId: 'part-wipe-only',
+				rank: 99,
+				name: 'Wipe only',
+				type: 'GFX',
+				float: false,
+				script: '',
+				duration: 0,
+				pieces: [
+					{
+						id: 'wipe-only-1',
+						objectType: 'wipe',
+						objectTime: 0,
+						duration: 0,
+						clipName: '',
+						attributes: { fileName: 'wipes/360_wipe', transition: 'Test' },
+					},
+				],
+			},
+		} as (typeof ingest.parts)[number])
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const wipeOnly = segment.parts.find((part) => part.payload.externalId === 'part-wipe-only')
+		expect(wipeOnly?.type).toBe(PartType.LayeredVideo)
+
+		if (!wipeOnly || wipeOnly.type !== PartType.LayeredVideo) return
+		const partContext = new PartContext(mockSegmentContext(), wipeOnly.payload.externalId)
+		const result = generateLayeredVideoPart(partContext, wipeOnly)
+		expect(result.pieces).toHaveLength(1)
+		expect(result.pieces[0]?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
 	})
 })

@@ -20,7 +20,8 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 
 export type RundownEditorGraphicPieceType = (typeof RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES)[number]
 
-export function isRundownEditorGraphicPieceType(pieceType: string): pieceType is RundownEditorGraphicPieceType {
+/** Membership check after trim/lowercase — returns boolean (not a type predicate on the raw input). */
+export function isRundownEditorGraphicPieceType(pieceType: string): boolean {
 	const normalized = pieceType.trim().toLowerCase()
 	return (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(normalized)
 }
