@@ -378,7 +378,7 @@ describe('spravy-v3-smoke expectedPackages', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 		const segmentContext = mockSegmentContext()
 
-		const iluPaths = segment.parts
+		const mediaPaths = segment.parts
 			.filter((part) => part.type === PartType.Camera)
 			.flatMap((part) => {
 				const partContext = new PartContext(segmentContext, part.payload.externalId)
@@ -388,11 +388,18 @@ describe('spravy-v3-smoke expectedPackages', () => {
 						piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
 				)
 			})
+			.filter((path): path is string => typeof path === 'string')
 
-		expect(iluPaths).toEqual([
+		// Smoke rundown also attaches story-block wipe media to each headline camera part.
+		expect(mediaPaths.filter((path) => path.includes('/headline'))).toEqual([
 			'spravy/spravy-v3-smoke/clips/headline1.mp4',
 			'spravy/spravy-v3-smoke/clips/headline2.mp4',
 			'spravy/spravy-v3-smoke/clips/headline3.mp4',
+		])
+		expect(mediaPaths.filter((path) => path.includes('wipes/'))).toEqual([
+			'wipes/360_wipe',
+			'wipes/360_wipe',
+			'wipes/360_wipe',
 		])
 	})
 
@@ -409,8 +416,11 @@ describe('spravy-v3-smoke expectedPackages', () => {
 					piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
 			)
 		})
+		const synPaths = mediaPaths.filter((path): path is string => typeof path === 'string' && path.includes('/syn-'))
 
-		expect(mediaPaths.length).toBeGreaterThanOrEqual(2)
-		expect(mediaPaths.every((path) => typeof path === 'string' && path.includes('/syn-'))).toBe(true)
+		expect(synPaths.length).toBeGreaterThanOrEqual(2)
+		expect(synPaths.every((path) => path.includes('/syn-'))).toBe(true)
+		// Story-block wipes share the VO part and also emit expectedPackages.
+		expect(mediaPaths.some((path) => typeof path === 'string' && path.includes('wipes/'))).toBe(true)
 	})
 })

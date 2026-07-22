@@ -236,6 +236,9 @@ jobs:
         env:
           CI: true
 
+      - name: Fetch sofie megarepo assets
+        run: bash scripts/fetch-sofie-megarepo-assets.sh
+
       - name: Build blueprints
         run: |
           cd packages/blueprints
@@ -311,6 +314,9 @@ jobs:
         run: yarn
         env:
           CI: true
+
+      - name: Fetch sofie megarepo assets
+        run: bash scripts/fetch-sofie-megarepo-assets.sh
 
       - name: Build blueprints
         run: |
