@@ -71,5 +71,24 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 ### PGM wipe + UVC camera (DoubleBox)
 
 - Piece type `wipe` (megarepo `assets/`) → Caspar **PGM** mapping `casparcg_effects_player_pgm` (ch2 layer 200), file `wipes/360_wipe`.
+- Piece type ids are matched case-insensitively (`wipe` / `WIPE`).
+- `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — not LED.
 - Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on `casparcg_pgm_camera` (ch2/116) with DoubleBox FILL.
 - Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md`.
+
+### Media folder layout (bg-loop / wipe / clips)
+
+Caspar PLAY paths are relative to the studio **CasparCG media folder** (default
+`c:/casparcg/sofie-demo-media`), without file extension:
+
+```text
+<casparcgMediaFolder>/
+  loops/360_loop.mp4     ← bg-loop piece  → PLAY "loops/360_loop"
+  wipes/360_wipe.mov     ← wipe piece     → PLAY "wipes/360_wipe"
+  clips/...              ← shared demo clips
+  spravy/<rundownId>/clips/...  ← per-rundown VT/ILU (Package Manager)
+```
+
+Rundown Editor `mediaPick` `subdir` values (`loops`, `wipes`, `clips`) are picker
+hints under the ingest media root — the piece `fileName` payload should already
+include that prefix (e.g. `loops/360_loop`).

@@ -109,8 +109,8 @@ describe('casparcgMappings', () => {
 		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsLogo)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
-			channel: 1,
-			layer: LedChannelLayers.GraphicsLogo,
+			channel: 2,
+			layer: PgmChannelLayers.GraphicsLogo,
 		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGEffectsPlayer)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
@@ -167,7 +167,6 @@ describe('casparcgMappings', () => {
 			getMappingOptions(CasparCGLayers.CasparCGGraphicsTicker).layer,
 			getMappingOptions(CasparCGLayers.CasparCGGraphicsLowerThird).layer,
 			getMappingOptions(CasparCGLayers.CasparCGGraphicsStrap).layer,
-			getMappingOptions(CasparCGLayers.CasparCGGraphicsLogo).layer,
 		]
 
 		expect(iluPlayerLayer).not.toBe(clipPlayerLayer)
@@ -175,5 +174,13 @@ describe('casparcgMappings', () => {
 			expect(layer).not.toBe(clipPlayerLayer)
 			expect(layer).not.toBe(iluPlayerLayer)
 		}
+	})
+
+	it('routes 360° sekúnd logo-bug to PGM (not LED)', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsLogo)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.GraphicsLogo,
+		})
 	})
 })

@@ -29,6 +29,7 @@ export enum CasparCGLayers {
 	CasparCGGraphicsPgmLowerThird = 'casparcg_graphics_pgm_l3d',
 	CasparCGGraphicsTicker = 'casparcg_graphics_ticker',
 	CasparCGGraphicsStrap = 'casparcg_graphics_strap',
+	/** 360° sekúnd logo-bug — mapped to PGM channel (not LED). */
 	CasparCGGraphicsLogo = 'casparcg_graphics_logo',
 	CasparCGAudioBed = 'casparcg_audio_bed',
 }

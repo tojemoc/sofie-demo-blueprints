@@ -1,13 +1,13 @@
-import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
+import { SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { InvalidProps, PartProps, PartType, VTProps } from '../definitions/index.js'
-import { parseClipEditorProps } from '../helpers/clips.js'
+import { findMainVideoObject, parseClipEditorProps } from '../helpers/clips.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
 
 export function parseVT(ingestPart: EditorIngestPart): PartProps<VTProps | InvalidProps> {
-	const videoObject = ingestPart.pieces.find((p): p is VideoObject => (p.objectType as ObjectType) === ObjectType.Video)
+	const videoObject = findMainVideoObject(ingestPart.pieces as SomeObject[])
 	if (!videoObject) {
 		return createInvalidProps(t('No video object'), ingestPart)
 	}

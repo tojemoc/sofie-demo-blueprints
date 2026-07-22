@@ -2,7 +2,7 @@ import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions
 import { t } from '../../../common/util.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { IntroProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
-import { parseClipEditorProps } from '../helpers/clips.js'
+import { isLayeredVideoObject, parseClipEditorProps } from '../helpers/clips.js'
 import { parseBaseProps } from './base.js'
 import { createInvalidProps } from './invalid.js'
 
@@ -12,12 +12,13 @@ function isEffectsOverlayVideo(piece: VideoObject): boolean {
 
 /**
  * Find the intro overlay video for an Intro (or recovered GFX) part.
- * Prefers an explicit `playLayer: effects` piece; falls back to the first video
- * so a GFX part that only has a clip still becomes an overlay intro.
+ * Prefers an explicit `playLayer: effects` piece; falls back to a plain (non-layered)
+ * video so a GFX part that only has a clip still becomes an overlay intro.
+ * Never treats wipe / bg-loop as the intro overlay.
  */
 export function findIntroOverlayVideo(ingestPart: EditorIngestPart): VideoObject | undefined {
 	const videos = ingestPart.pieces.filter((p): p is VideoObject => (p.objectType as ObjectType) === ObjectType.Video)
-	return videos.find(isEffectsOverlayVideo) ?? videos[0]
+	return videos.find(isEffectsOverlayVideo) ?? videos.find((video) => !isLayeredVideoObject(video))
 }
 
 export function parseIntro(ingestPart: EditorIngestPart): PartProps<IntroProps | InvalidProps> {
@@ -26,10 +27,13 @@ export function parseIntro(ingestPart: EditorIngestPart): PartProps<IntroProps |
 		return createInvalidProps(t('No intro overlay video. Add an Intro piece (plays on top of everything).'), ingestPart)
 	}
 
-	// Ensure timeline routing even when recovering a plain video on a GFX part.
-	introVideo.attributes = {
-		...introVideo.attributes,
-		playLayer: 'effects',
+	// Ensure timeline routing when recovering a plain video on a GFX part.
+	// Do not overwrite wipe / bg-loop playLayer (those are never selected above).
+	if (!isEffectsOverlayVideo(introVideo)) {
+		introVideo.attributes = {
+			...introVideo.attributes,
+			playLayer: 'effects',
+		}
 	}
 
 	const clipProps = parseClipEditorProps(introVideo)

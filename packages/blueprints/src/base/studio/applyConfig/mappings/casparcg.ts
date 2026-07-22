@@ -142,8 +142,9 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 			lookahead: LookaheadMode.NONE,
 			options: {
 				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.GraphicsLogo,
+				// 360° sekúnd bug is PGM chrome (DoubleBox), not LED wall content.
+				channel: pgmChannel,
+				layer: PgmChannelLayers.GraphicsLogo,
 			},
 		}),
 		[CasparCGLayers.CasparCGAudioBed]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({

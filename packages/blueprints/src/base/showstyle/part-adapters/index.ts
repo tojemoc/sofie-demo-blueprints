@@ -16,6 +16,7 @@ import {
 	GfxProps,
 	IntroProps,
 	InvalidProps,
+	LayeredVideoProps,
 	PartProps,
 	PartType,
 	SegmentProps,
@@ -27,6 +28,7 @@ import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
 import { generateIntroPart } from './intro.js'
+import { generateLayeredVideoPart } from './layeredVideo.js'
 import { generateRemotePart } from './remote.js'
 import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
@@ -75,6 +77,9 @@ export function generateParts(context: ISegmentUserContext, intermediateSegment:
 				break
 			case PartType.GFX:
 				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>)
+				break
+			case PartType.LayeredVideo:
+				newPart = generateLayeredVideoPart(partContext, rawPart as unknown as PartProps<LayeredVideoProps>)
 				break
 			case PartType.Invalid:
 				newPart = {
