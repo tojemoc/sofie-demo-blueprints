@@ -6,6 +6,7 @@ import {
 	TSR,
 } from '@sofie-automation/blueprints-integration'
 import { ObjectType, SomeObject, VideoObject, VideoPlayLayer } from '../../../common/definitions/objects.js'
+import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
@@ -139,7 +140,7 @@ export function parseLayeredVideosFromObjects(
 
 		const fileName =
 			resolveVideoFileName(object) ??
-			(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : playLayer === 'wipe' ? 'wipes/360_wipe' : undefined)
+			(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : playLayer === 'wipe' ? DEFAULT_WIPE_FILE : undefined)
 		if (!fileName) {
 			return []
 		}
