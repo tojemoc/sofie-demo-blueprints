@@ -46,7 +46,7 @@ export type VideoObjectAttributes = {
 	fileName?: string
 	sourceDuration?: number
 	/**
-	 * `effects` = intro overlay (LED layer 200);
+	 * `effects` = intro overlay (PGM layer 210);
 	 * `background` = LED bg loop (layer 110);
 	 * `wipe` = PGM alpha wipe (PGM layer 200).
 	 */

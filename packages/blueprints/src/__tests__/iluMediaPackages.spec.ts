@@ -390,17 +390,13 @@ describe('spravy-v3-smoke expectedPackages', () => {
 			})
 			.filter((path): path is string => typeof path === 'string')
 
-		// Smoke rundown also attaches story-block wipe media to each headline camera part.
+		// Headlines carry ILU media only (no wipe pieces on HEADLINE parts in smoke).
 		expect(mediaPaths.filter((path) => path.includes('/headline'))).toEqual([
 			'spravy/spravy-v3-smoke/clips/headline1.mp4',
 			'spravy/spravy-v3-smoke/clips/headline2.mp4',
 			'spravy/spravy-v3-smoke/clips/headline3.mp4',
 		])
-		expect(mediaPaths.filter((path) => path.includes('wipes/'))).toEqual([
-			'wipes/360_wipe',
-			'wipes/360_wipe',
-			'wipes/360_wipe',
-		])
+		expect(mediaPaths.filter((path) => path.includes('wipes/'))).toEqual([])
 	})
 
 	it('emits expectedPackages for SYN video pieces in tema-1', () => {

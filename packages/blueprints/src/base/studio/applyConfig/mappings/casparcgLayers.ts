@@ -20,7 +20,7 @@ export const LedChannelLayers = {
 
 /**
  * Caspar layer numbers on the PGM channel (DoubleBox compose).
- * Camera (116) sits beside ILU (115); wipe (200) is always on top.
+ * Camera (116) sits beside ILU (115); wipe (200); intro (210) is above wipe.
  * GraphicsLogo (123) is the 360° sekúnd bug — PGM only, not LED.
  */
 export const PgmChannelLayers = {
@@ -30,6 +30,8 @@ export const PgmChannelLayers = {
 	GraphicsLowerThird: 121,
 	GraphicsLogo: 123,
 	EffectsPlayer: 200,
+	/** Intro / znelka — above wipe; PGM only (never LED). */
+	IntroOverlay: 210,
 } as const
 
 /** Starting FILL for DoubleBox CAM window (right). Tune against HTML chrome. */

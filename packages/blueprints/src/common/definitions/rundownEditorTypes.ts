@@ -28,7 +28,7 @@ export function isRundownEditorGraphicPieceType(pieceType: string): boolean {
 
 /**
  * Video piece types that play on dedicated Caspar layers (not VT/ClipPlayer takeover).
- * - `intro` → EffectsPlayer (200), on top of headlines / camera / gfx
+ * - `intro` → PGM IntroOverlay (210), above wipe / camera / gfx — never LED
  * - `bg-loop` → ClipPlayer1 (110), LED background behind camera
  * - `wipe` → PGM EffectsPlayer (200), story-block alpha wipe
  */

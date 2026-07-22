@@ -1,4 +1,4 @@
-import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { IntroProps, PartProps, PartType } from '../base/showstyle/definitions/index.js'
 import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
@@ -18,7 +18,7 @@ import {
 describe('intro overlay + bg-loop layered videos', () => {
 	const exportData = loadSmokeRundownExport()
 
-	it('parses Intro part with overlay on EffectsPlayer and bg-loop on ClipPlayer1', () => {
+	it('parses Intro part with overlay on PGM IntroOverlay (not LED)', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro'))
 		const introPart = segment.parts.find((part) => part.payload.name === 'Intro')
 
@@ -32,8 +32,9 @@ describe('intro overlay + bg-loop layered videos', () => {
 				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'background'
 		)
 
-		expect(overlay?.clipName).toContain('introMichal')
-		expect(bgLoop?.clipName).toBe('loops/360_loop')
+		expect(overlay?.clipName).toContain('360s_ZNELKA')
+		// Smoke Intro relies on baseline LED loop — no explicit bg-loop piece.
+		expect(bgLoop).toBeUndefined()
 		expect(introPart).toBeDefined()
 		if (!introPart) return
 
@@ -44,14 +45,11 @@ describe('intro overlay + bg-loop layered videos', () => {
 		const bgPiece = result.pieces.find((p) => p.name.startsWith('BG loop |'))
 
 		expect(introPiece?.lifespan).toBe(PieceLifespan.WithinPart)
-		expect(bgPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(bgPiece).toBeUndefined()
 
 		const introTl = introPiece?.content.timelineObjects?.[0]
-		const bgTl = bgPiece?.content.timelineObjects?.[0]
 
-		expect(introTl?.layer).toBe(CasparCGLayers.CasparCGEffectsPlayer)
-		expect(bgTl?.layer).toBe(CasparCGLayers.CasparCGClipPlayer1)
-		expect((bgTl?.content as TSR.TimelineContentCCGMedia).loop).toBe(true)
+		expect(introTl?.layer).toBe(CasparCGLayers.CasparCGPgmIntroPlayer)
 	})
 
 	it('recovers GFX parts that only have a video as Intro overlay', () => {
@@ -100,12 +98,8 @@ describe('intro overlay + bg-loop layered videos', () => {
 			hybridCasparConfig,
 			introPart?.objects ?? []
 		)
-		// Intro overlay + bg-loop + story-block wipe (all timeline pieces, not adlibs).
-		expect(layered.length).toBe(3)
-		expect(layered.map((piece) => piece.name)).toEqual([
-			expect.stringMatching(/^Intro \|/),
-			expect.stringMatching(/^BG loop \|/),
-			expect.stringMatching(/^Wipe/),
-		])
+		// Smoke Intro: overlay only (no bg-loop / wipe on this part).
+		expect(layered.length).toBe(1)
+		expect(layered.map((piece) => piece.name)).toEqual([expect.stringMatching(/^Intro \|/)])
 	})
 })
