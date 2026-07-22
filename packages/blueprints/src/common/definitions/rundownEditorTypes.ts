@@ -47,9 +47,8 @@ export function normalizeRundownEditorLayeredVideoPieceType(
 		: undefined
 }
 
-export function isRundownEditorLayeredVideoPieceType(
-	pieceType: string
-): pieceType is RundownEditorLayeredVideoPieceType {
+/** Membership check after trim/lowercase — returns boolean (not a type predicate on the raw input). */
+export function isRundownEditorLayeredVideoPieceType(pieceType: string): boolean {
 	return normalizeRundownEditorLayeredVideoPieceType(pieceType) !== undefined
 }
 
