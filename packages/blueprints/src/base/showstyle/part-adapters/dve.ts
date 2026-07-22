@@ -5,7 +5,7 @@ import { AudioSourceType, SourceType, VisionMixerDevice } from '../../studio/hel
 import { AtemLayers, VMixLayers } from '../../studio/layers.js'
 import { DVEProps, PartProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
-import { getClipPlayerInput, parseClipsFromObjects } from '../helpers/clips.js'
+import { getClipPlayerInput, parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { dveLayoutToContent, parseSuperSourceLayout, parseSuperSourceProps } from '../helpers/dve.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -219,6 +219,9 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
+	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

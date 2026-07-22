@@ -3,6 +3,7 @@
  * Clip preview (100) and clip player (110) hold background/fullscreen media;
  * ILU (115) sits above the bg loop so MIXER FILL does not transform layer 110;
  * gfx layers use 120+ to avoid collisions.
+ * Logo/bug lives on PGM (see PgmChannelLayers.GraphicsLogo) — LED stays loop-only for DoubleBox.
  */
 export const LedChannelLayers = {
 	AudioBed: 80,
@@ -12,6 +13,7 @@ export const LedChannelLayers = {
 	GraphicsTicker: 120,
 	GraphicsLowerThird: 121,
 	GraphicsStrap: 122,
+	/** @deprecated Prefer PGM logo; retained so layer numbers stay stable if remapped. */
 	GraphicsLogo: 123,
 	EffectsPlayer: 200,
 } as const
@@ -19,6 +21,7 @@ export const LedChannelLayers = {
 /**
  * Caspar layer numbers on the PGM channel (DoubleBox compose).
  * Camera (116) sits beside ILU (115); wipe (200) is always on top.
+ * GraphicsLogo (123) is the 360° sekúnd bug — PGM only, not LED.
  */
 export const PgmChannelLayers = {
 	ClipPlayer: 110,

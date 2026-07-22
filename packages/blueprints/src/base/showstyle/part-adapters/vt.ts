@@ -5,7 +5,7 @@ import { AudioSourceType } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { PartProps, VTProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
-import { getClipPlayerInput } from '../helpers/clips.js'
+import { getClipPlayerInput, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -70,6 +70,9 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
+	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	return {
 		part: {

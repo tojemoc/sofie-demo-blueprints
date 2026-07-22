@@ -102,6 +102,13 @@ export function isLayeredVideoObject(object: VideoObject): boolean {
 	return getVideoPlayLayer(object) !== undefined
 }
 
+/** Main VT/VO takeover clip — excludes intro / bg-loop / wipe layered videos. */
+export function findMainVideoObject(objects: SomeObject[]): VideoObject | undefined {
+	return objects.find(
+		(object): object is VideoObject => object.objectType === ObjectType.Video && !isLayeredVideoObject(object)
+	)
+}
+
 function layeredVideoSourceLayer(playLayer: VideoPlayLayer): SourceLayer {
 	if (playLayer === 'effects' || playLayer === 'wipe') return SourceLayer.Titles
 	return SourceLayer.VT

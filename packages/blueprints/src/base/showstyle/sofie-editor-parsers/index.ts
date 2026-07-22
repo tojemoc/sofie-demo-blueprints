@@ -2,10 +2,12 @@ import { IRundownUserContext, SofieIngestSegment } from '@sofie-automation/bluep
 import { ObjectType } from '../../../common/definitions/objects.js'
 import {
 	isRundownEditorGraphicPieceType,
-	isRundownEditorLayeredVideoPieceType,
+	normalizeRundownEditorLayeredVideoPieceType,
 	playLayerForVideoPieceType,
 	resolveSegmentType,
 } from '../../../common/definitions/rundownEditorTypes.js'
+import { isLayeredVideoObject } from '../helpers/clips.js'
+import { VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
 import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
@@ -28,6 +30,14 @@ function hasCameraPiece(part: EditorIngestPart): boolean {
 
 function hasVideoPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Video)
+}
+
+/** True when the part has a take-over VT/VO clip (not intro / bg-loop / wipe). */
+function hasMainVideoPiece(part: EditorIngestPart): boolean {
+	return part.pieces.some((piece) => {
+		if ((piece.objectType as ObjectType) !== ObjectType.Video) return false
+		return !isLayeredVideoObject(piece as VideoObject)
+	})
 }
 
 function hasGraphicPiece(part: EditorIngestPart): boolean {
@@ -55,7 +65,8 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	}
 	if (partType.match(/gfx/i)) {
 		// Operator recovery: GFX + video-only was used for overlay intros → treat as Intro.
-		if (!hasGraphicPiece(partPayload) && hasVideoPiece(partPayload)) {
+		// Ignore wipe/bg-loop-only parts — those are layered videos, not intro overlays.
+		if (!hasGraphicPiece(partPayload) && hasMainVideoPiece(partPayload)) {
 			return parseIntro(partPayload)
 		}
 		return parseGfx(partPayload)
@@ -80,9 +91,13 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 		return parseVT(partPayload)
 	}
 
-	// Content fallback: a part whose only (or primary) object is a video file.
-	if (hasVideoPiece(partPayload)) {
+	// Content fallback: a part whose only (or primary) object is a take-over video file.
+	if (hasMainVideoPiece(partPayload)) {
 		return parseVT(partPayload)
+	}
+	// Wipe / bg-loop alone on an unknown part type — still emit as GFX so layered videos play.
+	if (hasVideoPiece(partPayload)) {
+		return parseGfx(partPayload)
 	}
 
 	return createInvalidProps(t('Unknown part type'), partPayload)
@@ -134,8 +149,8 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					piece.objectTime = piece.objectTime * 1000
 				}
 
-				if (isRundownEditorLayeredVideoPieceType(piece.objectType)) {
-					const layeredType = piece.objectType
+				const layeredType = normalizeRundownEditorLayeredVideoPieceType(piece.objectType)
+				if (layeredType) {
 					const playLayer = playLayerForVideoPieceType(layeredType)
 					const fileName =
 						(typeof piece.attributes.fileName === 'string' && piece.attributes.fileName.trim()) ||
@@ -151,7 +166,7 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 						...(playLayer === 'background' && piece.attributes.loop === undefined ? { loop: true } : {}),
 					}
 				} else if (isRundownEditorGraphicPieceType(piece.objectType)) {
-					const graphicPieceType = piece.objectType
+					const graphicPieceType = piece.objectType.trim().toLowerCase()
 					piece.clipName = 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic
 

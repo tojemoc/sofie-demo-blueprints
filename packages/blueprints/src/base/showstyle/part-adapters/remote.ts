@@ -3,7 +3,7 @@ import { PartContext } from '../../../common/context.js'
 import { AudioSourceType } from '../../studio/helpers/config.js'
 import { PartProps, RemoteProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
-import { parseClipsFromObjects } from '../helpers/clips.js'
+import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
@@ -47,6 +47,9 @@ export function generateRemotePart(context: PartContext, part: PartProps<RemoteP
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
+	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

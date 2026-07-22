@@ -21,7 +21,8 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 export type RundownEditorGraphicPieceType = (typeof RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES)[number]
 
 export function isRundownEditorGraphicPieceType(pieceType: string): pieceType is RundownEditorGraphicPieceType {
-	return (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(pieceType)
+	const normalized = pieceType.trim().toLowerCase()
+	return (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(normalized)
 }
 
 /**
@@ -36,10 +37,19 @@ export type RundownEditorLayeredVideoPieceType = (typeof RUNDOWN_EDITOR_LAYERED_
 
 export type { VideoPlayLayer }
 
+export function normalizeRundownEditorLayeredVideoPieceType(
+	pieceType: string
+): RundownEditorLayeredVideoPieceType | undefined {
+	const normalized = pieceType.trim().toLowerCase()
+	return (RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES as readonly string[]).includes(normalized)
+		? (normalized as RundownEditorLayeredVideoPieceType)
+		: undefined
+}
+
 export function isRundownEditorLayeredVideoPieceType(
 	pieceType: string
 ): pieceType is RundownEditorLayeredVideoPieceType {
-	return (RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES as readonly string[]).includes(pieceType)
+	return normalizeRundownEditorLayeredVideoPieceType(pieceType) !== undefined
 }
 
 export function playLayerForVideoPieceType(pieceType: RundownEditorLayeredVideoPieceType): VideoPlayLayer {
