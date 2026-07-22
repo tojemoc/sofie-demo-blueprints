@@ -23,6 +23,8 @@ export const DemoStudioConfig: StudioConfig = {
 		hypercomposed: {
 			ledChannel: 1,
 			pgmChannel: 2,
+			// Set to your OBS Virtual Camera / UVC device on the Caspar host, e.g.:
+			// pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
 		},
 	},
 	sisyfosSources: {},

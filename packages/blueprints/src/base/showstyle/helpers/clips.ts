@@ -6,6 +6,7 @@ import {
 	TSR,
 } from '@sofie-automation/blueprints-integration'
 import { ObjectType, SomeObject, VideoObject, VideoPlayLayer } from '../../../common/definitions/objects.js'
+import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
@@ -91,7 +92,7 @@ function isTruthyAttribute(value: boolean | string | undefined): boolean {
 
 export function getVideoPlayLayer(object: VideoObject): VideoPlayLayer | undefined {
 	const raw = object.attributes?.playLayer
-	if (raw === 'effects' || raw === 'background') {
+	if (raw === 'effects' || raw === 'background' || raw === 'wipe') {
 		return raw
 	}
 	return undefined
@@ -102,20 +103,26 @@ export function isLayeredVideoObject(object: VideoObject): boolean {
 }
 
 function layeredVideoSourceLayer(playLayer: VideoPlayLayer): SourceLayer {
-	return playLayer === 'effects' ? SourceLayer.Titles : SourceLayer.VT
+	if (playLayer === 'effects' || playLayer === 'wipe') return SourceLayer.Titles
+	return SourceLayer.VT
 }
 
 function layeredVideoCasparLayer(playLayer: VideoPlayLayer): CasparCGLayers {
-	return playLayer === 'effects' ? CasparCGLayers.CasparCGEffectsPlayer : CasparCGLayers.CasparCGClipPlayer1
+	if (playLayer === 'effects') return CasparCGLayers.CasparCGEffectsPlayer
+	if (playLayer === 'wipe') return CasparCGLayers.CasparCGPgmEffectsPlayer
+	return CasparCGLayers.CasparCGClipPlayer1
 }
 
 function layeredVideoLifespan(playLayer: VideoPlayLayer): PieceLifespan {
 	// Overlay intros are within the part; bg-loop sticks so operators can see/control it across takes.
-	return playLayer === 'effects' ? PieceLifespan.WithinPart : PieceLifespan.OutOnRundownEnd
+	// Wipes are within-part (fire on take into the story).
+	if (playLayer === 'effects' || playLayer === 'wipe') return PieceLifespan.WithinPart
+	return PieceLifespan.OutOnRundownEnd
 }
 
 /**
- * Timeline pieces for Intro overlay (EffectsPlayer / 200) and BG loop (ClipPlayer1 / 110).
+ * Timeline pieces for Intro overlay (EffectsPlayer / 200), BG loop (ClipPlayer1 / 110),
+ * and PGM wipe (PgmEffectsPlayer / 200).
  * These are NOT adlibs — they play on take so operators have absolute control.
  */
 export function parseLayeredVideosFromObjects(
@@ -131,7 +138,9 @@ export function parseLayeredVideosFromObjects(
 			return []
 		}
 
-		const fileName = resolveVideoFileName(object) ?? (playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : undefined)
+		const fileName =
+			resolveVideoFileName(object) ??
+			(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : playLayer === 'wipe' ? DEFAULT_WIPE_FILE : undefined)
 		if (!fileName) {
 			return []
 		}
@@ -139,6 +148,17 @@ export function parseLayeredVideosFromObjects(
 		const casparLayer = layeredVideoCasparLayer(playLayer)
 		const sourceLayer = layeredVideoSourceLayer(playLayer)
 		const loop = playLayer === 'background' || isTruthyAttribute(object.attributes?.loop)
+		const transitionLabel =
+			typeof object.attributes?.transition === 'string' && object.attributes.transition.trim()
+				? object.attributes.transition.trim()
+				: undefined
+
+		const displayName =
+			playLayer === 'effects'
+				? `Intro | ${fileName}`
+				: playLayer === 'wipe'
+					? `Wipe${transitionLabel ? ` · ${transitionLabel}` : ''} | ${fileName}`
+					: `BG loop | ${fileName}`
 
 		return [
 			literal<IBlueprintPiece>({
@@ -147,13 +167,13 @@ export function parseLayeredVideosFromObjects(
 					duration: object.duration > 0 ? object.duration : undefined,
 				},
 				externalId: object.id,
-				name: playLayer === 'effects' ? `Intro | ${fileName}` : `BG loop | ${fileName}`,
+				name: displayName,
 				lifespan: layeredVideoLifespan(playLayer),
 				sourceLayerId: sourceLayer,
 				outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
 				content: {
 					fileName,
-					ignoreAudioFormat: playLayer === 'effects',
+					ignoreAudioFormat: playLayer === 'effects' || playLayer === 'wipe',
 					timelineObjects: [
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',

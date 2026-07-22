@@ -40,14 +40,20 @@ export interface VideoObject extends BaseObject {
 }
 
 /** Caspar play routing for layered video pieces from the Rundown Editor. */
-export type VideoPlayLayer = 'effects' | 'background'
+export type VideoPlayLayer = 'effects' | 'background' | 'wipe'
 
 export type VideoObjectAttributes = {
 	fileName?: string
 	sourceDuration?: number
-	/** `effects` = intro overlay (layer 200); `background` = LED bg loop (layer 110). */
+	/**
+	 * `effects` = intro overlay (LED layer 200);
+	 * `background` = LED bg loop (layer 110);
+	 * `wipe` = PGM alpha wipe (PGM layer 200).
+	 */
 	playLayer?: VideoPlayLayer | string
 	loop?: boolean | string
+	/** Operator-facing wipe direction label (does not change the media file). */
+	transition?: string
 }
 export interface GraphicObjectBase extends Omit<BaseObject, 'attributes'> {
 	objectType: ObjectType.Graphic | ObjectType.SteppedGraphic

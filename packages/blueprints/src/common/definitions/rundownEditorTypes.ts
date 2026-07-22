@@ -28,8 +28,9 @@ export function isRundownEditorGraphicPieceType(pieceType: string): pieceType is
  * Video piece types that play on dedicated Caspar layers (not VT/ClipPlayer takeover).
  * - `intro` → EffectsPlayer (200), on top of headlines / camera / gfx
  * - `bg-loop` → ClipPlayer1 (110), LED background behind camera
+ * - `wipe` → PGM EffectsPlayer (200), story-block alpha wipe
  */
-export const RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES = ['intro', 'bg-loop'] as const
+export const RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES = ['intro', 'bg-loop', 'wipe'] as const
 
 export type RundownEditorLayeredVideoPieceType = (typeof RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES)[number]
 
@@ -42,8 +43,12 @@ export function isRundownEditorLayeredVideoPieceType(
 }
 
 export function playLayerForVideoPieceType(pieceType: RundownEditorLayeredVideoPieceType): VideoPlayLayer {
-	return pieceType === 'intro' ? 'effects' : 'background'
+	if (pieceType === 'intro') return 'effects'
+	if (pieceType === 'wipe') return 'wipe'
+	return 'background'
 }
+
+export const DEFAULT_WIPE_FILE = 'wipes/360_wipe'
 
 export function resolveSegmentType(segmentPayload: { type?: string; name?: string }): SegmentType {
 	const rawType = segmentPayload.type?.toLowerCase()

@@ -67,3 +67,9 @@ CI mirrors these steps in `.github/workflows/node.yaml`.
 ### External services (not in this repo)
 
 Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown ingest tool (Rundown Editor or Spreadsheet Gateway). See `README.md` for the complete setup guide.
+
+### PGM wipe + UVC camera (DoubleBox)
+
+- Piece type `wipe` (megarepo `assets/`) → Caspar **PGM** mapping `casparcg_effects_player_pgm` (ch2 layer 200), file `wipes/360_wipe`.
+- Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on `casparcg_pgm_camera` (ch2/116) with DoubleBox FILL.
+- Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md`.

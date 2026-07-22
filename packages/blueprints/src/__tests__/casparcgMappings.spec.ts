@@ -117,6 +117,16 @@ describe('casparcgMappings', () => {
 			channel: 1,
 			layer: LedChannelLayers.EffectsPlayer,
 		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayer)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.EffectsPlayer,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCamera)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.Camera,
+		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGAudioBed)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 1,

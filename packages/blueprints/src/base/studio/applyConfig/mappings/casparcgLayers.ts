@@ -16,7 +16,23 @@ export const LedChannelLayers = {
 	EffectsPlayer: 200,
 } as const
 
+/**
+ * Caspar layer numbers on the PGM channel (DoubleBox compose).
+ * Camera (116) sits beside ILU (115); wipe (200) is always on top.
+ */
 export const PgmChannelLayers = {
 	ClipPlayer: 110,
+	IluPlayer: 115,
+	Camera: 116,
 	GraphicsLowerThird: 121,
+	GraphicsLogo: 123,
+	EffectsPlayer: 200,
+} as const
+
+/** Starting FILL for DoubleBox CAM window (right). Tune against HTML chrome. */
+export const PGM_DOUBLEBOX_CAMERA_FILL = {
+	x: 0.62,
+	y: 0.08,
+	xScale: 0.34,
+	yScale: 0.72,
 } as const
