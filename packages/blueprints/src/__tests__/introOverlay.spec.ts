@@ -100,6 +100,12 @@ describe('intro overlay + bg-loop layered videos', () => {
 			hybridCasparConfig,
 			introPart?.objects ?? []
 		)
-		expect(layered.length).toBe(2)
+		// Intro overlay + bg-loop + story-block wipe (all timeline pieces, not adlibs).
+		expect(layered.length).toBe(3)
+		expect(layered.map((piece) => piece.name)).toEqual([
+			expect.stringMatching(/^Intro \|/),
+			expect.stringMatching(/^BG loop \|/),
+			expect.stringMatching(/^Wipe/),
+		])
 	})
 })
