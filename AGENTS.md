@@ -34,8 +34,14 @@ megarepo smoke rundown is missing. Run `yarn test:blueprints` separately to veri
 | `spravy-v3-smoke-rundown.json` | Blueprint ingest smoke tests |
 
 Do **not** add copies under `assets/` in this repo. When this clone is nested as
-`sofie/blueprints/`, tests resolve `../assets/` automatically. Standalone checkouts should
-set `SOFIE_MEGAREPO_ASSETS` to the megarepo `assets/` directory.
+`sofie/blueprints/`, tests resolve `../assets/` automatically. Standalone checkouts:
+
+```bash
+eval "$(bash scripts/fetch-sofie-megarepo-assets.sh)"
+```
+
+(or set `SOFIE_MEGAREPO_ASSETS` to a local megarepo `assets/` directory). CI runs the same
+script and relies on `GITHUB_ENV`.
 
 ### Common commands (from repo root)
 
