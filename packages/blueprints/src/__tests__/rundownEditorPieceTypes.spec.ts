@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
 	RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES,
 	RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES,
 } from '../common/definitions/rundownEditorTypes.js'
+import { resolveMegarepoAsset } from './helpers/megarepoAssets.js'
 
 type RundownEditorPayloadManifest = {
 	id: string
@@ -58,7 +58,7 @@ function verifyRundownEditorTypesImport(
 	)
 }
 
-const assetsDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../assets')
+const assetsDir = resolve(resolveMegarepoAsset('sofie-rundown-editor-piece-types.json'), '..')
 
 describe('sofie-rundown-editor-piece-types.json', () => {
 	it('matches Rundown Editor piece type import validation', () => {

@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { ISegmentUserContext } from '@sofie-automation/blueprints-integration'
 import { convertIngestData } from '../../base/showstyle/sofie-editor-parsers/index.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../base/studio/helpers/config.js'
+import { resolveMegarepoAsset } from './megarepoAssets.js'
 
 /** Rundown Editor SerializedRundown export (also used as blueprint smoke-test fixture). */
 export type SmokeRundownExport = {
@@ -83,13 +82,12 @@ export const hybridCasparConfig: StudioConfig = {
 	},
 }
 
+function resolveSmokeRundownPath(): string {
+	return resolveMegarepoAsset('spravy-v3-smoke-rundown.json')
+}
+
 export function loadSmokeRundownExport(): SmokeRundownExport {
-	return JSON.parse(
-		readFileSync(
-			resolve(dirname(fileURLToPath(import.meta.url)), '../../../../../assets/spravy-v3-smoke-rundown.json'),
-			'utf8'
-		)
-	)
+	return JSON.parse(readFileSync(resolveSmokeRundownPath(), 'utf8'))
 }
 
 export function smokeExportToIngestSegment(

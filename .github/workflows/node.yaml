@@ -51,6 +51,8 @@ jobs:
         run: yarn
         env:
           CI: true
+      - name: Fetch sofie megarepo assets
+        run: bash scripts/fetch-sofie-megarepo-assets.sh
       - name: Run typecheck and linter
         run: |
           cd packages/${{ matrix.package }}
@@ -85,6 +87,8 @@ jobs:
         run: yarn
         env:
           CI: true
+      - name: Fetch sofie megarepo assets
+        run: bash scripts/fetch-sofie-megarepo-assets.sh
       - name: Run tests
         run: |
           cd packages/blueprints
