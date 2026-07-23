@@ -89,7 +89,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
 		expect(headlineObject?.attributes).toMatchObject({
-			headline: 'Headline L3D horny riadok',
+			headline: 'Headline L3D horný riadok',
 			subline: 'Headline dolný riadok',
 		})
 
@@ -100,7 +100,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(caspar, 'Caspar template timeline content missing on gfx/l3d-headline piece').toBeDefined()
 		if (!piece || !caspar) return
 
-		expect(caspar.data).toEqual({ title: 'Headline L3D horny riadok', subtitle: 'Headline dolný riadok' })
+		expect(caspar.data).toEqual({ title: 'Headline L3D horný riadok', subtitle: 'Headline dolný riadok' })
 	})
 
 	it('parses HEADLINE ILU parts as camera parts with headline graphics and L3Ds', () => {

@@ -166,7 +166,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(result.pieces[0]?.expectedPackages).toBeUndefined()
 	})
 
-	it('emits a Caspar MEDIA timeline object for iluFile on the clip player layer', () => {
+	it('crops full-frame ILU mp4 into the slot FILL when prerendered/bypass is OFF', () => {
 		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
 
 		const result = parseGraphicsFromObjects(
@@ -197,15 +197,28 @@ describe('gfx/headline ILU expectedPackages', () => {
 			file: 'spravy/rundown-1/clips/foo',
 			mixer: {
 				fill: { x: 0.08, y: 0.15, xScale: 0.62, yScale: 0.73 },
+				crop: {
+					left: expect.any(Number),
+					top: 0,
+					right: expect.any(Number),
+					bottom: 0,
+				},
 			},
 		})
+		const crop = (media?.content as TSR.TimelineContentCCGMedia).mixer?.crop as {
+			left: number
+			right: number
+		}
+		expect(crop.left).toBeCloseTo(crop.right, 5)
+		expect(crop.left).toBeGreaterThan(0.2)
+		expect(crop.left).toBeLessThan(0.3)
 
 		const template = piece?.content.timelineObjects?.find(
 			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
 		)
 		expect(template?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-			name: 'gfx/headline',
+			name: 'gfx/headline-fallback',
 		})
 		expect((template?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
 			source: 'Reuters',
@@ -213,8 +226,50 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGIluPlayer])
 	})
 
-	it('emits a Caspar MEDIA timeline object when iluFallback is enabled', () => {
-		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
+	it('plays prerendered alpha ILU fullscreen (FILL 0 0 1 1) and skips HTML chrome', () => {
+		const iluFile = 'spravy/rundown-1/clips/foo.mov'
+
+		const result = parseGraphicsFromObjects(
+			hybridCasparConfig,
+			[
+				{
+					id: 'headline1',
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/headline',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {
+						iluFile,
+						iluPrerendered: true,
+						source: 'Reuters',
+					},
+				},
+			],
+			context
+		)
+
+		const piece = result.pieces[0]
+		expect(piece?.content.timelineObjects).toHaveLength(1)
+
+		const template = piece?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
+		)
+		expect(template).toBeUndefined()
+
+		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
+		expect(media?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'spravy/rundown-1/clips/foo',
+			mixer: {
+				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+			},
+		})
+		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGIluPlayer])
+	})
+
+	it('treats legacy iluFallback as prerendered/bypass ON', () => {
+		const iluFile = 'spravy/rundown-1/clips/foo.mov'
 
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
@@ -229,7 +284,6 @@ describe('gfx/headline ILU expectedPackages', () => {
 					attributes: {
 						iluFile,
 						iluFallback: true,
-						source: 'Reuters',
 					},
 				},
 			],
@@ -237,25 +291,13 @@ describe('gfx/headline ILU expectedPackages', () => {
 		)
 
 		const piece = result.pieces[0]
-		expect(piece?.content.timelineObjects).toHaveLength(2)
-
-		const template = piece?.content.timelineObjects?.find(
-			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
-		)
-		expect(template?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-			name: 'gfx/headline-fallback',
-		})
-
+		expect(piece?.content.timelineObjects).toHaveLength(1)
 		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
 		expect(media?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'spravy/rundown-1/clips/foo',
 			mixer: {
-				fill: { x: 0.08, y: 0.15, xScale: 0.62, yScale: 0.73 },
+				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 			},
 		})
-		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGIluPlayer])
 	})
 
 	it('omits source from template data when sourceEnabled is false or source is empty', () => {

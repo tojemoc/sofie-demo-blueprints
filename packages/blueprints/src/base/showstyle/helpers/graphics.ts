@@ -42,6 +42,7 @@ function getTemplateAttributes(
 ): GraphicObjectAttributes {
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
 	delete templateAttributes.iluFallback
+	delete templateAttributes.iluPrerendered
 
 	const rawSourceEnabled = templateAttributes.sourceEnabled
 	delete templateAttributes.sourceEnabled
@@ -89,30 +90,55 @@ function getTemplateAttributes(
 	return templateAttributes
 }
 
-function useHeadlineIluFallback(object: GraphicObjectBase): boolean {
-	return (
-		object.clipName === 'gfx/headline' &&
-		isTruthyAttribute(object.attributes.iluFallback) &&
-		!!object.attributes.iluFile
-	)
+/**
+ * ILU prerendered/bypass ON — pre-rendered alpha .mov with baked-in headline motion,
+ * played fullscreen (FILL 0 0 1 1). Legacy `iluFallback` maps to the same mode.
+ */
+function useHeadlineIluPrerendered(object: GraphicObjectBase): boolean {
+	if (object.clipName !== 'gfx/headline' || !object.attributes.iluFile) {
+		return false
+	}
+	return isTruthyAttribute(object.attributes.iluPrerendered) || isTruthyAttribute(object.attributes.iluFallback)
 }
 
-function shouldPlayHeadlineIluOnMediaLayer(object: GraphicObjectBase): boolean {
-	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile && !useHeadlineIluFallback(object)
+function hasHeadlineIluFile(object: GraphicObjectBase): boolean {
+	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile
 }
 
-/** Matches sofie-demo-assets HTML #ilu-slide frame: left 8%, top 15%, width 62%, height 73%. */
-const HEADLINE_ILU_MIXER_FILL = {
+/** Crop a full-frame 16:9 clip into the HTML #ilu-slide window (cover, no squish). */
+const HEADLINE_ILU_SLOT_FILL = {
 	x: 0.08,
 	y: 0.15,
 	xScale: 0.62,
 	yScale: 0.73,
 }
 
+/**
+ * Cover-crop a 16:9 source into the ILU slot (aspect ≈ 0.62/0.73).
+ * Source is wider than the slot → trim left/right so FILL does not squash.
+ */
+const HEADLINE_ILU_SLOT_CROP = (() => {
+	const slotAspect = HEADLINE_ILU_SLOT_FILL.xScale / HEADLINE_ILU_SLOT_FILL.yScale
+	const sourceAspect = 16 / 9
+	const visibleWidth = slotAspect / sourceAspect
+	const side = Math.max(0, (1 - visibleWidth) / 2)
+	return { left: side, top: 0, right: side, bottom: 0 }
+})()
+
+/** Full-screen FILL for prerendered alpha .mov bypass. */
+const HEADLINE_ILU_FULLSCREEN_FILL = {
+	x: 0,
+	y: 0,
+	xScale: 1,
+	yScale: 1,
+}
+
 function createHeadlineIluMediaTimelineObject(
 	iluFile: string,
+	mode: 'slot' | 'fullscreen',
 	isAdlib?: boolean
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	const fill = mode === 'fullscreen' ? HEADLINE_ILU_FULLSCREEN_FILL : HEADLINE_ILU_SLOT_FILL
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: {
@@ -126,7 +152,8 @@ function createHeadlineIluMediaTimelineObject(
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
 			mixer: {
-				fill: HEADLINE_ILU_MIXER_FILL,
+				fill,
+				...(mode === 'slot' ? { crop: HEADLINE_ILU_SLOT_CROP } : {}),
 			},
 		},
 	})
@@ -137,11 +164,12 @@ function getHeadlineIluMediaObject(
 	isAdlib?: boolean
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
-	if (!iluFile || !shouldPlayHeadlineIluOnMediaLayer(object)) {
+	if (!iluFile || !hasHeadlineIluFile(object)) {
 		return []
 	}
 
-	return [createHeadlineIluMediaTimelineObject(iluFile, isAdlib)]
+	const mode = useHeadlineIluPrerendered(object) ? 'fullscreen' : 'slot'
+	return [createHeadlineIluMediaTimelineObject(iluFile, mode, isAdlib)]
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
@@ -179,42 +207,53 @@ function getGraphicTlObject(
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
-	const iluFallback = useHeadlineIluFallback(object)
-	const clipName = iluFallback ? 'gfx/headline-fallback' : object.clipName
-	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
-	const omitIluFileFromTemplate = shouldPlayHeadlineIluOnMediaLayer(object)
+	const iluPrerendered = useHeadlineIluPrerendered(object)
+	const hasIlu = hasHeadlineIluFile(object)
+	// Never feed iluFile into HTML — ILU always plays via Caspar MEDIA (crop or fullscreen).
+	const omitIluFileFromTemplate = hasIlu
+	// Prerendered/bypass: skip HTML chrome entirely (motion is baked into the .mov).
+	// Cropped mode: transparent frame overlay (headline-fallback) so Caspar MEDIA shows through.
+	const clipName = iluPrerendered ? undefined : hasIlu ? 'gfx/headline-fallback' : object.clipName
 	const fullscreenAtemInput = getClipPlayerInput(config)
-	const isFullscreen = isFullscreenGraphic(clipName)
-	const fallbackIluMediaObject = iluFallback && iluFile ? [createHeadlineIluMediaTimelineObject(iluFile, isAdlib)] : []
+	const isFullscreen = clipName ? isFullscreenGraphic(clipName) : false
 	const headlineIluMediaObject = getHeadlineIluMediaObject(object, isAdlib)
 
-	return [
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
-			id: '',
-			enable: {
-				start: 0, // TODO - this might not be quite right
-			},
-			layer: getGraphicTlLayer(object),
-			priority: 1 + (isAdlib ? 10 : 0),
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+	const timelineObjects: TimelineBlueprintExt[] = []
 
-				templateType: 'html',
-				name: clipName,
-				data: {
-					...getTemplateAttributes(clipName, object.attributes, { omitIluFile: omitIluFileFromTemplate }),
+	if (clipName) {
+		timelineObjects.push(
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+				id: '',
+				enable: {
+					start: 0, // TODO - this might not be quite right
 				},
-				useStopCommand: isFullscreen ? false : true,
-			},
-		}),
-		...headlineIluMediaObject,
-		...fallbackIluMediaObject,
-		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
-	]
+				layer: getGraphicTlLayer(object),
+				priority: 1 + (isAdlib ? 10 : 0),
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+
+					templateType: 'html',
+					name: clipName,
+					data: {
+						...getTemplateAttributes(clipName, object.attributes, { omitIluFile: omitIluFileFromTemplate }),
+					},
+					useStopCommand: isFullscreen ? false : true,
+				},
+			})
+		)
+	}
+
+	timelineObjects.push(...headlineIluMediaObject)
+
+	if (isFullscreen) {
+		timelineObjects.push(...createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency))
+	}
+
+	return timelineObjects
 }
 function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
-	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile
+	return hasHeadlineIluFile(object)
 }
 
 function getIluExpectedPackages(context: ICommonContext | undefined, object: GraphicObjectBase) {
@@ -222,17 +261,20 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		return undefined
 	}
 
-	const targetLayer =
-		useHeadlineIluFallback(object) || shouldPlayHeadlineIluOnMediaLayer(object)
-			? CasparCGLayers.CasparCGIluPlayer
-			: CasparCGLayers.CasparCGGraphicsLowerThird
-
-	return [createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [targetLayer])]
+	return [
+		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [CasparCGLayers.CasparCGIluPlayer]),
+	]
 }
 
 function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttributes {
-	return getTemplateAttributes(object.clipName, object.attributes, {
-		omitIluFile: shouldPlayHeadlineIluOnMediaLayer(object),
+	const hasIlu = hasHeadlineIluFile(object)
+	const clipName = useHeadlineIluPrerendered(object)
+		? 'gfx/headline'
+		: hasIlu
+			? 'gfx/headline-fallback'
+			: object.clipName
+	return getTemplateAttributes(clipName, object.attributes, {
+		omitIluFile: hasIlu,
 	})
 }
 
