@@ -7,8 +7,8 @@ import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 
 /**
- * Intro part: overlay video on Caspar EffectsPlayer (layer 200) so it plays on top of
- * headlines / camera / L3Ds. Optional `bg-loop` piece stays on ClipPlayer1 (layer 110).
+ * Intro part: overlay video on PGM IntroOverlay (layer 210) — above wipe / compose.
+ * Never on LED (LED = headlines + loop only). Optional `bg-loop` stays on ClipPlayer1 (110).
  */
 export function generateIntroPart(context: PartContext, part: PartProps<IntroProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio

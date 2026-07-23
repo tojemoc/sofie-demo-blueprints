@@ -115,7 +115,7 @@ function layeredVideoSourceLayer(playLayer: VideoPlayLayer): SourceLayer {
 }
 
 function layeredVideoCasparLayer(playLayer: VideoPlayLayer): CasparCGLayers {
-	if (playLayer === 'effects') return CasparCGLayers.CasparCGEffectsPlayer
+	if (playLayer === 'effects') return CasparCGLayers.CasparCGPgmIntroPlayer
 	if (playLayer === 'wipe') return CasparCGLayers.CasparCGPgmEffectsPlayer
 	return CasparCGLayers.CasparCGClipPlayer1
 }
@@ -128,7 +128,7 @@ function layeredVideoLifespan(playLayer: VideoPlayLayer): PieceLifespan {
 }
 
 /**
- * Timeline pieces for Intro overlay (EffectsPlayer / 200), BG loop (ClipPlayer1 / 110),
+ * Timeline pieces for Intro overlay (PgmIntroPlayer / 210), BG loop (ClipPlayer1 / 110),
  * and PGM wipe (PgmEffectsPlayer / 200).
  * These are NOT adlibs — they play on take so operators have absolute control.
  */

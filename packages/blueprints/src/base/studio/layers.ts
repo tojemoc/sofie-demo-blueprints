@@ -22,6 +22,8 @@ export enum CasparCGLayers {
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
 	/** PGM story-block alpha wipe (channel 2 layer 200). */
 	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',
+	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED. */
+	CasparCGPgmIntroPlayer = 'casparcg_intro_player_pgm',
 	/** PGM CAM / UVC (OBS Virtual Camera) framed into the DoubleBox right window. */
 	CasparCGPgmCamera = 'casparcg_pgm_camera',
 

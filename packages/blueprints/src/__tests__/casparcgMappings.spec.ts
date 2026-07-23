@@ -122,6 +122,11 @@ describe('casparcgMappings', () => {
 			channel: 2,
 			layer: PgmChannelLayers.EffectsPlayer,
 		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmIntroPlayer)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.IntroOverlay,
+		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCamera)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 2,

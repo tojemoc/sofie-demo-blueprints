@@ -86,6 +86,16 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 				layer: PgmChannelLayers.EffectsPlayer,
 			},
 		}),
+		[CasparCGLayers.CasparCGPgmIntroPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+			device: TSR.DeviceType.CASPARCG,
+			deviceId: 'casparcg0',
+			lookahead: LookaheadMode.NONE,
+			options: {
+				mappingType: TSR.MappingCasparCGType.Layer,
+				channel: pgmChannel,
+				layer: PgmChannelLayers.IntroOverlay,
+			},
+		}),
 		[CasparCGLayers.CasparCGPgmCamera]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
 			device: TSR.DeviceType.CASPARCG,
 			deviceId: 'casparcg0',
