@@ -26,6 +26,7 @@ FILES=(
 
 # Newest-first immutable sofie commits that contain assets/.
 REFS=(
+	7c67e3a83f4856c827a5a22b742d8d7d03d04a89 # ILU prerendered/bypass toggle + smoke
 	cde9c49ec257fb8b354e28c65c49fce518bb26d9 # sofie#17 smoke Intro znelka / no headline wipes
 	cdc2d3b66407e920159a1f5772c616d0056ca990 # main @ DoubleBox wipes + assets
 	f6543791f8eebe55be53b9563ee2463c4787179a # #12 initial megarepo assets home

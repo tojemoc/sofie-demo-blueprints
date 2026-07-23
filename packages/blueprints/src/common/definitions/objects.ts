@@ -77,6 +77,15 @@ export type GraphicObjectAttributes = {
 	source?: string
 	sourceEnabled?: boolean | string
 	iluFile?: string
+	/**
+	 * ILU prerendered/bypass:
+	 * - true → Caspar PLAY of alpha .mov FILL 0 0 1 1 (fullscreen), no HTML headline chrome
+	 * - false/absent → Caspar PLAY of 16:9 mp4 cropped into the ILU slot + HTML frame overlay
+	 *
+	 * Legacy alias: `iluFallback` (treated as prerendered ON when truthy).
+	 */
+	iluPrerendered?: boolean | string
+	/** @deprecated Use `iluPrerendered` — kept for older rundown payloads. */
 	iluFallback?: boolean | string
 	url?: string
 	pieceName?: string
