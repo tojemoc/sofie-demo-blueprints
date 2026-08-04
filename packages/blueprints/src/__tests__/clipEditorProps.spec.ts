@@ -19,12 +19,12 @@ describe('parseClipEditorProps', () => {
 		const props = parseClipEditorProps(
 			makeVideo({
 				duration: 12000,
-				attributes: { fileName: 'spravy/demo/clips/vo.mp4', sourceDuration: 11000 },
+				attributes: { fileName: 'clips/vo.mp4', sourceDuration: 11000 },
 			})
 		)
 
 		expect(props).toEqual({
-			fileName: 'spravy/demo/clips/vo.mp4',
+			fileName: 'clips/vo.mp4',
 			duration: 12000,
 			sourceDuration: 11000,
 		})
@@ -33,12 +33,12 @@ describe('parseClipEditorProps', () => {
 	it('falls back to clipName when fileName is empty', () => {
 		const props = parseClipEditorProps(
 			makeVideo({
-				clipName: 'spravy/demo/clips/fallback.mp4',
+				clipName: 'clips/fallback.mp4',
 				attributes: { fileName: '' },
 			})
 		)
 
-		expect(props?.fileName).toBe('spravy/demo/clips/fallback.mp4')
+		expect(props?.fileName).toBe('clips/fallback.mp4')
 	})
 
 	it('returns undefined when no path is set (avoids Softie stripExtension crash)', () => {

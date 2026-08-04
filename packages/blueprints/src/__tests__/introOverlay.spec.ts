@@ -73,7 +73,7 @@ describe('intro overlay + bg-loop layered videos', () => {
 						objectTime: 0,
 						duration: 0,
 						clipName: '',
-						attributes: { fileName: 'spravy/spravy-v3-smoke/clips/introMichal.mov' },
+						attributes: { fileName: 'clips/introMichal.mov' },
 					},
 				],
 			},

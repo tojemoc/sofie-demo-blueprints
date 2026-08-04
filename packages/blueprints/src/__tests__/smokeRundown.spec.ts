@@ -170,7 +170,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const firstHeadline = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/headline')
 		expect(firstHeadline?.attributes).toMatchObject({
 			text: 'Headline horný riadok',
-			iluFile: 'spravy/spravy-v3-smoke/clips/headline1.mp4',
+			iluFile: 'clips/headline1.mp4',
 		})
 	})
 

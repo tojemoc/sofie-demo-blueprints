@@ -19,21 +19,38 @@ export const CASPARCG_PACKAGE_CONTAINER_ID = 'casparcg0'
 export const HTTP_PROXY_PACKAGE_CONTAINER_ID = 'httpProxy0'
 
 /**
- * SPRÁVY per-rundown media path convention on CasparCG:
- *   spravy/<rundownExternalId>/clips/<file>.mp4
+ * Demo media path convention on CasparCG / ingest root (two levels only):
+ *   clips/<file>.mp4
+ *   loops/<file>
+ *   wipes/<file>
+ *   assets/<file>
  *
  * VT `fileName` and gfx/headline `iluFile` should use this layout so Package Manager
  * can stage files under the ingest folder and copy them into the CasparCG media tree.
  */
+export const DEMO_MEDIA_PATH_PATTERN = /^(clips|loops|wipes|assets)\/[^/]+/
+
+/** @deprecated Use DEMO_MEDIA_PATH_PATTERN — kept for older ingest payloads. */
 export const SPRAVY_CLIPS_PATH_PATTERN = /^spravy\/[^/]+\/clips\/.+/
 
-export function isSpravyClipPath(filePath: string): boolean {
-	return SPRAVY_CLIPS_PATH_PATTERN.test(filePath)
+export function isDemoMediaPath(filePath: string): boolean {
+	return DEMO_MEDIA_PATH_PATTERN.test(filePath)
 }
 
-export function getSpravyClipPath(rundownExternalId: string, fileName: string): string {
+/** @deprecated Prefer isDemoMediaPath. */
+export function isSpravyClipPath(filePath: string): boolean {
+	return isDemoMediaPath(filePath) || SPRAVY_CLIPS_PATH_PATTERN.test(filePath)
+}
+
+/** Build a flat `clips/<basename>` path (rundown id is unused — shared media tree). */
+export function getDemoClipPath(_rundownExternalId: string | undefined, fileName: string): string {
 	const basename = fileName.replace(/^.*[/\\]/, '')
-	return `spravy/${rundownExternalId}/clips/${basename}`
+	return `clips/${basename}`
+}
+
+/** @deprecated Prefer getDemoClipPath. */
+export function getSpravyClipPath(rundownExternalId: string, fileName: string): string {
+	return getDemoClipPath(rundownExternalId, fileName)
 }
 
 /** Strip container extension for Caspar PLAY / MEDIA timeline (CLS paths omit extension). */
