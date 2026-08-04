@@ -23,13 +23,17 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
+	// ILU parts are timed for Take (expectedDuration) but must not AUTO — operators
+	// click Take to the next part/segment. Other GFX (e.g. téma) keep autoNext.
+	const isIlu = /ilu/i.test(part.rawType ?? '')
+
 	return {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
 			expectedDuration: part.payload.duration,
-			autoNext: true,
+			autoNext: !isIlu,
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],

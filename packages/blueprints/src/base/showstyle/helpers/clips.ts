@@ -25,6 +25,9 @@ export interface ClipProps {
 
 export const DEFAULT_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
 
+/** Fallback wipe length when RE leaves duration empty/0 (transition, not whole-part cover). */
+export const DEFAULT_WIPE_DURATION_MS = 2500
+
 function resolveVideoFileName(object: VideoObject): string | undefined {
 	const fromAttributes = object.attributes?.fileName
 	if (typeof fromAttributes === 'string' && fromAttributes.trim()) {
@@ -167,11 +170,15 @@ export function parseLayeredVideosFromObjects(
 					? `Wipe${transitionLabel ? ` · ${transitionLabel}` : ''} | ${fileName}`
 					: `BG loop | ${fileName}`
 
+		// Wipes are short PGM transitions: never leave an open-ended piece covering layer 200.
+		const enableDuration =
+			object.duration > 0 ? object.duration : playLayer === 'wipe' ? DEFAULT_WIPE_DURATION_MS : undefined
+
 		return [
 			literal<IBlueprintPiece>({
 				enable: {
 					start: object.objectTime ?? 0,
-					duration: object.duration > 0 ? object.duration : undefined,
+					duration: enableDuration,
 				},
 				externalId: object.id,
 				name: displayName,

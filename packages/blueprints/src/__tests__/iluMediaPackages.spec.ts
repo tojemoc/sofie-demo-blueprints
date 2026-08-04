@@ -15,6 +15,7 @@ import {
 	getMediaPackagesConfig,
 	getSpravyClipPath,
 	INGEST_PACKAGE_CONTAINER_ID,
+	isDemoMediaPath,
 	isSpravyClipPath,
 	toCasparPlayPath,
 } from '../base/showstyle/helpers/mediaPackages.js'
@@ -54,19 +55,25 @@ const hybridCasparConfig: StudioConfig = {
 	},
 }
 
-describe('spravy media paths', () => {
-	it('builds per-rundown clip paths', () => {
-		expect(getSpravyClipPath('my-rundown', 'foo.mp4')).toBe('spravy/my-rundown/clips/foo.mp4')
-		expect(getSpravyClipPath('my-rundown', 'nested/foo.mp4')).toBe('spravy/my-rundown/clips/foo.mp4')
+describe('demo media paths', () => {
+	it('builds flat clips/ paths (rundown id ignored)', () => {
+		expect(getSpravyClipPath('my-rundown', 'foo.mp4')).toBe('clips/foo.mp4')
+		expect(getSpravyClipPath('my-rundown', 'nested/foo.mp4')).toBe('clips/foo.mp4')
 	})
 
-	it('recognises spravy clip paths', () => {
-		expect(isSpravyClipPath('spravy/rundown-1/clips/foo.mp4')).toBe(true)
-		expect(isSpravyClipPath('assets/foo.mp4')).toBe(false)
+	it('recognises flat demo media paths', () => {
+		expect(isDemoMediaPath('clips/foo.mp4')).toBe(true)
+		expect(isDemoMediaPath('loops/360_loop.mp4')).toBe(true)
+		expect(isDemoMediaPath('wipes/360_wipe.mov')).toBe(true)
+		expect(isDemoMediaPath('assets/foo.mp4')).toBe(true)
+		expect(isDemoMediaPath('clips/foo/extra.mp4')).toBe(false)
+		expect(isDemoMediaPath('nested/too/deep.mp4')).toBe(false)
+		expect(isSpravyClipPath('clips/foo.mp4')).toBe(true)
+		expect(isSpravyClipPath('spravy/rundown-1/clips/foo.mp4')).toBe(true) // legacy
 	})
 
 	it('strips extensions for Caspar PLAY paths', () => {
-		expect(toCasparPlayPath('spravy/rundown-1/clips/foo.mp4')).toBe('spravy/rundown-1/clips/foo')
+		expect(toCasparPlayPath('clips/foo.mp4')).toBe('clips/foo')
 	})
 })
 
@@ -81,7 +88,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 	}
 
 	it('emits a MEDIA_FILE expected package when iluFile is set', () => {
-		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
+		const iluFile = 'clips/foo.mp4'
 
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
@@ -158,7 +165,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 				duration: 5000,
 				isAdlib: false,
 				attributes: {
-					iluFile: 'spravy/rundown-1/clips/foo.mp4',
+					iluFile: 'clips/foo.mp4',
 				},
 			},
 		])
@@ -167,7 +174,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 	})
 
 	it('crops full-frame ILU mp4 into the slot FILL when prerendered/bypass is OFF', () => {
-		const iluFile = 'spravy/rundown-1/clips/foo.mp4'
+		const iluFile = 'clips/foo.mp4'
 
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
@@ -194,7 +201,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
 		expect(media?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'spravy/rundown-1/clips/foo',
+			file: 'clips/foo',
 			mixer: {
 				fill: { x: 0.08, y: 0.15, xScale: 0.62, yScale: 0.73 },
 				crop: {
@@ -227,7 +234,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 	})
 
 	it('plays prerendered alpha ILU fullscreen (FILL 0 0 1 1) and skips HTML chrome', () => {
-		const iluFile = 'spravy/rundown-1/clips/foo.mov'
+		const iluFile = 'clips/foo.mov'
 
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
@@ -260,7 +267,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
 		expect(media?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'spravy/rundown-1/clips/foo',
+			file: 'clips/foo',
 			mixer: {
 				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 			},
@@ -269,7 +276,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 	})
 
 	it('treats legacy iluFallback as prerendered/bypass ON', () => {
-		const iluFile = 'spravy/rundown-1/clips/foo.mov'
+		const iluFile = 'clips/foo.mov'
 
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
@@ -434,9 +441,9 @@ describe('spravy-v3-smoke expectedPackages', () => {
 
 		// Headlines carry ILU media only (no wipe pieces on HEADLINE parts in smoke).
 		expect(mediaPaths.filter((path) => path.includes('/headline'))).toEqual([
-			'spravy/spravy-v3-smoke/clips/headline1.mp4',
-			'spravy/spravy-v3-smoke/clips/headline2.mp4',
-			'spravy/spravy-v3-smoke/clips/headline3.mp4',
+			'clips/headline1.mp4',
+			'clips/headline2.mp4',
+			'clips/headline3.mp4',
 		])
 		expect(mediaPaths.filter((path) => path.includes('wipes/'))).toEqual([])
 	})

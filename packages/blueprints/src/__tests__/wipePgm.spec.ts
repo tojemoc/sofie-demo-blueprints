@@ -37,6 +37,7 @@ describe('wipe piece type → PGM effects player', () => {
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 
 		expect(wipePiece?.lifespan).toBe(PieceLifespan.WithinPart)
+		expect(wipePiece?.enable.duration).toBe(2500)
 		expect(wipePiece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect((wipePiece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe(
 			'wipes/360_wipe'
