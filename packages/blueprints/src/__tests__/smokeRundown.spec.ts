@@ -78,7 +78,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 			expect(result.pieces.length).toBeGreaterThan(0)
 			expect(result.pieces.some((piece) => piece.content.timelineObjects?.length)).toBe(true)
-			// Non-ILU GFX (e.g. Mod / téma) keep Softie AUTO.
+			// Non-ILU GFX (e.g. Mod / téma) keep Sofie AUTO.
 			expect(result.part.autoNext).toBe(true)
 
 			const externalIds = result.pieces.map((piece) => piece.externalId)
@@ -122,7 +122,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(result.part.autoNext).toBe(false)
 	})
 
-	it('HEADLINE ILU+cam parts are timed without Softie AUTO', () => {
+	it('HEADLINE ILU+cam parts are timed without Sofie AUTO', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 		const segmentContext = mockSegmentContext()
 		const headline = segment.parts.find((part) => part.payload.name === 'HEADLINE1')
