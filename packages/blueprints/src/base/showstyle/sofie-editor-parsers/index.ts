@@ -194,13 +194,15 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					}
 
 					// Headline ILU + L3DH inherit part duration when the piece has none
+					const partDurationSec = partPayload.duration
 					if (
 						(graphicPieceType === 'headline' || graphicPieceType === 'l3d-headline') &&
 						!(piece.duration > 0) &&
-						Number.isFinite(partPayload.duration) &&
-						partPayload.duration > 0
+						partDurationSec !== undefined &&
+						Number.isFinite(partDurationSec) &&
+						partDurationSec > 0
 					) {
-						piece.duration = partPayload.duration * 1000
+						piece.duration = partDurationSec * 1000
 					}
 				}
 			})
