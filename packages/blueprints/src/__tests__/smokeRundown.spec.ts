@@ -1,6 +1,7 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { GfxProps, PartProps, PartType, SegmentType } from '../base/showstyle/definitions/index.js'
+import { CameraProps, GfxProps, PartProps, PartType, SegmentType } from '../base/showstyle/definitions/index.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -77,10 +78,66 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 			expect(result.pieces.length).toBeGreaterThan(0)
 			expect(result.pieces.some((piece) => piece.content.timelineObjects?.length)).toBe(true)
+			// Non-ILU GFX (e.g. Mod / téma) keep Softie AUTO.
+			expect(result.part.autoNext).toBe(true)
 
 			const externalIds = result.pieces.map((piece) => piece.externalId)
 			expect(new Set(externalIds).size).toBe(externalIds.length)
 		}
+	})
+
+	it('does not AUTO ILU parts even when adapted as GFX (no camera)', () => {
+		const segmentContext = mockSegmentContext()
+		const partContext = new PartContext(segmentContext, 'ilu-no-cam')
+		const result = generateGfxPart(partContext, {
+			type: PartType.GFX,
+			rawType: 'ILU',
+			rawTitle: 'ILU no cam',
+			objects: [
+				{
+					id: 'g1',
+					objectType: ObjectType.Graphic,
+					objectTime: 0,
+					duration: 8000,
+					clipName: 'gfx/l3d-headline',
+					attributes: { headline: 'A', subline: 'B' },
+				},
+			],
+			payload: {
+				externalId: 'ilu-no-cam',
+				name: 'ILU no cam',
+				duration: 8000,
+				graphic: {
+					id: 'g1',
+					objectType: ObjectType.Graphic,
+					objectTime: 0,
+					duration: 8000,
+					clipName: 'gfx/l3d-headline',
+					attributes: { headline: 'A', subline: 'B' },
+				},
+			},
+		} as PartProps<GfxProps>)
+
+		expect(result.part.expectedDuration).toBe(8000)
+		expect(result.part.autoNext).toBe(false)
+	})
+
+	it('HEADLINE ILU+cam parts are timed without Softie AUTO', () => {
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
+		const segmentContext = mockSegmentContext()
+		const headline = segment.parts.find((part) => part.payload.name === 'HEADLINE1')
+		expect(headline?.type).toBe(PartType.Camera)
+
+		const partContext = new PartContext(segmentContext, headline!.payload.externalId)
+		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>)
+
+		expect(result.part.expectedDuration).toBe(8000)
+		expect(result.part.autoNext).toBeFalsy()
+
+		const ilu = headline?.objects.find((obj) => obj.clipName === 'gfx/headline')
+		const l3d = headline?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
+		expect(ilu?.duration).toBe(8000)
+		expect(l3d?.duration).toBe(8000)
 	})
 
 	it('maps headline L3D fields to title/subtitle for Caspar templates', () => {
