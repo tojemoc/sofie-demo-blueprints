@@ -197,7 +197,8 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					if (
 						(graphicPieceType === 'headline' || graphicPieceType === 'l3d-headline') &&
 						!(piece.duration > 0) &&
-						partPayload.duration
+						Number.isFinite(partPayload.duration) &&
+						partPayload.duration > 0
 					) {
 						piece.duration = partPayload.duration * 1000
 					}
