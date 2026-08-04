@@ -33,6 +33,21 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
+			// Same loop on PGM (ch2/110) so DoubleBox has full-bleed bg behind ILU + CAM FILLs.
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: { while: 1 },
+				priority: 0,
+				layer: CasparCGLayers.CasparCGClipPlayer2,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+
+					file: LED_BACKGROUND_LOOP_FILE,
+					loop: true,
+				},
+			}),
+
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
 				id: '',
 				enable: { while: 1 },

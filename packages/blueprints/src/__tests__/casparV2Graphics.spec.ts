@@ -49,7 +49,7 @@ function mockRundownContext() {
 }
 
 describe('casparV2Graphics', () => {
-	it('routes gfx/l3d-tema to lower-third Caspar layer with headline data', () => {
+	it('routes gfx/l3d-tema to PGM lower-third with headline data', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
 				id: 'tema1',
@@ -75,7 +75,7 @@ describe('casparV2Graphics', () => {
 				obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 
-		expect(caspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsLowerThird)
+		expect(caspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect(caspar?.content.name).toBe('gfx/l3d-tema')
 		expect(caspar?.content.data).toEqual({ headline: 'R. Fico o M. Ficovi' })
 		expect(piece?.content).toMatchObject({
@@ -146,17 +146,20 @@ describe('casparV2Graphics', () => {
 		expect((logo?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('loops LED background clip on Caspar clip player in rundown baseline', () => {
+	it('loops background clip on LED and PGM clip players in rundown baseline', () => {
 		const baseline = getBaseline(mockRundownContext())
-		const loop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
+		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
+		const pgmLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
 
-		expect(loop?.enable).toEqual({ while: 1 })
-		expect(loop?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'loops/360_loop',
-			loop: true,
-		})
+		for (const loop of [ledLoop, pgmLoop]) {
+			expect(loop?.enable).toEqual({ while: 1 })
+			expect(loop?.content).toMatchObject({
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: 'loops/360_loop',
+				loop: true,
+			})
+		}
 	})
 
 	it('excludes internal pieceName from Caspar data and templateData', () => {
