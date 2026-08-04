@@ -28,7 +28,7 @@ export const HTTP_PROXY_PACKAGE_CONTAINER_ID = 'httpProxy0'
  * VT `fileName` and gfx/headline `iluFile` should use this layout so Package Manager
  * can stage files under the ingest folder and copy them into the CasparCG media tree.
  */
-export const DEMO_MEDIA_PATH_PATTERN = /^(clips|loops|wipes|assets)\/[^/]+/
+export const DEMO_MEDIA_PATH_PATTERN = /^(clips|loops|wipes|assets)\/[^/]+$/
 
 /** @deprecated Use DEMO_MEDIA_PATH_PATTERN — kept for older ingest payloads. */
 export const SPRAVY_CLIPS_PATH_PATTERN = /^spravy\/[^/]+\/clips\/.+/

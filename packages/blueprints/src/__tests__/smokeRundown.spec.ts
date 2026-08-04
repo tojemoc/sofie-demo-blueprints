@@ -127,15 +127,17 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const segmentContext = mockSegmentContext()
 		const headline = segment.parts.find((part) => part.payload.name === 'HEADLINE1')
 		expect(headline?.type).toBe(PartType.Camera)
+		expect(headline).toBeDefined()
+		if (!headline) return
 
-		const partContext = new PartContext(segmentContext, headline!.payload.externalId)
+		const partContext = new PartContext(segmentContext, headline.payload.externalId)
 		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>)
 
 		expect(result.part.expectedDuration).toBe(8000)
 		expect(result.part.autoNext).toBeFalsy()
 
-		const ilu = headline?.objects.find((obj) => obj.clipName === 'gfx/headline')
-		const l3d = headline?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
+		const ilu = headline.objects.find((obj) => obj.clipName === 'gfx/headline')
+		const l3d = headline.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 		expect(ilu?.duration).toBe(8000)
 		expect(l3d?.duration).toBe(8000)
 	})
@@ -172,6 +174,35 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 			text: 'Headline horný riadok',
 			iluFile: 'clips/headline1.mp4',
 		})
+	})
+
+	it('normalizes legacy iluFile paths and inherits part duration for headline graphics', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
+		const partPayload = ingest.parts.find((part) => part.externalId === 'part-hl-1')?.payload as {
+			duration: number
+			pieces: Array<{ objectType: string; duration?: number; attributes: Record<string, unknown> }>
+		}
+		expect(partPayload).toBeDefined()
+		if (!partPayload) return
+
+		for (const piece of partPayload.pieces) {
+			if (piece.objectType === 'headline') {
+				piece.duration = 0
+				piece.attributes.iluFile = 'spravy/spravy-v3-smoke/clips/headline1.mp4'
+			}
+			if (piece.objectType === 'l3d-headline') {
+				piece.duration = 0
+			}
+		}
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const headline = segment.parts.find((part) => part.payload.externalId === 'part-hl-1')
+		const ilu = headline?.objects.find((obj) => obj.clipName === 'gfx/headline')
+		const l3d = headline?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
+
+		expect((ilu?.attributes as { iluFile?: string } | undefined)?.iluFile).toBe('clips/headline1.mp4')
+		expect(ilu?.duration).toBe(8000)
+		expect(l3d?.duration).toBe(8000)
 	})
 
 	it('parses tema-1 story as GFX opener + ILU cameras + SYN VOs', () => {

@@ -15,6 +15,7 @@ import {
 	getMediaPackagesConfig,
 	getSpravyClipPath,
 	INGEST_PACKAGE_CONTAINER_ID,
+	isDemoMediaPath,
 	isSpravyClipPath,
 	toCasparPlayPath,
 } from '../base/showstyle/helpers/mediaPackages.js'
@@ -61,11 +62,13 @@ describe('demo media paths', () => {
 	})
 
 	it('recognises flat demo media paths', () => {
+		expect(isDemoMediaPath('clips/foo.mp4')).toBe(true)
+		expect(isDemoMediaPath('loops/360_loop.mp4')).toBe(true)
+		expect(isDemoMediaPath('wipes/360_wipe.mov')).toBe(true)
+		expect(isDemoMediaPath('assets/foo.mp4')).toBe(true)
+		expect(isDemoMediaPath('clips/foo/extra.mp4')).toBe(false)
+		expect(isDemoMediaPath('nested/too/deep.mp4')).toBe(false)
 		expect(isSpravyClipPath('clips/foo.mp4')).toBe(true)
-		expect(isSpravyClipPath('loops/360_loop.mp4')).toBe(true)
-		expect(isSpravyClipPath('wipes/360_wipe.mov')).toBe(true)
-		expect(isSpravyClipPath('assets/foo.mp4')).toBe(true)
-		expect(isSpravyClipPath('nested/too/deep.mp4')).toBe(false)
 		expect(isSpravyClipPath('spravy/rundown-1/clips/foo.mp4')).toBe(true) // legacy
 	})
 

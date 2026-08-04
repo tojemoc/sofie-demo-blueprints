@@ -172,11 +172,7 @@ export function parseLayeredVideosFromObjects(
 
 		// Wipes are short PGM transitions: never leave an open-ended piece covering layer 200.
 		const enableDuration =
-			object.duration > 0
-				? object.duration
-				: playLayer === 'wipe'
-					? DEFAULT_WIPE_DURATION_MS
-					: undefined
+			object.duration > 0 ? object.duration : playLayer === 'wipe' ? DEFAULT_WIPE_DURATION_MS : undefined
 
 		return [
 			literal<IBlueprintPiece>({

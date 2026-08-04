@@ -12,6 +12,7 @@ import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
 import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
 import { DEFAULT_BG_LOOP_FILE } from '../helpers/clips.js'
+import { getDemoClipPath } from '../helpers/mediaPackages.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
@@ -184,6 +185,21 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					// Pass piece name to template as an attribute if it exists
 					if (piece.name) {
 						piece.attributes.pieceName = piece.name
+					}
+
+					// Legacy spravy/<rundownId>/clips/… → flat clips/<file>
+					const iluFile = piece.attributes.iluFile
+					if (typeof iluFile === 'string' && iluFile.trim()) {
+						piece.attributes.iluFile = getDemoClipPath(undefined, iluFile)
+					}
+
+					// Headline ILU + L3DH inherit part duration when the piece has none
+					if (
+						(graphicPieceType === 'headline' || graphicPieceType === 'l3d-headline') &&
+						!(piece.duration > 0) &&
+						partPayload.duration
+					) {
+						piece.duration = partPayload.duration * 1000
 					}
 				}
 			})
