@@ -108,12 +108,46 @@ describe('casparV2Graphics', () => {
 			},
 		]).pieces[0]
 
+		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'syn1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/l3d-syn',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { name: 'Guest', role: 'Expert' },
+			},
+		]).pieces[0]
+
 		const modCaspar = mod?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
 		const headCaspar = headline?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		const synCaspar = syn?.content.timelineObjects?.[0]
 
 		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
 		expect(headCaspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
 		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		expect(synCaspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		expect((synCaspar?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
+			name: 'Guest',
+			role: 'Expert',
+		})
+	})
+
+	it('routes mixed-case gfx/l3d-syn to PGM lower-third', () => {
+		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'syn-mixed',
+				objectType: ObjectType.Graphic,
+				clipName: 'GFX/L3D-Syn',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { name: 'Guest', role: 'Expert' },
+			},
+		]).pieces[0]
+
+		expect(syn?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 	})
 
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {
