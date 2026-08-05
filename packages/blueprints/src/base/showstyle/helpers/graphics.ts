@@ -194,8 +194,12 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 		return CasparCGLayers.CasparCGGraphicsStrap
 	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		return CasparCGLayers.CasparCGClipPlayer1
-	} else if (object.clipName === 'gfx/l3d-headline' || object.clipName === 'gfx/l3d-tema') {
-		// PGM DoubleBox chrome (channel 2) — tema bar + headline L3D; LED watches channel 1.
+	} else if (
+		object.clipName === 'gfx/l3d-headline' ||
+		object.clipName === 'gfx/l3d-tema' ||
+		object.clipName === 'gfx/l3d-syn'
+	) {
+		// PGM L3D chrome (channel 2). LED allow-list stays headlines + 360_loop only.
 		return CasparCGLayers.CasparCGGraphicsPgmLowerThird
 	} else {
 		return CasparCGLayers.CasparCGGraphicsLowerThird
