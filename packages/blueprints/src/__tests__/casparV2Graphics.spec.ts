@@ -134,6 +134,22 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
+	it('routes mixed-case gfx/l3d-syn to PGM lower-third', () => {
+		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'syn-mixed',
+				objectType: ObjectType.Graphic,
+				clipName: 'GFX/L3D-Syn',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { name: 'Guest', role: 'Expert' },
+			},
+		]).pieces[0]
+
+		expect(syn?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+	})
+
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
