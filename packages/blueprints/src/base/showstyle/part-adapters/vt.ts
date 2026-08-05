@@ -2,10 +2,9 @@ import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie
 import { PartContext } from '../../../common/context.js'
 import { literal, stripExtension } from '../../../common/util.js'
 import { AudioSourceType } from '../../studio/helpers/config.js'
-import { CasparCGLayers } from '../../studio/layers.js'
 import { PartProps, VTProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
-import { getClipPlayerInput, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { getClipPlayerInput, getEditorialClipCasparLayer, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -44,7 +43,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 					id: '',
 					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGClipPlayer1,
+					layer: getEditorialClipCasparLayer(config),
 					content: {
 						deviceType: TSR.DeviceType.CASPARCG,
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -60,7 +59,9 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 			sourceDuration: part.payload.clipProps.sourceDuration,
 		},
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [CasparCGLayers.CasparCGClipPlayer1]),
+			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [
+				getEditorialClipCasparLayer(config),
+			]),
 		],
 	}
 

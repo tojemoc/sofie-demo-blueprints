@@ -126,6 +126,7 @@ describe('casparV2Graphics', () => {
 
 		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
 		expect(headCaspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
+		expect(mod?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect(synCaspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect((synCaspar?.content as TSR.TimelineContentCCGTemplate).data).toEqual({

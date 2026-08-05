@@ -94,7 +94,7 @@ describe('wipe piece type → PGM effects player', () => {
 		const result = generateVTPart(partContext, vtPart as PartProps<VTProps>)
 		expect(result.pieces.some((piece) => piece.name.startsWith('Wipe'))).toBe(true)
 		expect(
-			result.pieces[0]?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
+			result.pieces[0]?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
 		).toBe(true)
 	})
 

@@ -89,6 +89,18 @@ export function getClipPlayerInput(config: StudioConfig): StudioConfig['atemSour
 	}
 }
 
+/**
+ * Editorial VT / VO / SYN / fullscreen graphics play on PGM ClipPlayer2 when
+ * hypercomposed (LED≠PGM). That keeps LED ClipPlayer1 free for the baseline
+ * `360_loop` so the wall loop is never displaced by a story clip.
+ */
+export function getEditorialClipCasparLayer(config: StudioConfig): CasparCGLayers {
+	if (config.casparcg.hypercomposed) {
+		return CasparCGLayers.CasparCGClipPlayer2
+	}
+	return CasparCGLayers.CasparCGClipPlayer1
+}
+
 function isTruthyAttribute(value: boolean | string | undefined): boolean {
 	return value === true || (typeof value === 'string' && value.toLowerCase() === 'true')
 }
@@ -239,7 +251,7 @@ export function clipToAdlib(
 		sourceLayerId: SourceLayer.VO,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VO),
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, props.fileName, [CasparCGLayers.CasparCGClipPlayer1], {
+			createMediaFileExpectedPackage(context, props.fileName, [getEditorialClipCasparLayer(config)], {
 				includeSideEffects: false,
 			}),
 		],
@@ -252,7 +264,7 @@ export function clipToAdlib(
 				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 					id: '',
 					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGClipPlayer1,
+					layer: getEditorialClipCasparLayer(config),
 					content: {
 						deviceType: TSR.DeviceType.CASPARCG,
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,

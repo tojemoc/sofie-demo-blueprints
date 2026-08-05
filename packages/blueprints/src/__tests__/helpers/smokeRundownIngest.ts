@@ -73,12 +73,19 @@ export const hybridCasparConfig: StudioConfig = {
 	casparcg: {
 		host: 'localhost',
 		port: 5250,
+		hypercomposed: {
+			ledChannel: 1,
+			pgmChannel: 2,
+			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
+		},
 	},
 	sisyfosSources: {},
 	vmixSources: {},
 	atemOutputs: {},
 	atemSources: {
 		camera1: { input: 1, type: SourceType.Camera },
+		camera2: { input: 2, type: SourceType.Camera },
+		camera3: { input: 3, type: SourceType.Camera },
 	},
 }
 
