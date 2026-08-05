@@ -1,9 +1,8 @@
 import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { literal, stripExtension } from '../../../common/util.js'
-import { CasparCGLayers } from '../../studio/layers.js'
 import { PartProps, VOProps } from '../definitions/index.js'
-import { getClipPlayerInput, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { getClipPlayerInput, getEditorialClipCasparLayer, parseLayeredVideosFromObjects } from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -35,7 +34,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 					id: '',
 					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGClipPlayer1,
+					layer: getEditorialClipCasparLayer(config),
 					content: {
 						deviceType: TSR.DeviceType.CASPARCG,
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -50,7 +49,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 		},
 
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [CasparCGLayers.CasparCGClipPlayer1]),
+			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [getEditorialClipCasparLayer(config)]),
 		],
 	}
 

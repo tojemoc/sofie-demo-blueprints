@@ -8,6 +8,7 @@ import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { resolveSegmentType } from '../common/definitions/rundownEditorTypes.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -135,6 +136,15 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		expect(result.part.expectedDuration).toBe(8000)
 		expect(result.part.autoNext).toBeFalsy()
+
+		const pgmCam = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
+		expect(pgmCam?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'dshow://video=OBS Virtual Camera',
+		})
 
 		const ilu = headline.objects.find((obj) => obj.clipName === 'gfx/headline')
 		const l3d = headline.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')

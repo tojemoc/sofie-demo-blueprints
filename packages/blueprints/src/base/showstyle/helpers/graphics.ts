@@ -193,9 +193,12 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	} else if (object.clipName.match(/strap/i)) {
 		return CasparCGLayers.CasparCGGraphicsStrap
 	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
-		return CasparCGLayers.CasparCGClipPlayer1
-	} else if (['gfx/l3d-headline', 'gfx/l3d-tema', 'gfx/l3d-syn'].includes(object.clipName.toLowerCase())) {
-		// PGM L3D chrome (channel 2). LED allow-list stays headlines + 360_loop only.
+		// Fullscreen story GFX on PGM clip player — never displace LED 360_loop.
+		return CasparCGLayers.CasparCGClipPlayer2
+	} else if (
+		['gfx/l3d-headline', 'gfx/l3d-tema', 'gfx/l3d-syn', 'gfx/l3d-mod'].includes(object.clipName.toLowerCase())
+	) {
+		// PGM L3D chrome (channel 2). LED allow-list: headlines ILU + 360_loop only.
 		return CasparCGLayers.CasparCGGraphicsPgmLowerThird
 	} else {
 		return CasparCGLayers.CasparCGGraphicsLowerThird
