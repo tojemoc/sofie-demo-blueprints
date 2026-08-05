@@ -49,9 +49,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 		},
 
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [
-				getEditorialClipCasparLayer(config),
-			]),
+			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [getEditorialClipCasparLayer(config)]),
 		],
 	}
 

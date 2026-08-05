@@ -59,9 +59,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 			sourceDuration: part.payload.clipProps.sourceDuration,
 		},
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [
-				getEditorialClipCasparLayer(config),
-			]),
+			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [getEditorialClipCasparLayer(config)]),
 		],
 	}
 
