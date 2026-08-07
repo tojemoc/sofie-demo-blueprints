@@ -26,6 +26,7 @@ FILES=(
 
 # Newest-first immutable sofie commits that contain assets/.
 REFS=(
+	4e50c3d7a8af669572b199983ecf8c2d0e86af45 # sofie#26 DoubleBox ILU + payload.type DoubleBox
 	df2411f1df014591da381c5d3bd8cc0b347b6ab0 # sofie#20 flat clips|loops|wipes smoke paths
 	7c67e3a83f4856c827a5a22b742d8d7d03d04a89 # ILU prerendered/bypass toggle + smoke
 	cde9c49ec257fb8b354e28c65c49fce518bb26d9 # sofie#17 smoke Intro znelka / no headline wipes

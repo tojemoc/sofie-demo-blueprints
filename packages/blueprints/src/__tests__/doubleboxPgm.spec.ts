@@ -80,13 +80,73 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 	})
 
 	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-tema + CAM crop on Take', () => {
-		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
-		const dbPart = segment.parts.find((part) => part.payload.externalId === 'part-ilu-1')
+		// CI may still pin an older megarepo smoke without doublebox-ilu — mutate ingest so this
+		// case is self-contained: DoubleBox part + camera + doublebox-ilu (iluFile) + l3d-tema.
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const part = ingest.parts.find((p) => p.externalId === 'part-ilu-1')
+		expect(part).toBeDefined()
+		if (!part) return
+
+		const payload = part.payload as {
+			type: string
+			pieces: Array<{
+				id: string
+				objectType: string
+				objectTime?: number
+				duration?: number
+				clipName?: string
+				attributes: Record<string, unknown>
+			}>
+		}
+		payload.type = 'DoubleBox'
+		payload.pieces = [
+			{
+				id: 'piece-part-ilu-1-ilu',
+				objectType: 'doublebox-ilu',
+				objectTime: 0,
+				duration: 8,
+				clipName: '',
+				attributes: { text: 'Tematický titulok', iluFile: 'clips/ILU bednar.mp4' },
+			},
+			{
+				id: 'piece-part-ilu-1-l3d',
+				objectType: 'l3d-tema',
+				objectTime: 0,
+				duration: 8,
+				clipName: '',
+				attributes: { headline: 'Tematický titulok' },
+			},
+			{
+				id: 'piece-part-ilu-1-cam',
+				objectType: 'camera',
+				objectTime: 0,
+				duration: 0,
+				clipName: '',
+				attributes: { camNo: 1 },
+			},
+			{
+				id: 'wipe-05-part-ilu-1',
+				objectType: 'wipe',
+				objectTime: 0,
+				duration: 0,
+				clipName: '',
+				attributes: { fileName: 'wipes/wipe', transition: 'Double Box' },
+			},
+		]
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-ilu-1')
 
 		expect(dbPart?.type).toBe(PartType.Camera)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/headline')).toBe(false)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-tema')).toBe(true)
+		expect(
+			dbPart?.objects.some(
+				(obj) =>
+					obj.clipName === 'gfx/doublebox-ilu' && typeof (obj.attributes as { iluFile?: string }).iluFile === 'string'
+			)
+		).toBe(true)
 
 		expect(dbPart).toBeDefined()
 		if (!dbPart) return
