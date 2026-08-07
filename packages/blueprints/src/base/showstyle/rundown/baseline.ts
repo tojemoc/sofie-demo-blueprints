@@ -9,7 +9,7 @@ import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/ge
 import { parseConfig } from '../helpers/config.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
-export const LED_BACKGROUND_LOOP_FILE = 'loops/360_loop'
+export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio

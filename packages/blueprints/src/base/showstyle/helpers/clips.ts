@@ -92,7 +92,7 @@ export function getClipPlayerInput(config: StudioConfig): StudioConfig['atemSour
 /**
  * Editorial VT / VO / SYN / fullscreen graphics play on PGM ClipPlayer2 when
  * hypercomposed (LED≠PGM). That keeps LED ClipPlayer1 free for the baseline
- * `360_loop` so the wall loop is never displaced by a story clip.
+ * `bg_loop` so the wall loop is never displaced by a story clip.
  */
 export function getEditorialClipCasparLayer(config: StudioConfig): CasparCGLayers {
 	if (config.casparcg.hypercomposed) {
