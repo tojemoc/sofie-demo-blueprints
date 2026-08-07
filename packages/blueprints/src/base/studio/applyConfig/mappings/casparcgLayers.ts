@@ -41,3 +41,59 @@ export const PGM_DOUBLEBOX_CAMERA_FILL = {
 	xScale: 0.34,
 	yScale: 0.72,
 } as const
+
+/** Starting FILL for DoubleBox story ILU window (left). Tune against HTML chrome. */
+export const PGM_DOUBLEBOX_ILU_FILL = {
+	x: 0.04,
+	y: 0.08,
+	xScale: 0.55,
+	yScale: 0.72,
+} as const
+
+export type MixerFillRect = {
+	x: number
+	y: number
+	xScale: number
+	yScale: number
+}
+
+export type MixerCropRect = {
+	left: number
+	top: number
+	right: number
+	bottom: number
+}
+
+/**
+ * Cover-crop a 16:9 source into a MIXER FILL rect on a 16:9 output (no squish).
+ * `from-left` removes from the left edge (keeps the right portion of the frame).
+ */
+export function coverCropForFill(
+	fill: Pick<MixerFillRect, 'xScale' | 'yScale'>,
+	align: 'center' | 'from-left' = 'center',
+	sourceAspect = 16 / 9,
+	outputAspect = 16 / 9
+): MixerCropRect {
+	const boxAspect = (fill.xScale / fill.yScale) * outputAspect
+
+	if (sourceAspect >= boxAspect) {
+		const visibleWidth = boxAspect / sourceAspect
+		const cropped = Math.max(0, 1 - visibleWidth)
+		if (align === 'from-left') {
+			return { left: cropped, top: 0, right: 0, bottom: 0 }
+		}
+		const side = cropped / 2
+		return { left: side, top: 0, right: side, bottom: 0 }
+	}
+
+	const visibleHeight = sourceAspect / boxAspect
+	const cropped = Math.max(0, 1 - visibleHeight)
+	const side = cropped / 2
+	return { left: 0, top: side, right: 0, bottom: side }
+}
+
+/** Keep CAM aspect ratio; cut into the frame from the left (keep right side). */
+export const PGM_DOUBLEBOX_CAMERA_CROP = coverCropForFill(PGM_DOUBLEBOX_CAMERA_FILL, 'from-left')
+
+/** Center cover-crop for DoubleBox left ILU window. */
+export const PGM_DOUBLEBOX_ILU_CROP = coverCropForFill(PGM_DOUBLEBOX_ILU_FILL, 'center')

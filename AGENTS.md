@@ -73,7 +73,8 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 - Piece type `wipe` (megarepo `assets/`) → Caspar **PGM** mapping `casparcg_effects_player_pgm` (ch2 layer 200), file `wipes/360_wipe`.
 - Piece type ids are matched case-insensitively (`wipe` / `WIPE`).
 - `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — not LED.
-- Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on `casparcg_pgm_camera` (ch2/116) with DoubleBox FILL.
+- Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on `casparcg_pgm_camera` (ch2/116) with DoubleBox FILL + left cover-crop (no squish).
+- Piece type `doublebox-ilu` → `casparcg_pgm_ilu_player` (ch2/115) with left-window FILL; do **not** use `headline` for thematic DoubleBox.
 - Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md`.
 
 ### Media folder layout (bg-loop / wipe / clips)

@@ -26,7 +26,7 @@ describe('wipe piece type → PGM effects player', () => {
 		const wipe = synPart?.objects.find(
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
-		expect(wipe?.clipName).toBe('wipes/360_wipe')
+		expect(wipe?.clipName).toBe('wipes/wipe')
 		expect((wipe?.attributes as { transition?: string }).transition).toBe('ILU TO SYN CLUSTER')
 
 		expect(synPart).toBeDefined()
@@ -39,9 +39,7 @@ describe('wipe piece type → PGM effects player', () => {
 		expect(wipePiece?.lifespan).toBe(PieceLifespan.WithinPart)
 		expect(wipePiece?.enable.duration).toBe(2500)
 		expect(wipePiece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
-		expect((wipePiece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe(
-			'wipes/360_wipe'
-		)
+		expect((wipePiece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
 		expect(result.pieces[0]?.name).not.toContain('wipe')
@@ -63,7 +61,7 @@ describe('wipe piece type → PGM effects player', () => {
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
 
-		expect(wipe?.clipName).toBe('wipes/360_wipe')
+		expect(wipe?.clipName).toBe('wipes/wipe')
 	})
 
 	it('does not steal the main VT clip when wipe is listed first', () => {

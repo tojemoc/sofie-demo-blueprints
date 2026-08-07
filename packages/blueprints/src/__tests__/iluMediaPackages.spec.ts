@@ -440,10 +440,10 @@ describe('spravy-v3-smoke expectedPackages', () => {
 			.filter((path): path is string => typeof path === 'string')
 
 		// Headlines carry ILU media only (no wipe pieces on HEADLINE parts in smoke).
-		expect(mediaPaths.filter((path) => path.includes('/headline'))).toEqual([
-			'clips/headline1.mp4',
-			'clips/headline2.mp4',
-			'clips/headline3.mp4',
+		expect(mediaPaths.filter((path) => /HEADLINE\d/i.test(path))).toEqual([
+			'clips/HEADLINE1.mov',
+			'clips/HEADLINE2.mov',
+			'clips/HEADLINE3.mov',
 		])
 		expect(mediaPaths.filter((path) => path.includes('wipes/'))).toEqual([])
 	})
@@ -461,10 +461,10 @@ describe('spravy-v3-smoke expectedPackages', () => {
 					piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
 			)
 		})
-		const synPaths = mediaPaths.filter((path): path is string => typeof path === 'string' && path.includes('/syn-'))
+		const synPaths = mediaPaths.filter((path): path is string => typeof path === 'string' && /\/SYN\b/i.test(path))
 
 		expect(synPaths.length).toBeGreaterThanOrEqual(2)
-		expect(synPaths.every((path) => path.includes('/syn-'))).toBe(true)
+		expect(synPaths.every((path) => /\/SYN\b/i.test(path))).toBe(true)
 		// Story-block wipes share the VO part and also emit expectedPackages.
 		expect(mediaPaths.some((path) => typeof path === 'string' && path.includes('wipes/'))).toBe(true)
 	})
