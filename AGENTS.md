@@ -83,11 +83,11 @@ Caspar PLAY paths are relative to the studio **CasparCG media folder** (default
 
 ```text
 <casparcgMediaFolder>/
-  loops/360_loop.mp4     ← bg-loop piece  → PLAY "loops/360_loop"
+  loops/bg_loop.mov      ← baseline + bg-loop piece → PLAY "loops/bg_loop"
   wipes/360_wipe.mov     ← wipe piece     → PLAY "wipes/360_wipe"
   clips/...              ← VT / ILU / SYN clips (Package Manager)
 ```
 
 Rundown Editor `mediaPick` `subdir` values (`loops`, `wipes`, `clips`) are picker
 hints under the ingest media root — the piece `fileName` payload should already
-include that prefix (e.g. `loops/360_loop`). Two levels only: `<subdir>/<file>`.
+include that prefix (e.g. `loops/bg_loop`). Two levels only: `<subdir>/<file>`.

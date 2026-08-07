@@ -191,7 +191,7 @@ describe('casparV2Graphics', () => {
 			expect(loop?.content).toMatchObject({
 				deviceType: TSR.DeviceType.CASPARCG,
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: 'loops/360_loop',
+				file: 'loops/bg_loop',
 				loop: true,
 			})
 		}

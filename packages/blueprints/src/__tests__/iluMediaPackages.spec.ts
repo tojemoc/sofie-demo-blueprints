@@ -63,7 +63,7 @@ describe('demo media paths', () => {
 
 	it('recognises flat demo media paths', () => {
 		expect(isDemoMediaPath('clips/foo.mp4')).toBe(true)
-		expect(isDemoMediaPath('loops/360_loop.mp4')).toBe(true)
+		expect(isDemoMediaPath('loops/bg_loop.mov')).toBe(true)
 		expect(isDemoMediaPath('wipes/360_wipe.mov')).toBe(true)
 		expect(isDemoMediaPath('assets/foo.mp4')).toBe(true)
 		expect(isDemoMediaPath('clips/foo/extra.mp4')).toBe(false)
