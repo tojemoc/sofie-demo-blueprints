@@ -9,13 +9,19 @@
 # Status messages go to stderr; the only stdout line is `export SOFIE_MEGAREPO_ASSETS=…`
 # so `eval "$(…)"` is safe.
 #
-# Trust model: refs are immutable commit SHAs (not branch names). Content integrity
-# is pinned by those SHAs via raw.githubusercontent.com/<sha>/… — no separate
-# checksum files. Bump REFS intentionally when megarepo assets change.
+# Trust model: a single immutable sofie commit SHA (not a branch, not a fallback
+# list). Fail closed if that revision cannot be fetched — never silently use an
+# older incompatible asset tree. Bump PINNED_SOFIE_ASSETS_REF when megarepo
+# assets change (keep in sync with sofie docs/integration/MEGAREPO-ASSETS-FETCH.md).
+#
+# Promotion: download into a complete generation directory, then atomically
+# point `current` at it. Consumers must use SOFIE_MEGAREPO_ASSETS → …/current so
+# they never observe a mixed old/new tree.
 set -euo pipefail
 
 DEST="${1:-${GITHUB_WORKSPACE:-.}/.sofie-assets}"
 mkdir -p "$DEST"
+DEST="$(cd "$DEST" && pwd)"
 BASE="https://raw.githubusercontent.com/tojemoc/sofie"
 FILES=(
 	spravy-v3-smoke-rundown.json
@@ -24,14 +30,8 @@ FILES=(
 	sofie-rundown-editor-segment-types.json
 )
 
-# Newest-first immutable sofie commits that contain assets/.
-REFS=(
-	df2411f1df014591da381c5d3bd8cc0b347b6ab0 # sofie#20 flat clips|loops|wipes smoke paths
-	7c67e3a83f4856c827a5a22b742d8d7d03d04a89 # ILU prerendered/bypass toggle + smoke
-	cde9c49ec257fb8b354e28c65c49fce518bb26d9 # sofie#17 smoke Intro znelka / no headline wipes
-	cdc2d3b66407e920159a1f5772c616d0056ca990 # main @ DoubleBox wipes + assets
-	f6543791f8eebe55be53b9563ee2463c4787179a # #12 initial megarepo assets home
-)
+# Single pin — fail closed (no older REFS fallback).
+PINNED_SOFIE_ASSETS_REF="4e50c3d7a8af669572b199983ecf8c2d0e86af45" # sofie#26 DoubleBox ILU
 
 CURL_OPTS=(
 	-fsSL
@@ -42,24 +42,49 @@ CURL_OPTS=(
 	--retry-connrefused
 )
 
-for ref in "${REFS[@]}"; do
-	ok=1
-	for f in "${FILES[@]}"; do
-		if ! curl "${CURL_OPTS[@]}" -o "$DEST/$f" "$BASE/$ref/assets/$f"; then
-			ok=0
-			break
-		fi
-	done
-	if [ "$ok" -eq 1 ]; then
-		if [ -n "${GITHUB_ENV:-}" ]; then
-			echo "SOFIE_MEGAREPO_ASSETS=$DEST" >>"$GITHUB_ENV"
-		fi
-		echo "Fetched sofie megarepo assets from $ref into $DEST" >&2
-		# stdout: eval-compatible for local shells (CI relies on GITHUB_ENV above)
-		printf 'export SOFIE_MEGAREPO_ASSETS=%q\n' "$DEST"
-		exit 0
+GENERATIONS="${DEST}/generations"
+mkdir -p "$GENERATIONS"
+GEN_DIR="${GENERATIONS}/${PINNED_SOFIE_ASSETS_REF}"
+CURRENT_LINK="${DEST}/current"
+
+# Stage a full generation; never publish file-by-file into the live pointer.
+STAGE="$(mktemp -d "${GENERATIONS}/.fetch-XXXXXX")"
+cleanup_partial() {
+	rm -rf "${STAGE}"
+}
+trap 'cleanup_partial' EXIT INT TERM
+
+for f in "${FILES[@]}"; do
+	if ! curl "${CURL_OPTS[@]}" -o "$STAGE/$f" "$BASE/${PINNED_SOFIE_ASSETS_REF}/assets/$f"; then
+		echo "Could not fetch sofie megarepo assets/ from pinned SHA ${PINNED_SOFIE_ASSETS_REF} ($f)" >&2
+		cleanup_partial
+		exit 1
 	fi
 done
 
-echo "Could not fetch sofie megarepo assets/ (tried pinned SHAs: ${REFS[*]})" >&2
-exit 1
+# Install the complete generation (replace same-SHA dir only after stage is full).
+rm -rf "$GEN_DIR"
+mv "$STAGE" "$GEN_DIR"
+# STAGE no longer exists; disable cleanup of the promoted tree.
+STAGE=""
+trap - EXIT INT TERM
+
+# Atomically switch the consumer pointer; keep prior generation until this succeeds.
+LINK_STAGE="${DEST}/.current-new-$$"
+ln -sfn "generations/${PINNED_SOFIE_ASSETS_REF}" "$LINK_STAGE"
+mv -Tf "$LINK_STAGE" "$CURRENT_LINK"
+
+# Drop other generation dirs now that current points at the new tree.
+for gen in "$GENERATIONS"/*; do
+	[ -d "$gen" ] || continue
+	[ "$(basename "$gen")" = "$PINNED_SOFIE_ASSETS_REF" ] && continue
+	rm -rf "$gen"
+done
+
+EXPORT_PATH="$CURRENT_LINK"
+if [ -n "${GITHUB_ENV:-}" ]; then
+	echo "SOFIE_MEGAREPO_ASSETS=$EXPORT_PATH" >>"$GITHUB_ENV"
+fi
+echo "Fetched sofie megarepo assets from ${PINNED_SOFIE_ASSETS_REF} into $EXPORT_PATH" >&2
+# stdout: eval-compatible for local shells (CI relies on GITHUB_ENV above)
+printf 'export SOFIE_MEGAREPO_ASSETS=%q\n' "$EXPORT_PATH"

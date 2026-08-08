@@ -21,6 +21,7 @@ import { getClipPlayerInput } from './clips.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
+import { PGM_DOUBLEBOX_ILU_CROP, PGM_DOUBLEBOX_ILU_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -33,6 +34,10 @@ function isFullscreenGraphic(clipName: string): boolean {
 
 function isTruthyAttribute(value: boolean | string | undefined): boolean {
 	return value === true || (typeof value === 'string' && value.toLowerCase() === 'true')
+}
+
+function isDoubleboxIlu(object: GraphicObjectBase): boolean {
+	return object.clipName === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
 }
 
 function getTemplateAttributes(
@@ -172,8 +177,45 @@ function getHeadlineIluMediaObject(
 	return [createHeadlineIluMediaTimelineObject(iluFile, mode, isAdlib)]
 }
 
+function createDoubleboxIluMediaTimelineObject(
+	iluFile: string,
+	isAdlib?: boolean
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: {
+			start: 0,
+		},
+		layer: CasparCGLayers.CasparCGPgmIluPlayer,
+		priority: 1 + (isAdlib ? 10 : 0),
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: toCasparPlayPath(iluFile),
+			mixer: {
+				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+			},
+		},
+	})
+}
+
+function getDoubleboxIluMediaObject(
+	object: GraphicObjectBase,
+	isAdlib?: boolean
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
+	if (!iluFile || !isDoubleboxIlu(object)) {
+		return []
+	}
+	return [createDoubleboxIluMediaTimelineObject(iluFile, isAdlib)]
+}
+
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
-	if (object.clipName.match(/logo-bug/i)) {
+	if (isDoubleboxIlu(object)) {
+		// Media-only piece (no HTML); keep off the exclusive pgm group used by Camera/VT.
+		return SourceLayer.LowerThird
+	} else if (object.clipName.match(/logo-bug/i)) {
 		return SourceLayer.Logo
 	} else if (object.clipName.match(/ticker/i)) {
 		return SourceLayer.Ticker
@@ -210,6 +252,11 @@ function getGraphicTlObject(
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
+	// DoubleBox story ILU: MEDIA only on PGM 115 — never headline-fallback chrome.
+	if (isDoubleboxIlu(object)) {
+		return getDoubleboxIluMediaObject(object, isAdlib)
+	}
+
 	const iluPrerendered = useHeadlineIluPrerendered(object)
 	const hasIlu = hasHeadlineIluFile(object)
 	// Never feed iluFile into HTML — ILU always plays via Caspar MEDIA (crop or fullscreen).
@@ -260,7 +307,19 @@ function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
 }
 
 function getIluExpectedPackages(context: ICommonContext | undefined, object: GraphicObjectBase) {
-	if (!context || !isHeadlineWithIlu(object)) {
+	if (!context) {
+		return undefined
+	}
+
+	if (isDoubleboxIlu(object)) {
+		return [
+			createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [
+				CasparCGLayers.CasparCGPgmIluPlayer,
+			]),
+		]
+	}
+
+	if (!isHeadlineWithIlu(object)) {
 		return undefined
 	}
 
@@ -270,6 +329,10 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 }
 
 function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttributes {
+	if (isDoubleboxIlu(object)) {
+		return getTemplateAttributes(object.clipName, object.attributes, { omitIluFile: true })
+	}
+
 	const hasIlu = hasHeadlineIluFile(object)
 	const clipName = useHeadlineIluPrerendered(object)
 		? 'gfx/headline'

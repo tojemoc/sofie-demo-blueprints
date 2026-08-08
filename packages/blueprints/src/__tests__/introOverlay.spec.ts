@@ -32,7 +32,7 @@ describe('intro overlay + bg-loop layered videos', () => {
 				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'background'
 		)
 
-		expect(overlay?.clipName).toContain('360s_ZNELKA')
+		expect(overlay?.clipName).toContain('assets/intro_michal')
 		// Smoke Intro relies on baseline LED loop — no explicit bg-loop piece.
 		expect(bgLoop).toBeUndefined()
 		expect(introPart).toBeDefined()

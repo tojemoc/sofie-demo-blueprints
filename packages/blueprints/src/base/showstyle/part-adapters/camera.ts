@@ -4,7 +4,10 @@ import { ObjectType, StudioGuestObject } from '../../../common/definitions/objec
 import { literal } from '../../../common/util.js'
 import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
-import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import {
+	PGM_DOUBLEBOX_CAMERA_CROP,
+	PGM_DOUBLEBOX_CAMERA_FILL,
+} from '../../studio/applyConfig/mappings/casparcgLayers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { CameraProps, PartProps } from '../definitions/index.js'
 import { getAudioObjectOnLayer, getAudioPrimaryObject } from '../helpers/audio.js'
@@ -31,6 +34,8 @@ function createPgmCameraTimelineObjects(config: StudioConfig): TimelineBlueprint
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				file: producer,
 				mixer: {
+					// Cover-crop first (cut from left), then FILL — never squish 16:9 into the tall CAM box.
+					crop: { ...PGM_DOUBLEBOX_CAMERA_CROP },
 					fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
 				},
 			},

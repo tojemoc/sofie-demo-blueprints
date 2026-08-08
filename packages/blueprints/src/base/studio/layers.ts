@@ -24,6 +24,8 @@ export enum CasparCGLayers {
 	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',
 	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED. */
 	CasparCGPgmIntroPlayer = 'casparcg_intro_player_pgm',
+	/** PGM DoubleBox story ILU (channel 2 layer 115) — left window; not headline chrome. */
+	CasparCGPgmIluPlayer = 'casparcg_pgm_ilu_player',
 	/** PGM CAM / UVC (OBS Virtual Camera) framed into the DoubleBox right window. */
 	CasparCGPgmCamera = 'casparcg_pgm_camera',
 

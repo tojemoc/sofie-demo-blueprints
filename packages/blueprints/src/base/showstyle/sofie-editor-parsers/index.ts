@@ -57,6 +57,9 @@ function hasGraphicPiece(part: EditorIngestPart): boolean {
 function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 	const partType = partPayload.type ?? ''
 
+	if (partType.match(/doublebox|double-box/i)) {
+		return hasCameraPiece(partPayload) ? parseCamera(partPayload) : parseGfx(partPayload)
+	}
 	if (partType.match(/ilu/i)) {
 		return hasCameraPiece(partPayload) ? parseCamera(partPayload) : parseGfx(partPayload)
 	}
@@ -193,10 +196,13 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 						piece.attributes.iluFile = getDemoClipPath(undefined, iluFile)
 					}
 
-					// Headline ILU + L3DH inherit part duration when the piece has none
+					// Headline / DoubleBox ILU + L3DH inherit part duration when the piece has none
 					const partDurationSec = partPayload.duration
 					if (
-						(graphicPieceType === 'headline' || graphicPieceType === 'l3d-headline') &&
+						(graphicPieceType === 'headline' ||
+							graphicPieceType === 'doublebox-ilu' ||
+							graphicPieceType === 'l3d-headline' ||
+							graphicPieceType === 'l3d-tema') &&
 						!(piece.duration > 0) &&
 						partDurationSec !== undefined &&
 						Number.isFinite(partDurationSec) &&

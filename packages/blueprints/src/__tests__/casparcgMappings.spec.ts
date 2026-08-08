@@ -165,6 +165,14 @@ describe('casparcgMappings', () => {
 		expect(LedChannelLayers.IluPlayer).toBeLessThan(LedChannelLayers.GraphicsTicker)
 	})
 
+	it('routes DoubleBox story ILU to PGM channel 2 layer 115', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmIluPlayer)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.IluPlayer,
+		})
+	})
+
 	it('keeps HTML graphics layers distinct from clip player layer on LED channel', () => {
 		const clipPlayerLayer = getMappingOptions(CasparCGLayers.CasparCGClipPlayer1).layer
 		const iluPlayerLayer = getMappingOptions(CasparCGLayers.CasparCGIluPlayer).layer

@@ -7,6 +7,8 @@ import type { VideoPlayLayer } from './objects.js'
  */
 export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'headline',
+	/** Thematic DoubleBox left-window ILU (PGM 115) — not headline chrome. */
+	'doublebox-ilu',
 	'l3d-headline',
 	'l3d-mod',
 	'l3d-tema',
@@ -58,7 +60,7 @@ export function playLayerForVideoPieceType(pieceType: RundownEditorLayeredVideoP
 	return 'background'
 }
 
-export const DEFAULT_WIPE_FILE = 'wipes/360_wipe'
+export const DEFAULT_WIPE_FILE = 'wipes/wipe'
 
 export function resolveSegmentType(segmentPayload: { type?: string; name?: string }): SegmentType {
 	const rawType = segmentPayload.type?.toLowerCase()
