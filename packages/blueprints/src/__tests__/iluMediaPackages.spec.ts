@@ -18,6 +18,7 @@ import {
 	isDemoMediaPath,
 	isSpravyClipPath,
 	toCasparPlayPath,
+	toPackageManagerPath,
 } from '../base/showstyle/helpers/mediaPackages.js'
 import {
 	loadSmokeRundownExport,
@@ -74,6 +75,18 @@ describe('demo media paths', () => {
 
 	it('strips extensions for Caspar PLAY paths', () => {
 		expect(toCasparPlayPath('clips/foo.mp4')).toBe('clips/foo')
+		expect(toCasparPlayPath('assets/intro_michal')).toBe('assets/intro_michal')
+	})
+
+	it('maps extensionless loops/wipes/assets paths for Package Manager disk lookup', () => {
+		expect(toPackageManagerPath('assets/intro_michal')).toBe('assets/intro_michal.mov')
+		expect(toPackageManagerPath('wipes/wipe')).toBe('wipes/wipe.mov')
+		expect(toPackageManagerPath('loops/bg_loop')).toBe('loops/bg_loop.mov')
+		expect(toPackageManagerPath('assets/intro_michal.mov')).toBe('assets/intro_michal.mov')
+		expect(toPackageManagerPath('clips/HEADLINE1.mov')).toBe('clips/HEADLINE1.mov')
+		expect(toPackageManagerPath('clips/foo.mp4')).toBe('clips/foo.mp4')
+		// Do not invent an extension for extensionless clips/
+		expect(toPackageManagerPath('clips/HEADLINE1')).toBe('clips/HEADLINE1')
 	})
 })
 
