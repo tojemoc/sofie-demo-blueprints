@@ -55,6 +55,9 @@ export function getSpravyClipPath(rundownExternalId: string, fileName: string): 
 
 const MEDIA_FILE_EXTENSION = /\.(mp4|mov|mxf|mkv|webm)$/i
 
+/** Any basename extension (e.g. `.avi`), not limited to Caspar PLAY-strippable types. */
+const ANY_FILENAME_EXTENSION = /\.[^./\\]+$/
+
 /** Strip container extension for Caspar PLAY / MEDIA timeline (CLS paths omit extension). */
 export function toCasparPlayPath(filePath: string): string {
 	return filePath.replace(MEDIA_FILE_EXTENSION, '')
@@ -67,12 +70,13 @@ export function toCasparPlayPath(filePath: string): string {
  * Without this mapping, Core reports "Titles/Lower Third can't be found on the
  * playout system" even though Caspar plays the clip successfully.
  *
- * Paths that already include a media extension are unchanged (typical `clips/…`).
- * Extensionless `clips/` paths are left unchanged — callers must supply the real
- * extension (`.mp4` vs `.mov` is not guessable).
+ * Any path that already has a filename extension is left unchanged (including
+ * non-Caspar types like `.avi`). Only extensionless `loops/` / `wipes/` /
+ * `assets/` paths get `.mov` appended. Extensionless `clips/` paths are left
+ * unchanged — callers must supply the real extension.
  */
 export function toPackageManagerPath(filePath: string): string {
-	if (MEDIA_FILE_EXTENSION.test(filePath)) {
+	if (ANY_FILENAME_EXTENSION.test(filePath)) {
 		return filePath
 	}
 	if (/^(loops|wipes|assets)\//i.test(filePath)) {

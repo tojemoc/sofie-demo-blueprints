@@ -30,15 +30,13 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			const partContext = new PartContext(segmentContext, part.payload.externalId)
 			const result = generateCameraPart(partContext, part as never)
 
-			const iluPiece = result.pieces.find((p) => p.sourceLayerId === SourceLayer.LowerThird)
-			const l3dPiece = result.pieces.find((p) => p.sourceLayerId === SourceLayer.PgmLowerThird)
+			const iluPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.LowerThird))
+			const l3dPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.PgmLowerThird))
 			expect(iluPiece, `${part.payload.name} missing LowerThird ILU piece`).toBeTruthy()
 			expect(l3dPiece, `${part.payload.name} missing PgmLowerThird L3D piece`).toBeTruthy()
 
 			const tl = result.pieces.flatMap((p) => p.content?.timelineObjects ?? [])
-			const ilu = tl.find(
-				(t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file
-			)
+			const ilu = tl.find((t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file)
 			const l3d = tl.find(
 				(t) =>
 					t.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
