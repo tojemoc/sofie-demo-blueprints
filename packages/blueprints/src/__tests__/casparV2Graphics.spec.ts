@@ -65,7 +65,7 @@ describe('casparV2Graphics', () => {
 		])
 
 		const piece = result.pieces[0]
-		expect(piece?.sourceLayerId).toBe(SourceLayer.LowerThird)
+		expect(piece?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(piece?.lifespan).toBe(PieceLifespan.WithinPart)
 
 		const caspar = piece?.content.timelineObjects?.find(
@@ -126,6 +126,9 @@ describe('casparV2Graphics', () => {
 
 		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
 		expect(headCaspar.data).toEqual({ title: 'Breaking', subtitle: 'Tonight' })
+		expect(mod?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
+		expect(headline?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
+		expect(syn?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(mod?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect(synCaspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
