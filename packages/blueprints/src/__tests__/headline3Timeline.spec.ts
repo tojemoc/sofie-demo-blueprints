@@ -34,6 +34,9 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			const l3dPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.PgmLowerThird))
 			expect(iluPiece, `${part.payload.name} missing LowerThird ILU piece`).toBeTruthy()
 			expect(l3dPiece, `${part.payload.name} missing PgmLowerThird L3D piece`).toBeTruthy()
+			// GFX output (not flattened PGM) — Caspar mapping is still PGM channel 2.
+			expect(iluPiece?.outputLayerId).toBe('gfx')
+			expect(l3dPiece?.outputLayerId).toBe('gfx')
 
 			const tl = result.pieces.flatMap((p) => p.content?.timelineObjects ?? [])
 			const ilu = tl.find((t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file)
