@@ -75,6 +75,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			abbreviation: 'L3d',
 		},
 		{
+			_id: SourceLayer.PgmLowerThird,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 205,
+			name: 'PGM L3D',
+			abbreviation: 'L3dP',
+			// No exclusiveGroup — must coexist with Camera on the PGM output track.
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,
