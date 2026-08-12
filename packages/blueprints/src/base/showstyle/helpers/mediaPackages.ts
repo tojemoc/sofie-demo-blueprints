@@ -53,9 +53,36 @@ export function getSpravyClipPath(rundownExternalId: string, fileName: string): 
 	return getDemoClipPath(rundownExternalId, fileName)
 }
 
+const MEDIA_FILE_EXTENSION = /\.(mp4|mov|mxf|mkv|webm)$/i
+
+/** Any basename extension (e.g. `.avi`), not limited to Caspar PLAY-strippable types. */
+const ANY_FILENAME_EXTENSION = /\.[^./\\]+$/
+
 /** Strip container extension for Caspar PLAY / MEDIA timeline (CLS paths omit extension). */
 export function toCasparPlayPath(filePath: string): string {
-	return filePath.replace(/\.(mp4|mov|mxf|mkv|webm)$/i, '')
+	return filePath.replace(MEDIA_FILE_EXTENSION, '')
+}
+
+/**
+ * Package Manager `LOCAL_FOLDER` looks up an exact relative path on disk.
+ * Caspar PLAY paths for loops / wipes / assets often omit the extension
+ * (`assets/intro_michal`) while the real file is `assets/intro_michal.mov`.
+ * Without this mapping, Core reports "Titles/Lower Third can't be found on the
+ * playout system" even though Caspar plays the clip successfully.
+ *
+ * Any path that already has a filename extension is left unchanged (including
+ * non-Caspar types like `.avi`). Only extensionless `loops/` / `wipes/` /
+ * `assets/` paths get `.mov` appended. Extensionless `clips/` paths are left
+ * unchanged — callers must supply the real extension.
+ */
+export function toPackageManagerPath(filePath: string): string {
+	if (ANY_FILENAME_EXTENSION.test(filePath)) {
+		return filePath
+	}
+	if (/^(loops|wipes|assets)\//i.test(filePath)) {
+		return `${filePath}.mov`
+	}
+	return filePath
 }
 
 export function normalizeLocalFolderPath(folderPath: string): string {
@@ -115,26 +142,27 @@ export function createMediaFileExpectedPackage(
 	options?: { includeSideEffects?: boolean }
 ): ExpectedPackage.ExpectedPackageMediaFile {
 	const includeSideEffects = options?.includeSideEffects !== false
+	const packagePath = toPackageManagerPath(filePath)
 
 	return literal<ExpectedPackage.ExpectedPackageMediaFile>({
-		_id: context.getHashId(filePath, true),
+		_id: context.getHashId(packagePath, true),
 		layers,
 		type: ExpectedPackage.PackageType.MEDIA_FILE,
 		content: {
-			filePath,
+			filePath: packagePath,
 		},
 		version: {},
 		contentVersionHash: '',
-		sources: createIngestMediaFileSource(filePath),
+		sources: createIngestMediaFileSource(packagePath),
 		sideEffect: includeSideEffects
 			? {
 					previewContainerId: HTTP_PROXY_PACKAGE_CONTAINER_ID,
 					thumbnailContainerId: HTTP_PROXY_PACKAGE_CONTAINER_ID,
 					previewPackageSettings: {
-						path: `previews/${changeExtension(filePath, 'webm')}`,
+						path: `previews/${changeExtension(packagePath, 'webm')}`,
 					},
 					thumbnailPackageSettings: {
-						path: `thumbnails/${changeExtension(filePath, 'jpg')}`,
+						path: `thumbnails/${changeExtension(packagePath, 'jpg')}`,
 						seekTime: 0,
 					},
 				}

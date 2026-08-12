@@ -50,6 +50,13 @@ describe('intro overlay + bg-loop layered videos', () => {
 		const introTl = introPiece?.content.timelineObjects?.[0]
 
 		expect(introTl?.layer).toBe(CasparCGLayers.CasparCGPgmIntroPlayer)
+
+		// Caspar PLAY omits extension; Package Manager must look up the real .mov on disk.
+		const introMedia = introTl?.content as { file?: string } | undefined
+		expect(introMedia?.file).toBe('assets/intro_michal')
+		expect(introPiece?.expectedPackages?.[0]).toMatchObject({
+			content: { filePath: 'assets/intro_michal.mov' },
+		})
 	})
 
 	it('recovers GFX parts that only have a video as Intro overlay', () => {

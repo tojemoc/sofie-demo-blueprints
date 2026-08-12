@@ -211,6 +211,20 @@ function getDoubleboxIluMediaObject(
 	return [createDoubleboxIluMediaTimelineObject(iluFile, isAdlib)]
 }
 
+/** PGM L3D HTML templates — LED allow-list is headline ILU + bg_loop only. */
+const PGM_L3D_CLIP_NAMES = new Set([
+	'gfx/l3d-headline',
+	'gfx/l3d-tema',
+	'gfx/l3d-syn',
+	'gfx/l3d-mod',
+	'gfx/l3d-sjv',
+	'gfx/l3d-sport',
+])
+
+function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
+	return PGM_L3D_CLIP_NAMES.has(object.clipName.toLowerCase())
+}
+
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 	if (isDoubleboxIlu(object)) {
 		// Media-only piece (no HTML); keep off the exclusive pgm group used by Camera/VT.
@@ -223,6 +237,10 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 		return SourceLayer.Strap
 	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		return SourceLayer.GFX
+	} else if (isPgmL3dGraphic(object)) {
+		// Separate Sofie source layer from LED headline ILU — otherwise processAndPrune
+		// keeps only one WithinPart piece on LowerThird at start=0 (H3 dropped ILU PLAY).
+		return SourceLayer.PgmLowerThird
 	} else {
 		return SourceLayer.LowerThird
 	}
@@ -237,9 +255,7 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		// Fullscreen story GFX on PGM clip player — never displace LED bg_loop.
 		return CasparCGLayers.CasparCGClipPlayer2
-	} else if (
-		['gfx/l3d-headline', 'gfx/l3d-tema', 'gfx/l3d-syn', 'gfx/l3d-mod'].includes(object.clipName.toLowerCase())
-	) {
+	} else if (isPgmL3dGraphic(object)) {
 		// PGM L3D chrome (channel 2). LED allow-list: headlines ILU + bg_loop only.
 		return CasparCGLayers.CasparCGGraphicsPgmLowerThird
 	} else {
