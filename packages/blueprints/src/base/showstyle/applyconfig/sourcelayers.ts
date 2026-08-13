@@ -80,7 +80,8 @@ export function getSourceLayer(): ISourceLayer[] {
 			_rank: 205,
 			name: 'PGM L3D',
 			abbreviation: 'L3dP',
-			// No exclusiveGroup — must coexist with Camera on the PGM output track.
+			// No exclusiveGroup. Output is GFX (not flattened PGM) so overlays coexist
+			// with Camera in the UI while Caspar still plays on channel 2.
 		},
 		{
 			_id: SourceLayer.Strap,

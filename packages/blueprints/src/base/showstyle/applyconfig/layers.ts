@@ -17,6 +17,7 @@ export enum SourceLayer {
 	 * PGM L3D chrome (l3d-headline / tema / syn / mod / …).
 	 * Must stay off `LowerThird`: Sofie prunes to one WithinPart piece per source
 	 * layer at the same start, so ILU + L3D on LowerThird made one of them silent.
+	 * Output layer is still GFX (PGM track is isFlattened) — Caspar channel is PGM.
 	 */
 	PgmLowerThird = 'lower_third_pgm',
 	Strap = 'strap',
@@ -38,13 +39,14 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.Script:
 			return OutputLayer.Script
 		case SourceLayer.LowerThird:
+		case SourceLayer.PgmLowerThird:
 		case SourceLayer.Strap:
 		case SourceLayer.Ticker:
 		case SourceLayer.Logo:
+			// Keep PGM L3Ds on GFX output (not flattened isPGM PGM track). Separate
+			// sourceLayerId still avoids LowerThird processAndPrune; Caspar mapping
+			// remains channel-2 PGM layers.
 			return OutputLayer.Gfx
-		case SourceLayer.PgmLowerThird:
-			// PGM Caspar overlays — same visual track as Camera, no exclusiveGroup.
-			return OutputLayer.Pgm
 		case SourceLayer.StudioGuests:
 		case SourceLayer.HostOverride:
 		case SourceLayer.AudioBed:
