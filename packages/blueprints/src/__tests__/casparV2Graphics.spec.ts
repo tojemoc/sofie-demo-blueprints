@@ -83,6 +83,47 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
+	it('maps gfx/l3d-tema title-only ingest to headline and omits title', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'tema-title',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/l3d-tema',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					title: 'R. Fico o M. Ficovi',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.data).toEqual({ headline: 'R. Fico o M. Ficovi' })
+		expect(caspar?.data).not.toHaveProperty('title')
+	})
+
+	it('prefers gfx/l3d-tema headline over title when both are set', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'tema-both',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/l3d-tema',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: {
+					headline: 'Canonical headline',
+					title: 'Fallback title',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.data).toEqual({ headline: 'Canonical headline' })
+		expect(caspar?.data).not.toHaveProperty('title')
+	})
+
 	it('routes gfx/l3d-mod and gfx/l3d-headline with full attribute payloads', () => {
 		const mod = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
