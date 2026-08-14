@@ -195,21 +195,6 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					if (typeof iluFile === 'string' && iluFile.trim()) {
 						piece.attributes.iluFile = getDemoClipPath(undefined, iluFile)
 					}
-
-					// Headline / DoubleBox ILU + L3DH inherit part duration when the piece has none
-					const partDurationSec = partPayload.duration
-					if (
-						(graphicPieceType === 'headline' ||
-							graphicPieceType === 'doublebox-ilu' ||
-							graphicPieceType === 'l3d-headline' ||
-							graphicPieceType === 'l3d-tema') &&
-						!(piece.duration > 0) &&
-						partDurationSec !== undefined &&
-						Number.isFinite(partDurationSec) &&
-						partDurationSec > 0
-					) {
-						piece.duration = partDurationSec * 1000
-					}
 				}
 			})
 

@@ -80,6 +80,15 @@ function getTemplateAttributes(
 		return mapped
 	}
 
+	if (clipName === 'gfx/l3d-tema') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		if (mapped.headline === undefined && mapped.title !== undefined) {
+			mapped.headline = mapped.title
+		}
+		delete mapped.title
+		return mapped
+	}
+
 	if (clipName === 'gfx/weather' && typeof templateAttributes.cities === 'string') {
 		try {
 			const parsed = JSON.parse(templateAttributes.cities) as unknown

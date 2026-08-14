@@ -186,7 +186,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		})
 	})
 
-	it('normalizes legacy iluFile paths and inherits part duration for headline graphics', () => {
+	it('normalizes legacy iluFile paths and passes through ingest durations unchanged', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
 		const partPayload = ingest.parts.find((part) => part.externalId === 'part-hl-1')?.payload as {
 			duration: number
@@ -197,11 +197,11 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		for (const piece of partPayload.pieces) {
 			if (piece.objectType === 'headline') {
-				piece.duration = 0
+				piece.duration = 8
 				piece.attributes.iluFile = 'spravy/spravy-v3-smoke/clips/headline1.mp4'
 			}
 			if (piece.objectType === 'l3d-headline') {
-				piece.duration = 0
+				piece.duration = 8
 			}
 		}
 
