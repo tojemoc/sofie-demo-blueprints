@@ -26,6 +26,52 @@ import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
 import { parseVT } from './vt.js'
 
+/** Graphic piece types that inherit part duration when the piece has none set. */
+const PART_DURATION_INHERIT_GRAPHIC_TYPES = new Set([
+	'headline',
+	'doublebox-ilu',
+	'l3d-headline',
+	'l3d-tema',
+	'l3d-mod',
+	'l3d-syn',
+	'l3d-sjv',
+	'l3d-sport',
+])
+
+function hasPositiveDurationSec(duration: number | undefined): duration is number {
+	return duration !== undefined && Number.isFinite(duration) && duration > 0
+}
+
+function inheritPartDurationOnGraphicPieces(partPayload: EditorIngestPart): void {
+	const partDurationSec = partPayload.duration
+	if (!hasPositiveDurationSec(partDurationSec)) {
+		return
+	}
+
+	for (const piece of partPayload.pieces) {
+		const graphicPieceType = piece.clipName?.replace(/^gfx\//, '').trim().toLowerCase()
+		if (
+			graphicPieceType &&
+			PART_DURATION_INHERIT_GRAPHIC_TYPES.has(graphicPieceType) &&
+			!(piece.duration > 0)
+		) {
+			piece.duration = partDurationSec * 1000
+		}
+	}
+}
+
+/** When the story/part has no duration, use the longest child piece (seconds in RE export). */
+function inheritPartDurationFromGraphicPieces(partPayload: EditorIngestPart): void {
+	if (hasPositiveDurationSec(partPayload.duration)) {
+		return
+	}
+
+	const maxPieceDurationMs = Math.max(0, ...partPayload.pieces.map((piece) => piece.duration ?? 0))
+	if (maxPieceDurationMs > 0) {
+		partPayload.duration = maxPieceDurationMs / 1000
+	}
+}
+
 function hasCameraPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Camera)
 }
@@ -195,23 +241,11 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					if (typeof iluFile === 'string' && iluFile.trim()) {
 						piece.attributes.iluFile = getDemoClipPath(undefined, iluFile)
 					}
-
-					// Headline / DoubleBox ILU + L3DH inherit part duration when the piece has none
-					const partDurationSec = partPayload.duration
-					if (
-						(graphicPieceType === 'headline' ||
-							graphicPieceType === 'doublebox-ilu' ||
-							graphicPieceType === 'l3d-headline' ||
-							graphicPieceType === 'l3d-tema') &&
-						!(piece.duration > 0) &&
-						partDurationSec !== undefined &&
-						Number.isFinite(partDurationSec) &&
-						partDurationSec > 0
-					) {
-						piece.duration = partDurationSec * 1000
-					}
 				}
 			})
+
+			inheritPartDurationOnGraphicPieces(partPayload)
+			inheritPartDurationFromGraphicPieces(partPayload)
 
 			parts.push(parseEditorPart(partPayload))
 		})
