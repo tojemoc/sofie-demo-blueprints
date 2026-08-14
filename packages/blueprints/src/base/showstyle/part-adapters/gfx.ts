@@ -27,16 +27,12 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 	// click Take to the next part/segment. Other GFX (e.g. téma) keep autoNext.
 	const isIlu = /ilu/i.test(part.rawType ?? '')
 
-	const maxObjectDurationMs = Math.max(0, ...part.objects.map((object) => object.duration ?? 0))
-	const expectedDuration =
-		part.payload.duration > 0 ? part.payload.duration : maxObjectDurationMs > 0 ? maxObjectDurationMs : undefined
-
 	return {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration,
+			expectedDuration: part.payload.duration,
 			autoNext: !isIlu,
 		},
 		pieces,

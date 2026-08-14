@@ -58,48 +58,6 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(true)
 	})
 
-	it('inherits part duration onto Mod L3D when the graphic piece has none', () => {
-		const ingest = smokeExportToIngestSegment(exportData, 'seg-intro')
-		const modPart = ingest.parts.find((part) => part.name === 'Gabriela Kajtárová')
-		expect(modPart).toBeDefined()
-		if (!modPart) return
-
-		modPart.payload.duration = 6
-		for (const piece of modPart.payload.pieces) {
-			if (piece.objectType === 'l3d-mod') {
-				piece.duration = 0
-			}
-		}
-
-		const segment = convertIngestData(mockIngestContext, ingest)
-		const parsed = segment.parts.find((part) => part.payload.name === 'Gabriela Kajtárová')
-		const mod = parsed?.objects.find((obj) => obj.clipName === 'gfx/l3d-mod')
-
-		expect(mod?.duration).toBe(6000)
-	})
-
-	it('inherits empty part duration from the longest child graphic piece', () => {
-		const ingest = smokeExportToIngestSegment(exportData, 'seg-intro')
-		const modPart = ingest.parts.find((part) => part.name === 'Gabriela Kajtárová')
-		expect(modPart).toBeDefined()
-		if (!modPart) return
-
-		modPart.payload.duration = 0
-		for (const piece of modPart.payload.pieces) {
-			piece.duration = piece.objectType === 'l3d-mod' ? 8 : 0
-		}
-
-		const segment = convertIngestData(mockIngestContext, ingest)
-		const parsed = segment.parts.find((part) => part.payload.name === 'Gabriela Kajtárová')
-		const segmentContext = mockSegmentContext()
-		const partContext = new PartContext(segmentContext, parsed!.payload.externalId)
-		const result = generateGfxPart(partContext, parsed as PartProps<GfxProps>)
-
-		expect(parsed?.payload.duration).toBe(8000)
-		expect(result.part.expectedDuration).toBe(8000)
-		expect(result.pieces.find((piece) => piece.externalId === 'piece-intro-mod')?.enable?.duration).toBe(8000)
-	})
-
 	it('does not mark editor graphics without start as adlibs', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro'))
 
@@ -228,7 +186,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		})
 	})
 
-	it('normalizes legacy iluFile paths and inherits part duration for headline graphics', () => {
+	it('normalizes legacy iluFile paths and passes through ingest durations unchanged', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
 		const partPayload = ingest.parts.find((part) => part.externalId === 'part-hl-1')?.payload as {
 			duration: number
@@ -239,11 +197,11 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		for (const piece of partPayload.pieces) {
 			if (piece.objectType === 'headline') {
-				piece.duration = 0
+				piece.duration = 8
 				piece.attributes.iluFile = 'spravy/spravy-v3-smoke/clips/headline1.mp4'
 			}
 			if (piece.objectType === 'l3d-headline') {
-				piece.duration = 0
+				piece.duration = 8
 			}
 		}
 
