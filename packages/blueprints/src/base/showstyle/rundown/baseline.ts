@@ -34,7 +34,9 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			// Same loop on PGM (ch2/110) so DoubleBox has full-bleed bg behind ILU + CAM FILLs.
+			// Same loop on PGM (ch2/110) — visible through db_loop cutouts before db_loop starts.
+			// Once db_loop plays (from intro onward) it replaces this visually since bg_loop
+			// is baked into the db_loop alpha compositing frame.
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 				id: '',
 				enable: { while: 1 },

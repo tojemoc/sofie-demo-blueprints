@@ -34,11 +34,11 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 	}
 
 	it('coverCropForFill from-left keeps aspect and cuts from the left', () => {
-		const crop = coverCropForFill({ xScale: 0.34, yScale: 0.72 }, 'from-left')
+		const crop = coverCropForFill(PGM_DOUBLEBOX_CAMERA_FILL, 'from-left')
 		expect(crop.top).toBe(0)
 		expect(crop.bottom).toBe(0)
 		expect(crop.right).toBe(0)
-		expect(crop.left).toBeGreaterThan(0.4)
+		expect(crop.left).toBeGreaterThan(0.3)
 		expect(crop.left).toBeLessThan(0.7)
 		expect(crop).toEqual(PGM_DOUBLEBOX_CAMERA_CROP)
 	})

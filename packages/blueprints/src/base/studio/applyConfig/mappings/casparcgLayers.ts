@@ -27,6 +27,8 @@ export const PgmChannelLayers = {
 	ClipPlayer: 110,
 	IluPlayer: 115,
 	Camera: 116,
+	/** DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
+	DoubleBoxLoop: 118,
 	GraphicsLowerThird: 121,
 	GraphicsLogo: 123,
 	EffectsPlayer: 200,
@@ -34,20 +36,20 @@ export const PgmChannelLayers = {
 	IntroOverlay: 210,
 } as const
 
-/** Starting FILL for DoubleBox CAM window (right). Tune against HTML chrome. */
+/** Starting FILL for DoubleBox CAM window (right — measured from db_loop.mov). */
 export const PGM_DOUBLEBOX_CAMERA_FILL = {
-	x: 0.62,
-	y: 0.08,
-	xScale: 0.34,
-	yScale: 0.72,
+	x: 0.7141,
+	y: 0.0769,
+	xScale: 0.264,
+	yScale: 0.6824,
 } as const
 
-/** Starting FILL for DoubleBox story ILU window (left). Tune against HTML chrome. */
+/** Starting FILL for DoubleBox story ILU window (left — measured from db_loop.mov). */
 export const PGM_DOUBLEBOX_ILU_FILL = {
-	x: 0.04,
-	y: 0.08,
-	xScale: 0.55,
-	yScale: 0.72,
+	x: 0.0219,
+	y: 0.0769,
+	xScale: 0.6802,
+	yScale: 0.6824,
 } as const
 
 export type MixerFillRect = {
