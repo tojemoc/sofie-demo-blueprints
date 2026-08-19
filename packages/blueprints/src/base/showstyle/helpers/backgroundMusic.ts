@@ -76,7 +76,6 @@ function createBackgroundMusicPiece(
 
 /** Mute the baseline A-bed during Intro (overlay carries its own audio). */
 export function createIntroBackgroundMusicMutePiece(
-	context: ICommonContext,
 	config: StudioConfig,
 	partExternalId: string,
 	durationMs?: number
@@ -99,7 +98,7 @@ export function createIntroBackgroundMusicMutePiece(
 					id: '',
 					enable: { start: 0 },
 					layer: CasparCGLayers.CasparCGAudioBed,
-					priority: 1,
+					priority: 2,
 					content: {
 						deviceType: TSR.DeviceType.CASPARCG,
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,

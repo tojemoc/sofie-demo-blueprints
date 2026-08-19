@@ -36,7 +36,7 @@ export function generateIntroPart(context: PartContext, part: PartProps<IntroPro
 				? part.payload.clipProps.duration
 				: undefined
 	pieces.push(
-		createIntroBackgroundMusicMutePiece(context, config, part.payload.externalId, introDurationMs)
+		createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs)
 	)
 
 	pieces.push(
