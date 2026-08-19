@@ -27,8 +27,11 @@ export interface ClipProps {
 
 export const DEFAULT_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
 
-/** Fallback wipe length when RE leaves duration empty/0 (transition, not whole-part cover). */
-export const DEFAULT_WIPE_DURATION_MS = 760
+/** Fallback wipe length when RE leaves duration empty/0 (full stinger overlay). */
+export const DEFAULT_WIPE_DURATION_MS = 2500
+
+/** Cut point within the wipe stinger — when the screen is fully covered and content switches. */
+export const WIPE_CUT_POINT_MS = 760
 
 function resolveVideoFileName(object: VideoObject): string | undefined {
 	const fromAttributes = object.attributes?.fileName
