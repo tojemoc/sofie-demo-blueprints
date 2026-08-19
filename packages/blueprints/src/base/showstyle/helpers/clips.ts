@@ -9,13 +9,15 @@ import { ObjectType, SomeObject, VideoObject, VideoPlayLayer } from '../../../co
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
-import { CasparCGLayers } from '../../studio/layers.js'
+import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
+import { getAudioObjectOnLayer } from './audio.js'
+import { getPlaybackForceMuteChannels } from './backgroundMusic.js'
 
 export interface ClipProps {
 	fileName: string
@@ -26,7 +28,7 @@ export interface ClipProps {
 export const DEFAULT_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
 
 /** Fallback wipe length when RE leaves duration empty/0 (transition, not whole-part cover). */
-export const DEFAULT_WIPE_DURATION_MS = 2500
+export const DEFAULT_WIPE_DURATION_MS = 760
 
 function resolveVideoFileName(object: VideoObject): string | undefined {
 	const fromAttributes = object.attributes?.fileName
@@ -186,6 +188,34 @@ export function parseLayeredVideosFromObjects(
 		const enableDuration =
 			object.duration > 0 ? object.duration : playLayer === 'wipe' ? DEFAULT_WIPE_DURATION_MS : undefined
 
+		const timelineObjects: TimelineBlueprintExt[] = [
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: { start: 0 },
+				layer: casparLayer,
+				priority: 1,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: toCasparPlayPath(fileName),
+					...(loop ? { loop: true } : {}),
+				},
+			}),
+		]
+
+		if (playLayer === 'wipe') {
+			const playbackMutes = getPlaybackForceMuteChannels(config)
+			if (playbackMutes.length > 0) {
+				timelineObjects.push({
+					...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, playbackMutes),
+					enable: {
+						start: 0,
+						...(enableDuration !== undefined ? { duration: enableDuration } : {}),
+					},
+				})
+			}
+		}
+
 		return [
 			literal<IBlueprintPiece>({
 				enable: {
@@ -200,20 +230,7 @@ export function parseLayeredVideosFromObjects(
 				content: {
 					fileName,
 					ignoreAudioFormat: playLayer === 'effects' || playLayer === 'wipe',
-					timelineObjects: [
-						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-							id: '',
-							enable: { start: 0 },
-							layer: casparLayer,
-							priority: 1,
-							content: {
-								deviceType: TSR.DeviceType.CASPARCG,
-								type: TSR.TimelineContentTypeCasparCg.MEDIA,
-								file: toCasparPlayPath(fileName),
-								...(loop ? { loop: true } : {}),
-							},
-						}),
-					],
+					timelineObjects,
 				},
 				expectedPackages: [
 					createMediaFileExpectedPackage(context, fileName, [casparLayer], {
