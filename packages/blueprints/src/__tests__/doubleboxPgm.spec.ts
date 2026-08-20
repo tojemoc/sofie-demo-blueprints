@@ -38,8 +38,8 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		expect(crop.top).toBe(0)
 		expect(crop.bottom).toBe(0)
 		expect(crop.right).toBe(0)
-		expect(crop.left).toBeGreaterThan(0.3)
-		expect(crop.left).toBeLessThan(0.7)
+		expect(crop.left).toBeGreaterThanOrEqual(0)
+		expect(crop.left).toBeLessThan(0.2)
 		expect(crop).toEqual(PGM_DOUBLEBOX_CAMERA_CROP)
 	})
 
@@ -79,11 +79,9 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGPgmIluPlayer])
 	})
 
-	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-tema + CAM crop on Take', () => {
-		// CI may still pin an older megarepo smoke without doublebox-ilu — mutate ingest so this
-		// case is self-contained: DoubleBox part + camera + doublebox-ilu (iluFile) + l3d-tema.
+	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-predstavovak + CAM crop on Take', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const part = ingest.parts.find((p) => p.externalId === 'part-ilu-1')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
 		expect(part).toBeDefined()
 		if (!part) return
 
@@ -101,7 +99,7 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		payload.type = 'DoubleBox'
 		payload.pieces = [
 			{
-				id: 'piece-part-ilu-1-ilu',
+				id: 'piece-part-tema-1-db-ilu',
 				objectType: 'doublebox-ilu',
 				objectTime: 0,
 				duration: 8,
@@ -109,15 +107,15 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 				attributes: { text: 'Tematický titulok', iluFile: 'clips/ILU bednar.mp4' },
 			},
 			{
-				id: 'piece-part-ilu-1-l3d',
-				objectType: 'l3d-tema',
+				id: 'piece-part-tema-1-db-l3d',
+				objectType: 'l3d-predstavovak',
 				objectTime: 0,
 				duration: 8,
 				clipName: '',
-				attributes: { headline: 'Tematický titulok' },
+				attributes: { name: 'Tematický titulok', title: '' },
 			},
 			{
-				id: 'piece-part-ilu-1-cam',
+				id: 'piece-part-tema-1-db-cam',
 				objectType: 'camera',
 				objectTime: 0,
 				duration: 0,
@@ -125,7 +123,7 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 				attributes: { camNo: 1 },
 			},
 			{
-				id: 'wipe-05-part-ilu-1',
+				id: 'wipe-part-tema-1-db',
 				objectType: 'wipe',
 				objectTime: 0,
 				duration: 0,
@@ -135,12 +133,12 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		]
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-ilu-1')
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
 
 		expect(dbPart?.type).toBe(PartType.Camera)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/headline')).toBe(false)
-		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-tema')).toBe(true)
+		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
 		expect(
 			dbPart?.objects.some(
 				(obj) =>
@@ -178,16 +176,85 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		const tema = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
-				(obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/l3d-tema'
+				(obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/l3d-predstavovak'
 		)
-		expect(tema, 'l3d-tema must play on PGM lower-third after Take into DoubleBox').toBeDefined()
+		expect(tema, 'l3d-predstavovak must play on PGM lower-third after Take into DoubleBox').toBeDefined()
 		expect((tema?.content as TSR.TimelineContentCCGTemplate).data).toMatchObject({
-			headline: 'Tematický titulok',
+			name: 'Tematický titulok',
 		})
+
+		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
+		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
 
 		const headlineChrome = timeline.find(
 			(obj) => (obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/headline-fallback'
 		)
 		expect(headlineChrome).toBeUndefined()
+	})
+
+	it('selects DoubleBox camera path when gfx/doublebox-ilu clipName casing differs', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		expect(part).toBeDefined()
+		if (!part) return
+
+		const payload = part.payload as {
+			type: string
+			pieces: Array<{
+				id: string
+				objectType: string
+				objectTime?: number
+				duration?: number
+				clipName?: string
+				attributes: Record<string, unknown>
+			}>
+		}
+		// Use a non-DoubleBox raw type so partUsesDoubleBoxCamera must classify via clipName.
+		payload.type = 'Camera'
+		payload.pieces = [
+			{
+				id: 'piece-db-ilu-mixed',
+				objectType: 'doublebox-ilu',
+				objectTime: 0,
+				duration: 8,
+				clipName: '',
+				attributes: { text: 'Mixed case', iluFile: 'clips/ILU bednar.mp4' },
+			},
+			{
+				id: 'piece-db-cam-mixed',
+				objectType: 'camera',
+				objectTime: 0,
+				duration: 0,
+				clipName: '',
+				attributes: { camNo: 1 },
+			},
+		]
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
+		expect(dbPart).toBeDefined()
+		if (!dbPart) return
+
+		const iluObj = dbPart.objects.find(
+			(obj) => obj.objectType === ObjectType.Graphic && obj.clipName.toLowerCase() === 'gfx/doublebox-ilu'
+		)
+		expect(iluObj).toBeDefined()
+		if (!iluObj) return
+		iluObj.clipName = 'gfx/DoubleBox-ILU'
+
+		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>)
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+
+		const pgmCam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
+		expect(pgmCam?.content).toMatchObject({
+			mixer: {
+				fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
+				crop: { ...PGM_DOUBLEBOX_CAMERA_CROP },
+			},
+		})
+
+		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
+		expect(dbLoop, 'mixed-case doublebox-ilu must still include db_loop').toBeDefined()
 	})
 })

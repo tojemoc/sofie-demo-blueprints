@@ -7,14 +7,17 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
 import { ICommonContext } from '@sofie-automation/blueprints-integration'
 
-/** Caspar PLAY path for the DoubleBox compositing frame (alpha loop, 32s, bg_loop baked in). */
+/** Caspar PLAY path for the DoubleBox compositing frame (alpha loop; bg_loop baked in).
+ * Production file may be named `dp_loop.mov` — place/rename as `loops/db_loop` under media-path
+ * (or symlink). Studio override can be added later if hosts keep both names.
+ */
 export const DOUBLEBOX_LOOP_FILE = 'loops/db_loop'
 
 /**
- * Create a piece that starts the DoubleBox compositing frame on PGM layer 118.
- * Placed on the Intro part so it fires on Take into intro and persists for the
- * rest of the rundown (OutOnRundownEnd). The alpha loop sits above ILU/CAM
- * (115/116) and below L3D (121), providing the blue animated border with cutouts.
+ * Create a piece that plays the DoubleBox compositing frame on PGM layer 118
+ * for this part only (WithinPart). SYN / weather / outro are fullscreen and must
+ * not keep the cutout frame. Headlines / post-intro MOD are fullscreen cam — they
+ * never call this helper.
  */
 export function createDoubleBoxLoopPiece(
 	context: ICommonContext,
@@ -27,7 +30,7 @@ export function createDoubleBoxLoopPiece(
 		},
 		externalId: `${partExternalId}_db_loop`,
 		name: 'DoubleBox frame',
-		lifespan: PieceLifespan.OutOnRundownEnd,
+		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
 		content: {

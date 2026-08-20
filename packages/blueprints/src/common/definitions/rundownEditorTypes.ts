@@ -11,10 +11,14 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'doublebox-ilu',
 	'l3d-headline',
 	'l3d-mod',
+	/** Topic / guest nameplate (Figma predstavovak). */
+	'l3d-predstavovak',
 	'l3d-tema',
 	'l3d-syn',
 	'l3d-sjv',
 	'l3d-sport',
+	/** Recommendation / avízo CTA — jednou-vetou shell without kicker. */
+	'l3d-odporucanie',
 	'weather',
 	'outro',
 	'logo-bug',

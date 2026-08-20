@@ -233,8 +233,9 @@ describe('gfx/headline ILU expectedPackages', () => {
 			right: number
 		}
 		expect(crop.left).toBeCloseTo(crop.right, 5)
-		expect(crop.left).toBeGreaterThan(0.2)
-		expect(crop.left).toBeLessThan(0.3)
+		// coverCropForFill(center) on 0.62×0.73 slot → ~7.5% each side (no squish)
+		expect(crop.left).toBeGreaterThan(0.05)
+		expect(crop.left).toBeLessThan(0.15)
 
 		const template = piece?.content.timelineObjects?.find(
 			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
@@ -481,7 +482,7 @@ describe('spravy-v3-smoke expectedPackages', () => {
 
 		expect(synPaths.length).toBeGreaterThanOrEqual(2)
 		expect(synPaths.every((path) => /\/SYN\b/i.test(path))).toBe(true)
-		// Story-block wipes share the VO part and also emit expectedPackages.
-		expect(mediaPaths.some((path) => typeof path === 'string' && path.includes('wipes/'))).toBe(true)
+		// ILU→SYN / SYN→SYN are hard cuts in the smoke — no wipe packages on VO parts.
+		expect(mediaPaths.some((path) => typeof path === 'string' && path.includes('wipes/'))).toBe(false)
 	})
 })

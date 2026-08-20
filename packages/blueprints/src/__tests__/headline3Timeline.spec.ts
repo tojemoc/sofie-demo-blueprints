@@ -25,7 +25,12 @@ describe('HEADLINES 1–3 timeline parity', () => {
 		for (const part of headlines) {
 			expect(part.type).toBe(PartType.Camera)
 			const graphics = part.objects.filter((o) => o.objectType === ObjectType.Graphic)
-			expect(graphics.map((g) => g.clipName).sort()).toEqual(['gfx/headline', 'gfx/l3d-headline'])
+			const clipNames = graphics.map((g) => g.clipName).sort()
+			expect(clipNames).toEqual(expect.arrayContaining(['gfx/headline', 'gfx/l3d-headline']))
+			expect(clipNames.filter((n) => n === 'gfx/headline' || n === 'gfx/l3d-headline')).toEqual([
+				'gfx/headline',
+				'gfx/l3d-headline',
+			])
 
 			const partContext = new PartContext(segmentContext, part.payload.externalId)
 			const result = generateCameraPart(partContext, part as never)

@@ -17,12 +17,44 @@ import {
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
 
+/** Smoke SYN parts are hard cuts — inject a wipe for wipe-routing unit tests. */
+function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, synExternalId = 'part-tema-1-syn-1') {
+	const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+	const syn = ingest.parts.find((part) => part.externalId === synExternalId)
+	expect(syn).toBeDefined()
+	if (!syn) throw new Error(`missing ${synExternalId}`)
+
+	const payload = syn.payload as {
+		type: string
+		pieces: Array<{
+			id: string
+			objectType: string
+			objectTime?: number
+			duration?: number
+			clipName?: string
+			attributes: Record<string, unknown>
+		}>
+	}
+	if (!payload.pieces.some((p) => p.objectType.toLowerCase() === 'wipe')) {
+		payload.pieces.push({
+			id: `${synExternalId}-wipe`,
+			objectType: 'wipe',
+			objectTime: 0,
+			duration: 0,
+			clipName: '',
+			attributes: { fileName: 'wipes/wipe', transition: 'ILU TO SYN CLUSTER' },
+		})
+	}
+	return { ingest, synExternalId }
+}
+
 describe('wipe piece type → PGM effects player', () => {
 	const exportData = loadSmokeRundownExport()
 
 	it('normalizes lowercase wipe onto PGM layer 200 for SYN (VO) parts', () => {
-		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
-		const synPart = segment.parts.find((part) => part.payload.externalId === 'part-syn-1')
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
 
 		expect(synPart?.type).toBe(PartType.VO)
 		const wipe = synPart?.objects.find(
@@ -48,17 +80,17 @@ describe('wipe piece type → PGM effects player', () => {
 	})
 
 	it('accepts uppercase WIPE piece type ids from ingest', () => {
-		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const synPayload = ingest.parts.find((part) => part.externalId === 'part-syn-1')?.payload as {
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const synPayload = ingest.parts.find((part) => part.externalId === synExternalId)?.payload as {
 			pieces: Array<{ objectType: string; attributes: Record<string, unknown> }>
 		}
-		const wipePiece = synPayload.pieces.find((piece) => piece.objectType === 'wipe')
+		const wipePiece = synPayload.pieces.find((piece) => piece.objectType.toLowerCase() === 'wipe')
 		expect(wipePiece).toBeDefined()
 		if (!wipePiece) return
 		wipePiece.objectType = 'WIPE'
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const synPart = segment.parts.find((part) => part.payload.externalId === 'part-syn-1')
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
 		const wipe = synPart?.objects.find(
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
@@ -67,8 +99,8 @@ describe('wipe piece type → PGM effects player', () => {
 	})
 
 	it('does not steal the main VT clip when wipe is listed first', () => {
-		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const syn = ingest.parts.find((part) => part.externalId === 'part-syn-1')
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const syn = ingest.parts.find((part) => part.externalId === synExternalId)
 		expect(syn).toBeDefined()
 		if (!syn) return
 
@@ -77,15 +109,15 @@ describe('wipe piece type → PGM effects player', () => {
 			pieces: Array<{ id: string; objectType: string; attributes: Record<string, unknown> }>
 		}
 		payload.type = 'VT'
-		const wipeIdx = payload.pieces.findIndex((piece) => piece.objectType === 'wipe')
-		const videoIdx = payload.pieces.findIndex((piece) => piece.objectType === 'video')
+		const wipeIdx = payload.pieces.findIndex((piece) => piece.objectType.toLowerCase() === 'wipe')
+		const videoIdx = payload.pieces.findIndex((piece) => piece.objectType.toLowerCase() === 'video')
 		expect(wipeIdx).toBeGreaterThanOrEqual(0)
 		expect(videoIdx).toBeGreaterThanOrEqual(0)
 		const [wipe] = payload.pieces.splice(wipeIdx, 1)
 		payload.pieces.unshift(wipe)
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const vtPart = segment.parts.find((part) => part.payload.externalId === 'part-syn-1')
+		const vtPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
 		expect(vtPart?.type).toBe(PartType.VT)
 		expect((vtPart as PartProps<VTProps>)?.payload.clipProps.fileName).toMatch(/clips\//)
 
@@ -145,8 +177,9 @@ describe('wipe piece type → PGM effects player', () => {
 			},
 		}
 
-		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
-		const synPart = segment.parts.find((part) => part.payload.externalId === 'part-syn-1')
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
 		expect(synPart).toBeDefined()
 		if (!synPart) return
 
