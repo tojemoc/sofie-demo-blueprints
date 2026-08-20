@@ -46,6 +46,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(
 			exportData.parts.filter((p) => p.segmentId === 'seg-sjv' && p.partType === 'syn').length
 		).toBeGreaterThanOrEqual(3)
+		// Prompter scripts filled for spoken ILU / headline parts (SYN SOTs stay empty)
+		expect(exportData.parts.filter((p) => (p.script ?? p.payload.script ?? '').trim().length > 0).length).toBeGreaterThanOrEqual(20)
 	})
 
 	it('resolves editorial segment types from payload.type', () => {
@@ -59,9 +61,10 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		expect(segment.type).toBe(SegmentType.OPENING)
 		expect(segment.parts.some((part) => part.type === PartType.Intro)).toBe(true)
-		const modPart = segment.parts.find((part) => part.payload.name === 'Michal Kovačič')
+		const modPart = segment.parts.find((part) => part.payload.name === 'Gabriela Kajtárová')
 		expect(modPart?.type).toBe(PartType.Camera)
 		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
+		expect(modPart?.payload.script).toBe('Gabriela Kajtárová')
 	})
 
 	it('does not mark editor graphics without start as adlibs', () => {
@@ -167,8 +170,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
 		expect(headlineObject?.attributes).toMatchObject({
-			headline: 'Headline L3D horný riadok',
-			subline: 'Headline dolný riadok',
+			headline: 'Osobné údaje',
+			subline: 'v OR SR',
 		})
 
 		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
@@ -178,7 +181,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(caspar, 'Caspar template timeline content missing on gfx/l3d-headline piece').toBeDefined()
 		if (!piece || !caspar) return
 
-		expect(caspar.data).toEqual({ title: 'Headline L3D horný riadok', subtitle: 'Headline dolný riadok' })
+		expect(caspar.data).toEqual({ title: 'Osobné údaje', subtitle: 'v OR SR' })
 	})
 
 	it('parses HEADLINE ILU parts as camera parts with headline graphics and L3Ds', () => {
@@ -190,9 +193,10 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		const firstHeadline = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/headline')
 		expect(firstHeadline?.attributes).toMatchObject({
-			text: 'Headline horný riadok',
+			text: 'Osobné údaje v OR SR',
 			iluFile: 'clips/HEADLINE1.mov',
 		})
+		expect(segment.parts[0]?.payload.script).toContain('obchodného registra')
 	})
 
 	it('normalizes legacy iluFile paths and passes through ingest durations unchanged', () => {
