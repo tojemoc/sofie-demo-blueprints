@@ -110,7 +110,7 @@ describe('wipe piece type → PGM effects player', () => {
 		}
 		payload.type = 'VT'
 		const wipeIdx = payload.pieces.findIndex((piece) => piece.objectType.toLowerCase() === 'wipe')
-		const videoIdx = payload.pieces.findIndex((piece) => piece.objectType === 'video')
+		const videoIdx = payload.pieces.findIndex((piece) => piece.objectType.toLowerCase() === 'video')
 		expect(wipeIdx).toBeGreaterThanOrEqual(0)
 		expect(videoIdx).toBeGreaterThanOrEqual(0)
 		const [wipe] = payload.pieces.splice(wipeIdx, 1)

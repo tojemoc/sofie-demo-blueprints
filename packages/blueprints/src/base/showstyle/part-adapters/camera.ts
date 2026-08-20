@@ -25,7 +25,7 @@ import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
 	if (/doublebox|double-box/i.test(part.rawType || '')) return true
 	return part.objects.some(
-		(obj) => obj.objectType === ObjectType.Graphic && (obj as GraphicObject).clipName === 'gfx/doublebox-ilu'
+		(obj) => obj.objectType === ObjectType.Graphic && (obj as GraphicObject).clipName.toLowerCase() === 'gfx/doublebox-ilu'
 	)
 }
 

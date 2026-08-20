@@ -191,4 +191,69 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		)
 		expect(headlineChrome).toBeUndefined()
 	})
+
+	it('selects DoubleBox camera path when gfx/doublebox-ilu clipName casing differs', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		expect(part).toBeDefined()
+		if (!part) return
+
+		const payload = part.payload as {
+			type: string
+			pieces: Array<{
+				id: string
+				objectType: string
+				objectTime?: number
+				duration?: number
+				clipName?: string
+				attributes: Record<string, unknown>
+			}>
+		}
+		payload.type = 'DoubleBox'
+		payload.pieces = [
+			{
+				id: 'piece-db-ilu-mixed',
+				objectType: 'doublebox-ilu',
+				objectTime: 0,
+				duration: 8,
+				clipName: '',
+				attributes: { text: 'Mixed case', iluFile: 'clips/ILU bednar.mp4' },
+			},
+			{
+				id: 'piece-db-cam-mixed',
+				objectType: 'camera',
+				objectTime: 0,
+				duration: 0,
+				clipName: '',
+				attributes: { camNo: 1 },
+			},
+		]
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
+		expect(dbPart).toBeDefined()
+		if (!dbPart) return
+
+		const iluObj = dbPart.objects.find(
+			(obj) => obj.objectType === ObjectType.Graphic && obj.clipName.toLowerCase() === 'gfx/doublebox-ilu'
+		)
+		expect(iluObj).toBeDefined()
+		if (!iluObj) return
+		iluObj.clipName = 'gfx/DoubleBox-ILU'
+
+		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>)
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+
+		const pgmCam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
+		expect(pgmCam?.content).toMatchObject({
+			mixer: {
+				fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
+				crop: { ...PGM_DOUBLEBOX_CAMERA_CROP },
+			},
+		})
+
+		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
+		expect(dbLoop, 'mixed-case doublebox-ilu must still include db_loop').toBeDefined()
+	})
 })
