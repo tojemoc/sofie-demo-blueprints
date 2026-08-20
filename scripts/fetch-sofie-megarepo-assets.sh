@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="4e50c3d7a8af669572b199983ecf8c2d0e86af45" # sofie#26 DoubleBox ILU
+PINNED_SOFIE_ASSETS_REF="0ab55efa28fc75878b0d2ca4fc4086c05480b72c" # sofie#33 bg-music + wipe assets
 
 CURL_OPTS=(
 	-fsSL
