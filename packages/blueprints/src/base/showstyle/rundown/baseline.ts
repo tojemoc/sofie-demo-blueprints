@@ -7,6 +7,7 @@ import { DVEDesigns, DVELayouts } from '../helpers/dve.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
+import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
@@ -33,7 +34,9 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			// Same loop on PGM (ch2/110) so DoubleBox has full-bleed bg behind ILU + CAM FILLs.
+			// Same loop on PGM (ch2/110) — visible through db_loop cutouts before db_loop starts.
+			// Once db_loop plays (from intro onward) it replaces this visually since bg_loop
+			// is baked into the db_loop alpha compositing frame.
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 				id: '',
 				enable: { while: 1 },
@@ -77,6 +80,8 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 					useStopCommand: true,
 				},
 			}),
+
+			createBackgroundMusicBaselineTimeline(),
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentSisyfosChannels>>({
 				id: '',

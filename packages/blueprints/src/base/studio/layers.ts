@@ -28,6 +28,8 @@ export enum CasparCGLayers {
 	CasparCGPgmIluPlayer = 'casparcg_pgm_ilu_player',
 	/** PGM CAM / UVC (OBS Virtual Camera) framed into the DoubleBox right window. */
 	CasparCGPgmCamera = 'casparcg_pgm_camera',
+	/** PGM DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
+	CasparCGPgmDoubleBoxLoop = 'casparcg_pgm_doublebox_loop',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',
 	CasparCGGraphicsPgmLowerThird = 'casparcg_graphics_pgm_l3d',

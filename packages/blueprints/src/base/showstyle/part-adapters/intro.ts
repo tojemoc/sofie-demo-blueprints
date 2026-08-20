@@ -5,10 +5,13 @@ import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
+import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 
 /**
  * Intro part: overlay video on PGM IntroOverlay (layer 210) — above wipe / compose.
  * Never on LED (LED = headlines + loop only). Optional `bg-loop` stays on ClipPlayer1 (110).
+ * Starts the DoubleBox compositing frame (db_loop) which persists for the rest of the rundown.
  */
 export function generateIntroPart(context: PartContext, part: PartProps<IntroProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
@@ -25,6 +28,16 @@ export function generateIntroPart(context: PartContext, part: PartProps<IntroPro
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
 	if (graphics.pieces) pieces.push(...graphics.pieces)
+
+	const introDurationMs =
+		part.payload.duration > 0
+			? part.payload.duration
+			: part.payload.clipProps.duration && part.payload.clipProps.duration > 0
+				? part.payload.clipProps.duration
+				: undefined
+	pieces.push(createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs))
+
+	pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

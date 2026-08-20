@@ -34,9 +34,12 @@ import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
 import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
+import { createSportBackgroundMusicPiece, isSportSegmentName } from '../helpers/backgroundMusic.js'
+import { parseConfig } from '../helpers/config.js'
 
 export function generateParts(context: ISegmentUserContext, intermediateSegment: SegmentProps): BlueprintResultSegment {
 	context.logDebug('Generating parts for intermediateSegment: ' + JSON.stringify(intermediateSegment, null, 2))
+	const studioConfig = parseConfig(context).studio
 	// Create Segment UserEditOperations:
 	const userEditOperationsOnSegment: UserEditingDefinitionAction[] = [
 		{
@@ -193,6 +196,16 @@ export function generateParts(context: ISegmentUserContext, intermediateSegment:
 
 		return newPart
 	})
+
+	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
+		parts[0].pieces.push(
+			createSportBackgroundMusicPiece(
+				context,
+				studioConfig,
+				intermediateSegment.parts[0]?.payload.externalId ?? 'sport'
+			)
+		)
+	}
 
 	return {
 		segment: {
