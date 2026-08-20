@@ -47,7 +47,9 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 			exportData.parts.filter((p) => p.segmentId === 'seg-sjv' && p.partType === 'syn').length
 		).toBeGreaterThanOrEqual(3)
 		// Prompter scripts filled for spoken ILU / headline parts (SYN SOTs stay empty)
-		expect(exportData.parts.filter((p) => (p.script ?? p.payload.script ?? '').trim().length > 0).length).toBeGreaterThanOrEqual(20)
+		expect(
+			exportData.parts.filter((p) => (p.script ?? p.payload.script ?? '').trim().length > 0).length
+		).toBeGreaterThanOrEqual(20)
 	})
 
 	it('resolves editorial segment types from payload.type', () => {
