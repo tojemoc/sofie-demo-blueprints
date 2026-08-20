@@ -35,13 +35,9 @@ export function generateIntroPart(context: PartContext, part: PartProps<IntroPro
 			: part.payload.clipProps.duration && part.payload.clipProps.duration > 0
 				? part.payload.clipProps.duration
 				: undefined
-	pieces.push(
-		createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs)
-	)
+	pieces.push(createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs))
 
-	pieces.push(
-		createDoubleBoxLoopPiece(context, config, part.payload.externalId)
-	)
+	pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

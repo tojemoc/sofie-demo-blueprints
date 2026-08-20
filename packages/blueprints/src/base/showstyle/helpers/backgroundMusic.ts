@@ -133,11 +133,7 @@ export function createSportBackgroundMusicPiece(
 }
 
 export function isSportSegmentName(name: string): boolean {
-	const normalized = name
-		.normalize('NFD')
-		.replace(/\p{M}/gu, '')
-		.toLowerCase()
-		.trim()
+	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 	// Word-start match only — avoid false positives like "Transport".
 	return /^sport(?:\b|$)/u.test(normalized)
 }

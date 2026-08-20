@@ -160,15 +160,17 @@ describe('wipe piece type → PGM effects player', () => {
 
 		expect(wipePiece?.enable.duration).toBe(2500)
 
-		const muteObj = wipePiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === SisyfosLayers.ForceMute
-		)
+		const muteObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === SisyfosLayers.ForceMute)
 		expect(muteObj).toBeDefined()
 		expect(muteObj?.enable).toEqual({ start: 0, duration: 2500 })
 		const muteContent = muteObj?.content as TSR.TimelineContentSisyfosChannels
 		expect(muteContent.type).toBe(TSR.TimelineContentTypeSisyfos.CHANNELS)
 		expect(muteContent.channels).toHaveLength(2)
-		expect(muteContent.channels[0].isPgm).toBe(0)
-		expect(muteContent.channels[1].isPgm).toBe(0)
+		// isPgm: 0 is the timeline mute (helper supplies isOn: false for each Playback channel).
+		// mappedLayer identities correspond to configured playback0/playback1 (sources 10 and 11).
+		expect(muteContent.channels).toEqual([
+			{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
+			{ mappedLayer: 'sisyfos_source_playback1', isPgm: 0 },
+		])
 	})
 })
