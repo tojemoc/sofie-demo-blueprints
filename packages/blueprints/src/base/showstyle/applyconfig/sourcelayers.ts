@@ -84,6 +84,15 @@ export function getSourceLayer(): ISourceLayer[] {
 			// with Camera in the UI while Caspar still plays on channel 2.
 		},
 		{
+			_id: SourceLayer.PgmDoubleBoxLoop,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 204,
+			name: 'PGM DoubleBox frame',
+			abbreviation: 'DbF',
+			isHidden: true,
+			// No exclusiveGroup — persistent db_loop must not block VT parts on SourceLayer.VT.
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

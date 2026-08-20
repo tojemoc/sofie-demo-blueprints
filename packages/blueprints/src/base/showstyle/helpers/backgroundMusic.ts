@@ -137,7 +137,9 @@ export function isSportSegmentName(name: string): boolean {
 		.normalize('NFD')
 		.replace(/\p{M}/gu, '')
 		.toLowerCase()
-	return normalized.includes('sport')
+		.trim()
+	// Word-start match only — avoid false positives like "Transport".
+	return /^sport(?:\b|$)/u.test(normalized)
 }
 
 export function getPlaybackForceMuteChannels(

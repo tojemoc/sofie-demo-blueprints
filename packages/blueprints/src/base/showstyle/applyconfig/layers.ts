@@ -20,6 +20,11 @@ export enum SourceLayer {
 	 * Output layer is still GFX (PGM track is isFlattened) — Caspar channel is PGM.
 	 */
 	PgmLowerThird = 'lower_third_pgm',
+	/**
+	 * PGM DoubleBox compositing frame (db_loop). Separate from VT so editorial VT
+	 * parts do not fight an OutOnRundownEnd piece on the exclusive VT source layer.
+	 */
+	PgmDoubleBoxLoop = 'pgm_doublebox_loop',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -40,6 +45,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 			return OutputLayer.Script
 		case SourceLayer.LowerThird:
 		case SourceLayer.PgmLowerThird:
+		case SourceLayer.PgmDoubleBoxLoop:
 		case SourceLayer.Strap:
 		case SourceLayer.Ticker:
 		case SourceLayer.Logo:

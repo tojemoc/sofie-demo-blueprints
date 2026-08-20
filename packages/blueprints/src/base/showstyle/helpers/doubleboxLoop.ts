@@ -28,8 +28,8 @@ export function createDoubleBoxLoopPiece(
 		externalId: `${partExternalId}_db_loop`,
 		name: 'DoubleBox frame',
 		lifespan: PieceLifespan.OutOnRundownEnd,
-		sourceLayerId: SourceLayer.VT,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VT),
+		sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
 		content: {
 			fileName: DOUBLEBOX_LOOP_FILE,
 			timelineObjects: [
