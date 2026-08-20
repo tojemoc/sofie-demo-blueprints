@@ -209,7 +209,8 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 				attributes: Record<string, unknown>
 			}>
 		}
-		payload.type = 'DoubleBox'
+		// Use a non-DoubleBox raw type so partUsesDoubleBoxCamera must classify via clipName.
+		payload.type = 'Camera'
 		payload.pieces = [
 			{
 				id: 'piece-db-ilu-mixed',
