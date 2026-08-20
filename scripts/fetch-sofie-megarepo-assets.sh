@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="0ab55efa28fc75878b0d2ca4fc4086c05480b72c" # sofie#33 bg-music + wipe assets
+PINNED_SOFIE_ASSETS_REF="7db3316fe51c1fa094dc7d28abe22d387cdbbadb" # sofie show-flow 5-topic smoke + L3D types
 
 CURL_OPTS=(
 	-fsSL
