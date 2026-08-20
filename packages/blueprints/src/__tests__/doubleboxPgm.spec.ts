@@ -38,8 +38,8 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		expect(crop.top).toBe(0)
 		expect(crop.bottom).toBe(0)
 		expect(crop.right).toBe(0)
-		expect(crop.left).toBeGreaterThan(0.3)
-		expect(crop.left).toBeLessThan(0.7)
+		expect(crop.left).toBeGreaterThanOrEqual(0)
+		expect(crop.left).toBeLessThan(0.2)
 		expect(crop).toEqual(PGM_DOUBLEBOX_CAMERA_CROP)
 	})
 

@@ -94,6 +94,15 @@ export type GraphicObjectAttributes = {
 	 * Prefer a JSON string from the editor; arrays are accepted from smoke fixtures.
 	 */
 	cities?: string
+	/** SJV / Sport kicker label (e.g. SPRÁVY JEDNOU VETOU, ŠPORT). */
+	kicker?: string
+	rubrika?: string
+	/**
+	 * Weather bypass (default ON when absent): play premade animation instead of HTML.
+	 */
+	bypass?: boolean | string
+	/** Media path for weather bypass / outro jingle (e.g. assets/weather, assets/outro). */
+	fileName?: string
 }
 /*
 Note that we are not using the interfaces defined in Sofie,

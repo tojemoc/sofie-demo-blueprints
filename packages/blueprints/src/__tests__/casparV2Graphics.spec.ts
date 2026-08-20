@@ -280,6 +280,12 @@ describe('casparV2Graphics', () => {
 		])
 
 		expect(result.adLibPieces[0]?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
+		const media = result.adLibPieces[0]?.content.timelineObjects?.[0]
+		expect(media?.layer).toBe(CasparCGLayers.CasparCGPgmIntroPlayer)
+		expect(media?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'assets/outro',
+		})
 	})
 
 	it('maps Rundown Editor v2 piece types to gfx clipNames and template data', () => {

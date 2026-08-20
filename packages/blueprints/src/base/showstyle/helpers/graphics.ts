@@ -21,7 +21,11 @@ import { getClipPlayerInput } from './clips.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
-import { PGM_DOUBLEBOX_ILU_CROP, PGM_DOUBLEBOX_ILU_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import {
+	PGM_DOUBLEBOX_ILU_CROP,
+	PGM_DOUBLEBOX_ILU_FILL,
+	coverCropForFill,
+} from '../../studio/applyConfig/mappings/casparcgLayers.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -48,6 +52,7 @@ function getTemplateAttributes(
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
 	delete templateAttributes.iluFallback
 	delete templateAttributes.iluPrerendered
+	delete templateAttributes.bypass
 
 	const rawSourceEnabled = templateAttributes.sourceEnabled
 	delete templateAttributes.sourceEnabled
@@ -80,12 +85,34 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (clipName === 'gfx/l3d-tema') {
+	if (clipName === 'gfx/l3d-tema' || clipName === 'gfx/l3d-odporucanie') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline === undefined && mapped.title !== undefined) {
 			mapped.headline = mapped.title
 		}
 		delete mapped.title
+		return mapped
+	}
+
+	if (clipName === 'gfx/l3d-predstavovak' || clipName === 'gfx/l3d-mod') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		if (mapped.name === undefined && mapped.headline !== undefined) {
+			mapped.name = mapped.headline
+		}
+		if (mapped.title === undefined && mapped.subline !== undefined) {
+			mapped.title = mapped.subline
+		}
+		return mapped
+	}
+
+	if (clipName === 'gfx/l3d-sjv' || clipName === 'gfx/l3d-sport') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		if (mapped.headline === undefined && mapped.title !== undefined) {
+			mapped.headline = mapped.title
+		}
+		if (mapped.kicker === undefined && mapped.rubrika !== undefined) {
+			mapped.kicker = mapped.rubrika
+		}
 		return mapped
 	}
 
@@ -127,17 +154,8 @@ const HEADLINE_ILU_SLOT_FILL = {
 	yScale: 0.73,
 }
 
-/**
- * Cover-crop a 16:9 source into the ILU slot (aspect ≈ 0.62/0.73).
- * Source is wider than the slot → trim left/right so FILL does not squash.
- */
-const HEADLINE_ILU_SLOT_CROP = (() => {
-	const slotAspect = HEADLINE_ILU_SLOT_FILL.xScale / HEADLINE_ILU_SLOT_FILL.yScale
-	const sourceAspect = 16 / 9
-	const visibleWidth = slotAspect / sourceAspect
-	const side = Math.max(0, (1 - visibleWidth) / 2)
-	return { left: side, top: 0, right: side, bottom: 0 }
-})()
+/** Cover-crop into the ILU slot — never stretch/squish 16:9 media. */
+const HEADLINE_ILU_SLOT_CROP = coverCropForFill(HEADLINE_ILU_SLOT_FILL, 'center')
 
 /** Full-screen FILL for prerendered alpha .mov bypass. */
 const HEADLINE_ILU_FULLSCREEN_FILL = {
@@ -145,6 +163,26 @@ const HEADLINE_ILU_FULLSCREEN_FILL = {
 	y: 0,
 	xScale: 1,
 	yScale: 1,
+}
+
+/** Default Caspar path for weather bypass (premade animation). */
+export const DEFAULT_WEATHER_BYPASS_FILE = 'assets/weather'
+
+/** Default Caspar path for outro jingle overlay (on top of everything). */
+export const DEFAULT_OUTRO_FILE = 'assets/outro'
+
+/**
+ * Weather bypass defaults ON — play premade fullscreen animation instead of HTML stub.
+ * Set payload `bypass: false` to use the HTML weather template.
+ */
+function useWeatherBypass(object: GraphicObjectBase): boolean {
+	if (object.clipName.toLowerCase() !== 'gfx/weather') return false
+	if (object.attributes.bypass === undefined || object.attributes.bypass === null) return true
+	return isTruthyAttribute(object.attributes.bypass)
+}
+
+function isOutroGraphic(object: GraphicObjectBase): boolean {
+	return object.clipName.toLowerCase() === 'gfx/outro'
 }
 
 function createHeadlineIluMediaTimelineObject(
@@ -226,8 +264,10 @@ const PGM_L3D_CLIP_NAMES = new Set([
 	'gfx/l3d-tema',
 	'gfx/l3d-syn',
 	'gfx/l3d-mod',
+	'gfx/l3d-predstavovak',
 	'gfx/l3d-sjv',
 	'gfx/l3d-sport',
+	'gfx/l3d-odporucanie',
 ])
 
 function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
@@ -282,6 +322,47 @@ function getGraphicTlObject(
 		return getDoubleboxIluMediaObject(object, isAdlib)
 	}
 
+	// Weather bypass (default ON): premade fullscreen animation, skip HTML stub.
+	if (useWeatherBypass(object)) {
+		const fileName =
+			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) ||
+			DEFAULT_WEATHER_BYPASS_FILE
+		const fullscreenAtemInput = getClipPlayerInput(config)
+		return [
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: { start: 0 },
+				layer: CasparCGLayers.CasparCGClipPlayer2,
+				priority: 1 + (isAdlib ? 10 : 0),
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: toCasparPlayPath(fileName),
+				},
+			}),
+			...createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency),
+		]
+	}
+
+	// Outro jingle: assets/outro.mov on IntroOverlay (210) — above wipe / L3D / compose.
+	if (isOutroGraphic(object)) {
+		const fileName =
+			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) || DEFAULT_OUTRO_FILE
+		return [
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: { start: 0 },
+				layer: CasparCGLayers.CasparCGPgmIntroPlayer,
+				priority: 1 + (isAdlib ? 10 : 0),
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: toCasparPlayPath(fileName),
+				},
+			}),
+		]
+	}
+
 	const iluPrerendered = useHeadlineIluPrerendered(object)
 	const hasIlu = hasHeadlineIluFile(object)
 	// Never feed iluFile into HTML — ILU always plays via Caspar MEDIA (crop or fullscreen).
@@ -300,7 +381,7 @@ function getGraphicTlObject(
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
 				id: '',
 				enable: {
-					start: 0, // TODO - this might not be quite right
+					start: 0, // piece.enable carries objectTime/duration
 				},
 				layer: getGraphicTlLayer(object),
 				priority: 1 + (isAdlib ? 10 : 0),
@@ -344,6 +425,19 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		]
 	}
 
+	if (useWeatherBypass(object)) {
+		const fileName =
+			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) ||
+			DEFAULT_WEATHER_BYPASS_FILE
+		return [createMediaFileExpectedPackage(context, fileName, [CasparCGLayers.CasparCGClipPlayer2])]
+	}
+
+	if (isOutroGraphic(object)) {
+		const fileName =
+			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) || DEFAULT_OUTRO_FILE
+		return [createMediaFileExpectedPackage(context, fileName, [CasparCGLayers.CasparCGPgmIntroPlayer])]
+	}
+
 	if (!isHeadlineWithIlu(object)) {
 		return undefined
 	}
@@ -356,6 +450,10 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttributes {
 	if (isDoubleboxIlu(object)) {
 		return getTemplateAttributes(object.clipName, object.attributes, { omitIluFile: true })
+	}
+
+	if (useWeatherBypass(object)) {
+		return getTemplateAttributes(object.clipName, object.attributes)
 	}
 
 	const hasIlu = hasHeadlineIluFile(object)

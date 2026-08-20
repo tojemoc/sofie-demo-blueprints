@@ -20,7 +20,7 @@ export const LedChannelLayers = {
 
 /**
  * Caspar layer numbers on the PGM channel (DoubleBox compose).
- * Camera (116) sits beside ILU (115); wipe (200); intro (210) is above wipe.
+ * Camera (116) sits under DoubleBoxLoop (118); wipe (200); intro (210) is above wipe.
  * GraphicsLogo (123) is the 360° sekúnd bug — PGM only, not LED.
  */
 export const PgmChannelLayers = {
@@ -36,12 +36,15 @@ export const PgmChannelLayers = {
 	IntroOverlay: 210,
 } as const
 
-/** Starting FILL for DoubleBox CAM window (right — measured from db_loop.mov). */
+/**
+ * DoubleBox CAM under the frame: ~80% of the frame, right edge stuck to the screen
+ * right edge. The alpha `db_loop`/`dp_loop` cutouts reveal the right window; left is ILU.
+ */
 export const PGM_DOUBLEBOX_CAMERA_FILL = {
-	x: 0.7141,
-	y: 0.0769,
-	xScale: 0.264,
-	yScale: 0.6824,
+	x: 0.2,
+	y: 0.1,
+	xScale: 0.8,
+	yScale: 0.8,
 } as const
 
 /** Starting FILL for DoubleBox story ILU window (left — measured from db_loop.mov). */
@@ -50,6 +53,14 @@ export const PGM_DOUBLEBOX_ILU_FILL = {
 	y: 0.0769,
 	xScale: 0.6802,
 	yScale: 0.6824,
+} as const
+
+/** Fullscreen PGM camera (headlines / MOD after intro — no DoubleBox frame yet). */
+export const PGM_FULLSCREEN_CAMERA_FILL = {
+	x: 0,
+	y: 0,
+	xScale: 1,
+	yScale: 1,
 } as const
 
 export type MixerFillRect = {
@@ -94,7 +105,7 @@ export function coverCropForFill(
 	return { left: 0, top: side, right: 0, bottom: side }
 }
 
-/** Keep CAM aspect ratio; cut into the frame from the left (keep right side). */
+/** Keep CAM aspect ratio under the ~80% right-aligned box (near-16:9 → little/no crop). */
 export const PGM_DOUBLEBOX_CAMERA_CROP = coverCropForFill(PGM_DOUBLEBOX_CAMERA_FILL, 'from-left')
 
 /** Center cover-crop for DoubleBox left ILU window. */
