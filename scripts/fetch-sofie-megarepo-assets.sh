@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="1192e66e9be2a2b1979ee9933d968283cf8e7bc9" # sofie smoke scripts for prompter # sofie show-flow 5-topic smoke + L3D types
+PINNED_SOFIE_ASSETS_REF="d04f0f8b7eb883b43568c3ebf881d668f08ad8ad" # sofie LED-only bg_loop + CAM115/ILU116 docs (sofie#35 tip)
 
 CURL_OPTS=(
 	-fsSL
