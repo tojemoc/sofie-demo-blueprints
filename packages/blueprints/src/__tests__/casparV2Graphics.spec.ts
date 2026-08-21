@@ -225,20 +225,19 @@ describe('casparV2Graphics', () => {
 		expect((logo?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('loops background clip on LED and PGM clip players in rundown baseline', () => {
+	it('loops background clip on LED clip player only in rundown baseline', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
 		const pgmLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
 
-		for (const loop of [ledLoop, pgmLoop]) {
-			expect(loop?.enable).toEqual({ while: 1 })
-			expect(loop?.content).toMatchObject({
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: 'loops/bg_loop',
-				loop: true,
-			})
-		}
+		expect(pgmLoop).toBeUndefined()
+		expect(ledLoop?.enable).toEqual({ while: 1 })
+		expect(ledLoop?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'loops/bg_loop',
+			loop: true,
+		})
 	})
 
 	it('excludes internal pieceName from Caspar data and templateData', () => {
