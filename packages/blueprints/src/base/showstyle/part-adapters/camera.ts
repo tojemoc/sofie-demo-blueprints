@@ -5,7 +5,6 @@ import { literal } from '../../../common/util.js'
 import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
 import {
-	PGM_DOUBLEBOX_CAMERA_CROP,
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_FULLSCREEN_CAMERA_FILL,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
@@ -41,8 +40,7 @@ function createPgmCameraTimelineObjects(
 		mode === 'fullscreen'
 			? { fill: { ...PGM_FULLSCREEN_CAMERA_FILL } }
 			: {
-					// Cover-crop first, then FILL — cam sits under db_loop cutouts (~80% right-stuck).
-					crop: { ...PGM_DOUBLEBOX_CAMERA_CROP },
+					// FILL only — cam sits under ILU (z-order) + db_loop cutouts (~80% right-stuck).
 					fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
 				}
 

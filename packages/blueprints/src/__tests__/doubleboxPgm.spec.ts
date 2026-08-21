@@ -12,6 +12,7 @@ import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_DOUBLEBOX_ILU_CROP,
 	PGM_DOUBLEBOX_ILU_FILL,
+	PgmChannelLayers,
 	coverCropForFill,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import {
@@ -22,7 +23,7 @@ import {
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
 
-describe('DoubleBox PGM ILU + CAM crop', () => {
+describe('DoubleBox PGM ILU above CAM', () => {
 	const exportData = loadSmokeRundownExport()
 	const context: ICommonContext = {
 		getHashId: (origin) => `hash_${origin}`,
@@ -43,7 +44,12 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		expect(crop).toEqual(PGM_DOUBLEBOX_CAMERA_CROP)
 	})
 
-	it('plays doublebox-ilu on PGM 115 with FILL+CROP and no headline chrome', () => {
+	it('stacks PGM ILU above CAM so left overhang is covered without CAM crop', () => {
+		expect(PgmChannelLayers.IluPlayer).toBeGreaterThan(PgmChannelLayers.Camera)
+		expect(PgmChannelLayers.DoubleBoxLoop).toBeGreaterThan(PgmChannelLayers.IluPlayer)
+	})
+
+	it('plays doublebox-ilu on PGM ILU layer with FILL+CROP and no headline chrome', () => {
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
 			[
@@ -79,7 +85,7 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGPgmIluPlayer])
 	})
 
-	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-predstavovak + CAM crop on Take', () => {
+	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-predstavovak + CAM FILL (no crop) on Take', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
 		expect(part).toBeDefined()
@@ -161,9 +167,9 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 			file: 'dshow://video=OBS Virtual Camera',
 			mixer: {
 				fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
-				crop: { ...PGM_DOUBLEBOX_CAMERA_CROP },
 			},
 		})
+		expect((pgmCam?.content as TSR.TimelineContentCCGMedia).mixer?.crop).toBeUndefined()
 
 		const pgmIlu = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer)
 		expect(pgmIlu?.content).toMatchObject({
@@ -250,9 +256,9 @@ describe('DoubleBox PGM ILU + CAM crop', () => {
 		expect(pgmCam?.content).toMatchObject({
 			mixer: {
 				fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
-				crop: { ...PGM_DOUBLEBOX_CAMERA_CROP },
 			},
 		})
+		expect((pgmCam?.content as TSR.TimelineContentCCGMedia).mixer?.crop).toBeUndefined()
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'mixed-case doublebox-ilu must still include db_loop').toBeDefined()

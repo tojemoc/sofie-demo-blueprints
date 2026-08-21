@@ -20,13 +20,14 @@ export const LedChannelLayers = {
 
 /**
  * Caspar layer numbers on the PGM channel (DoubleBox compose).
- * Camera (116) sits under DoubleBoxLoop (118); wipe (200); intro (210) is above wipe.
+ * Camera (115) sits under ILU (116) so the left ILU window covers CAM overhang without
+ * needing a left cover-crop; both sit under DoubleBoxLoop (118); wipe (200); intro (210).
  * GraphicsLogo (123) is the 360° sekúnd bug — PGM only, not LED.
  */
 export const PgmChannelLayers = {
 	ClipPlayer: 110,
-	IluPlayer: 115,
-	Camera: 116,
+	Camera: 115,
+	IluPlayer: 116,
 	/** DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
 	DoubleBoxLoop: 118,
 	GraphicsLowerThird: 121,
@@ -38,7 +39,8 @@ export const PgmChannelLayers = {
 
 /**
  * DoubleBox CAM under the frame: ~80% of the frame, right edge stuck to the screen
- * right edge. The alpha `db_loop`/`dp_loop` cutouts reveal the right window; left is ILU.
+ * right edge. ILU (higher layer) covers the left overhang — no CAM crop required.
+ * The alpha `db_loop`/`dp_loop` cutouts reveal the right window; left is ILU.
  */
 export const PGM_DOUBLEBOX_CAMERA_FILL = {
 	x: 0.2,
