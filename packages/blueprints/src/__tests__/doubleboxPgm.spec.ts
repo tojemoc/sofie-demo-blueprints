@@ -192,6 +192,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
 
+		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(wipe, 'wipe must PLAY on PGM layer 200 alongside Camera/ILU/L3D').toBeDefined()
+		expect((wipe?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
+		expect(result.pieces.some((piece) => piece.name.startsWith('Wipe'))).toBe(true)
+
 		const headlineChrome = timeline.find(
 			(obj) => (obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/headline-fallback'
 		)

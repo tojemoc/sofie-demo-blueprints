@@ -12,6 +12,23 @@ import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusi
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
+/**
+ * PGM counter bug — short alpha clip that briefly replaces `gfx/logo-bug` every
+ * {@link PGM_COUNTER_INTERVAL_MS}. Disk file: `assets/counter.mov` (or `loops/counter.mov`
+ * renamed/symlinked to the assets path). Full-frame alpha overlay (graphic already
+ * sits bottom-right in the mov).
+ */
+export const PGM_COUNTER_FILE = 'assets/counter'
+
+/** First counter appearance and repeat period (ms from rundown start). */
+export const PGM_COUNTER_INTERVAL_MS = 30_000
+
+/** How long the counter stays on air each cycle (ms). */
+export const PGM_COUNTER_DURATION_MS = 4_000
+
+/** MIX fade in/out when counter takes over the logo layer. */
+export const PGM_COUNTER_FADE_MS = 400
+
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
 
@@ -36,6 +53,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 
 			// PGM ClipPlayer2 is reserved for story VT/SYN/weather — never baseline bg_loop.
 			// LED owns loops/bg_loop; PGM shows OBS cam / DoubleBox / intro overlays instead.
+			// db_loop on PGM 118 bakes bg art into the DoubleBox frame — that is not bg_loop PLAY.
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
 				id: '',
@@ -64,6 +82,33 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 					name: 'gfx/logo-bug',
 					data: {},
 					useStopCommand: true,
+				},
+			}),
+
+			// Priority 1 on the same PGM logo layer briefly replaces logo-bug every 30s.
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: {
+					start: PGM_COUNTER_INTERVAL_MS,
+					duration: PGM_COUNTER_DURATION_MS,
+					repeating: PGM_COUNTER_INTERVAL_MS,
+				},
+				priority: 1,
+				layer: CasparCGLayers.CasparCGGraphicsLogo,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: PGM_COUNTER_FILE,
+					transitions: {
+						inTransition: {
+							type: TSR.Transition.MIX,
+							duration: PGM_COUNTER_FADE_MS,
+						},
+						outTransition: {
+							type: TSR.Transition.MIX,
+							duration: PGM_COUNTER_FADE_MS,
+						},
+					},
 				},
 			}),
 

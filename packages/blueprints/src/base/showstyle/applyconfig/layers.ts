@@ -25,6 +25,12 @@ export enum SourceLayer {
 	 * parts do not fight an OutOnRundownEnd piece on the exclusive VT source layer.
 	 */
 	PgmDoubleBoxLoop = 'pgm_doublebox_loop',
+	/**
+	 * PGM story-block wipe (Caspar layer 200). Dedicated graphics source layer so
+	 * wipe never shares Titles/VT with intro and is not pruned against Camera/VT
+	 * on the exclusive `pgm` group.
+	 */
+	PgmWipe = 'pgm_wipe',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -46,10 +52,11 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.LowerThird:
 		case SourceLayer.PgmLowerThird:
 		case SourceLayer.PgmDoubleBoxLoop:
+		case SourceLayer.PgmWipe:
 		case SourceLayer.Strap:
 		case SourceLayer.Ticker:
 		case SourceLayer.Logo:
-			// Keep PGM L3Ds on GFX output (not flattened isPGM PGM track). Separate
+			// Keep PGM L3Ds / wipes on GFX output (not flattened isPGM PGM track). Separate
 			// sourceLayerId still avoids LowerThird processAndPrune; Caspar mapping
 			// remains channel-2 PGM layers.
 			return OutputLayer.Gfx

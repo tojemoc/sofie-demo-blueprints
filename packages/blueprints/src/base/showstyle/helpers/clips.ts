@@ -130,7 +130,8 @@ export function findMainVideoObject(objects: SomeObject[]): VideoObject | undefi
 }
 
 function layeredVideoSourceLayer(playLayer: VideoPlayLayer): SourceLayer {
-	if (playLayer === 'effects' || playLayer === 'wipe') return SourceLayer.Titles
+	if (playLayer === 'wipe') return SourceLayer.PgmWipe
+	if (playLayer === 'effects') return SourceLayer.Titles
 	return SourceLayer.VT
 }
 
@@ -145,6 +146,24 @@ function layeredVideoLifespan(playLayer: VideoPlayLayer): PieceLifespan {
 	// Wipes are within-part (fire on take into the story).
 	if (playLayer === 'effects' || playLayer === 'wipe') return PieceLifespan.WithinPart
 	return PieceLifespan.OutOnRundownEnd
+}
+
+/**
+ * Ensure layered video paths carry the Caspar media-folder prefix.
+ * RE mediaPick sometimes stores a bare basename (`wipe`) even when `subdir` is set.
+ */
+export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileName: string): string {
+	const trimmed = toCasparPlayPath(fileName.trim())
+	if (!trimmed) {
+		return playLayer === 'wipe' ? DEFAULT_WIPE_FILE : playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : trimmed
+	}
+	if (trimmed.includes('/')) {
+		return trimmed
+	}
+	if (playLayer === 'wipe') return `wipes/${trimmed}`
+	if (playLayer === 'background') return `loops/${trimmed}`
+	if (playLayer === 'effects') return `assets/${trimmed}`
+	return trimmed
 }
 
 /**
@@ -165,12 +184,14 @@ export function parseLayeredVideosFromObjects(
 			return []
 		}
 
-		const fileName =
+		const rawFileName =
 			resolveVideoFileName(object) ??
 			(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : playLayer === 'wipe' ? DEFAULT_WIPE_FILE : undefined)
-		if (!fileName) {
+		if (!rawFileName) {
 			return []
 		}
+
+		const fileName = normalizeLayeredVideoFileName(playLayer, rawFileName)
 
 		const casparLayer = layeredVideoCasparLayer(playLayer)
 		const sourceLayer = layeredVideoSourceLayer(playLayer)
