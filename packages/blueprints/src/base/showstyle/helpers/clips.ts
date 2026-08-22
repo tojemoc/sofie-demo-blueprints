@@ -14,7 +14,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
-import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
+import { createMediaFileExpectedPackage, isDemoMediaPath, toCasparPlayPath } from './mediaPackages.js'
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { getPlaybackForceMuteChannels } from './backgroundMusic.js'
@@ -130,7 +130,8 @@ export function findMainVideoObject(objects: SomeObject[]): VideoObject | undefi
 }
 
 function layeredVideoSourceLayer(playLayer: VideoPlayLayer): SourceLayer {
-	if (playLayer === 'effects' || playLayer === 'wipe') return SourceLayer.Titles
+	if (playLayer === 'wipe') return SourceLayer.PgmWipe
+	if (playLayer === 'effects') return SourceLayer.Titles
 	return SourceLayer.VT
 }
 
@@ -145,6 +146,27 @@ function layeredVideoLifespan(playLayer: VideoPlayLayer): PieceLifespan {
 	// Wipes are within-part (fire on take into the story).
 	if (playLayer === 'effects' || playLayer === 'wipe') return PieceLifespan.WithinPart
 	return PieceLifespan.OutOnRundownEnd
+}
+
+/**
+ * Ensure layered video paths carry the Caspar media-folder prefix.
+ * RE mediaPick sometimes stores a bare basename (`wipe`) even when `subdir` is set.
+ */
+export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileName: string): string {
+	const trimmed = toCasparPlayPath(fileName.trim())
+	if (!trimmed) {
+		return playLayer === 'wipe' ? DEFAULT_WIPE_FILE : playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : trimmed
+	}
+	// Valid two-level demo paths (clips|loops|wipes|assets/<file>) pass through unchanged.
+	if (isDemoMediaPath(trimmed)) {
+		return trimmed
+	}
+	// Nested / legacy paths flatten to <playLayer subdir>/<basename> — never pass depth > 2.
+	const basename = trimmed.replace(/^.*[/\\]/, '')
+	if (playLayer === 'wipe') return `wipes/${basename}`
+	if (playLayer === 'background') return `loops/${basename}`
+	if (playLayer === 'effects') return `assets/${basename}`
+	return trimmed
 }
 
 /**
@@ -165,12 +187,14 @@ export function parseLayeredVideosFromObjects(
 			return []
 		}
 
-		const fileName =
+		const rawFileName =
 			resolveVideoFileName(object) ??
 			(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : playLayer === 'wipe' ? DEFAULT_WIPE_FILE : undefined)
-		if (!fileName) {
+		if (!rawFileName) {
 			return []
 		}
+
+		const fileName = normalizeLayeredVideoFileName(playLayer, rawFileName)
 
 		const casparLayer = layeredVideoCasparLayer(playLayer)
 		const sourceLayer = layeredVideoSourceLayer(playLayer)

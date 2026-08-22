@@ -8,6 +8,8 @@ import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
+import { normalizeLayeredVideoFileName } from '../base/showstyle/helpers/clips.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
 	loadSmokeRundownExport,
@@ -72,11 +74,34 @@ describe('wipe piece type → PGM effects player', () => {
 
 		expect(wipePiece?.lifespan).toBe(PieceLifespan.WithinPart)
 		expect(wipePiece?.enable.duration).toBe(2500)
+		expect(wipePiece?.sourceLayerId).toBe(SourceLayer.PgmWipe)
+		expect(wipePiece?.outputLayerId).toBe('gfx')
 		expect(wipePiece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect((wipePiece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
 		expect(result.pieces[0]?.name).not.toContain('wipe')
+	})
+
+	it('prefixes bare wipe basenames with wipes/', () => {
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const synPayload = ingest.parts.find((part) => part.externalId === synExternalId)?.payload as {
+			pieces: Array<{ objectType: string; attributes: Record<string, unknown> }>
+		}
+		const wipePiece = synPayload.pieces.find((piece) => piece.objectType.toLowerCase() === 'wipe')
+		expect(wipePiece).toBeDefined()
+		if (!wipePiece) return
+		wipePiece.attributes.fileName = 'wipe'
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>)
+		const generated = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
+		expect((generated?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
 	})
 
 	it('accepts uppercase WIPE piece type ids from ingest', () => {
@@ -205,5 +230,23 @@ describe('wipe piece type → PGM effects player', () => {
 			{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
 			{ mappedLayer: 'sisyfos_source_playback1', isPgm: 0 },
 		])
+	})
+})
+
+describe('normalizeLayeredVideoFileName', () => {
+	it('preserves valid two-level demo paths', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('background', 'loops/bg_loop')).toBe('loops/bg_loop')
+		expect(normalizeLayeredVideoFileName('effects', 'assets/intro_michal')).toBe('assets/intro_michal')
+	})
+
+	it('prefixes bare basenames with the playLayer subdir', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipe')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('background', 'bg_loop')).toBe('loops/bg_loop')
+	})
+
+	it('flattens nested paths to two levels', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'spravy/r1/clips/nested_wipe.mov')).toBe('wipes/nested_wipe')
+		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
 	})
 })

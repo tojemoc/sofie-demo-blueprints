@@ -40,8 +40,12 @@ function isTruthyAttribute(value: boolean | string | undefined): boolean {
 	return value === true || (typeof value === 'string' && value.toLowerCase() === 'true')
 }
 
+function normalizeGraphicClipName(clipName: string): string {
+	return clipName.trim().toLowerCase()
+}
+
 function isDoubleboxIlu(object: GraphicObjectBase): boolean {
-	return object.clipName === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
+	return normalizeGraphicClipName(object.clipName) === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
 }
 
 function getTemplateAttributes(
@@ -49,6 +53,7 @@ function getTemplateAttributes(
 	attributes: GraphicObjectAttributes,
 	options?: { omitIluFile?: boolean }
 ): GraphicObjectAttributes {
+	const normalizedClip = clipName.trim().toLowerCase()
 	const { pieceName: _pieceName, ...templateAttributes } = attributes
 	delete templateAttributes.iluFallback
 	delete templateAttributes.iluPrerendered
@@ -72,7 +77,7 @@ function getTemplateAttributes(
 		delete templateAttributes.iluFile
 	}
 
-	if (clipName === 'gfx/l3d-headline') {
+	if (normalizedClip === 'gfx/l3d-headline') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline !== undefined && mapped.title === undefined) {
 			mapped.title = mapped.headline
@@ -85,7 +90,7 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (clipName === 'gfx/l3d-tema' || clipName === 'gfx/l3d-odporucanie') {
+	if (normalizedClip === 'gfx/l3d-tema' || normalizedClip === 'gfx/l3d-odporucanie') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline === undefined && mapped.title !== undefined) {
 			mapped.headline = mapped.title
@@ -94,7 +99,7 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (clipName === 'gfx/l3d-predstavovak' || clipName === 'gfx/l3d-mod') {
+	if (normalizedClip === 'gfx/l3d-predstavovak' || normalizedClip === 'gfx/l3d-mod') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.name === undefined && mapped.headline !== undefined) {
 			mapped.name = mapped.headline
@@ -102,10 +107,13 @@ function getTemplateAttributes(
 		if (mapped.title === undefined && mapped.subline !== undefined) {
 			mapped.title = mapped.subline
 		}
+		// Drop aliases so templates only see the canonical name/title contract.
+		delete mapped.headline
+		delete mapped.subline
 		return mapped
 	}
 
-	if (clipName === 'gfx/l3d-sjv' || clipName === 'gfx/l3d-sport') {
+	if (normalizedClip === 'gfx/l3d-sjv' || normalizedClip === 'gfx/l3d-sport') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline === undefined && mapped.title !== undefined) {
 			mapped.headline = mapped.title
@@ -113,10 +121,18 @@ function getTemplateAttributes(
 		if (mapped.kicker === undefined && mapped.rubrika !== undefined) {
 			mapped.kicker = mapped.rubrika
 		}
+		if (normalizedClip === 'gfx/l3d-sport') {
+			const kicker = typeof mapped.kicker === 'string' ? mapped.kicker.trim() : ''
+			if (!kicker) {
+				mapped.kicker = 'ŠPORT'
+			}
+		}
+		delete mapped.title
+		delete mapped.rubrika
 		return mapped
 	}
 
-	if (clipName === 'gfx/weather' && typeof templateAttributes.cities === 'string') {
+	if (normalizedClip === 'gfx/weather' && typeof templateAttributes.cities === 'string') {
 		try {
 			const parsed = JSON.parse(templateAttributes.cities) as unknown
 			if (Array.isArray(parsed)) {
@@ -271,7 +287,7 @@ const PGM_L3D_CLIP_NAMES = new Set([
 ])
 
 function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
-	return PGM_L3D_CLIP_NAMES.has(object.clipName.toLowerCase())
+	return PGM_L3D_CLIP_NAMES.has(normalizeGraphicClipName(object.clipName))
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
@@ -369,7 +385,9 @@ function getGraphicTlObject(
 	const omitIluFileFromTemplate = hasIlu
 	// Prerendered/bypass: skip HTML chrome entirely (motion is baked into the .mov).
 	// Cropped mode: transparent frame overlay (headline-fallback) so Caspar MEDIA shows through.
-	const clipName = iluPrerendered ? undefined : hasIlu ? 'gfx/headline-fallback' : object.clipName
+	// Normalize template path — Caspar HTML templates are case-sensitive on disk.
+	const rawClipName = iluPrerendered ? undefined : hasIlu ? 'gfx/headline-fallback' : object.clipName
+	const clipName = rawClipName ? rawClipName.trim().toLowerCase() : undefined
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = clipName ? isFullscreenGraphic(clipName) : false
 	const headlineIluMediaObject = getHeadlineIluMediaObject(object, isAdlib)
@@ -461,7 +479,7 @@ function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttribu
 		? 'gfx/headline'
 		: hasIlu
 			? 'gfx/headline-fallback'
-			: object.clipName
+			: object.clipName.trim().toLowerCase()
 	return getTemplateAttributes(clipName, object.attributes, {
 		omitIluFile: hasIlu,
 	})

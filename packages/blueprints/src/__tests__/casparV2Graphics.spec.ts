@@ -179,6 +179,43 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
+	it('normalizes mixed-case L3D clipNames and drops alias fields for predstavovak', () => {
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'pred-mixed',
+				objectType: ObjectType.Graphic,
+				clipName: 'GFX/L3D-Predstavovak',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { headline: 'Gabi', subline: 'moderátorka' },
+			},
+		]).pieces[0]
+
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.name).toBe('gfx/l3d-predstavovak')
+		expect(caspar?.data).toEqual({ name: 'Gabi', title: 'moderátorka' })
+		expect(caspar?.data).not.toHaveProperty('headline')
+		expect(caspar?.data).not.toHaveProperty('subline')
+	})
+
+	it('defaults l3d-sport kicker to ŠPORT when missing', () => {
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'sport1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/l3d-sport',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { headline: 'Slovan' },
+			},
+		]).pieces[0]
+
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.data).toEqual({ headline: 'Slovan', kicker: 'ŠPORT' })
+	})
+
 	it('routes mixed-case gfx/l3d-syn to PGM lower-third', () => {
 		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
@@ -193,6 +230,25 @@ describe('casparV2Graphics', () => {
 		]).pieces[0]
 
 		expect(syn?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+	})
+
+	it('routes whitespace-padded L3D clipNames to PgmLowerThird', () => {
+		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'syn-padded',
+				objectType: ObjectType.Graphic,
+				clipName: '  gfx/l3d-syn  ',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { name: 'Guest', role: 'Expert' },
+			},
+		]).pieces[0]
+
+		expect(syn?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
+		expect(syn?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		const caspar = syn?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.name).toBe('gfx/l3d-syn')
 	})
 
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {
@@ -219,18 +275,59 @@ describe('casparV2Graphics', () => {
 
 	it('starts persistent gfx/logo-bug in rundown baseline', () => {
 		const baseline = getBaseline(mockRundownContext())
-		const logo = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLogo)
+		const logo = baseline.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
 
 		expect(logo?.enable).toEqual({ while: 1 })
 		expect((logo?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
+	})
+
+	it('replaces logo-bug with assets/counter every 30s on the same PGM logo layer', () => {
+		const baseline = getBaseline(mockRundownContext())
+		const counter = baseline.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
+		)
+
+		expect(counter?.enable).toEqual({
+			start: 30_000,
+			duration: 4_000,
+			repeating: 30_000,
+		})
+		expect(counter?.priority).toBe(1)
+		expect(counter?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'assets/counter',
+			transitions: {
+				inTransition: { type: TSR.Transition.MIX, duration: 400 },
+				outTransition: { type: TSR.Transition.MIX, duration: 400 },
+			},
+		})
 	})
 
 	it('loops background clip on LED clip player only in rundown baseline', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
 		const pgmLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
+		const bgOnAnyPgm = baseline.timelineObjects?.filter(
+			(obj) =>
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'file' in obj.content &&
+				(obj.content as { file?: string }).file === 'loops/bg_loop' &&
+				obj.layer !== CasparCGLayers.CasparCGClipPlayer1
+		)
 
 		expect(pgmLoop).toBeUndefined()
+		expect(bgOnAnyPgm).toEqual([])
 		expect(ledLoop?.enable).toEqual({ while: 1 })
 		expect(ledLoop?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,

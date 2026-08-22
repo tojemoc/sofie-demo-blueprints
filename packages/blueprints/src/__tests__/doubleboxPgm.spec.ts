@@ -49,6 +49,44 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(PgmChannelLayers.DoubleBoxLoop).toBeGreaterThan(PgmChannelLayers.IluPlayer)
 	})
 
+	it('plays mixed-case gfx/doublebox-ilu on PGM ILU (not HTML headline)', () => {
+		const result = parseGraphicsFromObjects(
+			hybridCasparConfig,
+			[
+				{
+					id: 'db-mixed',
+					objectType: ObjectType.Graphic,
+					clipName: 'GFX/DOUBLEBOX-ILU',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {
+						iluFile: 'clips/ILU bednar.mp4',
+						text: 'Tematický titulok',
+					},
+				},
+			],
+			context
+		)
+
+		const piece = result.pieces[0]
+		expect(piece?.content.timelineObjects).toHaveLength(1)
+		const media = piece?.content.timelineObjects?.[0]
+		expect(media?.layer).toBe(CasparCGLayers.CasparCGPgmIluPlayer)
+		expect(media?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'clips/ILU bednar',
+		})
+		expect(
+			piece?.content.timelineObjects?.some(
+				(obj) =>
+					obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+					'type' in obj.content &&
+					obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+			)
+		).toBe(false)
+	})
+
 	it('plays doublebox-ilu on PGM ILU layer with FILL+CROP and no headline chrome', () => {
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
@@ -191,6 +229,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
+
+		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(wipe, 'wipe must PLAY on PGM layer 200 alongside Camera/ILU/L3D').toBeDefined()
+		expect((wipe?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
+		expect(result.pieces.some((piece) => piece.name.startsWith('Wipe'))).toBe(true)
 
 		const headlineChrome = timeline.find(
 			(obj) => (obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/headline-fallback'

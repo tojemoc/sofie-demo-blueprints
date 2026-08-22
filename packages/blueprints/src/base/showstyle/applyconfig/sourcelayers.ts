@@ -93,6 +93,15 @@ export function getSourceLayer(): ISourceLayer[] {
 			// No exclusiveGroup — persistent db_loop must not block VT parts on SourceLayer.VT.
 		},
 		{
+			_id: SourceLayer.PgmWipe,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 206,
+			name: 'PGM Wipe',
+			abbreviation: 'Wipe',
+			onPresenterScreen: true,
+			// No exclusiveGroup — must coexist with Camera / VT / VO on the same Take.
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

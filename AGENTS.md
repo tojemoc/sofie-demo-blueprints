@@ -71,11 +71,13 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 ### PGM wipe + UVC camera (DoubleBox)
 
 - Piece type `wipe` (megarepo `assets/`) → Caspar **PGM** mapping `casparcg_effects_player_pgm` (ch2 layer 200), file `wipes/wipe` (DEFAULT_WIPE_FILE; older pins used `wipes/360_wipe`).
-- Piece type ids are matched case-insensitively (`wipe` / `WIPE`).
+- Piece type ids are matched case-insensitively (`wipe` / `WIPE`). Wipe uses Sofie source layer `pgm_wipe` (GFX output) so it coexists with Camera/VT.
+- Bare basenames (`wipe`) are normalized to `wipes/wipe` (same for `loops/` / `assets/` on bg-loop / intro).
 - `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — not LED.
+- Baseline also plays `assets/counter` on the same logo layer every 30s for 4s (MIX fade), briefly replacing the logo-bug.
 - Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on `casparcg_pgm_camera` (ch2/115) with DoubleBox FILL. ILU (`casparcg_pgm_ilu_player`, ch2/116) sits above CAM so left overhang is covered without CAM cover-crop.
 - Piece type `doublebox-ilu` → `casparcg_pgm_ilu_player` (ch2/116) with left-window FILL; do **not** use `headline` for thematic DoubleBox.
-- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). PGM ClipPlayer2 is for story VT/SYN/weather — never a companion bg_loop.
+- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). PGM ClipPlayer2 is for story VT/SYN/weather — never a companion bg_loop. PGM DoubleBox uses `loops/db_loop` (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY.
 - Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md`.
 
 ### Media folder layout (bg-loop / wipe / clips)
