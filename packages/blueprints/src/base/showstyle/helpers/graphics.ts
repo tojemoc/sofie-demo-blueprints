@@ -287,7 +287,7 @@ const PGM_L3D_CLIP_NAMES = new Set([
 ])
 
 function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
-	return PGM_L3D_CLIP_NAMES.has(object.clipName.toLowerCase())
+	return PGM_L3D_CLIP_NAMES.has(normalizeGraphicClipName(object.clipName))
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {

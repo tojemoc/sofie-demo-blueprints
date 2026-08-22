@@ -250,21 +250,3 @@ describe('normalizeLayeredVideoFileName', () => {
 		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
 	})
 })
-
-describe('normalizeLayeredVideoFileName', () => {
-	it('preserves valid two-level demo paths', () => {
-		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe')).toBe('wipes/wipe')
-		expect(normalizeLayeredVideoFileName('background', 'loops/bg_loop')).toBe('loops/bg_loop')
-		expect(normalizeLayeredVideoFileName('effects', 'assets/intro_michal')).toBe('assets/intro_michal')
-	})
-
-	it('prefixes bare basenames with the playLayer subdir', () => {
-		expect(normalizeLayeredVideoFileName('wipe', 'wipe')).toBe('wipes/wipe')
-		expect(normalizeLayeredVideoFileName('background', 'bg_loop')).toBe('loops/bg_loop')
-	})
-
-	it('flattens nested paths to two levels', () => {
-		expect(normalizeLayeredVideoFileName('wipe', 'spravy/r1/clips/nested_wipe.mov')).toBe('wipes/nested_wipe')
-		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
-	})
-})

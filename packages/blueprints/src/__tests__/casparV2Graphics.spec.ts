@@ -232,6 +232,25 @@ describe('casparV2Graphics', () => {
 		expect(syn?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 	})
 
+	it('routes whitespace-padded L3D clipNames to PgmLowerThird', () => {
+		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'syn-padded',
+				objectType: ObjectType.Graphic,
+				clipName: '  gfx/l3d-syn  ',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { name: 'Guest', role: 'Expert' },
+			},
+		]).pieces[0]
+
+		expect(syn?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
+		expect(syn?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		const caspar = syn?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.name).toBe('gfx/l3d-syn')
+	})
+
 	it('routes gfx/logo-bug to logo layer with OutOnRundownEnd lifespan', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
