@@ -9,6 +9,7 @@ import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
+import { normalizeLayeredVideoFileName } from '../base/showstyle/helpers/clips.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
 	loadSmokeRundownExport,
@@ -229,5 +230,41 @@ describe('wipe piece type → PGM effects player', () => {
 			{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
 			{ mappedLayer: 'sisyfos_source_playback1', isPgm: 0 },
 		])
+	})
+})
+
+describe('normalizeLayeredVideoFileName', () => {
+	it('preserves valid two-level demo paths', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('background', 'loops/bg_loop')).toBe('loops/bg_loop')
+		expect(normalizeLayeredVideoFileName('effects', 'assets/intro_michal')).toBe('assets/intro_michal')
+	})
+
+	it('prefixes bare basenames with the playLayer subdir', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipe')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('background', 'bg_loop')).toBe('loops/bg_loop')
+	})
+
+	it('flattens nested paths to two levels', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'spravy/r1/clips/nested_wipe.mov')).toBe('wipes/nested_wipe')
+		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
+	})
+})
+
+describe('normalizeLayeredVideoFileName', () => {
+	it('preserves valid two-level demo paths', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('background', 'loops/bg_loop')).toBe('loops/bg_loop')
+		expect(normalizeLayeredVideoFileName('effects', 'assets/intro_michal')).toBe('assets/intro_michal')
+	})
+
+	it('prefixes bare basenames with the playLayer subdir', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipe')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('background', 'bg_loop')).toBe('loops/bg_loop')
+	})
+
+	it('flattens nested paths to two levels', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'spravy/r1/clips/nested_wipe.mov')).toBe('wipes/nested_wipe')
+		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
 	})
 })

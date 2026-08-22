@@ -14,7 +14,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
-import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
+import { createMediaFileExpectedPackage, isDemoMediaPath, toCasparPlayPath } from './mediaPackages.js'
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { getPlaybackForceMuteChannels } from './backgroundMusic.js'
@@ -157,12 +157,15 @@ export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileNam
 	if (!trimmed) {
 		return playLayer === 'wipe' ? DEFAULT_WIPE_FILE : playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : trimmed
 	}
-	if (trimmed.includes('/')) {
+	// Valid two-level demo paths (clips|loops|wipes|assets/<file>) pass through unchanged.
+	if (isDemoMediaPath(trimmed)) {
 		return trimmed
 	}
-	if (playLayer === 'wipe') return `wipes/${trimmed}`
-	if (playLayer === 'background') return `loops/${trimmed}`
-	if (playLayer === 'effects') return `assets/${trimmed}`
+	// Nested / legacy paths flatten to <playLayer subdir>/<basename> — never pass depth > 2.
+	const basename = trimmed.replace(/^.*[/\\]/, '')
+	if (playLayer === 'wipe') return `wipes/${basename}`
+	if (playLayer === 'background') return `loops/${basename}`
+	if (playLayer === 'effects') return `assets/${basename}`
 	return trimmed
 }
 

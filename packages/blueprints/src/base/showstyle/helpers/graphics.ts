@@ -40,8 +40,12 @@ function isTruthyAttribute(value: boolean | string | undefined): boolean {
 	return value === true || (typeof value === 'string' && value.toLowerCase() === 'true')
 }
 
+function normalizeGraphicClipName(clipName: string): string {
+	return clipName.trim().toLowerCase()
+}
+
 function isDoubleboxIlu(object: GraphicObjectBase): boolean {
-	return object.clipName === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
+	return normalizeGraphicClipName(object.clipName) === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
 }
 
 function getTemplateAttributes(

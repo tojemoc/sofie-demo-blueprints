@@ -49,6 +49,44 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(PgmChannelLayers.DoubleBoxLoop).toBeGreaterThan(PgmChannelLayers.IluPlayer)
 	})
 
+	it('plays mixed-case gfx/doublebox-ilu on PGM ILU (not HTML headline)', () => {
+		const result = parseGraphicsFromObjects(
+			hybridCasparConfig,
+			[
+				{
+					id: 'db-mixed',
+					objectType: ObjectType.Graphic,
+					clipName: 'GFX/DOUBLEBOX-ILU',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {
+						iluFile: 'clips/ILU bednar.mp4',
+						text: 'Tematický titulok',
+					},
+				},
+			],
+			context
+		)
+
+		const piece = result.pieces[0]
+		expect(piece?.content.timelineObjects).toHaveLength(1)
+		const media = piece?.content.timelineObjects?.[0]
+		expect(media?.layer).toBe(CasparCGLayers.CasparCGPgmIluPlayer)
+		expect(media?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'clips/ILU bednar',
+		})
+		expect(
+			piece?.content.timelineObjects?.some(
+				(obj) =>
+					obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+					'type' in obj.content &&
+					obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+			)
+		).toBe(false)
+	})
+
 	it('plays doublebox-ilu on PGM ILU layer with FILL+CROP and no headline chrome', () => {
 		const result = parseGraphicsFromObjects(
 			hybridCasparConfig,
