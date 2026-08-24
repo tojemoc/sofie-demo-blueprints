@@ -438,4 +438,54 @@ describe('casparV2Graphics', () => {
 		expect(objects[1]?.clipName).toBe('gfx/l3d-mod')
 		expect(objects[1]?.attributes).toMatchObject({ name: 'Anchor' })
 	})
+
+	it('normalizes generic graphic template names without gfx/ prefixes', () => {
+		const segment = convertIngestData(
+			{
+				logError: () => undefined,
+				logWarning: () => undefined,
+			} as never,
+			{
+				externalId: 'seg-generic',
+				name: 'Generic GFX',
+				payload: { type: 'normal', name: 'Generic GFX' },
+				parts: [
+					{
+						externalId: 'part-generic',
+						name: 'Generic GFX',
+						payload: {
+							segmentId: 'seg-generic',
+							externalId: 'part-generic',
+							rank: 0,
+							name: 'Generic GFX',
+							type: 'GFX',
+							float: false,
+							script: '',
+							pieces: [
+								{
+									id: 'piece-predstavovak-generic',
+									objectType: 'graphic',
+									objectTime: 0,
+									duration: 5,
+									clipName: '',
+									attributes: { template: 'l3d-predstavovak', headline: 'Gabi', subline: 'moderátorka' },
+								},
+							],
+						},
+					},
+				],
+			} as never
+		)
+
+		const object = segment.parts[0]?.objects[0]
+		expect(object?.clipName).toBe('gfx/l3d-predstavovak')
+
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, segment.parts[0]?.objects ?? []).pieces[0]
+		expect(piece?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
+		expect(piece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.name).toBe('gfx/l3d-predstavovak')
+		expect(caspar?.data).toEqual({ name: 'Gabi', title: 'moderátorka', template: 'l3d-predstavovak' })
+	})
 })
