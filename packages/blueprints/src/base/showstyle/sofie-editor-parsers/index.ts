@@ -26,6 +26,14 @@ import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
 import { parseVT } from './vt.js'
 
+function normalizeGenericGraphicTemplate(template: unknown): string {
+	const clipName = typeof template === 'string' ? template.trim() : ''
+	if (!clipName) return ''
+	if (clipName.toLowerCase().startsWith('gfx/')) return clipName
+	if (isRundownEditorGraphicPieceType(clipName)) return 'gfx/' + clipName.toLowerCase()
+	return clipName
+}
+
 function hasCameraPiece(part: EditorIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Camera)
 }
@@ -139,7 +147,7 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {
-					piece.clipName = String(piece.attributes.template || '')
+					piece.clipName = normalizeGenericGraphicTemplate(piece.attributes.template)
 
 					// Legacy spreadsheet/generic graphic field remapping
 					if (piece.clipName === 'gfx/strap') {
