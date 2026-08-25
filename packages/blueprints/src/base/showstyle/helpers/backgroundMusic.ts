@@ -14,6 +14,25 @@ export const BG_MUSIC_A_FILE = 'loops/bg_music_a'
 /** C-block background music (from Šport segment onward). */
 export const BG_MUSIC_C_FILE = 'loops/bg_music_c'
 
+/** Koliska: louder sting at the start of the bed, then duck to underscore. */
+export const KOLISKA_HIT_DURATION_MS = 4000
+export const KOLISKA_HIT_VOLUME = 1
+export const KOLISKA_BED_VOLUME = 0.45
+
+function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt['keyframes']> {
+	return [
+		{
+			id: '',
+			enable: { start: KOLISKA_HIT_DURATION_MS },
+			content: {
+				mixer: {
+					volume: KOLISKA_BED_VOLUME,
+				},
+			},
+		},
+	]
+}
+
 export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -25,7 +44,11 @@ export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TS
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: BG_MUSIC_A_FILE,
 			loop: true,
+			mixer: {
+				volume: KOLISKA_HIT_VOLUME,
+			},
 		},
+		keyframes: koliskaMixerKeyframes(),
 	})
 }
 
@@ -61,7 +84,11 @@ function createBackgroundMusicPiece(
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,
 						file,
 						loop: true,
+						mixer: {
+							volume: KOLISKA_HIT_VOLUME,
+						},
 					},
+					keyframes: koliskaMixerKeyframes(),
 				}),
 			],
 		},

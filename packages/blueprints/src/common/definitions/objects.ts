@@ -45,6 +45,12 @@ export type VideoPlayLayer = 'effects' | 'background' | 'wipe'
 export type VideoObjectAttributes = {
 	fileName?: string
 	sourceDuration?: number
+	/** Seconds trimmed from the start of the clip (Caspar SEEK). */
+	trimIn?: number
+	/** Seconds trimmed from the end of the clip. */
+	trimOut?: number
+	/** Caspar mixer volume 0–1 (values 1–100 are treated as percent). */
+	volume?: number
 	/**
 	 * `effects` = intro overlay (PGM layer 210);
 	 * `background` = LED bg loop (layer 110);

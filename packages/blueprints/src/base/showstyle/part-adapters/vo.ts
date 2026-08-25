@@ -2,7 +2,12 @@ import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie
 import { PartContext } from '../../../common/context.js'
 import { literal, stripExtension } from '../../../common/util.js'
 import { PartProps, VOProps } from '../definitions/index.js'
-import { getClipPlayerInput, getEditorialClipCasparLayer, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import {
+	getClipPlayerInput,
+	getEditorialClipCasparLayer,
+	parseLayeredVideosFromObjects,
+	resolveClipPlayback,
+} from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -14,10 +19,12 @@ import { parseConfig } from '../helpers/config.js'
 export function generateVOPart(context: PartContext, part: PartProps<VOProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const atemInput = getClipPlayerInput(config)
+	const playback = resolveClipPlayback(part.payload.clipProps)
 
 	const cameraPiece: IBlueprintPiece = {
 		enable: {
 			start: 0,
+			...(playback.durationMs !== undefined ? { duration: playback.durationMs } : {}),
 		},
 		externalId: part.payload.externalId,
 		name: part.payload.clipProps.fileName,
@@ -40,12 +47,17 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,
 
 						file: stripExtension(part.payload.clipProps.fileName),
+						...(playback.seekMs > 0 ? { seek: playback.seekMs } : {}),
+						mixer: {
+							volume: playback.volume,
+						},
 					},
 					priority: 1,
 				}),
 			],
 
-			sourceDuration: part.payload.clipProps.sourceDuration,
+			sourceDuration: playback.durationMs ?? part.payload.clipProps.sourceDuration,
+			seek: playback.seekMs > 0 ? playback.seekMs : undefined,
 		},
 
 		expectedPackages: [
@@ -68,7 +80,7 @@ export function generateVOPart(context: PartContext, part: PartProps<VOProps>): 
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
+			expectedDuration: part.payload.duration > 0 ? part.payload.duration : playback.durationMs,
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces],
