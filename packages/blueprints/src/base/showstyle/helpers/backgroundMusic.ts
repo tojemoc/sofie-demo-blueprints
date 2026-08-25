@@ -19,9 +19,7 @@ export const KOLISKA_HIT_DURATION_MS = 4000
 export const KOLISKA_HIT_VOLUME = 1
 export const KOLISKA_BED_VOLUME = 0.45
 
-function koliskaMixerKeyframes(): NonNullable<
-	TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
-> {
+function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
 	return [
 		{
 			id: '',
