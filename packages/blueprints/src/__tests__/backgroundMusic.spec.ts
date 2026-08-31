@@ -42,7 +42,11 @@ describe('koliska bed envelope', () => {
 
 	it('does not apply koliska keyframes to sport background music', () => {
 		const piece = createSportBackgroundMusicPiece(mockContext, hybridCasparConfig, 'seg-sport')
+		expect(piece.content, 'sport background music piece content missing').toBeDefined()
 		const timeline = piece.content?.timelineObjects?.[0] as { keyframes?: unknown[] } | undefined
-		expect(timeline?.keyframes).toBeUndefined()
+		expect(timeline, 'sport background music timeline object missing').toBeDefined()
+		if (!timeline) return
+
+		expect(timeline.keyframes).toBeUndefined()
 	})
 })
