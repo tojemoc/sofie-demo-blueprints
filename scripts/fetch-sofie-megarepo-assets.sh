@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="5d5daf23d1ddcfe0a4a2dbea8e79b777baf30fed" # sofie SYN trimIn/trimOut/volume piece fields (sofie#37)
+PINNED_SOFIE_ASSETS_REF="51c26cd871e006eec5c2caa3436f72bfa80f3f39" # sofie v2 Caspar graphics assets (l3d-mod intro, source piece type)
 
 CURL_OPTS=(
 	-fsSL
