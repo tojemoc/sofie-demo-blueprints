@@ -117,15 +117,18 @@ export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
 	const seekMs = clip.trimInMs && clip.trimInMs > 0 ? clip.trimInMs : 0
 	const trimOutMs = clip.trimOutMs && clip.trimOutMs > 0 ? clip.trimOutMs : 0
 	const volume = clip.volume === undefined ? 1 : parseClipVolume(clip.volume)
-
-	const sourceWindow =
-		clip.sourceDuration && clip.sourceDuration > seekMs + trimOutMs
-			? clip.sourceDuration - seekMs - trimOutMs
-			: undefined
 	const editorial = clip.duration && clip.duration > 0 ? clip.duration : undefined
 
+	let sourceWindow: number | undefined
+	if (clip.sourceDuration !== undefined && clip.sourceDuration > 0) {
+		sourceWindow = clip.sourceDuration > seekMs + trimOutMs ? clip.sourceDuration - seekMs - trimOutMs : 0
+	} else if (editorial !== undefined) {
+		const trimmedEditorial = editorial - seekMs - trimOutMs
+		sourceWindow = trimmedEditorial > 0 ? trimmedEditorial : 0
+	}
+
 	let durationMs: number | undefined
-	if (sourceWindow && editorial) {
+	if (sourceWindow !== undefined && editorial !== undefined) {
 		durationMs = Math.min(sourceWindow, editorial)
 	} else {
 		durationMs = sourceWindow ?? editorial
@@ -170,8 +173,12 @@ function isTruthyAttribute(value: boolean | string | undefined): boolean {
 
 export function getVideoPlayLayer(object: VideoObject): VideoPlayLayer | undefined {
 	const raw = object.attributes?.playLayer
-	if (raw === 'effects' || raw === 'background' || raw === 'wipe') {
-		return raw
+	if (typeof raw !== 'string') {
+		return undefined
+	}
+	const normalized = raw.toLowerCase()
+	if (normalized === 'effects' || normalized === 'background' || normalized === 'wipe') {
+		return normalized
 	}
 	return undefined
 }

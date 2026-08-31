@@ -67,7 +67,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 				audioTlObj,
 			],
 
-			sourceDuration: playback.durationMs ?? part.payload.clipProps.sourceDuration,
+			sourceDuration: part.payload.clipProps.sourceDuration,
 			seek: playback.seekMs > 0 ? playback.seekMs : undefined,
 		},
 		expectedPackages: [
@@ -90,7 +90,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration > 0 ? part.payload.duration : playback.durationMs,
+			expectedDuration: playback.durationMs ?? (part.payload.duration > 0 ? part.payload.duration : undefined),
 			autoNext: true,
 		},
 		pieces,

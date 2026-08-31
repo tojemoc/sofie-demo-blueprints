@@ -90,7 +90,6 @@ function createBackgroundMusicPiece(
 							volume: KOLISKA_HIT_VOLUME,
 						},
 					},
-					keyframes: koliskaMixerKeyframes(),
 				}),
 			],
 		},

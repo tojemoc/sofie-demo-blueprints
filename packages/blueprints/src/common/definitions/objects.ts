@@ -49,7 +49,7 @@ export type VideoObjectAttributes = {
 	trimIn?: number
 	/** Seconds trimmed from the end of the clip. */
 	trimOut?: number
-	/** Caspar mixer volume 0–1 (values 1–100 are treated as percent). */
+	/** Caspar mixer volume 0–1 normalized; values greater than 1 (up to 100) are interpreted as percent. Exactly 1 is full volume. */
 	volume?: number
 	/**
 	 * `effects` = intro overlay (PGM layer 210);
