@@ -77,6 +77,7 @@ describe('wipe piece type → PGM effects player', () => {
 		expect(wipePiece?.sourceLayerId).toBe(SourceLayer.PgmWipe)
 		expect(wipePiece?.outputLayerId).toBe('gfx')
 		expect(wipePiece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
 		expect((wipePiece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')

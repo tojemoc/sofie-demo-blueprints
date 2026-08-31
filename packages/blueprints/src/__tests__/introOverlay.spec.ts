@@ -7,6 +7,7 @@ import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -50,6 +51,9 @@ describe('intro overlay + bg-loop layered videos', () => {
 		const introTl = introPiece?.content.timelineObjects?.[0]
 
 		expect(introTl?.layer).toBe(CasparCGLayers.CasparCGPgmIntroPlayer)
+		expect(introPiece?.sourceLayerId).toBe(SourceLayer.PgmIntro)
+		expect(introPiece?.sourceLayerId).not.toBe(SourceLayer.Titles)
+		expect(introPiece?.content.ignoreMediaObjectStatus).toBe(true)
 
 		// Caspar PLAY omits extension; Package Manager must look up the real .mov on disk.
 		const introMedia = introTl?.content as { file?: string } | undefined

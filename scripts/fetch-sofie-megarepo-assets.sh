@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="d04f0f8b7eb883b43568c3ebf881d668f08ad8ad" # sofie LED-only bg_loop + CAM115/ILU116 docs (sofie#35 tip)
+PINNED_SOFIE_ASSETS_REF="5d5daf23d1ddcfe0a4a2dbea8e79b777baf30fed" # sofie SYN trimIn/trimOut/volume piece fields (sofie#37)
 
 CURL_OPTS=(
 	-fsSL

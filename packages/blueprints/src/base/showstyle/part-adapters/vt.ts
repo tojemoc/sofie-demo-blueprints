@@ -4,7 +4,12 @@ import { literal, stripExtension } from '../../../common/util.js'
 import { AudioSourceType } from '../../studio/helpers/config.js'
 import { PartProps, VTProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
-import { getClipPlayerInput, getEditorialClipCasparLayer, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import {
+	getClipPlayerInput,
+	getEditorialClipCasparLayer,
+	parseLayeredVideosFromObjects,
+	resolveClipPlayback,
+} from '../helpers/clips.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { createScriptPiece } from '../helpers/script.js'
@@ -16,12 +21,14 @@ import { parseConfig } from '../helpers/config.js'
 export function generateVTPart(context: PartContext, part: PartProps<VTProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const visionMixerInput = getClipPlayerInput(config)
+	const playback = resolveClipPlayback(part.payload.clipProps)
 
 	const audioTlObj = getAudioPrimaryObject(config, [{ type: AudioSourceType.Playback, index: 0 }]) // todo: which playback?
 
 	const vtPiece: IBlueprintPiece = {
 		enable: {
 			start: 0,
+			...(playback.durationMs !== undefined ? { duration: playback.durationMs } : {}),
 		},
 		externalId: part.payload.externalId,
 		name: part.payload.clipProps.fileName,
@@ -49,6 +56,10 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 						type: TSR.TimelineContentTypeCasparCg.MEDIA,
 
 						file: stripExtension(part.payload.clipProps.fileName),
+						...(playback.seekMs > 0 ? { seek: playback.seekMs } : {}),
+						mixer: {
+							volume: playback.volume,
+						},
 					},
 					priority: 1,
 				}),
@@ -57,6 +68,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 			],
 
 			sourceDuration: part.payload.clipProps.sourceDuration,
+			seek: playback.seekMs > 0 ? playback.seekMs : undefined,
 		},
 		expectedPackages: [
 			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [getEditorialClipCasparLayer(config)]),
@@ -78,7 +90,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
+			expectedDuration: playback.durationMs ?? (part.payload.duration > 0 ? part.payload.duration : undefined),
 			autoNext: true,
 		},
 		pieces,

@@ -12,6 +12,15 @@ export function getSourceLayer(): ISourceLayer[] {
 			onPresenterScreen: true,
 		},
 		{
+			_id: SourceLayer.PgmIntro,
+			_rank: 198,
+			name: 'Intro',
+			abbreviation: 'INT',
+			type: SourceLayerType.VT,
+			onPresenterScreen: true,
+			// No exclusiveGroup — intro overlay coexists with Camera / wipe on PGM.
+		},
+		{
 			_id: SourceLayer.Camera,
 			type: SourceLayerType.CAMERA,
 			_rank: 100,

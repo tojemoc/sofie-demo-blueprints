@@ -23,6 +23,12 @@ export interface ClipProps {
 	fileName: string
 	duration?: number
 	sourceDuration?: number
+	/** Milliseconds to SEEK into the file. */
+	trimInMs?: number
+	/** Milliseconds to drop from the tail. */
+	trimOutMs?: number
+	/** Caspar mixer volume 0–1. */
+	volume?: number
 }
 
 export const DEFAULT_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
@@ -73,7 +79,62 @@ export function parseClipEditorProps(object: VideoObject): ClipProps | undefined
 		fileName,
 		duration: object.duration,
 		sourceDuration,
+		trimInMs: secondsAttributeToMs(object.attributes?.trimIn),
+		trimOutMs: secondsAttributeToMs(object.attributes?.trimOut),
+		volume: parseClipVolume(object.attributes?.volume),
 	}
+}
+
+function secondsAttributeToMs(value: unknown): number | undefined {
+	if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+		return undefined
+	}
+	return Math.round(value * 1000)
+}
+
+/** Caspar mixer volume. Values in (1, 100] are treated as percent. */
+export function parseClipVolume(value: unknown): number {
+	if (typeof value !== 'number' || !Number.isFinite(value)) {
+		return 1
+	}
+	if (value > 1 && value <= 100) {
+		return Math.min(1, Math.max(0, value / 100))
+	}
+	return Math.min(1, Math.max(0, value))
+}
+
+export interface ClipPlayback {
+	seekMs: number
+	durationMs: number | undefined
+	volume: number
+}
+
+/**
+ * Apply trim-in / trim-out / editorial duration to the playable window.
+ * `sourceDuration` is ms; missing source falls back to editorial `duration`.
+ */
+export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
+	const seekMs = clip.trimInMs && clip.trimInMs > 0 ? clip.trimInMs : 0
+	const trimOutMs = clip.trimOutMs && clip.trimOutMs > 0 ? clip.trimOutMs : 0
+	const volume = clip.volume === undefined ? 1 : parseClipVolume(clip.volume)
+	const editorial = clip.duration && clip.duration > 0 ? clip.duration : undefined
+
+	let sourceWindow: number | undefined
+	if (clip.sourceDuration !== undefined && clip.sourceDuration > 0) {
+		sourceWindow = clip.sourceDuration > seekMs + trimOutMs ? clip.sourceDuration - seekMs - trimOutMs : 0
+	} else if (editorial !== undefined) {
+		const trimmedEditorial = editorial - seekMs - trimOutMs
+		sourceWindow = trimmedEditorial > 0 ? trimmedEditorial : 0
+	}
+
+	let durationMs: number | undefined
+	if (sourceWindow !== undefined && editorial !== undefined) {
+		durationMs = Math.min(sourceWindow, editorial)
+	} else {
+		durationMs = sourceWindow ?? editorial
+	}
+
+	return { seekMs, durationMs, volume }
 }
 
 export function getClipPlayerInput(config: StudioConfig): StudioConfig['atemSources'][any] | undefined {
@@ -112,8 +173,12 @@ function isTruthyAttribute(value: boolean | string | undefined): boolean {
 
 export function getVideoPlayLayer(object: VideoObject): VideoPlayLayer | undefined {
 	const raw = object.attributes?.playLayer
-	if (raw === 'effects' || raw === 'background' || raw === 'wipe') {
-		return raw
+	if (typeof raw !== 'string') {
+		return undefined
+	}
+	const normalized = raw.toLowerCase()
+	if (normalized === 'effects' || normalized === 'background' || normalized === 'wipe') {
+		return normalized
 	}
 	return undefined
 }
@@ -131,7 +196,7 @@ export function findMainVideoObject(objects: SomeObject[]): VideoObject | undefi
 
 function layeredVideoSourceLayer(playLayer: VideoPlayLayer): SourceLayer {
 	if (playLayer === 'wipe') return SourceLayer.PgmWipe
-	if (playLayer === 'effects') return SourceLayer.Titles
+	if (playLayer === 'effects') return SourceLayer.PgmIntro
 	return SourceLayer.VT
 }
 
@@ -226,6 +291,8 @@ export function parseLayeredVideosFromObjects(
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
 					file: toCasparPlayPath(fileName),
 					...(loop ? { loop: true } : {}),
+					// Force PLAY even when Package Manager has not verified the file yet.
+					...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1 } } : {}),
 				},
 			}),
 		]
@@ -257,6 +324,7 @@ export function parseLayeredVideosFromObjects(
 				content: {
 					fileName,
 					ignoreAudioFormat: playLayer === 'effects' || playLayer === 'wipe',
+					ignoreMediaObjectStatus: playLayer === 'wipe' || playLayer === 'effects',
 					timelineObjects,
 				},
 				expectedPackages: [

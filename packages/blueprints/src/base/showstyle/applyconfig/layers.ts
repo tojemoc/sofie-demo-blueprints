@@ -1,5 +1,7 @@
 export enum SourceLayer {
 	Titles = 'opener',
+	/** Intro / znelka overlay — PGM video clip, not the legacy Titles opener graphic. */
+	PgmIntro = 'pgm_intro',
 	Camera = 'cam',
 	Remote = 'remote',
 	VT = 'vt',
