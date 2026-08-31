@@ -7,6 +7,8 @@ import type { VideoPlayLayer } from './objects.js'
  */
 export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'headline',
+	/** Standalone source pill on PGM (gfx/source). */
+	'source',
 	/** Thematic DoubleBox left-window ILU (PGM 115) — not headline chrome. */
 	'doublebox-ilu',
 	'l3d-headline',

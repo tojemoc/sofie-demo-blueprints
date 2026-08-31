@@ -59,6 +59,11 @@ function getTemplateAttributes(
 	delete templateAttributes.iluPrerendered
 	delete templateAttributes.bypass
 
+	if (normalizedClip === 'gfx/source') {
+		const source = typeof templateAttributes.source === 'string' ? templateAttributes.source.trim() : ''
+		return source ? { source } : {}
+	}
+
 	const rawSourceEnabled = templateAttributes.sourceEnabled
 	delete templateAttributes.sourceEnabled
 
@@ -284,6 +289,7 @@ const PGM_L3D_CLIP_NAMES = new Set([
 	'gfx/l3d-sjv',
 	'gfx/l3d-sport',
 	'gfx/l3d-odporucanie',
+	'gfx/source',
 ])
 
 function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
@@ -296,11 +302,7 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 		return SourceLayer.LowerThird
 	} else if (object.clipName.match(/logo-bug/i)) {
 		return SourceLayer.Logo
-	} else if (object.clipName.match(/ticker/i)) {
-		return SourceLayer.Ticker
-	} else if (object.clipName.match(/strap/i)) {
-		return SourceLayer.Strap
-	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
+	} else if (object.clipName.match(/outro|weather/i)) {
 		return SourceLayer.GFX
 	} else if (isPgmL3dGraphic(object)) {
 		// Separate Sofie source layer from LED headline ILU — otherwise processAndPrune
@@ -313,12 +315,8 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	if (object.clipName.match(/logo-bug/i)) {
 		return CasparCGLayers.CasparCGGraphicsLogo
-	} else if (object.clipName.match(/ticker/i)) {
-		return CasparCGLayers.CasparCGGraphicsTicker
-	} else if (object.clipName.match(/strap/i)) {
-		return CasparCGLayers.CasparCGGraphicsStrap
-	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
-		// Fullscreen story GFX on PGM clip player — never displace LED bg_loop.
+	} else if (object.clipName.match(/outro|weather/i)) {
+		// Fullscreen story GFX on PGM clip player — never displace LED bg loop.
 		return CasparCGLayers.CasparCGClipPlayer2
 	} else if (isPgmL3dGraphic(object)) {
 		// PGM L3D chrome (channel 2). LED allow-list: headlines ILU + bg_loop only.

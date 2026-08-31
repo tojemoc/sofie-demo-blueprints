@@ -148,19 +148,6 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {
 					piece.clipName = normalizeGenericGraphicTemplate(piece.attributes.template)
-
-					// Legacy spreadsheet/generic graphic field remapping
-					if (piece.clipName === 'gfx/strap') {
-						piece.attributes.location = piece.attributes.field0
-						piece.attributes.text = piece.attributes.field1
-					} else if (piece.clipName === 'gfx/head') {
-						piece.attributes.text = piece.attributes.field0
-					} else if (piece.clipName === 'gfx/l3d') {
-						piece.attributes.name = piece.attributes.field0
-						piece.attributes.description = piece.attributes.field1
-					} else if (piece.clipName === 'gfx/fullscreen') {
-						piece.attributes.url = piece.attributes.field0
-					}
 				} else if ((piece.objectType as ObjectType) === ObjectType.Video) {
 					piece.clipName = piece.attributes.fileName as string
 				}
