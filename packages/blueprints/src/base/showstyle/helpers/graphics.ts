@@ -302,7 +302,7 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 		return SourceLayer.LowerThird
 	} else if (object.clipName.match(/logo-bug/i)) {
 		return SourceLayer.Logo
-	} else if (object.clipName.match(/outro|weather/i)) {
+	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		return SourceLayer.GFX
 	} else if (isPgmL3dGraphic(object)) {
 		// Separate Sofie source layer from LED headline ILU — otherwise processAndPrune
@@ -315,7 +315,7 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	if (object.clipName.match(/logo-bug/i)) {
 		return CasparCGLayers.CasparCGGraphicsLogo
-	} else if (object.clipName.match(/outro|weather/i)) {
+	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
 		// Fullscreen story GFX on PGM clip player — never displace LED bg loop.
 		return CasparCGLayers.CasparCGClipPlayer2
 	} else if (isPgmL3dGraphic(object)) {
