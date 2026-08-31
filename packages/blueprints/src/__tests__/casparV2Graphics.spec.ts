@@ -216,6 +216,53 @@ describe('casparV2Graphics', () => {
 		expect(caspar?.data).toEqual({ headline: 'Slovan', kicker: 'ŠPORT' })
 	})
 
+	it('routes gfx/source to PGM lower-third with source field only', () => {
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'src1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/source',
+				objectTime: 0,
+				duration: 3000,
+				isAdlib: false,
+				attributes: { source: 'TASR', sourceEnabled: false },
+			},
+		]).pieces[0]
+
+		expect(piece?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
+		expect(piece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.name).toBe('gfx/source')
+		expect(caspar?.data).toEqual({ source: 'TASR' })
+	})
+
+	it('routes legacy gfx/fullscreen to PGM clip player like weather HTML', () => {
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'fs1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/fullscreen',
+				objectTime: 0,
+				duration: 5000,
+				isAdlib: false,
+				attributes: { url: 'https://example.com/image.png' },
+			},
+		]).pieces[0]
+
+		expect(piece?.sourceLayerId).toBe(SourceLayer.GFX)
+		const template = piece?.content.timelineObjects?.find(
+			(obj) =>
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+		expect(template?.layer).toBe(CasparCGLayers.CasparCGClipPlayer2)
+		const caspar = template?.content as TSR.TimelineContentCCGTemplate
+		expect(caspar?.name).toBe('gfx/fullscreen')
+		expect(caspar?.useStopCommand).toBe(false)
+		expect(piece?.content.timelineObjects?.some((obj) => obj.content.deviceType === TSR.DeviceType.ATEM)).toBe(true)
+	})
+
 	it('routes mixed-case gfx/l3d-syn to PGM lower-third', () => {
 		const syn = parseGraphicsFromObjects(hybridCasparConfig, [
 			{

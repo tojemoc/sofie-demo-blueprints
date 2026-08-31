@@ -36,6 +36,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		])
 		expect(exportData.parts.length).toBeGreaterThanOrEqual(30)
 		expect(exportData.pieces.some((p) => p.pieceType === 'intro')).toBe(true)
+		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-mod')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-predstavovak')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sjv')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sport')).toBe(true)
@@ -65,7 +66,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(segment.parts.some((part) => part.type === PartType.Intro)).toBe(true)
 		const modPart = segment.parts.find((part) => part.payload.name === 'Gabriela Kajtárová')
 		expect(modPart?.type).toBe(PartType.Camera)
-		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
+		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-mod')).toBe(true)
+		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(true)
 		expect(modPart?.payload.script).toBe('Gabriela Kajtárová')
 	})
 
@@ -172,8 +174,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
 		expect(headlineObject?.attributes).toMatchObject({
-			headline: 'Osobné údaje',
-			subline: 'v OR SR',
+			title: 'Osobné údaje',
+			subtitle: 'v OR SR',
 		})
 
 		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
