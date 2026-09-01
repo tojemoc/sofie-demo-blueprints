@@ -175,7 +175,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(l3d?.duration).toBe(8000)
 	})
 
-	it('maps headline L3D fields to title/subtitle for Caspar templates', () => {
+	it('passes headline L3D fields as headline/subline to Caspar templates', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
 		const headlinePart = segment.parts.find((part) => part.payload.name === 'HEADLINE1')
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
@@ -192,7 +192,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(caspar, 'Caspar template timeline content missing on gfx/l3d-headline piece').toBeDefined()
 		if (!piece || !caspar) return
 
-		expect(caspar.data).toEqual({ title: 'Osobné údaje', subtitle: 'v OR SR' })
+		expect(caspar.data).toEqual({ headline: 'Osobné údaje', subline: 'v OR SR' })
 	})
 
 	it('parses HEADLINE ILU parts as camera parts with headline graphics and L3Ds', () => {

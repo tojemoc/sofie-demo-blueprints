@@ -98,14 +98,15 @@ function getTemplateAttributes(
 
 	if (normalizedClip === 'gfx/l3d-headline') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
-		if (mapped.headline !== undefined && mapped.title === undefined) {
-			mapped.title = mapped.headline
+		// Stock demo blueprints + v2 templates expect headline/subline on Caspar (not title/subtitle).
+		if (mapped.headline === undefined && mapped.title !== undefined) {
+			mapped.headline = mapped.title
 		}
-		if (mapped.subline !== undefined && mapped.subtitle === undefined) {
-			mapped.subtitle = mapped.subline
+		if (mapped.subline === undefined && mapped.subtitle !== undefined) {
+			mapped.subline = mapped.subtitle
 		}
-		delete mapped.headline
-		delete mapped.subline
+		delete mapped.title
+		delete mapped.subtitle
 		return mapped
 	}
 
@@ -129,6 +130,24 @@ function getTemplateAttributes(
 		// Drop aliases so templates only see the canonical name/title contract.
 		delete mapped.headline
 		delete mapped.subline
+		return mapped
+	}
+
+	if (normalizedClip === 'gfx/l3d-syn') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		if (mapped.name === undefined && mapped.headline !== undefined) {
+			mapped.name = mapped.headline
+		}
+		if (mapped.title === undefined && mapped.subline !== undefined) {
+			mapped.title = mapped.subline
+		}
+		// Rundown Editor field is `role`; l3d-syn.html binds the second line from `title`.
+		if (mapped.title === undefined && mapped.role !== undefined) {
+			mapped.title = mapped.role
+		}
+		delete mapped.headline
+		delete mapped.subline
+		delete mapped.role
 		return mapped
 	}
 
