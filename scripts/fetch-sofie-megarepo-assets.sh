@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="6d0f0b90c4db68e0178092845dca466b6e300cf3" # smoke rundown sync (export); logo on first DoubleBox
+PINNED_SOFIE_ASSETS_REF="9087e8e6e6a6b99f385da24aceb2c3319f259412" # smoke rundown without logo-bug (baseline countup)
 
 CURL_OPTS=(
 	-fsSL
