@@ -36,7 +36,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		])
 		expect(exportData.parts.length).toBeGreaterThanOrEqual(30)
 		expect(exportData.pieces.some((p) => p.pieceType === 'intro')).toBe(true)
-		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-mod')).toBe(true)
+		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-predstavovak')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-predstavovak')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sjv')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sport')).toBe(true)
@@ -66,9 +66,20 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(segment.parts.some((part) => part.type === PartType.Intro)).toBe(true)
 		const modPart = segment.parts.find((part) => part.payload.name === 'Gabriela Kajtárová')
 		expect(modPart?.type).toBe(PartType.Camera)
-		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-mod')).toBe(true)
-		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(true)
+		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
+		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(false)
 		expect(modPart?.payload.script).toBe('Gabriela Kajtárová')
+	})
+
+	it('starts logo-bug on the first DoubleBox part (after intro wipe), not on headlines', () => {
+		const headlines = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
+		expect(headlines.parts.every((part) => !part.objects.some((obj) => obj.clipName === 'gfx/logo-bug'))).toBe(
+			true
+		)
+
+		const tema1 = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
+		const firstDb = tema1.parts.find((part) => part.payload.externalId === 'part-tema-1-db')
+		expect(firstDb?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(true)
 	})
 
 	it('does not mark editor graphics without start as adlibs', () => {
@@ -147,7 +158,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const partContext = new PartContext(segmentContext, headline.payload.externalId)
 		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>)
 
-		expect(result.part.expectedDuration).toBe(8000)
+		expect(result.part.expectedDuration).toBe(10000)
 		expect(result.part.autoNext).toBeFalsy()
 
 		const pgmCam = result.pieces
@@ -164,7 +175,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		const ilu = headline.objects.find((obj) => obj.clipName === 'gfx/headline')
 		const l3d = headline.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
-		expect(ilu?.duration).toBe(8000)
+		expect(ilu?.duration).toBe(10000)
 		expect(l3d?.duration).toBe(8000)
 	})
 
@@ -174,8 +185,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
 		expect(headlineObject?.attributes).toMatchObject({
-			title: 'Osobné údaje',
-			subtitle: 'v OR SR',
+			headline: 'Osobné údaje',
+			subline: 'v OR SR',
 		})
 
 		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
