@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="ffa29a2c8a56edd2d82cc7fc436e806e10381421" # sofie v2 Caspar graphics + source smoke piece
+PINNED_SOFIE_ASSETS_REF="6d0f0b90c4db68e0178092845dca466b6e300cf3" # smoke rundown sync (export); logo on first DoubleBox
 
 CURL_OPTS=(
 	-fsSL

@@ -73,9 +73,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 	it('starts logo-bug on the first DoubleBox part (after intro wipe), not on headlines', () => {
 		const headlines = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
-		expect(headlines.parts.every((part) => !part.objects.some((obj) => obj.clipName === 'gfx/logo-bug'))).toBe(
-			true
-		)
+		expect(headlines.parts.every((part) => !part.objects.some((obj) => obj.clipName === 'gfx/logo-bug'))).toBe(true)
 
 		const tema1 = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
 		const firstDb = tema1.parts.find((part) => part.payload.externalId === 'part-tema-1-db')
