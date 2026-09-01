@@ -98,14 +98,15 @@ function getTemplateAttributes(
 
 	if (normalizedClip === 'gfx/l3d-headline') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
-		if (mapped.headline !== undefined && mapped.title === undefined) {
-			mapped.title = mapped.headline
+		// Stock demo blueprints + v2 templates expect headline/subline on Caspar (not title/subtitle).
+		if (mapped.headline === undefined && mapped.title !== undefined) {
+			mapped.headline = mapped.title
 		}
-		if (mapped.subline !== undefined && mapped.subtitle === undefined) {
-			mapped.subtitle = mapped.subline
+		if (mapped.subline === undefined && mapped.subtitle !== undefined) {
+			mapped.subline = mapped.subtitle
 		}
-		delete mapped.headline
-		delete mapped.subline
+		delete mapped.title
+		delete mapped.subtitle
 		return mapped
 	}
 
