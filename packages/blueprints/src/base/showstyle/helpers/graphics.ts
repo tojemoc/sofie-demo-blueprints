@@ -133,6 +133,24 @@ function getTemplateAttributes(
 		return mapped
 	}
 
+	if (normalizedClip === 'gfx/l3d-syn') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		if (mapped.name === undefined && mapped.headline !== undefined) {
+			mapped.name = mapped.headline
+		}
+		if (mapped.title === undefined && mapped.subline !== undefined) {
+			mapped.title = mapped.subline
+		}
+		// Rundown Editor field is `role`; l3d-syn.html binds the second line from `title`.
+		if (mapped.title === undefined && mapped.role !== undefined) {
+			mapped.title = mapped.role
+		}
+		delete mapped.headline
+		delete mapped.subline
+		delete mapped.role
+		return mapped
+	}
+
 	if (normalizedClip === 'gfx/l3d-sjv' || normalizedClip === 'gfx/l3d-sport') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline === undefined && mapped.title !== undefined) {

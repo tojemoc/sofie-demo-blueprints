@@ -175,7 +175,7 @@ describe('casparV2Graphics', () => {
 		expect(synCaspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect((synCaspar?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
 			name: 'Guest',
-			role: 'Expert',
+			title: 'Expert',
 		})
 	})
 
