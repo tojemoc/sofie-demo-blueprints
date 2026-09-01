@@ -320,7 +320,32 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('starts persistent gfx/logo-bug in rundown baseline', () => {
+	it('plays assets/countup silently from rundown take start on the PGM logo layer', () => {
+		const baseline = getBaseline(mockRundownContext())
+		const countup = baseline.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
+		)
+
+		expect(countup?.enable).toEqual({ while: 1 })
+		expect(countup?.priority).toBe(0)
+		expect(countup?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'assets/countup',
+			loop: true,
+			mixer: {
+				opacity: 0,
+				volume: 0,
+			},
+		})
+		expect(countup?.keyframes).toBeUndefined()
+	})
+
+	it('does not start gfx/logo-bug HTML in rundown baseline', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const logo = baseline.timelineObjects?.find(
 			(obj) =>
@@ -330,35 +355,7 @@ describe('casparV2Graphics', () => {
 				obj.content.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 
-		expect(logo?.enable).toEqual({ while: 1 })
-		expect((logo?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
-	})
-
-	it('replaces logo-bug with assets/counter every 30s on the same PGM logo layer', () => {
-		const baseline = getBaseline(mockRundownContext())
-		const counter = baseline.timelineObjects?.find(
-			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
-				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
-				'type' in obj.content &&
-				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
-		)
-
-		expect(counter?.enable).toEqual({
-			start: 30_000,
-			duration: 4_000,
-			repeating: 30_000,
-		})
-		expect(counter?.priority).toBe(1)
-		expect(counter?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'assets/counter',
-			transitions: {
-				inTransition: { type: TSR.Transition.MIX, duration: 400 },
-				outTransition: { type: TSR.Transition.MIX, duration: 400 },
-			},
-		})
+		expect(logo).toBeUndefined()
 	})
 
 	it('loops background clip on LED clip player only in rundown baseline', () => {
@@ -409,26 +406,99 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
-	it('applies preroll for gfx/outro adlibs like fullscreen graphics', () => {
+	it('maps l3d-odporucanie to gfx/outro Caspar template on disk', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
-				id: 'outro1',
+				id: 'odp1',
 				objectType: ObjectType.Graphic,
-				clipName: 'gfx/outro',
+				clipName: 'gfx/l3d-odporucanie',
 				objectTime: 0,
 				duration: 5000,
-				isAdlib: true,
+				isAdlib: false,
+				attributes: {
+					headline: 'Sledujte na www.360tka.sk',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.[0]
+		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/outro')
+		expect((caspar?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
+			headline: 'Sledujte na www.360tka.sk',
+		})
+	})
+
+	it('plays gfx/pocasie HTML over assets/bg_pocasie blind-map video', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx1',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
 				attributes: {},
 			},
 		])
 
-		expect(result.adLibPieces[0]?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
-		const media = result.adLibPieces[0]?.content.timelineObjects?.[0]
-		expect(media?.layer).toBe(CasparCGLayers.CasparCGPgmIntroPlayer)
-		expect(media?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'assets/outro',
+		const timeline = result.pieces[0]?.content.timelineObjects ?? []
+		const bg = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGClipPlayer2 &&
+				(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA
+		)
+		const html = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+
+		expect((bg?.content as TSR.TimelineContentCCGMedia).file).toBe('assets/bg_pocasie')
+		expect((html?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/pocasie')
+	})
+
+	it('decodes legacy cities JSON for gfx/pocasie template data', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-cities',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					cities: '[{"name":"Bratislava","temp":12}]',
+				},
+			},
+		])
+
+		const piece = result.pieces[0]
+		const caspar = piece?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toEqual({ cities: [{ name: 'Bratislava', temp: 12 }] })
+		expect(piece?.content).toMatchObject({
+			templateData: { cities: [{ name: 'Bratislava', temp: 12 }] },
 		})
+	})
+
+	it('applies casparcgLatency preroll to headline ILU adlibs', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'ilu-adlib',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/headline',
+				objectTime: 0,
+				duration: 8000,
+				isAdlib: true,
+				attributes: { iluFile: 'clips/headline1.mp4' },
+			},
+		])
+
+		expect(result.adLibPieces[0]?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 	})
 
 	it('maps Rundown Editor v2 piece types to gfx clipNames and template data', () => {

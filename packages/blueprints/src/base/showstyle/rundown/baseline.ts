@@ -13,21 +13,11 @@ import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusi
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
 /**
- * PGM counter bug — short alpha clip that briefly replaces `gfx/logo-bug` every
- * {@link PGM_COUNTER_INTERVAL_MS}. Disk file: `assets/counter.mov` (or `loops/counter.mov`
- * renamed/symlinked to the assets path). Full-frame alpha overlay (graphic already
- * sits bottom-right in the mov).
+ * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
+ * Plays silently from rundown take start; {@link createCountupRevealPiece} fades
+ * in on the first DoubleBox after the intro wipe. Disk: `assets/countup.mov`.
  */
-export const PGM_COUNTER_FILE = 'assets/counter'
-
-/** First counter appearance and repeat period (ms from rundown start). */
-export const PGM_COUNTER_INTERVAL_MS = 30_000
-
-/** How long the counter stays on air each cycle (ms). */
-export const PGM_COUNTER_DURATION_MS = 4_000
-
-/** MIX fade in/out when counter takes over the logo layer. */
-export const PGM_COUNTER_FADE_MS = 400
+export const PGM_COUNTUP_FILE = 'assets/countup'
 
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
@@ -69,45 +59,19 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 				id: '',
 				enable: { while: 1 },
 				priority: 0,
 				layer: CasparCGLayers.CasparCGGraphicsLogo,
 				content: {
 					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-
-					templateType: 'html',
-					name: 'gfx/logo-bug',
-					data: {},
-					useStopCommand: true,
-				},
-			}),
-
-			// Priority 1 on the same PGM logo layer briefly replaces logo-bug every 30s.
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-				id: '',
-				enable: {
-					start: PGM_COUNTER_INTERVAL_MS,
-					duration: PGM_COUNTER_DURATION_MS,
-					repeating: PGM_COUNTER_INTERVAL_MS,
-				},
-				priority: 1,
-				layer: CasparCGLayers.CasparCGGraphicsLogo,
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					file: PGM_COUNTER_FILE,
-					transitions: {
-						inTransition: {
-							type: TSR.Transition.MIX,
-							duration: PGM_COUNTER_FADE_MS,
-						},
-						outTransition: {
-							type: TSR.Transition.MIX,
-							duration: PGM_COUNTER_FADE_MS,
-						},
+					file: PGM_COUNTUP_FILE,
+					loop: true,
+					mixer: {
+						opacity: 0,
+						volume: 0,
 					},
 				},
 			}),

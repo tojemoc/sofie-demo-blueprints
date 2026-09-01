@@ -33,7 +33,7 @@ export interface GraphicsResult {
 }
 
 function isFullscreenGraphic(clipName: string): boolean {
-	return !!clipName.match(/fullscreen|outro|weather/i)
+	return !!clipName.match(/fullscreen|pocasie|weather/i)
 }
 
 function isTruthyAttribute(value: boolean | string | undefined): boolean {
@@ -42,6 +42,20 @@ function isTruthyAttribute(value: boolean | string | undefined): boolean {
 
 function normalizeGraphicClipName(clipName: string): string {
 	return clipName.trim().toLowerCase()
+}
+
+/** Map Sofie clipNames to on-disk Caspar template paths from demo-assets `template/gfx/`. */
+function resolveCasparTemplateName(clipName: string): string {
+	const normalized = normalizeGraphicClipName(clipName)
+	if (normalized === 'gfx/l3d-odporucanie') {
+		return 'gfx/outro'
+	}
+	return normalized
+}
+
+function isPocasieGraphic(object: GraphicObjectBase): boolean {
+	const clip = normalizeGraphicClipName(object.clipName)
+	return clip === 'gfx/pocasie' || clip === 'gfx/weather'
 }
 
 function isDoubleboxIlu(object: GraphicObjectBase): boolean {
@@ -95,7 +109,7 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (normalizedClip === 'gfx/l3d-tema' || normalizedClip === 'gfx/l3d-odporucanie') {
+	if (normalizedClip === 'gfx/l3d-tema' || normalizedClip === 'gfx/l3d-odporucanie' || normalizedClip === 'gfx/outro') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline === undefined && mapped.title !== undefined) {
 			mapped.headline = mapped.title
@@ -137,7 +151,10 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (normalizedClip === 'gfx/weather' && typeof templateAttributes.cities === 'string') {
+	if (
+		(normalizedClip === 'gfx/weather' || normalizedClip === 'gfx/pocasie') &&
+		typeof templateAttributes.cities === 'string'
+	) {
 		try {
 			const parsed = JSON.parse(templateAttributes.cities) as unknown
 			if (Array.isArray(parsed)) {
@@ -153,14 +170,11 @@ function getTemplateAttributes(
 }
 
 /**
- * ILU prerendered/bypass ON — pre-rendered alpha .mov with baked-in headline motion,
- * played fullscreen (FILL 0 0 1 1). Legacy `iluFallback` maps to the same mode.
+ * ILU headline pieces always use prerendered alpha .mov fullscreen over bg_loop.
+ * Cropped ILU + headline-fallback chrome is disabled until further notice.
  */
 function useHeadlineIluPrerendered(object: GraphicObjectBase): boolean {
-	if (object.clipName !== 'gfx/headline' || !object.attributes.iluFile) {
-		return false
-	}
-	return isTruthyAttribute(object.attributes.iluPrerendered) || isTruthyAttribute(object.attributes.iluFallback)
+	return hasHeadlineIluFile(object)
 }
 
 function hasHeadlineIluFile(object: GraphicObjectBase): boolean {
@@ -186,25 +200,11 @@ const HEADLINE_ILU_FULLSCREEN_FILL = {
 	yScale: 1,
 }
 
-/** Default Caspar path for weather bypass (premade animation). */
-export const DEFAULT_WEATHER_BYPASS_FILE = 'assets/weather'
+/** Blind-map video under the pocasie HTML animation (fullscreen PGM). */
+export const DEFAULT_POCASIE_BG_FILE = 'assets/bg_pocasie'
 
 /** Default Caspar path for outro jingle overlay (on top of everything). */
 export const DEFAULT_OUTRO_FILE = 'assets/outro'
-
-/**
- * Weather bypass defaults ON — play premade fullscreen animation instead of HTML stub.
- * Set payload `bypass: false` to use the HTML weather template.
- */
-function useWeatherBypass(object: GraphicObjectBase): boolean {
-	if (object.clipName.toLowerCase() !== 'gfx/weather') return false
-	if (object.attributes.bypass === undefined || object.attributes.bypass === null) return true
-	return isTruthyAttribute(object.attributes.bypass)
-}
-
-function isOutroGraphic(object: GraphicObjectBase): boolean {
-	return object.clipName.toLowerCase() === 'gfx/outro'
-}
 
 function createHeadlineIluMediaTimelineObject(
 	iluFile: string,
@@ -302,7 +302,7 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 		return SourceLayer.LowerThird
 	} else if (object.clipName.match(/logo-bug/i)) {
 		return SourceLayer.Logo
-	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
+	} else if (isPocasieGraphic(object) || object.clipName.match(/fullscreen/i)) {
 		return SourceLayer.GFX
 	} else if (isPgmL3dGraphic(object)) {
 		// Separate Sofie source layer from LED headline ILU — otherwise processAndPrune
@@ -315,7 +315,7 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	if (object.clipName.match(/logo-bug/i)) {
 		return CasparCGLayers.CasparCGGraphicsLogo
-	} else if (object.clipName.match(/fullscreen|outro|weather/i)) {
+	} else if (isPocasieGraphic(object) || object.clipName.match(/fullscreen/i)) {
 		// Fullscreen story GFX on PGM clip player — never displace LED bg loop.
 		return CasparCGLayers.CasparCGClipPlayer2
 	} else if (isPgmL3dGraphic(object)) {
@@ -336,93 +336,75 @@ function getGraphicTlObject(
 		return getDoubleboxIluMediaObject(object, isAdlib)
 	}
 
-	// Weather bypass (default ON): premade fullscreen animation, skip HTML stub.
-	if (useWeatherBypass(object)) {
-		const fileName =
-			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) ||
-			DEFAULT_WEATHER_BYPASS_FILE
+	// Počasie: blind-map video on PGM clip player + HTML gfx/pocasie overlay.
+	if (isPocasieGraphic(object)) {
 		const fullscreenAtemInput = getClipPlayerInput(config)
+		const templateName = resolveCasparTemplateName('gfx/pocasie')
+		const templateData = getTemplateAttributes(templateName, object.attributes)
 		return [
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 				id: '',
 				enable: { start: 0 },
 				layer: CasparCGLayers.CasparCGClipPlayer2,
-				priority: 1 + (isAdlib ? 10 : 0),
+				priority: 0 + (isAdlib ? 10 : 0),
 				content: {
 					deviceType: TSR.DeviceType.CASPARCG,
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					file: toCasparPlayPath(fileName),
+					file: toCasparPlayPath(DEFAULT_POCASIE_BG_FILE),
+				},
+			}),
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+				id: '',
+				enable: { start: 0 },
+				layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird,
+				priority: 1 + (isAdlib ? 10 : 0),
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+					templateType: 'html',
+					name: templateName,
+					data: { ...templateData },
+					useStopCommand: false,
 				},
 			}),
 			...createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency),
 		]
 	}
 
-	// Outro jingle: assets/outro.mov on IntroOverlay (210) — above wipe / L3D / compose.
-	if (isOutroGraphic(object)) {
-		const fileName =
-			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) || DEFAULT_OUTRO_FILE
-		return [
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-				id: '',
-				enable: { start: 0 },
-				layer: CasparCGLayers.CasparCGPgmIntroPlayer,
-				priority: 1 + (isAdlib ? 10 : 0),
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					file: toCasparPlayPath(fileName),
-				},
-			}),
-		]
-	}
-
-	const iluPrerendered = useHeadlineIluPrerendered(object)
 	const hasIlu = hasHeadlineIluFile(object)
-	// Never feed iluFile into HTML — ILU always plays via Caspar MEDIA (crop or fullscreen).
-	const omitIluFileFromTemplate = hasIlu
-	// Prerendered/bypass: skip HTML chrome entirely (motion is baked into the .mov).
-	// Cropped mode: transparent frame overlay (headline-fallback) so Caspar MEDIA shows through.
-	// Normalize template path — Caspar HTML templates are case-sensitive on disk.
-	const rawClipName = iluPrerendered ? undefined : hasIlu ? 'gfx/headline-fallback' : object.clipName
-	const clipName = rawClipName ? rawClipName.trim().toLowerCase() : undefined
-	const fullscreenAtemInput = getClipPlayerInput(config)
-	const isFullscreen = clipName ? isFullscreenGraphic(clipName) : false
+	// Prerendered ILU: alpha .mov fullscreen on LED ILU layer — no HTML chrome.
 	const headlineIluMediaObject = getHeadlineIluMediaObject(object, isAdlib)
 
-	const timelineObjects: TimelineBlueprintExt[] = []
-
-	if (clipName) {
-		timelineObjects.push(
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
-				id: '',
-				enable: {
-					start: 0, // piece.enable carries objectTime/duration
-				},
-				layer: getGraphicTlLayer(object),
-				priority: 1 + (isAdlib ? 10 : 0),
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-
-					templateType: 'html',
-					name: clipName,
-					data: {
-						...getTemplateAttributes(clipName, object.attributes, { omitIluFile: omitIluFileFromTemplate }),
-					},
-					useStopCommand: isFullscreen ? false : true,
-				},
-			})
-		)
+	if (hasIlu) {
+		return headlineIluMediaObject
 	}
 
-	timelineObjects.push(...headlineIluMediaObject)
+	const clipName = resolveCasparTemplateName(object.clipName)
+	const fullscreenAtemInput = getClipPlayerInput(config)
+	const isFullscreen = isFullscreenGraphic(clipName)
 
-	if (isFullscreen) {
-		timelineObjects.push(...createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency))
-	}
+	return [
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+			id: '',
+			enable: {
+				start: 0, // piece.enable carries objectTime/duration
+			},
+			layer: getGraphicTlLayer(object),
+			priority: 1 + (isAdlib ? 10 : 0),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
 
-	return timelineObjects
+				templateType: 'html',
+				name: clipName,
+				data: {
+					...getTemplateAttributes(clipName, object.attributes),
+				},
+				useStopCommand: isFullscreen ? false : true,
+			},
+		}),
+		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
+	]
 }
 function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
 	return hasHeadlineIluFile(object)
@@ -441,17 +423,8 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		]
 	}
 
-	if (useWeatherBypass(object)) {
-		const fileName =
-			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) ||
-			DEFAULT_WEATHER_BYPASS_FILE
-		return [createMediaFileExpectedPackage(context, fileName, [CasparCGLayers.CasparCGClipPlayer2])]
-	}
-
-	if (isOutroGraphic(object)) {
-		const fileName =
-			(typeof object.attributes.fileName === 'string' && object.attributes.fileName.trim()) || DEFAULT_OUTRO_FILE
-		return [createMediaFileExpectedPackage(context, fileName, [CasparCGLayers.CasparCGPgmIntroPlayer])]
+	if (isPocasieGraphic(object)) {
+		return [createMediaFileExpectedPackage(context, DEFAULT_POCASIE_BG_FILE, [CasparCGLayers.CasparCGClipPlayer2])]
 	}
 
 	if (!isHeadlineWithIlu(object)) {
@@ -468,19 +441,15 @@ function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttribu
 		return getTemplateAttributes(object.clipName, object.attributes, { omitIluFile: true })
 	}
 
-	if (useWeatherBypass(object)) {
-		return getTemplateAttributes(object.clipName, object.attributes)
+	if (isPocasieGraphic(object)) {
+		return getTemplateAttributes(resolveCasparTemplateName('gfx/pocasie'), object.attributes)
 	}
 
-	const hasIlu = hasHeadlineIluFile(object)
-	const clipName = useHeadlineIluPrerendered(object)
-		? 'gfx/headline'
-		: hasIlu
-			? 'gfx/headline-fallback'
-			: object.clipName.trim().toLowerCase()
-	return getTemplateAttributes(clipName, object.attributes, {
-		omitIluFile: hasIlu,
-	})
+	if (hasHeadlineIluFile(object)) {
+		return getTemplateAttributes(object.clipName, object.attributes, { omitIluFile: true })
+	}
+
+	return getTemplateAttributes(resolveCasparTemplateName(object.clipName), object.attributes)
 }
 
 function parseGraphic(
@@ -538,7 +507,7 @@ export function parseAdlibGraphic(
 ): IBlueprintAdLibPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
-	const isFullscreen = isFullscreenGraphic(object.clipName)
+	const isFullscreen = isFullscreenGraphic(object.clipName) || useHeadlineIluPrerendered(object)
 	const templateData = getGraphicTemplateData(object)
 
 	return {

@@ -1,4 +1,4 @@
-import { ICommonContext, TSR } from '@sofie-automation/blueprints-integration'
+import { ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { PartType, CameraProps, PartProps } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
@@ -22,6 +22,7 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 
 describe('DoubleBox PGM ILU above CAM', () => {
 	const exportData = loadSmokeRundownExport()
@@ -194,7 +195,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		if (!dbPart) return
 
 		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
-		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>, createCountupRevealClaim())
 
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
@@ -229,6 +230,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
+
+		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
+		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		const countupTl = countupReveal?.content.timelineObjects?.[0]
+		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
+		expect(countupTl?.keyframes?.[0]?.content).toMatchObject({
+			mixer: { opacity: 1, volume: 1 },
+		})
 
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipe, 'wipe must PLAY on PGM layer 200 alongside Camera/ILU/L3D').toBeDefined()
@@ -292,7 +301,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		iluObj.clipName = 'gfx/DoubleBox-ILU'
 
 		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
-		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>, createCountupRevealClaim())
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
 		const pgmCam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)

@@ -6,14 +6,14 @@ import {
 	playLayerForVideoPieceType,
 	resolveSegmentType,
 } from '../../../common/definitions/rundownEditorTypes.js'
-import { isLayeredVideoObject } from '../helpers/clips.js'
+import { DEFAULT_BG_LOOP_FILE, isLayeredVideoObject, normalizeLayeredVideoFileName } from '../helpers/clips.js'
 import { VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
 import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
-import { DEFAULT_BG_LOOP_FILE, normalizeLayeredVideoFileName } from '../helpers/clips.js'
-import { getDemoClipPath } from '../helpers/mediaPackages.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
+import { getDemoClipPath } from '../helpers/mediaPackages.js'
+import { DEFAULT_OUTRO_FILE } from '../helpers/graphics.js'
 import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
@@ -94,6 +94,12 @@ function parseEditorPart(partPayload: EditorIngestPart): PartProps<AllProps> {
 		}
 		return parseGfx(partPayload)
 	}
+	if (partType.match(/outro/i)) {
+		if (hasMainVideoPiece(partPayload) || hasLayeredVideoPiece(partPayload)) {
+			return parseIntro(partPayload)
+		}
+		return createInvalidProps(t('Outro part requires an outro overlay video piece.'), partPayload)
+	}
 	if (partType.match(/intro/i)) {
 		return parseIntro(partPayload)
 	}
@@ -145,6 +151,9 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 		ingestSegment.parts.forEach((part) => {
 			const partPayload = part.payload as EditorIngestPart
 
+			// Logo + countup: baseline `assets/countup` on PGM logo layer (not per-part gfx/logo-bug).
+			partPayload.pieces = partPayload.pieces.filter((piece) => piece.objectType.trim().toLowerCase() !== 'logo-bug')
+
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {
 					piece.clipName = normalizeGenericGraphicTemplate(piece.attributes.template)
@@ -165,7 +174,8 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					const rawFileName =
 						(typeof piece.attributes.fileName === 'string' && piece.attributes.fileName.trim()) ||
 						(playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : '') ||
-						(playLayer === 'wipe' ? DEFAULT_WIPE_FILE : '')
+						(playLayer === 'wipe' ? DEFAULT_WIPE_FILE : '') ||
+						(playLayer === 'effects' && layeredType === 'outro' ? DEFAULT_OUTRO_FILE : '')
 					const fileName = rawFileName ? normalizeLayeredVideoFileName(playLayer, rawFileName) : ''
 
 					piece.objectType = ObjectType.Video
@@ -178,7 +188,7 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 					}
 				} else if (isRundownEditorGraphicPieceType(piece.objectType)) {
 					const graphicPieceType = piece.objectType.trim().toLowerCase()
-					piece.clipName = 'gfx/' + graphicPieceType
+					piece.clipName = graphicPieceType === 'weather' ? 'gfx/pocasie' : 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic
 
 					// Pass piece name to template as an attribute if it exists

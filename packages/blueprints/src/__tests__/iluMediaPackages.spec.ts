@@ -2,6 +2,7 @@ import { ExpectedPackage, ICommonContext, TSR } from '@sofie-automation/blueprin
 import { describe, expect, it } from 'vitest'
 import { PartType } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
@@ -189,7 +190,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(result.pieces[0]?.expectedPackages).toBeUndefined()
 	})
 
-	it('crops full-frame ILU mp4 into the slot FILL when prerendered/bypass is OFF', () => {
+	it('plays prerendered alpha ILU fullscreen (FILL 0 0 1 1) with no HTML chrome', () => {
 		const iluFile = 'clips/foo.mp4'
 
 		const result = parseGraphicsFromObjects(
@@ -204,68 +205,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 					isAdlib: false,
 					attributes: {
 						iluFile,
-						source: 'Reuters',
-					},
-				},
-			],
-			context
-		)
-
-		const piece = result.pieces[0]
-		expect(piece?.content.timelineObjects).toHaveLength(2)
-
-		const media = piece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
-		expect(media?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'clips/foo',
-			mixer: {
-				fill: { x: 0.08, y: 0.15, xScale: 0.62, yScale: 0.73 },
-				crop: {
-					left: expect.any(Number),
-					top: 0,
-					right: expect.any(Number),
-					bottom: 0,
-				},
-			},
-		})
-		const crop = (media?.content as TSR.TimelineContentCCGMedia).mixer?.crop as {
-			left: number
-			right: number
-		}
-		expect(crop.left).toBeCloseTo(crop.right, 5)
-		// coverCropForFill(center) on 0.62×0.73 slot → ~7.5% each side (no squish)
-		expect(crop.left).toBeGreaterThan(0.05)
-		expect(crop.left).toBeLessThan(0.15)
-
-		const template = piece?.content.timelineObjects?.find(
-			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
-		)
-		expect(template?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-			name: 'gfx/headline-fallback',
-		})
-		expect((template?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
-			source: 'Reuters',
-		})
-		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGIluPlayer])
-	})
-
-	it('plays prerendered alpha ILU fullscreen (FILL 0 0 1 1) and skips HTML chrome', () => {
-		const iluFile = 'clips/foo.mov'
-
-		const result = parseGraphicsFromObjects(
-			hybridCasparConfig,
-			[
-				{
-					id: 'headline1',
-					objectType: ObjectType.Graphic,
-					clipName: 'gfx/headline',
-					objectTime: 0,
-					duration: 5000,
-					isAdlib: false,
-					attributes: {
-						iluFile,
-						iluPrerendered: true,
+						iluPrerendered: false,
 						source: 'Reuters',
 					},
 				},
@@ -448,7 +388,7 @@ describe('spravy-v3-smoke expectedPackages', () => {
 			.filter((part) => part.type === PartType.Camera)
 			.flatMap((part) => {
 				const partContext = new PartContext(segmentContext, part.payload.externalId)
-				const result = generateCameraPart(partContext, part as never)
+				const result = generateCameraPart(partContext, part as never, createCountupRevealClaim())
 				return result.pieces.flatMap(
 					(piece) =>
 						piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []

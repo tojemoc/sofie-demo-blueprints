@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="ffa29a2c8a56edd2d82cc7fc436e806e10381421" # sofie v2 Caspar graphics + source smoke piece
+PINNED_SOFIE_ASSETS_REF="9087e8e6e6a6b99f385da24aceb2c3319f259412" # smoke rundown without logo-bug (baseline countup)
 
 CURL_OPTS=(
 	-fsSL

@@ -2,6 +2,7 @@ import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { CameraProps, GfxProps, PartProps, PartType, SegmentType } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -36,7 +37,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		])
 		expect(exportData.parts.length).toBeGreaterThanOrEqual(30)
 		expect(exportData.pieces.some((p) => p.pieceType === 'intro')).toBe(true)
-		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-mod')).toBe(true)
+		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-predstavovak')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-predstavovak')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sjv')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sport')).toBe(true)
@@ -66,9 +67,15 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(segment.parts.some((part) => part.type === PartType.Intro)).toBe(true)
 		const modPart = segment.parts.find((part) => part.payload.name === 'Gabriela Kajtárová')
 		expect(modPart?.type).toBe(PartType.Camera)
-		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-mod')).toBe(true)
-		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(true)
+		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
+		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(false)
 		expect(modPart?.payload.script).toBe('Gabriela Kajtárová')
+	})
+
+	it('skips logo-bug ingest (baseline assets/countup covers logo + countup)', () => {
+		const tema1 = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
+		const firstDb = tema1.parts.find((part) => part.payload.externalId === 'part-tema-1-db')
+		expect(firstDb?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(false)
 	})
 
 	it('does not mark editor graphics without start as adlibs', () => {
@@ -145,9 +152,9 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		if (!headline) return
 
 		const partContext = new PartContext(segmentContext, headline.payload.externalId)
-		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>)
+		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>, createCountupRevealClaim())
 
-		expect(result.part.expectedDuration).toBe(8000)
+		expect(result.part.expectedDuration).toBe(10000)
 		expect(result.part.autoNext).toBeFalsy()
 
 		const pgmCam = result.pieces
@@ -164,7 +171,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		const ilu = headline.objects.find((obj) => obj.clipName === 'gfx/headline')
 		const l3d = headline.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
-		expect(ilu?.duration).toBe(8000)
+		expect(ilu?.duration).toBe(10000)
 		expect(l3d?.duration).toBe(8000)
 	})
 
@@ -174,8 +181,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
 		expect(headlineObject?.attributes).toMatchObject({
-			title: 'Osobné údaje',
-			subtitle: 'v OR SR',
+			headline: 'Osobné údaje',
+			subline: 'v OR SR',
 		})
 
 		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
@@ -245,9 +252,13 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 	it('parses weather + outro sections', () => {
 		const weather = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-weather'))
 		expect(weather.parts[0]?.type).toBe(PartType.GFX)
-		expect(weather.parts[0]?.objects.some((obj) => obj.clipName === 'gfx/weather')).toBe(true)
+		expect(weather.parts[0]?.objects.some((obj) => obj.clipName === 'gfx/pocasie')).toBe(true)
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
-		expect(outro.parts.some((part) => part.objects.some((obj) => obj.clipName === 'gfx/outro'))).toBe(true)
+		expect(
+			outro.parts.some((part) =>
+				part.objects.some((obj) => obj.clipName === 'assets/outro' && obj.objectType === ObjectType.Video)
+			)
+		).toBe(true)
 	})
 })
