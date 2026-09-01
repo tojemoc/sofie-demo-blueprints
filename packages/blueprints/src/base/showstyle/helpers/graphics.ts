@@ -24,6 +24,7 @@ import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackage
 import {
 	PGM_DOUBLEBOX_ILU_CROP,
 	PGM_DOUBLEBOX_ILU_FILL,
+	PGM_L3D_TEMPLATE_MIXER,
 	coverCropForFill,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
 
@@ -331,6 +332,13 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 		return SourceLayer.LowerThird
 	}
 }
+function withPgmL3dTemplateMixer(content: TSR.TimelineContentCCGTemplate): TSR.TimelineContentCCGTemplate {
+	return {
+		...content,
+		mixer: PGM_L3D_TEMPLATE_MIXER,
+	}
+}
+
 function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	if (object.clipName.match(/logo-bug/i)) {
 		return CasparCGLayers.CasparCGGraphicsLogo
@@ -377,14 +385,14 @@ function getGraphicTlObject(
 				enable: { start: 0 },
 				layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird,
 				priority: 1 + (isAdlib ? 10 : 0),
-				content: {
+				content: withPgmL3dTemplateMixer({
 					deviceType: TSR.DeviceType.CASPARCG,
 					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
 					templateType: 'html',
 					name: templateName,
 					data: { ...templateData },
 					useStopCommand: false,
-				},
+				}),
 			}),
 			...createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency),
 		]
@@ -401,6 +409,18 @@ function getGraphicTlObject(
 	const clipName = resolveCasparTemplateName(object.clipName)
 	const fullscreenAtemInput = getClipPlayerInput(config)
 	const isFullscreen = isFullscreenGraphic(clipName)
+	const graphicLayer = getGraphicTlLayer(object)
+	const templateContent: TSR.TimelineContentCCGTemplate = {
+		deviceType: TSR.DeviceType.CASPARCG,
+		type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
+
+		templateType: 'html',
+		name: clipName,
+		data: {
+			...getTemplateAttributes(clipName, object.attributes),
+		},
+		useStopCommand: isFullscreen ? false : true,
+	}
 
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
@@ -408,19 +428,12 @@ function getGraphicTlObject(
 			enable: {
 				start: 0, // piece.enable carries objectTime/duration
 			},
-			layer: getGraphicTlLayer(object),
+			layer: graphicLayer,
 			priority: 1 + (isAdlib ? 10 : 0),
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-
-				templateType: 'html',
-				name: clipName,
-				data: {
-					...getTemplateAttributes(clipName, object.attributes),
-				},
-				useStopCommand: isFullscreen ? false : true,
-			},
+			content:
+				graphicLayer === CasparCGLayers.CasparCGGraphicsPgmLowerThird
+					? withPgmL3dTemplateMixer(templateContent)
+					: templateContent,
 		}),
 		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
 	]

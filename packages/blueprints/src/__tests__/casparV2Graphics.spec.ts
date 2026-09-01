@@ -167,6 +167,9 @@ describe('casparV2Graphics', () => {
 
 		expect(modCaspar.data).toEqual({ name: 'Moderátor', title: 'Anchor' })
 		expect(headCaspar.data).toEqual({ headline: 'Breaking', subline: 'Tonight' })
+		expect(headCaspar.mixer).toEqual({
+			fill: { x: 0, y: 0, xScale: 1280 / 1920, yScale: 720 / 1080 },
+		})
 		expect(mod?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(headline?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(syn?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)

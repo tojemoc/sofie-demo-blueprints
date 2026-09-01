@@ -37,6 +37,25 @@ export const PgmChannelLayers = {
 	IntroOverlay: 210,
 } as const
 
+/** v2 demo-assets HTML L3Ds are authored at 1920×1080 (Figma export). */
+export const PGM_L3D_TEMPLATE_DESIGN_SIZE = { width: 1920, height: 1080 } as const
+
+/** Production PGM channel matches studio `supportedMediaFormats` (1280×720). */
+export const PGM_CHANNEL_PRODUCTION_SIZE = { width: 1280, height: 720 } as const
+
+/**
+ * Scale 1080p-authored PGM L3D HTML templates onto the 720p PGM channel.
+ * Without this, lower-thirds sit below the visible frame (e.g. headline at y=690).
+ */
+export const PGM_L3D_TEMPLATE_MIXER = {
+	fill: {
+		x: 0,
+		y: 0,
+		xScale: PGM_CHANNEL_PRODUCTION_SIZE.width / PGM_L3D_TEMPLATE_DESIGN_SIZE.width,
+		yScale: PGM_CHANNEL_PRODUCTION_SIZE.height / PGM_L3D_TEMPLATE_DESIGN_SIZE.height,
+	},
+} as const
+
 /**
  * DoubleBox CAM under the frame: ~80% of the frame, right edge stuck to the screen
  * right edge. ILU (higher layer) covers the left overhang — no CAM crop required.

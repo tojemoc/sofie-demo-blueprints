@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { getCasparCGMappings, getHypercomposedChannels } from '../base/studio/applyConfig/mappings/casparcg.js'
-import { LedChannelLayers, PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { LedChannelLayers, PGM_L3D_TEMPLATE_MIXER, PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 
 const baseStudioConfig: StudioConfig = {
 	previewRenderer: '',
@@ -152,6 +152,12 @@ describe('casparcgMappings', () => {
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 2,
 			layer: PgmChannelLayers.GraphicsLowerThird,
+		})
+	})
+
+	it('scales 1080p PGM L3D HTML templates to the 720p PGM channel', () => {
+		expect(PGM_L3D_TEMPLATE_MIXER).toEqual({
+			fill: { x: 0, y: 0, xScale: 1280 / 1920, yScale: 720 / 1080 },
 		})
 	})
 
