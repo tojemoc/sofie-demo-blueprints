@@ -36,7 +36,11 @@ import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
 import { createSportBackgroundMusicPiece, isSportSegmentName } from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
-import { CountupRevealClaim, appendCountupSustainIfRevealed, getCountupRevealClaimForGeneration } from '../helpers/countupReveal.js'
+import {
+	CountupRevealClaim,
+	appendCountupSustainIfRevealed,
+	getCountupRevealClaimForGeneration,
+} from '../helpers/countupReveal.js'
 
 export function generateParts(
 	context: ISegmentUserContext,

@@ -256,4 +256,9 @@ describe('normalizeLayeredVideoFileName', () => {
 		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sport')).toBe('wipes/wipe')
 		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_pocasie')).toBe('wipes/wipe')
 	})
+
+	it('does not treat inherited object keys as wipe aliases', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'toString')).toBe('wipes/toString')
+		expect(normalizeLayeredVideoFileName('wipe', 'constructor')).toBe('wipes/constructor')
+	})
 })

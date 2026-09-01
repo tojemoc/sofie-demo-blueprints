@@ -1,5 +1,5 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
-import { ICommonContext } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPiece, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { PartContext } from '../../../common/context.js'
 import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
@@ -85,9 +85,7 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 	]
 }
 
-function countupTimelineObject(
-	fadeIn: boolean
-): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+function countupTimelineObject(fadeIn: boolean): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { while: 1 },
@@ -167,7 +165,7 @@ export function createCountupSustainPiece(
 }
 
 export function appendCountupSustainIfRevealed(
-	context: ICommonContext,
+	context: PartContext,
 	config: StudioConfig,
 	partExternalId: string,
 	pieces: IBlueprintPiece[],

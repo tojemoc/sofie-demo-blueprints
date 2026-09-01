@@ -260,9 +260,11 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect((weatherWipe?.attributes as { transition?: string }).transition).toBe('Pocasie')
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
-		expect(outro.parts.some((part) => part.rawType?.match(/ilu/i) && part.objects.some((obj) => obj.clipName === 'gfx/headline'))).toBe(
-			true
-		)
+		expect(
+			outro.parts.some(
+				(part) => part.rawType?.match(/ilu/i) && part.objects.some((obj) => obj.clipName === 'gfx/headline')
+			)
+		).toBe(true)
 		expect(
 			outro.parts.some((part) =>
 				part.objects.some((obj) => obj.clipName === 'assets/outro' && obj.objectType === ObjectType.Video)
@@ -287,6 +289,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 	it('intro part duration is 8 seconds', () => {
 		const introPart = exportData.parts.find((part) => part.id === 'part-intro')
+		expect(introPart).toBeDefined()
 		expect(introPart?.duration).toBe(8)
 	})
 })
