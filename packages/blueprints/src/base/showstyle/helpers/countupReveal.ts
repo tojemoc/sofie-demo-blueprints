@@ -14,6 +14,7 @@ export const PGM_COUNTUP_FADE_MS = 400
 /** Per-generation claim — one reveal per rundown ingest pass (not retained across generations). */
 export interface CountupRevealClaim {
 	claim(rundownId: string): boolean
+	isRevealed(rundownId: string): boolean
 }
 
 export function createCountupRevealClaim(): CountupRevealClaim {
@@ -23,6 +24,9 @@ export function createCountupRevealClaim(): CountupRevealClaim {
 			if (claimedRundownIds.has(rundownId)) return false
 			claimedRundownIds.add(rundownId)
 			return true
+		},
+		isRevealed(rundownId: string): boolean {
+			return claimedRundownIds.has(rundownId)
 		},
 	}
 }
@@ -81,6 +85,63 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 	]
 }
 
+function countupTimelineObject(
+	fadeIn: boolean
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { while: 1 },
+		layer: CasparCGLayers.CasparCGGraphicsLogo,
+		priority: 2,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: PGM_COUNTUP_FILE,
+			loop: true,
+			noStarttime: true,
+			mixer: fadeIn
+				? {
+						opacity: 0,
+						volume: 0,
+					}
+				: {
+						opacity: 1,
+						volume: 1,
+					},
+		},
+		...(fadeIn ? { keyframes: countupRevealKeyframes() } : {}),
+	})
+}
+
+function createCountupPiece(
+	context: ICommonContext,
+	config: StudioConfig,
+	partExternalId: string,
+	suffix: 'reveal' | 'sustain',
+	fadeIn: boolean
+): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: {
+			start: 0,
+		},
+		externalId: `${partExternalId}_countup_${suffix}`,
+		name: suffix === 'reveal' ? '360 countup' : '360 countup (hold)',
+		lifespan: PieceLifespan.OutOnRundownEnd,
+		sourceLayerId: SourceLayer.Logo,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Logo),
+		content: {
+			fileName: PGM_COUNTUP_FILE,
+			timelineObjects: [countupTimelineObject(fadeIn)],
+		},
+		expectedPackages: [
+			createMediaFileExpectedPackage(context, PGM_COUNTUP_FILE, [CasparCGLayers.CasparCGGraphicsLogo], {
+				includeSideEffects: true,
+			}),
+		],
+		prerollDuration: config.casparcgLatency,
+	})
+}
+
 /**
  * Fade countup in on first DoubleBox Take. Baseline already plays the same file
  * silently from rundown start so SFX/seconds stay aligned with show time.
@@ -90,43 +151,29 @@ export function createCountupRevealPiece(
 	config: StudioConfig,
 	partExternalId: string
 ): IBlueprintPiece {
-	return literal<IBlueprintPiece>({
-		enable: {
-			start: 0,
-		},
-		externalId: `${partExternalId}_countup_reveal`,
-		name: '360 countup',
-		lifespan: PieceLifespan.OutOnRundownEnd,
-		sourceLayerId: SourceLayer.Logo,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Logo),
-		content: {
-			fileName: PGM_COUNTUP_FILE,
-			timelineObjects: [
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGGraphicsLogo,
-					priority: 1,
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-						file: PGM_COUNTUP_FILE,
-						loop: true,
-						noStarttime: true,
-						mixer: {
-							opacity: 0,
-							volume: 0,
-						},
-					},
-					keyframes: countupRevealKeyframes(),
-				}),
-			],
-		},
-		expectedPackages: [
-			createMediaFileExpectedPackage(context, PGM_COUNTUP_FILE, [CasparCGLayers.CasparCGGraphicsLogo], {
-				includeSideEffects: true,
-			}),
-		],
-		prerollDuration: config.casparcgLatency,
-	})
+	return createCountupPiece(context, config, partExternalId, 'reveal', true)
+}
+
+/**
+ * Re-assert visible countup on later parts so OutOnRundownEnd survives takes past
+ * the originating DoubleBox (baseline stays muted underneath).
+ */
+export function createCountupSustainPiece(
+	context: ICommonContext,
+	config: StudioConfig,
+	partExternalId: string
+): IBlueprintPiece {
+	return createCountupPiece(context, config, partExternalId, 'sustain', false)
+}
+
+export function appendCountupSustainIfRevealed(
+	context: ICommonContext,
+	config: StudioConfig,
+	partExternalId: string,
+	pieces: IBlueprintPiece[],
+	countupRevealClaim: CountupRevealClaim
+): void {
+	if (!countupRevealClaim.isRevealed(context.rundownId)) return
+	if (pieces.some((piece) => piece.externalId?.includes('_countup_'))) return
+	pieces.push(createCountupSustainPiece(context, config, partExternalId))
 }

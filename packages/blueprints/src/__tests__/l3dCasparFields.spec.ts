@@ -71,6 +71,14 @@ describe('L3D Caspar template field contracts', () => {
 		expect(data).toEqual({ name: 'Gabi', title: 'moderátorka' })
 	})
 
+	it('gfx/l3d-predstavovak clears empty title with whitespace', () => {
+		const { data } = casparData('gfx/l3d-predstavovak', {
+			name: 'Topic',
+			title: '',
+		})
+		expect(data).toEqual({ name: 'Topic', title: '\u00a0' })
+	})
+
 	it('gfx/l3d-mod → name + title', () => {
 		const { data } = casparData('gfx/l3d-mod', { name: 'Moderátor', title: 'Anchor' })
 		expect(data).toEqual({ name: 'Moderátor', title: 'Anchor' })

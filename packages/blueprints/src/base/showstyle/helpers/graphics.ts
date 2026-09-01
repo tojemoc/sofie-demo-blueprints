@@ -127,6 +127,10 @@ function getTemplateAttributes(
 		if (mapped.title === undefined && mapped.subline !== undefined) {
 			mapped.title = mapped.subline
 		}
+		// Empty subline leaves the previous Caspar field value — send whitespace to clear.
+		if (typeof mapped.title === 'string' && mapped.title.trim() === '') {
+			mapped.title = '\u00a0'
+		}
 		// Drop aliases so templates only see the canonical name/title contract.
 		delete mapped.headline
 		delete mapped.subline

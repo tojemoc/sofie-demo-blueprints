@@ -250,4 +250,10 @@ describe('normalizeLayeredVideoFileName', () => {
 		expect(normalizeLayeredVideoFileName('wipe', 'spravy/r1/clips/nested_wipe.mov')).toBe('wipes/nested_wipe')
 		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
 	})
+
+	it('falls back labelled story wipes to wipes/wipe until dedicated media exists', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sjv')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sport')).toBe('wipes/wipe')
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_pocasie')).toBe('wipes/wipe')
+	})
 })

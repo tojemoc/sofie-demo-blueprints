@@ -1,7 +1,9 @@
 import { describe, beforeEach, expect, it } from 'vitest'
-import { PartType, CameraProps, PartProps } from '../base/showstyle/definitions/index.js'
+import { PartType, CameraProps, PartProps, VOProps } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart, partUsesDoubleBoxCamera } from '../base/showstyle/part-adapters/camera.js'
+import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import {
+	appendCountupSustainIfRevealed,
 	beginCountupRevealGeneration,
 	createCountupRevealClaim,
 	getCountupRevealClaimForGeneration,
@@ -10,7 +12,7 @@ import {
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { SourceType } from '../base/studio/helpers/config.js'
-import { mockSegmentContext } from './helpers/smokeRundownIngest.js'
+import { hybridCasparConfig, mockSegmentContext } from './helpers/smokeRundownIngest.js'
 
 describe('countupReveal claim', () => {
 	beforeEach(() => {
@@ -22,6 +24,7 @@ describe('countupReveal claim', () => {
 
 		const generation1 = createCountupRevealClaim()
 		expect(generation1.claim(rundownId)).toBe(true)
+		expect(generation1.isRevealed(rundownId)).toBe(true)
 		expect(generation1.claim(rundownId)).toBe(false)
 
 		const generation2 = createCountupRevealClaim()
@@ -145,5 +148,61 @@ describe('countupReveal claim', () => {
 		const regenClaim = getCountupRevealClaimForGeneration(rundownId)
 		const regen = generateCameraPart(new PartContext(segmentContext, seg1Db.payload.externalId), seg1Db, regenClaim)
 		expect(revealPieces(regen.pieces)).toHaveLength(1)
+	})
+
+	it('adds sustain pieces on later parts after reveal', () => {
+		const rundownId = 'spravy-v3-smoke'
+		const segmentContext = mockSegmentContext()
+		const doubleBoxPart = (externalId: string): PartProps<CameraProps> => ({
+			type: PartType.Camera,
+			rawType: 'DoubleBox',
+			rawTitle: externalId,
+			payload: {
+				externalId,
+				name: externalId,
+				script: '',
+				input: { id: 1, type: SourceType.Camera },
+				duration: 8000,
+			},
+			objects: [
+				{
+					id: `ilu-${externalId}`,
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/doublebox-ilu',
+					objectTime: 0,
+					duration: 8000,
+					isAdlib: false,
+					attributes: { iluFile: 'clips/test.mp4' },
+				},
+			],
+		})
+
+		beginCountupRevealGeneration(rundownId)
+		const claim = getCountupRevealClaimForGeneration(rundownId)
+		const first = generateCameraPart(new PartContext(segmentContext, 'part-db-1'), doubleBoxPart('part-db-1'), claim)
+		expect(first.pieces.some((piece) => piece.externalId === 'part-db-1_countup_reveal')).toBe(true)
+
+		const synPart: PartProps<VOProps> = {
+			type: PartType.VO,
+			rawType: 'SYN',
+			rawTitle: 'SYN',
+			payload: {
+				externalId: 'part-syn-1',
+				name: 'SYN',
+				script: '',
+				duration: 5000,
+				clipProps: { fileName: 'clips/SYN TEST.mp4' },
+			},
+			objects: [],
+		}
+		const synResult = generateVOPart(new PartContext(segmentContext, 'part-syn-1'), synPart)
+		appendCountupSustainIfRevealed(
+			new PartContext(segmentContext, 'part-syn-1'),
+			hybridCasparConfig,
+			'part-syn-1',
+			synResult.pieces,
+			claim
+		)
+		expect(synResult.pieces.some((piece) => piece.externalId === 'part-syn-1_countup_sustain')).toBe(true)
 	})
 })
