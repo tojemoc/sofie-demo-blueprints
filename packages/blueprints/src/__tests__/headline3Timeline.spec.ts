@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PartType } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
@@ -33,7 +34,7 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			])
 
 			const partContext = new PartContext(segmentContext, part.payload.externalId)
-			const result = generateCameraPart(partContext, part as never)
+			const result = generateCameraPart(partContext, part as never, createCountupRevealClaim())
 
 			const iluPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.LowerThird))
 			const l3dPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.PgmLowerThird))

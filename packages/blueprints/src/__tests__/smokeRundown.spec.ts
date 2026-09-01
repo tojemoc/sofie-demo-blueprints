@@ -2,6 +2,7 @@ import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { CameraProps, GfxProps, PartProps, PartType, SegmentType } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -151,7 +152,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		if (!headline) return
 
 		const partContext = new PartContext(segmentContext, headline.payload.externalId)
-		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>)
+		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>, createCountupRevealClaim())
 
 		expect(result.part.expectedDuration).toBe(10000)
 		expect(result.part.autoNext).toBeFalsy()

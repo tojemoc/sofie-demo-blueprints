@@ -11,18 +11,20 @@ import { PGM_COUNTUP_FILE } from '../rundown/baseline.js'
 /** MIX fade when countup becomes visible/audible on first DoubleBox after wipe. */
 export const PGM_COUNTUP_FADE_MS = 400
 
-const countupRevealClaimedRundownIds = new Set<string>()
-
-/** Test helper — vitest shares the module between cases. */
-export function resetCountupRevealTrackingForTests(): void {
-	countupRevealClaimedRundownIds.clear()
+/** Per-generation claim — one reveal per rundown ingest pass (not retained across generations). */
+export interface CountupRevealClaim {
+	claim(rundownId: string): boolean
 }
 
-/** Once per rundown: reveal on the first DoubleBox camera take (after intro wipe). */
-export function claimCountupRevealForRundown(rundownId: string): boolean {
-	if (countupRevealClaimedRundownIds.has(rundownId)) return false
-	countupRevealClaimedRundownIds.add(rundownId)
-	return true
+export function createCountupRevealClaim(): CountupRevealClaim {
+	const claimedRundownIds = new Set<string>()
+	return {
+		claim(rundownId: string): boolean {
+			if (claimedRundownIds.has(rundownId)) return false
+			claimedRundownIds.add(rundownId)
+			return true
+		},
+	}
 }
 
 function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {

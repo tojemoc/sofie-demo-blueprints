@@ -2,6 +2,7 @@ import { ExpectedPackage, ICommonContext, TSR } from '@sofie-automation/blueprin
 import { describe, expect, it } from 'vitest'
 import { PartType } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
@@ -387,7 +388,7 @@ describe('spravy-v3-smoke expectedPackages', () => {
 			.filter((part) => part.type === PartType.Camera)
 			.flatMap((part) => {
 				const partContext = new PartContext(segmentContext, part.payload.externalId)
-				const result = generateCameraPart(partContext, part as never)
+				const result = generateCameraPart(partContext, part as never, createCountupRevealClaim())
 				return result.pieces.flatMap(
 					(piece) =>
 						piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []

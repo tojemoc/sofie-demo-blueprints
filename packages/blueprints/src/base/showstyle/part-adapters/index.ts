@@ -36,8 +36,13 @@ import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
 import { createSportBackgroundMusicPiece, isSportSegmentName } from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
+import { CountupRevealClaim, createCountupRevealClaim } from '../helpers/countupReveal.js'
 
-export function generateParts(context: ISegmentUserContext, intermediateSegment: SegmentProps): BlueprintResultSegment {
+export function generateParts(
+	context: ISegmentUserContext,
+	intermediateSegment: SegmentProps,
+	countupRevealClaim: CountupRevealClaim = createCountupRevealClaim()
+): BlueprintResultSegment {
 	context.logDebug('Generating parts for intermediateSegment: ' + JSON.stringify(intermediateSegment, null, 2))
 	const studioConfig = parseConfig(context).studio
 	// Create Segment UserEditOperations:
@@ -58,7 +63,7 @@ export function generateParts(context: ISegmentUserContext, intermediateSegment:
 
 		switch (rawPart.type) {
 			case PartType.Camera:
-				newPart = generateCameraPart(partContext, rawPart as unknown as PartProps<CameraProps>)
+				newPart = generateCameraPart(partContext, rawPart as unknown as PartProps<CameraProps>, countupRevealClaim)
 				break
 			case PartType.Remote:
 				newPart = generateRemotePart(partContext, rawPart as unknown as PartProps<CameraProps>)

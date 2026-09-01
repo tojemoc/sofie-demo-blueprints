@@ -19,7 +19,7 @@ import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
-import { claimCountupRevealForRundown, createCountupRevealPiece } from '../helpers/countupReveal.js'
+import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
@@ -61,7 +61,11 @@ function createPgmCameraTimelineObjects(
 	]
 }
 
-export function generateCameraPart(context: PartContext, part: PartProps<CameraProps>): BlueprintResultPart {
+export function generateCameraPart(
+	context: PartContext,
+	part: PartProps<CameraProps>,
+	countupRevealClaim: CountupRevealClaim
+): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
 	const doubleBox = partUsesDoubleBoxCamera(part)
@@ -101,7 +105,7 @@ export function generateCameraPart(context: PartContext, part: PartProps<CameraP
 	// Start the DoubleBox frame on first DoubleBox Take (not Intro) so headlines/MOD stay fullscreen.
 	if (doubleBox) {
 		pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
-		if (claimCountupRevealForRundown(context.rundownId)) {
+		if (countupRevealClaim.claim(context.rundownId)) {
 			pieces.push(createCountupRevealPiece(context, config, part.payload.externalId))
 		}
 	}

@@ -1,5 +1,5 @@
 import { ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
-import { describe, beforeEach, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { PartType, CameraProps, PartProps } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
@@ -22,13 +22,9 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
-import { resetCountupRevealTrackingForTests } from '../base/showstyle/helpers/countupReveal.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 
 describe('DoubleBox PGM ILU above CAM', () => {
-	beforeEach(() => {
-		resetCountupRevealTrackingForTests()
-	})
-
 	const exportData = loadSmokeRundownExport()
 	const context: ICommonContext = {
 		getHashId: (origin) => `hash_${origin}`,
@@ -199,7 +195,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		if (!dbPart) return
 
 		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
-		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>, createCountupRevealClaim())
 
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
@@ -305,7 +301,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		iluObj.clipName = 'gfx/DoubleBox-ILU'
 
 		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
-		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>, createCountupRevealClaim())
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
 		const pgmCam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
