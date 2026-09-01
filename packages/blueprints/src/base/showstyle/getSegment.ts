@@ -9,7 +9,7 @@ import { generateParts } from './part-adapters/index.js'
 import { convertIngestData as convertEditorIngestData } from './sofie-editor-parsers/index.js'
 import { convertIngestData as convertSpreadsheetIngestData } from './spreadsheet-parsers/index.js'
 import { SegmentProps } from './definitions/index.js'
-import { createCountupRevealClaim } from './helpers/countupReveal.js'
+import { getCountupRevealClaimForGeneration } from './helpers/countupReveal.js'
 
 // Get segment is called from Core and is the main entry point for the blueprint for receiving segments
 export function getSegment(context: ISegmentUserContext, ingestSegment: SofieIngestSegment): BlueprintResultSegment {
@@ -36,5 +36,5 @@ export function getSegment(context: ISegmentUserContext, ingestSegment: SofieIng
 
 	context.logDebug('Intermediate segment: ' + JSON.stringify(intermediateSegment))
 
-	return generateParts(context, intermediateSegment, createCountupRevealClaim())
+	return generateParts(context, intermediateSegment, getCountupRevealClaimForGeneration(context.rundownId))
 }

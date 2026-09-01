@@ -36,12 +36,12 @@ import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
 import { createSportBackgroundMusicPiece, isSportSegmentName } from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
-import { CountupRevealClaim, createCountupRevealClaim } from '../helpers/countupReveal.js'
+import { CountupRevealClaim, getCountupRevealClaimForGeneration } from '../helpers/countupReveal.js'
 
 export function generateParts(
 	context: ISegmentUserContext,
 	intermediateSegment: SegmentProps,
-	countupRevealClaim: CountupRevealClaim = createCountupRevealClaim()
+	countupRevealClaim: CountupRevealClaim = getCountupRevealClaimForGeneration(context.rundownId)
 ): BlueprintResultSegment {
 	context.logDebug('Generating parts for intermediateSegment: ' + JSON.stringify(intermediateSegment, null, 2))
 	const studioConfig = parseConfig(context).studio

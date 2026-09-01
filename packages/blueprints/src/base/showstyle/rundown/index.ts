@@ -12,6 +12,7 @@ import { RundownMetadata } from '../helpers/metadata.js'
 import { getBaseline } from './baseline.js'
 import { getGlobalActions } from './globalActions.js'
 import { getGlobalAdlibs } from './globalAdlibs.js'
+import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
 
 export function getRundown(
 	context: IShowStyleUserContext,
@@ -20,6 +21,7 @@ export function getRundown(
 	context.logDebug(
 		'------------------------------- getRundown ----------------------------------------------------------------'
 	)
+	beginCountupRevealGeneration(ingestRundown.externalId)
 	const rundownMetadata: RundownMetadata = {
 		ingestType: ingestRundown.type,
 	}

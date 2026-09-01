@@ -27,6 +27,37 @@ export function createCountupRevealClaim(): CountupRevealClaim {
 	}
 }
 
+/** Rundown id for the active blueprint generation (set by {@link beginCountupRevealGeneration}). */
+let activeCountupRevealGenerationRundownId: string | undefined
+
+const countupRevealClaimsByRundownId = new Map<string, CountupRevealClaim>()
+
+/** Start a fresh countup-reveal generation for this rundown (called from getRundown). */
+export function beginCountupRevealGeneration(rundownId: string): void {
+	countupRevealClaimsByRundownId.delete(rundownId)
+	activeCountupRevealGenerationRundownId = rundownId
+}
+
+/** Shared claim for all segments in the current rundown generation. */
+export function getCountupRevealClaimForGeneration(rundownId: string): CountupRevealClaim {
+	if (activeCountupRevealGenerationRundownId !== rundownId) {
+		beginCountupRevealGeneration(rundownId)
+	}
+
+	let claim = countupRevealClaimsByRundownId.get(rundownId)
+	if (!claim) {
+		claim = createCountupRevealClaim()
+		countupRevealClaimsByRundownId.set(rundownId, claim)
+	}
+	return claim
+}
+
+/** Test helper — vitest shares the module between cases. */
+export function resetCountupRevealGenerationForTests(): void {
+	countupRevealClaimsByRundownId.clear()
+	activeCountupRevealGenerationRundownId = undefined
+}
+
 function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
 	return [
 		{
