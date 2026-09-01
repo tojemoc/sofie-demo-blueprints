@@ -22,7 +22,6 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	/** Recommendation / avízo CTA — jednou-vetou shell without kicker. */
 	'l3d-odporucanie',
 	'weather',
-	'outro',
 	'logo-bug',
 ] as const
 
@@ -40,7 +39,7 @@ export function isRundownEditorGraphicPieceType(pieceType: string): boolean {
  * - `bg-loop` → ClipPlayer1 (110), LED background behind camera
  * - `wipe` → PGM EffectsPlayer (200), story-block alpha wipe
  */
-export const RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES = ['intro', 'bg-loop', 'wipe'] as const
+export const RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES = ['intro', 'bg-loop', 'wipe', 'outro'] as const
 
 export type RundownEditorLayeredVideoPieceType = (typeof RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES)[number]
 
@@ -61,7 +60,7 @@ export function isRundownEditorLayeredVideoPieceType(pieceType: string): boolean
 }
 
 export function playLayerForVideoPieceType(pieceType: RundownEditorLayeredVideoPieceType): VideoPlayLayer {
-	if (pieceType === 'intro') return 'effects'
+	if (pieceType === 'intro' || pieceType === 'outro') return 'effects'
 	if (pieceType === 'wipe') return 'wipe'
 	return 'background'
 }

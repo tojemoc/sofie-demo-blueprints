@@ -23,11 +23,58 @@ export const PGM_COUNTER_FILE = 'assets/counter'
 /** First counter appearance and repeat period (ms from rundown start). */
 export const PGM_COUNTER_INTERVAL_MS = 30_000
 
-/** How long the counter stays on air each cycle (ms). */
+/** How long the counter stays visible each cycle (ms). */
 export const PGM_COUNTER_DURATION_MS = 4_000
 
-/** MIX fade in/out when counter takes over the logo layer. */
+/** MIX fade in/out when counter visibility pulses. */
 export const PGM_COUNTER_FADE_MS = 400
+
+/** Counter visibility pulses scheduled from rundown start (30s cadence). */
+const PGM_COUNTER_VISIBILITY_CYCLES = 40
+
+function pgmCounterOpacityKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
+	const keyframes: NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> = []
+	for (let cycle = 1; cycle <= PGM_COUNTER_VISIBILITY_CYCLES; cycle++) {
+		const pulseStart = cycle * PGM_COUNTER_INTERVAL_MS
+		keyframes.push({
+			id: '',
+			enable: { start: pulseStart },
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				mixer: {
+					opacity: 1,
+					volume: 1,
+				},
+				transitions: {
+					inTransition: {
+						type: TSR.Transition.MIX,
+						duration: PGM_COUNTER_FADE_MS,
+					},
+				},
+			},
+		})
+		keyframes.push({
+			id: '',
+			enable: { start: pulseStart + PGM_COUNTER_DURATION_MS },
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				mixer: {
+					opacity: 0,
+					volume: 0,
+				},
+				transitions: {
+					outTransition: {
+						type: TSR.Transition.MIX,
+						duration: PGM_COUNTER_FADE_MS,
+					},
+				},
+			},
+		})
+	}
+	return keyframes
+}
 
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
@@ -69,47 +116,24 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+			// Counter runs from rundown start (silent/invisible) so logo-bug timing stays synced.
+			// gfx/logo-bug is enabled by rundown pieces (OutOnRundownEnd), not baseline.
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 				id: '',
 				enable: { while: 1 },
 				priority: 0,
 				layer: CasparCGLayers.CasparCGGraphicsLogo,
 				content: {
 					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.TEMPLATE,
-
-					templateType: 'html',
-					name: 'gfx/logo-bug',
-					data: {},
-					useStopCommand: true,
-				},
-			}),
-
-			// Priority 1 on the same PGM logo layer briefly replaces logo-bug every 30s.
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-				id: '',
-				enable: {
-					start: PGM_COUNTER_INTERVAL_MS,
-					duration: PGM_COUNTER_DURATION_MS,
-					repeating: PGM_COUNTER_INTERVAL_MS,
-				},
-				priority: 1,
-				layer: CasparCGLayers.CasparCGGraphicsLogo,
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
 					file: PGM_COUNTER_FILE,
-					transitions: {
-						inTransition: {
-							type: TSR.Transition.MIX,
-							duration: PGM_COUNTER_FADE_MS,
-						},
-						outTransition: {
-							type: TSR.Transition.MIX,
-							duration: PGM_COUNTER_FADE_MS,
-						},
+					loop: true,
+					mixer: {
+						opacity: 0,
+						volume: 0,
 					},
 				},
+				keyframes: pgmCounterOpacityKeyframes(),
 			}),
 
 			createBackgroundMusicBaselineTimeline(),

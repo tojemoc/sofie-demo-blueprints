@@ -58,8 +58,14 @@ describe('HEADLINES 1–3 timeline parity', () => {
 
 			expect(ilu, `${part.payload.name} missing LED ILU PLAY`).toBeTruthy()
 			expect((ilu?.content as { file: string }).file).toMatch(/clips\/HEADLINE\d/)
+			expect((ilu?.content as { mixer?: { fill?: { xScale: number } } }).mixer?.fill).toEqual({
+				x: 0,
+				y: 0,
+				xScale: 1,
+				yScale: 1,
+			})
 			expect(l3d, `${part.payload.name} missing PGM l3d-headline`).toBeTruthy()
-			expect(fallback, `${part.payload.name} missing LED headline-fallback`).toBeTruthy()
+			expect(fallback, `${part.payload.name} should not use headline-fallback chrome`).toBeUndefined()
 		}
 	})
 })

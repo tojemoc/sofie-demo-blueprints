@@ -245,9 +245,13 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 	it('parses weather + outro sections', () => {
 		const weather = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-weather'))
 		expect(weather.parts[0]?.type).toBe(PartType.GFX)
-		expect(weather.parts[0]?.objects.some((obj) => obj.clipName === 'gfx/weather')).toBe(true)
+		expect(weather.parts[0]?.objects.some((obj) => obj.clipName === 'gfx/pocasie')).toBe(true)
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
-		expect(outro.parts.some((part) => part.objects.some((obj) => obj.clipName === 'gfx/outro'))).toBe(true)
+		expect(
+			outro.parts.some((part) =>
+				part.objects.some((obj) => obj.clipName === 'assets/outro' && obj.objectType === ObjectType.Video)
+			)
+		).toBe(true)
 	})
 })
