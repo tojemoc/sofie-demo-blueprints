@@ -320,7 +320,7 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('loops assets/countup from rundown start on the PGM logo layer', () => {
+	it('plays assets/countup silently from rundown take start on the PGM logo layer', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const countup = baseline.timelineObjects?.find(
 			(obj) =>
@@ -337,6 +337,10 @@ describe('casparV2Graphics', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'assets/countup',
 			loop: true,
+			mixer: {
+				opacity: 0,
+				volume: 0,
+			},
 		})
 		expect(countup?.keyframes).toBeUndefined()
 	})

@@ -13,9 +13,9 @@ import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusi
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
 /**
- * PGM logo + seconds countup — single alpha .mov on the logo layer from rundown start.
- * Disk: `assets/countup.mov` (replaces separate `gfx/logo-bug` HTML + `assets/counter.mov`
- * keyframe pulses).
+ * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
+ * Plays silently from rundown take start; {@link createCountupRevealPiece} fades
+ * in on the first DoubleBox after the intro wipe. Disk: `assets/countup.mov`.
  */
 export const PGM_COUNTUP_FILE = 'assets/countup'
 
@@ -69,6 +69,10 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
 					file: PGM_COUNTUP_FILE,
 					loop: true,
+					mixer: {
+						opacity: 0,
+						volume: 0,
+					},
 				},
 			}),
 

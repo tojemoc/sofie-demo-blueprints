@@ -1,5 +1,5 @@
-import { ICommonContext, TSR } from '@sofie-automation/blueprints-integration'
-import { describe, expect, it } from 'vitest'
+import { ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { describe, beforeEach, expect, it } from 'vitest'
 import { PartType, CameraProps, PartProps } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
@@ -22,8 +22,13 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+import { resetCountupRevealTrackingForTests } from '../base/showstyle/helpers/countupReveal.js'
 
 describe('DoubleBox PGM ILU above CAM', () => {
+	beforeEach(() => {
+		resetCountupRevealTrackingForTests()
+	})
+
 	const exportData = loadSmokeRundownExport()
 	const context: ICommonContext = {
 		getHashId: (origin) => `hash_${origin}`,
@@ -229,6 +234,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
+
+		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
+		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		const countupTl = countupReveal?.content.timelineObjects?.[0]
+		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
+		expect(countupTl?.keyframes?.[0]?.content).toMatchObject({
+			mixer: { opacity: 1, volume: 1 },
+		})
 
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipe, 'wipe must PLAY on PGM layer 200 alongside Camera/ILU/L3D').toBeDefined()
