@@ -472,7 +472,17 @@ describe('casparV2Graphics', () => {
 			},
 		])
 
-		expect(result.pieces[0]?.content.templateData?.cities).toEqual([{ name: 'Bratislava', temp: 12 }])
+		const piece = result.pieces[0]
+		const caspar = piece?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toEqual({ cities: [{ name: 'Bratislava', temp: 12 }] })
+		expect(piece?.content).toMatchObject({
+			templateData: { cities: [{ name: 'Bratislava', temp: 12 }] },
+		})
 	})
 
 	it('applies casparcgLatency preroll to headline ILU adlibs', () => {
