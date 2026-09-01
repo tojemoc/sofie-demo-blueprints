@@ -151,7 +151,10 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (normalizedClip === 'gfx/weather' && typeof templateAttributes.cities === 'string') {
+	if (
+		(normalizedClip === 'gfx/weather' || normalizedClip === 'gfx/pocasie') &&
+		typeof templateAttributes.cities === 'string'
+	) {
 		try {
 			const parsed = JSON.parse(templateAttributes.cities) as unknown
 			if (Array.isArray(parsed)) {
@@ -353,7 +356,7 @@ function getGraphicTlObject(
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
 				id: '',
 				enable: { start: 0 },
-				layer: CasparCGLayers.CasparCGClipPlayer2,
+				layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird,
 				priority: 1 + (isAdlib ? 10 : 0),
 				content: {
 					deviceType: TSR.DeviceType.CASPARCG,
@@ -504,7 +507,7 @@ export function parseAdlibGraphic(
 ): IBlueprintAdLibPiece {
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
-	const isFullscreen = isFullscreenGraphic(object.clipName)
+	const isFullscreen = isFullscreenGraphic(object.clipName) || useHeadlineIluPrerendered(object)
 	const templateData = getGraphicTemplateData(object)
 
 	return {

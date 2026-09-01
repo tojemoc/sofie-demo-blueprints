@@ -449,12 +449,46 @@ describe('casparV2Graphics', () => {
 		)
 		const html = timeline.find(
 			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGClipPlayer2 &&
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 
 		expect((bg?.content as TSR.TimelineContentCCGMedia).file).toBe('assets/bg_pocasie')
 		expect((html?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/pocasie')
+	})
+
+	it('decodes legacy cities JSON for gfx/pocasie template data', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-cities',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					cities: '[{"name":"Bratislava","temp":12}]',
+				},
+			},
+		])
+
+		expect(result.pieces[0]?.content.templateData?.cities).toEqual([{ name: 'Bratislava', temp: 12 }])
+	})
+
+	it('applies casparcgLatency preroll to headline ILU adlibs', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'ilu-adlib',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/headline',
+				objectTime: 0,
+				duration: 8000,
+				isAdlib: true,
+				attributes: { iluFile: 'clips/headline1.mp4' },
+			},
+		])
+
+		expect(result.adLibPieces[0]?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 	})
 
 	it('maps Rundown Editor v2 piece types to gfx clipNames and template data', () => {
