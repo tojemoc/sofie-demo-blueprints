@@ -71,13 +71,10 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(modPart?.payload.script).toBe('Gabriela Kajtárová')
 	})
 
-	it('starts logo-bug on the first DoubleBox part (after intro wipe), not on headlines', () => {
-		const headlines = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
-		expect(headlines.parts.every((part) => !part.objects.some((obj) => obj.clipName === 'gfx/logo-bug'))).toBe(true)
-
+	it('skips logo-bug ingest (baseline assets/countup covers logo + countup)', () => {
 		const tema1 = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
 		const firstDb = tema1.parts.find((part) => part.payload.externalId === 'part-tema-1-db')
-		expect(firstDb?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(true)
+		expect(firstDb?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(false)
 	})
 
 	it('does not mark editor graphics without start as adlibs', () => {

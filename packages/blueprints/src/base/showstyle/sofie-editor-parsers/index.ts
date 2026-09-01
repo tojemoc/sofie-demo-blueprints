@@ -151,6 +151,9 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 		ingestSegment.parts.forEach((part) => {
 			const partPayload = part.payload as EditorIngestPart
 
+			// Logo + countup: baseline `assets/countup` on PGM logo layer (not per-part gfx/logo-bug).
+			partPayload.pieces = partPayload.pieces.filter((piece) => piece.objectType.trim().toLowerCase() !== 'logo-bug')
+
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {
 					piece.clipName = normalizeGenericGraphicTemplate(piece.attributes.template)

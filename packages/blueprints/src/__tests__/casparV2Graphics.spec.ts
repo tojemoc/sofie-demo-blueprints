@@ -320,7 +320,28 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('does not start gfx/logo-bug in rundown baseline (logo comes from rundown pieces)', () => {
+	it('loops assets/countup from rundown start on the PGM logo layer', () => {
+		const baseline = getBaseline(mockRundownContext())
+		const countup = baseline.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
+		)
+
+		expect(countup?.enable).toEqual({ while: 1 })
+		expect(countup?.priority).toBe(0)
+		expect(countup?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'assets/countup',
+			loop: true,
+		})
+		expect(countup?.keyframes).toBeUndefined()
+	})
+
+	it('does not start gfx/logo-bug HTML in rundown baseline', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const logo = baseline.timelineObjects?.find(
 			(obj) =>
@@ -331,31 +352,6 @@ describe('casparV2Graphics', () => {
 		)
 
 		expect(logo).toBeUndefined()
-	})
-
-	it('loops assets/counter silently from rundown start on the PGM logo layer', () => {
-		const baseline = getBaseline(mockRundownContext())
-		const counter = baseline.timelineObjects?.find(
-			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
-				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
-				'type' in obj.content &&
-				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
-		)
-
-		expect(counter?.enable).toEqual({ while: 1 })
-		expect(counter?.priority).toBe(0)
-		expect(counter?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'assets/counter',
-			loop: true,
-			mixer: {
-				opacity: 0,
-				volume: 0,
-			},
-		})
-		expect(counter?.keyframes?.length).toBeGreaterThan(0)
 	})
 
 	it('loops background clip on LED clip player only in rundown baseline', () => {
