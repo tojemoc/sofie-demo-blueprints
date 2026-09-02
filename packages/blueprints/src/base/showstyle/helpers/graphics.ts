@@ -175,7 +175,7 @@ function getTemplateAttributes(
 	}
 
 	if (normalizedClip === 'gfx/weather' || normalizedClip === 'gfx/pocasie') {
-		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		const mapped: Record<string, unknown> = { ...templateAttributes }
 		let cities: unknown = mapped.cities
 
 		if (typeof cities === 'string' && cities.trim()) {
@@ -206,7 +206,7 @@ function getTemplateAttributes(
 		delete mapped.cities
 		delete mapped.bypass
 		delete mapped.fileName
-		return mapped
+		return mapped as GraphicObjectAttributes
 	}
 
 	if (normalizedClip === 'gfx/headline') {
