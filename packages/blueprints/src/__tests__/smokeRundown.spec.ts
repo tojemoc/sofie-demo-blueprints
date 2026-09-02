@@ -253,12 +253,43 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const weather = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-weather'))
 		expect(weather.parts[0]?.type).toBe(PartType.GFX)
 		expect(weather.parts[0]?.objects.some((obj) => obj.clipName === 'gfx/pocasie')).toBe(true)
+		const weatherWipe = weather.parts[0]?.objects.find(
+			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+		)
+		expect(weatherWipe?.clipName).toBe('wipes/wipe')
+		expect((weatherWipe?.attributes as { transition?: string }).transition).toBe('Pocasie')
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
+		expect(
+			outro.parts.some(
+				(part) => part.rawType?.match(/ilu/i) && part.objects.some((obj) => obj.clipName === 'gfx/headline')
+			)
+		).toBe(true)
 		expect(
 			outro.parts.some((part) =>
 				part.objects.some((obj) => obj.clipName === 'assets/outro' && obj.objectType === ObjectType.Video)
 			)
 		).toBe(true)
+	})
+
+	it('routes labelled SJV / Šport opening wipes through GFX parts', () => {
+		for (const [segmentId, partExternalId] of [
+			['seg-sjv', 'part-sjv-open'],
+			['seg-sport', 'part-sport-open'],
+		] as const) {
+			const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segmentId))
+			const openPart = segment.parts.find((part) => part.payload.externalId === partExternalId)
+			expect(openPart?.type).toBe(PartType.GFX)
+			const wipe = openPart?.objects.find(
+				(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+			)
+			expect(wipe).toBeDefined()
+		}
+	})
+
+	it('intro part duration is 8 seconds', () => {
+		const introPart = exportData.parts.find((part) => part.id === 'part-intro')
+		expect(introPart).toBeDefined()
+		expect(introPart?.duration).toBe(8)
 	})
 })

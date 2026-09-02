@@ -217,10 +217,30 @@ function layeredVideoLifespan(playLayer: VideoPlayLayer): PieceLifespan {
  * Ensure layered video paths carry the Caspar media-folder prefix.
  * RE mediaPick sometimes stores a bare basename (`wipe`) even when `subdir` is set.
  */
+/** Labelled story wipes fall back to the default stinger until dedicated media exists on disk. */
+const WIPE_MEDIA_ALIASES = Object.freeze(
+	Object.fromEntries([
+		['wipes/wipe_sjv', 'wipes/wipe'],
+		['wipes/wipe_sport', 'wipes/wipe'],
+		['wipes/wipe_pocasie', 'wipes/wipe'],
+	] as const)
+)
+
+function resolveWipeMediaAlias(trimmed: string): string | undefined {
+	if (!Object.prototype.hasOwnProperty.call(WIPE_MEDIA_ALIASES, trimmed)) {
+		return undefined
+	}
+	return WIPE_MEDIA_ALIASES[trimmed as keyof typeof WIPE_MEDIA_ALIASES]
+}
+
 export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileName: string): string {
 	const trimmed = toCasparPlayPath(fileName.trim())
 	if (!trimmed) {
 		return playLayer === 'wipe' ? DEFAULT_WIPE_FILE : playLayer === 'background' ? DEFAULT_BG_LOOP_FILE : trimmed
+	}
+	if (playLayer === 'wipe') {
+		const aliased = resolveWipeMediaAlias(trimmed)
+		if (aliased) return aliased
 	}
 	// Valid two-level demo paths (clips|loops|wipes|assets/<file>) pass through unchanged.
 	if (isDemoMediaPath(trimmed)) {

@@ -124,7 +124,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGPgmIluPlayer])
 	})
 
-	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-predstavovak + CAM FILL (no crop) on Take', () => {
+	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-tema + CAM FILL (no crop) on Take', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
 		expect(part).toBeDefined()
@@ -153,11 +153,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 			},
 			{
 				id: 'piece-part-tema-1-db-l3d',
-				objectType: 'l3d-predstavovak',
+				objectType: 'l3d-tema',
 				objectTime: 0,
 				duration: 8,
 				clipName: '',
-				attributes: { name: 'Tematický titulok', title: '' },
+				attributes: { headline: 'Tematický titulok' },
 			},
 			{
 				id: 'piece-part-tema-1-db-cam',
@@ -183,7 +183,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(dbPart?.type).toBe(PartType.Camera)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/headline')).toBe(false)
-		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
+		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-tema')).toBe(true)
 		expect(
 			dbPart?.objects.some(
 				(obj) =>
@@ -221,11 +221,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const tema = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
-				(obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/l3d-predstavovak'
+				(obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/l3d-tema'
 		)
-		expect(tema, 'l3d-predstavovak must play on PGM lower-third after Take into DoubleBox').toBeDefined()
+		expect(tema, 'l3d-tema must play on PGM lower-third after Take into DoubleBox').toBeDefined()
 		expect((tema?.content as TSR.TimelineContentCCGTemplate).data).toMatchObject({
-			name: 'Tematický titulok',
+			headline: 'Tematický titulok',
 		})
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)

@@ -31,7 +31,7 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback).
-PINNED_SOFIE_ASSETS_REF="9087e8e6e6a6b99f385da24aceb2c3319f259412" # smoke rundown without logo-bug (baseline countup)
+PINNED_SOFIE_ASSETS_REF="37bc380f3062b3503ac4beadbbed68e801e80f0b" # smoke: intro 8s, l3d-tema, ILU avízo
 
 CURL_OPTS=(
 	-fsSL
