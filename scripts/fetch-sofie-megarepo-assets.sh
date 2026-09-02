@@ -32,12 +32,12 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
-PINNED_SOFIE_ASSETS_REF="37bc380f3062b3503ac4beadbbed68e801e80f0b" # smoke: intro 8s, l3d-tema, ILU avízo
+PINNED_SOFIE_ASSETS_REF="74950f511b0569ecdffa01b8a3292a5d7b04764a" # L3D headline/subline, ILU manifest, smoke alignment
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
-	[spravy-v3-smoke-rundown.json]=24c32d2ddad0607a36a926bdae11bed58fae2c9a227ef166c39ad402febf3c4d
-	[sofie-rundown-editor-piece-types.json]=f2435a8172968e39b8075de76950793d4144d2a85a74a0ac20cb20b3415f203c
+	[spravy-v3-smoke-rundown.json]=62b4490fd9cfe8f046e482805cd89c15f4da6e15d58deac1517fe52150e89b2f
+	[sofie-rundown-editor-piece-types.json]=c6b939f306b8dfbcbd548c1dcdbf8f8b9f589276f40348bfc5646494f0d6c7bc
 	[sofie-rundown-editor-part-types.json]=74d89de9d65298a6d48054ca85cd7319bef56038a09b061f25e81f111040a7e6
 	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
 )
