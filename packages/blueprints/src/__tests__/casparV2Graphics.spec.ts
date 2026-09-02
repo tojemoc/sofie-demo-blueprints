@@ -320,7 +320,7 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('plays assets/countup silently from rundown take start on the PGM logo layer', () => {
+	it('does not start assets/countup in rundown baseline (reveal on first DoubleBox)', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const countup = baseline.timelineObjects?.find(
 			(obj) =>
@@ -330,19 +330,7 @@ describe('casparV2Graphics', () => {
 				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
 		)
 
-		expect(countup?.enable).toEqual({ while: 1 })
-		expect(countup?.priority).toBe(0)
-		expect(countup?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'assets/countup',
-			loop: true,
-			mixer: {
-				opacity: 0,
-				volume: 0,
-			},
-		})
-		expect(countup?.keyframes).toBeUndefined()
+		expect(countup).toBeUndefined()
 	})
 
 	it('does not start gfx/logo-bug HTML in rundown baseline', () => {
@@ -467,7 +455,7 @@ describe('casparV2Graphics', () => {
 				duration: 10000,
 				isAdlib: false,
 				attributes: {
-					cities: '[{"name":"Bratislava","temp":12}]',
+					cities: '[{"region":"BA","name":"Bratislava","temp":12}]',
 				},
 			},
 		])
@@ -479,9 +467,9 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)?.content as TSR.TimelineContentCCGTemplate
 
-		expect(caspar.data).toEqual({ cities: [{ name: 'Bratislava', temp: 12 }] })
+		expect(caspar.data).toEqual({ BA_temp: 12, BA_name: 'Bratislava' })
 		expect(piece?.content).toMatchObject({
-			templateData: { cities: [{ name: 'Bratislava', temp: 12 }] },
+			templateData: { BA_temp: 12, BA_name: 'Bratislava' },
 		})
 	})
 

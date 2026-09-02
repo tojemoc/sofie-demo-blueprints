@@ -141,8 +141,8 @@ function createCountupPiece(
 }
 
 /**
- * Fade countup in on first DoubleBox Take. Baseline already plays the same file
- * silently from rundown start so SFX/seconds stay aligned with show time.
+ * Fade countup in on first DoubleBox Take. Countup does not run in baseline —
+ * some Caspar builds still show MEDIA at opacity 0 until the reveal piece fires.
  */
 export function createCountupRevealPiece(
 	context: ICommonContext,

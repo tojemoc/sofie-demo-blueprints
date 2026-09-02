@@ -174,19 +174,45 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (
-		(normalizedClip === 'gfx/weather' || normalizedClip === 'gfx/pocasie') &&
-		typeof templateAttributes.cities === 'string'
-	) {
-		try {
-			const parsed = JSON.parse(templateAttributes.cities) as unknown
-			if (Array.isArray(parsed)) {
-				const { cities: _citiesJson, ...rest } = templateAttributes
-				return { ...rest, cities: parsed } as unknown as GraphicObjectAttributes
+	if (normalizedClip === 'gfx/weather' || normalizedClip === 'gfx/pocasie') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		let cities: unknown = mapped.cities
+
+		if (typeof cities === 'string' && cities.trim()) {
+			try {
+				cities = JSON.parse(cities) as unknown
+			} catch {
+				// leave raw string — template may still read per-region keys
 			}
-		} catch {
-			// leave raw string for the template bridge
 		}
+
+		if (!cities || (typeof cities === 'string' && !cities.trim())) {
+			cities = [...DEFAULT_POCASIE_CITIES]
+		}
+
+		if (Array.isArray(cities)) {
+			for (const row of cities) {
+				if (!row || typeof row !== 'object') continue
+				const entry = row as Record<string, unknown>
+				const region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
+				if (!region) continue
+				if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
+				if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
+				if (entry.delay !== undefined) mapped[`${region}_delay`] = entry.delay
+				if (entry.image !== undefined) mapped[`${region}_img`] = entry.image
+			}
+		}
+
+		delete mapped.cities
+		delete mapped.bypass
+		delete mapped.fileName
+		return mapped
+	}
+
+	if (normalizedClip === 'gfx/headline') {
+		const mapped: GraphicObjectAttributes = { ...templateAttributes }
+		delete mapped.text
+		return mapped
 	}
 
 	return templateAttributes
@@ -225,6 +251,18 @@ const HEADLINE_ILU_FULLSCREEN_FILL = {
 
 /** Blind-map video under the pocasie HTML animation (fullscreen PGM). */
 export const DEFAULT_POCASIE_BG_FILE = 'assets/bg_pocasie'
+
+/** Default city rows when RE weather piece has no `cities` JSON (matches gfx/pocasie.html). */
+export const DEFAULT_POCASIE_CITIES = [
+	{ region: 'BA', name: 'BRATISLAVA', temp: '4', delay: 200 },
+	{ region: 'TT', name: 'TRNAVA', temp: '3', delay: 400 },
+	{ region: 'NR', name: 'NITRA', temp: '2', delay: 600 },
+	{ region: 'TN', name: 'TRENČÍN', temp: '1', delay: 800 },
+	{ region: 'ZA', name: 'ŽILINA', temp: '-1', delay: 1000 },
+	{ region: 'BB', name: 'B. BYSTRICA', temp: '0', delay: 1200 },
+	{ region: 'KE', name: 'KOŠICE', temp: '2', delay: 1400 },
+	{ region: 'PO', name: 'PREŠOV', temp: '1', delay: 1600 },
+] as const
 
 /** Default Caspar path for outro jingle overlay (on top of everything). */
 export const DEFAULT_OUTRO_FILE = 'assets/outro'
@@ -323,6 +361,8 @@ function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 	if (isDoubleboxIlu(object)) {
 		// Media-only piece (no HTML); keep off the exclusive pgm group used by Camera/VT.
 		return SourceLayer.LowerThird
+	} else if (hasHeadlineIluFile(object)) {
+		return SourceLayer.IluMedia
 	} else if (object.clipName.match(/logo-bug/i)) {
 		return SourceLayer.Logo
 	} else if (isPocasieGraphic(object) || object.clipName.match(/fullscreen/i)) {

@@ -15,6 +15,8 @@ export enum SourceLayer {
 	HostOverride = 'hostOverride',
 
 	LowerThird = 'lower_third',
+	/** LED headline ILU media only — not PGM L3D chrome or headline-fallback HTML. */
+	IluMedia = 'ilu_media',
 	/**
 	 * PGM L3D chrome (l3d-headline / tema / syn / mod / …).
 	 * Must stay off `LowerThird`: Sofie prunes to one WithinPart piece per source
@@ -52,6 +54,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.Script:
 			return OutputLayer.Script
 		case SourceLayer.LowerThird:
+		case SourceLayer.IluMedia:
 		case SourceLayer.PgmLowerThird:
 		case SourceLayer.PgmDoubleBoxLoop:
 		case SourceLayer.PgmWipe:

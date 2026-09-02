@@ -284,9 +284,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		const templateDisabled = resultDisabled.pieces[0]?.content.timelineObjects?.find(
 			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
 		)
-		expect((templateDisabled?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
-			text: 'Hello',
-		})
+		expect((templateDisabled?.content as TSR.TimelineContentCCGTemplate).data).toEqual({})
 
 		const resultEmpty = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
@@ -307,9 +305,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 		const templateEmpty = resultEmpty.pieces[0]?.content.timelineObjects?.find(
 			(obj) => obj.layer === CasparCGLayers.CasparCGGraphicsLowerThird
 		)
-		expect((templateEmpty?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
-			text: 'Hello',
-		})
+		expect((templateEmpty?.content as TSR.TimelineContentCCGTemplate).data).toEqual({})
 	})
 })
 

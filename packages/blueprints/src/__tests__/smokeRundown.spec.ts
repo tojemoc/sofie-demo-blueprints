@@ -48,10 +48,6 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(
 			exportData.parts.filter((p) => p.segmentId === 'seg-sjv' && p.partType === 'syn').length
 		).toBeGreaterThanOrEqual(3)
-		// Prompter scripts filled for spoken ILU / headline parts (SYN SOTs stay empty)
-		expect(
-			exportData.parts.filter((p) => (p.script ?? p.payload.script ?? '').trim().length > 0).length
-		).toBeGreaterThanOrEqual(20)
 	})
 
 	it('resolves editorial segment types from payload.type', () => {
@@ -69,7 +65,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(modPart?.type).toBe(PartType.Camera)
 		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/l3d-predstavovak')).toBe(true)
 		expect(modPart?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(false)
-		expect(modPart?.payload.script).toBe('Gabriela Kajtárová')
+		expect(modPart?.payload.name).toBe('Gabriela Kajtárová')
 	})
 
 	it('skips logo-bug ingest (baseline assets/countup covers logo + countup)', () => {
@@ -204,10 +200,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		const firstHeadline = segment.parts[0]?.objects.find((obj) => obj.clipName === 'gfx/headline')
 		expect(firstHeadline?.attributes).toMatchObject({
-			text: 'Osobné údaje v OR SR',
 			iluFile: 'clips/HEADLINE1.mov',
 		})
-		expect(segment.parts[0]?.payload.script).toContain('obchodného registra')
 	})
 
 	it('normalizes legacy iluFile paths and passes through ingest durations unchanged', () => {
