@@ -84,7 +84,6 @@ export interface HypercomposedChannels {
 	pgmChannel: number
 	pgmCameraProducer?: string
 	pgmCameraVideoFilter?: string
-	pgmCameraDshowRtbufsize?: string
 }
 export interface InputConfig {
 	input: number

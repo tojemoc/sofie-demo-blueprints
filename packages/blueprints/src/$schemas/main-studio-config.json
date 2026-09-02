@@ -129,11 +129,6 @@
 							"type": "string",
 							"ui:title": "PGM camera video filter (VF)",
 							"ui:description": "Optional libavfilter for the PGM UVC producer (Caspar VF), e.g. scale=1280:720. Lowers decode load on dshow://virtual cameras."
-						},
-						"pgmCameraDshowRtbufsize": {
-							"type": "string",
-							"ui:title": "DShow rtbufsize (Caspar patch)",
-							"ui:description": "Target FFmpeg rtbufsize for dshow inputs (e.g. 100M). Stock CasparCG ignores this — apply docs/integration/CASPAR-FFMPEG-BUFFERS.md patch on the playout server. Default patch value: 100M."
 						}
 					},
 					"required": ["ledChannel", "pgmChannel"],

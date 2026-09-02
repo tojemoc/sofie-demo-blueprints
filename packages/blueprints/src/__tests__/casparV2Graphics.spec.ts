@@ -473,6 +473,63 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
+	it('falls back to DEFAULT_POCASIE_CITIES for malformed cities JSON', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-bad-json',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					cities: '{not-json',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toMatchObject({
+			BA_temp: '4',
+			BA_name: 'BRATISLAVA',
+			PO_temp: '1',
+			PO_name: 'PREŠOV',
+		})
+		expect(caspar.data).not.toHaveProperty('cities')
+	})
+
+	it('falls back to DEFAULT_POCASIE_CITIES for empty cities arrays', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-empty',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					cities: '[]',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toMatchObject({
+			BA_temp: '4',
+			BA_name: 'BRATISLAVA',
+		})
+	})
+
 	it('applies casparcgLatency preroll to headline ILU adlibs', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
