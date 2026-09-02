@@ -10,9 +10,10 @@
 # so `eval "$(…)"` is safe.
 #
 # Trust model: a single immutable sofie commit SHA (not a branch, not a fallback
-# list). Fail closed if that revision cannot be fetched — never silently use an
-# older incompatible asset tree. Bump PINNED_SOFIE_ASSETS_REF when megarepo
-# assets change (keep in sync with sofie docs/integration/MEGAREPO-ASSETS-FETCH.md).
+# list) plus per-file SHA-256 verification. Fail closed if that revision cannot
+# be fetched or any checksum mismatches — never silently use an older incompatible
+# asset tree. Bump PINNED_SOFIE_ASSETS_REF and every EXPECTED_SHA256 entry when
+# megarepo assets change (keep in sync with sofie docs/integration/MEGAREPO-ASSETS-FETCH.md).
 #
 # Promotion: download into a complete generation directory, then atomically
 # point `current` at it. Consumers must use SOFIE_MEGAREPO_ASSETS → …/current so
@@ -30,8 +31,16 @@ FILES=(
 	sofie-rundown-editor-segment-types.json
 )
 
-# Single pin — fail closed (no older REFS fallback).
+# Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
 PINNED_SOFIE_ASSETS_REF="37bc380f3062b3503ac4beadbbed68e801e80f0b" # smoke: intro 8s, l3d-tema, ILU avízo
+
+# filename → expected sha256 (of the pinned commit's assets/)
+declare -A EXPECTED_SHA256=(
+	[spravy-v3-smoke-rundown.json]=24c32d2ddad0607a36a926bdae11bed58fae2c9a227ef166c39ad402febf3c4d
+	[sofie-rundown-editor-piece-types.json]=f2435a8172968e39b8075de76950793d4144d2a85a74a0ac20cb20b3415f203c
+	[sofie-rundown-editor-part-types.json]=74d89de9d65298a6d48054ca85cd7319bef56038a09b061f25e81f111040a7e6
+	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
+)
 
 CURL_OPTS=(
 	-fsSL
@@ -60,6 +69,15 @@ for f in "${FILES[@]}"; do
 		cleanup_partial
 		exit 1
 	fi
+	actual="$(sha256sum "$STAGE/$f" | awk '{print $1}')"
+	expected="${EXPECTED_SHA256[$f]}"
+	if [[ "$actual" != "$expected" ]]; then
+		echo "Checksum mismatch for $f (sofie@${PINNED_SOFIE_ASSETS_REF})" >&2
+		echo "  expected: $expected" >&2
+		echo "  actual:   $actual" >&2
+		cleanup_partial
+		exit 1
+	fi
 done
 
 # Install the complete generation (replace same-SHA dir only after stage is full).
@@ -85,6 +103,6 @@ EXPORT_PATH="$CURRENT_LINK"
 if [ -n "${GITHUB_ENV:-}" ]; then
 	echo "SOFIE_MEGAREPO_ASSETS=$EXPORT_PATH" >>"$GITHUB_ENV"
 fi
-echo "Fetched sofie megarepo assets from ${PINNED_SOFIE_ASSETS_REF} into $EXPORT_PATH" >&2
+echo "Fetched and verified sofie megarepo assets from ${PINNED_SOFIE_ASSETS_REF} into $EXPORT_PATH" >&2
 # stdout: eval-compatible for local shells (CI relies on GITHUB_ENV above)
 printf 'export SOFIE_MEGAREPO_ASSETS=%q\n' "$EXPORT_PATH"
