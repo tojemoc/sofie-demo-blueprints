@@ -71,9 +71,14 @@ function createBackgroundMusicPiece(
 			}),
 		},
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, file, [CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm], {
-				includeSideEffects: true,
-			}),
+			createMediaFileExpectedPackage(
+				context,
+				file,
+				[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
+				{
+					includeSideEffects: true,
+				}
+			),
 		],
 		prerollDuration: config.casparcgLatency,
 	})

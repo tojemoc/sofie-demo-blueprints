@@ -45,9 +45,7 @@ describe('koliska bed envelope', () => {
 			const content = tl.content as TSR.TimelineContentCCGMedia
 			expect(content.mixer?.volume).toBe(KOLISKA_HIT_VOLUME)
 			expect(tl.keyframes?.[0]?.enable).toEqual({ start: KOLISKA_HIT_DURATION_MS })
-			expect((tl.keyframes?.[0]?.content as { mixer?: { volume?: number } }).mixer?.volume).toBe(
-				KOLISKA_BED_VOLUME
-			)
+			expect((tl.keyframes?.[0]?.content as { mixer?: { volume?: number } }).mixer?.volume).toBe(KOLISKA_BED_VOLUME)
 		}
 	})
 

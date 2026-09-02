@@ -26,12 +26,13 @@ describe('pgmCamera helpers', () => {
 	})
 
 	it('forwards optional videoFilter from studio config', () => {
+		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
 		const config = {
 			...hybridCasparConfig,
 			casparcg: {
 				...hybridCasparConfig.casparcg,
 				hypercomposed: {
-					...hybridCasparConfig.casparcg.hypercomposed!,
+					...hypercomposed,
 					pgmCameraVideoFilter: 'scale=1280:720',
 				},
 			},
