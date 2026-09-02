@@ -7,6 +7,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
 import { SiyfosSourceConfig } from '../../../$schemas/generated/main-studio-config.js'
+import { createDualChannelAudioBedTimelineObjects } from './audioBedTimeline.js'
 
 /** A-block background music (loops through rundown). */
 export const BG_MUSIC_A_FILE = 'loops/bg_music_a'
@@ -35,21 +36,10 @@ function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineC
 	]
 }
 
-export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
-	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-		id: '',
+export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	return createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
 		enable: { while: 1 },
-		priority: 0,
-		layer: CasparCGLayers.CasparCGAudioBed,
-		content: {
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: BG_MUSIC_A_FILE,
-			loop: true,
-			mixer: {
-				volume: KOLISKA_HIT_VOLUME,
-			},
-		},
+		volume: KOLISKA_HIT_VOLUME,
 		keyframes: koliskaMixerKeyframes(),
 	})
 }
@@ -75,28 +65,20 @@ function createBackgroundMusicPiece(
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
 		content: {
 			fileName: file,
-			timelineObjects: [
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGAudioBed,
-					priority: 1,
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-						file,
-						loop: true,
-						mixer: {
-							volume: KOLISKA_HIT_VOLUME,
-						},
-					},
-				}),
-			],
+			timelineObjects: createDualChannelAudioBedTimelineObjects(file, {
+				volume: KOLISKA_HIT_VOLUME,
+				priority: 1,
+			}),
 		},
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, file, [CasparCGLayers.CasparCGAudioBed], {
-				includeSideEffects: true,
-			}),
+			createMediaFileExpectedPackage(
+				context,
+				file,
+				[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
+				{
+					includeSideEffects: true,
+				}
+			),
 		],
 		prerollDuration: config.casparcgLatency,
 	})
@@ -121,23 +103,10 @@ export function createIntroBackgroundMusicMutePiece(
 		content: {
 			fileName: BG_MUSIC_A_FILE,
 			ignoreAudioFormat: true,
-			timelineObjects: [
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGAudioBed,
-					priority: 2,
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-						file: BG_MUSIC_A_FILE,
-						loop: true,
-						mixer: {
-							volume: 0,
-						},
-					},
-				}),
-			],
+			timelineObjects: createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
+				volume: 0,
+				priority: 2,
+			}),
 		},
 		expectedPackages: [],
 		prerollDuration: config.casparcgLatency,

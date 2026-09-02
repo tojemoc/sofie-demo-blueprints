@@ -25,6 +25,8 @@ export const LedChannelLayers = {
  * GraphicsLogo (123) is the 360° sekúnd bug — PGM only, not LED.
  */
 export const PgmChannelLayers = {
+	/** Mirrors LED L80 — same kolíska bed on the PGM channel output. */
+	AudioBed: 80,
 	ClipPlayer: 110,
 	Camera: 115,
 	IluPlayer: 116,

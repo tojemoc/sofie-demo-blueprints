@@ -188,6 +188,16 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 				layer: LedChannelLayers.AudioBed,
 			},
 		}),
+		[CasparCGLayers.CasparCGAudioBedPgm]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+			device: TSR.DeviceType.CASPARCG,
+			deviceId: 'casparcg0',
+			lookahead: LookaheadMode.NONE,
+			options: {
+				mappingType: TSR.MappingCasparCGType.Layer,
+				channel: pgmChannel,
+				layer: PgmChannelLayers.AudioBed,
+			},
+		}),
 	}
 
 	return mappings

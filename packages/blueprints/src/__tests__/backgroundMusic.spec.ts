@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { TSR } from '@sofie-automation/blueprints-integration'
 import {
 	createBackgroundMusicBaselineTimeline,
 	createSportBackgroundMusicPiece,
@@ -7,7 +8,7 @@ import {
 	KOLISKA_HIT_DURATION_MS,
 	KOLISKA_HIT_VOLUME,
 } from '../base/showstyle/helpers/backgroundMusic.js'
-import { TSR } from '@sofie-automation/blueprints-integration'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
 
 const mockContext = {
@@ -32,21 +33,29 @@ describe('isSportSegmentName', () => {
 })
 
 describe('koliska bed envelope', () => {
-	it('starts loud then ducks after the hit window', () => {
-		const tl = createBackgroundMusicBaselineTimeline()
-		const content = tl.content as TSR.TimelineContentCCGMedia
-		expect(content.mixer?.volume).toBe(KOLISKA_HIT_VOLUME)
-		expect(tl.keyframes?.[0]?.enable).toEqual({ start: KOLISKA_HIT_DURATION_MS })
-		expect((tl.keyframes?.[0]?.content as { mixer?: { volume?: number } }).mixer?.volume).toBe(KOLISKA_BED_VOLUME)
+	it('starts loud then ducks after the hit window on LED and PGM', () => {
+		const timelines = createBackgroundMusicBaselineTimeline()
+		expect(timelines).toHaveLength(2)
+		expect(timelines.map((tl) => tl.layer)).toEqual([
+			CasparCGLayers.CasparCGAudioBed,
+			CasparCGLayers.CasparCGAudioBedPgm,
+		])
+
+		for (const tl of timelines) {
+			const content = tl.content as TSR.TimelineContentCCGMedia
+			expect(content.mixer?.volume).toBe(KOLISKA_HIT_VOLUME)
+			expect(tl.keyframes?.[0]?.enable).toEqual({ start: KOLISKA_HIT_DURATION_MS })
+			expect((tl.keyframes?.[0]?.content as { mixer?: { volume?: number } }).mixer?.volume).toBe(KOLISKA_BED_VOLUME)
+		}
 	})
 
 	it('does not apply koliska keyframes to sport background music', () => {
 		const piece = createSportBackgroundMusicPiece(mockContext, hybridCasparConfig, 'seg-sport')
 		expect(piece.content, 'sport background music piece content missing').toBeDefined()
-		const timeline = piece.content?.timelineObjects?.[0] as { keyframes?: unknown[] } | undefined
-		expect(timeline, 'sport background music timeline object missing').toBeDefined()
-		if (!timeline) return
-
-		expect(timeline.keyframes).toBeUndefined()
+		const timelines = piece.content?.timelineObjects ?? []
+		expect(timelines).toHaveLength(2)
+		for (const timeline of timelines) {
+			expect((timeline as { keyframes?: unknown[] }).keyframes).toBeUndefined()
+		}
 	})
 })

@@ -38,6 +38,8 @@ export enum CasparCGLayers {
 	/** 360° sekúnd logo-bug — mapped to PGM channel (not LED). */
 	CasparCGGraphicsLogo = 'casparcg_graphics_logo',
 	CasparCGAudioBed = 'casparcg_audio_bed',
+	/** Background music bed on PGM — mirrors LED audio bed so PGM consumers hear kolíska. */
+	CasparCGAudioBedPgm = 'casparcg_audio_bed_pgm',
 }
 
 export enum AbstractLayers {

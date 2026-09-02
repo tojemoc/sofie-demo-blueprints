@@ -137,6 +137,11 @@ describe('casparcgMappings', () => {
 			channel: 1,
 			layer: LedChannelLayers.AudioBed,
 		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGAudioBedPgm)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.AudioBed,
+		})
 	})
 
 	it('routes secondary clip player to PGM channel 2', () => {

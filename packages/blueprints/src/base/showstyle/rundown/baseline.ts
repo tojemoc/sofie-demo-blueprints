@@ -14,8 +14,9 @@ export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
 /**
  * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
- * Plays silently from rundown take start; {@link createCountupRevealPiece} fades
- * in on the first DoubleBox after the intro wipe. Disk: `assets/countup.mov`.
+ * {@link createCountupRevealPiece} starts playback on the first DoubleBox after
+ * the intro wipe (not at rundown take — Caspar may ignore opacity:0 on MEDIA).
+ * Disk: `assets/countup.mov`.
  */
 export const PGM_COUNTUP_FILE = 'assets/countup'
 
@@ -59,24 +60,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-				id: '',
-				enable: { while: 1 },
-				priority: 0,
-				layer: CasparCGLayers.CasparCGGraphicsLogo,
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					file: PGM_COUNTUP_FILE,
-					loop: true,
-					mixer: {
-						opacity: 0,
-						volume: 0,
-					},
-				},
-			}),
-
-			createBackgroundMusicBaselineTimeline(),
+			...createBackgroundMusicBaselineTimeline(),
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentSisyfosChannels>>({
 				id: '',

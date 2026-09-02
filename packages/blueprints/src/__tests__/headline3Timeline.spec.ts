@@ -36,9 +36,9 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			const partContext = new PartContext(segmentContext, part.payload.externalId)
 			const result = generateCameraPart(partContext, part as never, createCountupRevealClaim())
 
-			const iluPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.LowerThird))
+			const iluPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.IluMedia))
 			const l3dPiece = result.pieces.find((p) => p.sourceLayerId === String(SourceLayer.PgmLowerThird))
-			expect(iluPiece, `${part.payload.name} missing LowerThird ILU piece`).toBeTruthy()
+			expect(iluPiece, `${part.payload.name} missing ILU media piece`).toBeTruthy()
 			expect(l3dPiece, `${part.payload.name} missing PgmLowerThird L3D piece`).toBeTruthy()
 			// GFX output (not flattened PGM) — Caspar mapping is still PGM channel 2.
 			expect(iluPiece?.outputLayerId).toBe('gfx')

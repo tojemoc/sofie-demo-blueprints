@@ -84,6 +84,13 @@ export function getSourceLayer(): ISourceLayer[] {
 			abbreviation: 'L3d',
 		},
 		{
+			_id: SourceLayer.IluMedia,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 199,
+			name: 'ILU',
+			abbreviation: 'ILU',
+		},
+		{
 			_id: SourceLayer.PgmLowerThird,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 205,
