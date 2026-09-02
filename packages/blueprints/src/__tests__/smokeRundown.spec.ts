@@ -160,6 +160,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'dshow://video=OBS Virtual Camera',
+			noStarttime: true,
 			mixer: {
 				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 			},

@@ -20,6 +20,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
+import { getPgmCameraMediaContentOptions, getPgmCameraProducer } from '../helpers/pgmCamera.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
@@ -34,7 +35,7 @@ function createPgmCameraTimelineObjects(
 	config: StudioConfig,
 	mode: 'fullscreen' | 'doublebox'
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	const producer = config.casparcg.hypercomposed?.pgmCameraProducer?.trim()
+	const producer = getPgmCameraProducer(config)
 	if (!producer) return []
 
 	const mixer =
@@ -56,6 +57,7 @@ function createPgmCameraTimelineObjects(
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				file: producer,
 				mixer,
+				...getPgmCameraMediaContentOptions(config, producer),
 			},
 		}),
 	]

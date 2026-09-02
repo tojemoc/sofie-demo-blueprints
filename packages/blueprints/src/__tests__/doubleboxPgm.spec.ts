@@ -204,6 +204,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'dshow://video=OBS Virtual Camera',
+			noStarttime: true,
 			mixer: {
 				fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
 			},
