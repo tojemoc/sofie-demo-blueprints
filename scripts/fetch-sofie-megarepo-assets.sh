@@ -36,7 +36,7 @@ PINNED_SOFIE_ASSETS_REF="74950f511b0569ecdffa01b8a3292a5d7b04764a" # L3D headlin
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
-	[spravy-v3-smoke-rundown.json]=62b4490fd9cfe8f046e482805cd89c15f4da6e15d58deac1517fe52150e89b2f
+	[spravy-v3-smoke-rundown.json]=daa90b1953e9471ecc131cbd5fb5357b44915d3a9d9c03f341d22fe72197c97d
 	[sofie-rundown-editor-piece-types.json]=c6b939f306b8dfbcbd548c1dcdbf8f8b9f589276f40348bfc5646494f0d6c7bc
 	[sofie-rundown-editor-part-types.json]=74d89de9d65298a6d48054ca85cd7319bef56038a09b061f25e81f111040a7e6
 	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
