@@ -13,6 +13,7 @@ import { getBaseline } from './baseline.js'
 import { getGlobalActions } from './globalActions.js'
 import { getGlobalAdlibs } from './globalAdlibs.js'
 import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
+import { beginLookSlotGeneration } from '../helpers/pgmLook.js'
 
 export function getRundown(
 	context: IShowStyleUserContext,
@@ -22,6 +23,7 @@ export function getRundown(
 		'------------------------------- getRundown ----------------------------------------------------------------'
 	)
 	beginCountupRevealGeneration(ingestRundown.externalId)
+	beginLookSlotGeneration(ingestRundown.externalId)
 	const rundownMetadata: RundownMetadata = {
 		ingestType: ingestRundown.type,
 	}

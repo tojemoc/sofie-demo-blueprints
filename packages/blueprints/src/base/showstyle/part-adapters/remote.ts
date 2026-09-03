@@ -11,8 +11,13 @@ import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { ObjectType } from '../../../common/definitions/objects.js'
 import { parseConfig } from '../helpers/config.js'
+import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
-export function generateRemotePart(context: PartContext, part: PartProps<RemoteProps>): BlueprintResultPart {
+export function generateRemotePart(
+	context: PartContext,
+	part: PartProps<RemoteProps>,
+	lookSlot: LookSlot = 'A'
+): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
 
@@ -53,7 +58,7 @@ export function generateRemotePart(context: PartContext, part: PartProps<RemoteP
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
-	return {
+	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
@@ -64,4 +69,14 @@ export function generateRemotePart(context: PartContext, part: PartProps<RemoteP
 		adLibPieces: [...graphics.adLibPieces, ...clips],
 		actions: [],
 	}
+	finalizeHypercomposedPart(
+		context,
+		config,
+		result.part,
+		part.payload.externalId,
+		part.objects,
+		result.pieces,
+		lookSlot
+	)
+	return result
 }

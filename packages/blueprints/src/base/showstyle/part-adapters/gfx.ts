@@ -5,8 +5,13 @@ import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
+import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
-export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>): BlueprintResultPart {
+export function generateGfxPart(
+	context: PartContext,
+	part: PartProps<GfxProps>,
+	lookSlot: LookSlot = 'A'
+): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
 	const graphics = parseGraphicsFromObjects(config, part.objects, context)
@@ -27,7 +32,7 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 	// click Take to the next part/segment. Other GFX (e.g. téma) keep autoNext.
 	const isIlu = /ilu/i.test(part.rawType ?? '')
 
-	return {
+	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
@@ -39,4 +44,14 @@ export function generateGfxPart(context: PartContext, part: PartProps<GfxProps>)
 		adLibPieces: [...graphics.adLibPieces, ...clips],
 		actions: [],
 	}
+	finalizeHypercomposedPart(
+		context,
+		config,
+		result.part,
+		part.payload.externalId,
+		part.objects,
+		result.pieces,
+		lookSlot
+	)
+	return result
 }

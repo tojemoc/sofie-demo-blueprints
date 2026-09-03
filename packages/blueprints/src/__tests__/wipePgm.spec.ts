@@ -50,10 +50,10 @@ function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, sy
 	return { ingest, synExternalId }
 }
 
-describe('wipe piece type → PGM effects player', () => {
+describe('wipe piece type → PGM route STING', () => {
 	const exportData = loadSmokeRundownExport()
 
-	it('normalizes lowercase wipe onto PGM layer 200 for SYN (VO) parts', () => {
+	it('normalizes lowercase wipe onto a PGM route STING for SYN (VO) parts', () => {
 		const { ingest, synExternalId } = withWipeOnSyn(exportData)
 		const segment = convertIngestData(mockIngestContext, ingest)
 		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
@@ -73,12 +73,26 @@ describe('wipe piece type → PGM effects player', () => {
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 
 		expect(wipePiece?.lifespan).toBe(PieceLifespan.WithinPart)
-		expect(wipePiece?.enable.duration).toBe(2500)
 		expect(wipePiece?.sourceLayerId).toBe(SourceLayer.PgmWipe)
 		expect(wipePiece?.outputLayerId).toBe('gfx')
-		expect(wipePiece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(routeObj).toBeDefined()
+		expect(routeObj?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.ROUTE,
+			channel: 3,
+			transitions: {
+				inTransition: {
+					type: TSR.Transition.STING,
+					maskFile: 'wipes/wipe',
+					overlayFile: 'wipes/wipe',
+				},
+			},
+		})
+		expect(
+			wipePiece?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		).toBe(false)
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
-		expect((wipePiece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
 		expect(result.pieces[0]?.name).not.toContain('wipe')
@@ -102,7 +116,13 @@ describe('wipe piece type → PGM effects player', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>)
 		const generated = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
-		expect((generated?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
+		const route = generated?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const sting = (route?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition as {
+			type: string
+			maskFile: string
+		}
+		expect(sting.type).toBe(TSR.Transition.STING)
+		expect(sting.maskFile).toBe('wipes/wipe')
 	})
 
 	it('accepts uppercase WIPE piece type ids from ingest', () => {
@@ -191,7 +211,16 @@ describe('wipe piece type → PGM effects player', () => {
 		const partContext = new PartContext(mockSegmentContext(), wipeOnly.payload.externalId)
 		const result = generateLayeredVideoPart(partContext, wipeOnly)
 		expect(result.pieces).toHaveLength(1)
-		expect(result.pieces[0]?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(result.pieces[0]?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmRoute)
+		expect(result.pieces[0]?.content.timelineObjects?.[0]?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.ROUTE,
+			transitions: {
+				inTransition: {
+					type: TSR.Transition.STING,
+					maskFile: 'wipes/360_wipe',
+				},
+			},
+		})
 	})
 
 	it('generates ForceMute timeline for playback channels during wipe', () => {
@@ -216,8 +245,6 @@ describe('wipe piece type → PGM effects player', () => {
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>)
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		expect(wipePiece).toBeDefined()
-
-		expect(wipePiece?.enable.duration).toBe(2500)
 
 		const muteObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === SisyfosLayers.ForceMute)
 		expect(muteObj).toBeDefined()

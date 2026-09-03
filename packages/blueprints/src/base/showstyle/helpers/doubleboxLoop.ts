@@ -14,10 +14,10 @@ import { ICommonContext } from '@sofie-automation/blueprints-integration'
 export const DOUBLEBOX_LOOP_FILE = 'loops/db_loop'
 
 /**
- * Create a piece that plays the DoubleBox compositing frame on PGM layer 118
- * for this part only (WithinPart). SYN / weather / outro are fullscreen and must
- * not keep the cutout frame. Headlines / post-intro MOD are fullscreen cam — they
- * never call this helper.
+ * Create a piece that plays the DoubleBox compositing frame on the look's
+ * DoubleBoxLoop layer (BG A/B layer 118) for this part only (WithinPart).
+ * SYN / weather / outro are fullscreen and must not keep the cutout frame.
+ * Headlines / post-intro MOD are fullscreen cam — they never call this helper.
  */
 export function createDoubleBoxLoopPiece(
 	context: ICommonContext,

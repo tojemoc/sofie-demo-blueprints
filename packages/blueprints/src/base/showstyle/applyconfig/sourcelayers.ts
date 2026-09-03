@@ -118,6 +118,15 @@ export function getSourceLayer(): ISourceLayer[] {
 			// No exclusiveGroup — must coexist with Camera / VT / VO on the same Take.
 		},
 		{
+			_id: SourceLayer.PgmRoute,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 207,
+			name: 'PGM route',
+			abbreviation: 'Rte',
+			isHidden: true,
+			// Hard-cut look routing; wiped Takes use PgmWipe instead.
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

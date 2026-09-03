@@ -17,8 +17,13 @@ import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { parseConfig } from '../helpers/config.js'
+import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
-export function generateVTPart(context: PartContext, part: PartProps<VTProps>): BlueprintResultPart {
+export function generateVTPart(
+	context: PartContext,
+	part: PartProps<VTProps>,
+	lookSlot: LookSlot = 'A'
+): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const visionMixerInput = getClipPlayerInput(config)
 	const playback = resolveClipPlayback(part.payload.clipProps)
@@ -85,7 +90,7 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
 	if (layeredVideos.length) pieces.push(...layeredVideos)
 
-	return {
+	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
@@ -97,4 +102,14 @@ export function generateVTPart(context: PartContext, part: PartProps<VTProps>): 
 		adLibPieces: [...graphics.adLibPieces],
 		actions: [],
 	}
+	finalizeHypercomposedPart(
+		context,
+		config,
+		result.part,
+		part.payload.externalId,
+		part.objects,
+		result.pieces,
+		lookSlot
+	)
+	return result
 }

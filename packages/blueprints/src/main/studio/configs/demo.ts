@@ -23,7 +23,9 @@ export const DemoStudioConfig: StudioConfig = {
 		hypercomposed: {
 			ledChannel: 1,
 			pgmChannel: 2,
-			// Caspar PLAY on PGM camera layer when a camera piece is Taken (camNo 1 = Camera A in smoke).
+			bgChannelA: 3,
+			bgChannelB: 4,
+			// Caspar PLAY on look camera layer when a camera piece is Taken (camNo 1 = Camera A in smoke).
 			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
 		},
 	},

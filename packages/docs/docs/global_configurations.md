@@ -38,6 +38,22 @@ For internal use at NRK only.
 
 This is how the blueprints know how much to preroll certain pieces by to account for Caspar's inherent SDI latency. The delay should be provided in milliseconds, not frames.
 
+### Hypercomposed output channels
+
+LED / PGM / BG look channel numbers for the Caspar hypercomposed topology:
+
+| Key | Default | Role |
+|-----|--------:|------|
+| `ledChannel` | 1 | LED wall (bg loop + headline ILU) |
+| `pgmChannel` | 2 | Route bus + persistent overlays (logo-bug, intro) |
+| `bgChannelA` | 3 | Pre-build look A (render-only; no Screen/NDI/SDI consumer) |
+| `bgChannelB` | 4 | Pre-build look B (ping-pongs rundown-wide with A across look-bearing parts) |
+| `lookPrerollMs` | 1500 | Extra preroll on wiped Takes so CEF + clips can cue on the next BG channel |
+
+`caspar.config` must declare **at least 4 channels**. Four 1080p50 channels can be GPU-heavy — confirm headroom on the studio box if playback stutters.
+
+Wiped Takes play `route://{bg}` on PGM layer 110 with a Caspar STING (wipe media). Logo-bug stays on PGM layer 123 above the route so it is not wiped away.
+
 ## Showstyle Configuration
 
 These are the config parameters for the Showstyle. They can be accessed from the [Showstyle Blueprint Configuration page](http://localhost:3000/settings/showStyleBase/show0/blueprint-config).

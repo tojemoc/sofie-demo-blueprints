@@ -54,7 +54,7 @@ export type VideoObjectAttributes = {
 	/**
 	 * `effects` = intro overlay (PGM layer 210);
 	 * `background` = LED bg loop (layer 110);
-	 * `wipe` = PGM alpha wipe (PGM layer 200).
+	 * `wipe` = PGM route STING (look transition); overlay on layer 200 only when not hypercomposed.
 	 */
 	playLayer?: VideoPlayLayer | string
 	loop?: boolean | string
