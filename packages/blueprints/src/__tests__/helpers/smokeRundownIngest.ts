@@ -76,6 +76,8 @@ export const hybridCasparConfig: StudioConfig = {
 		hypercomposed: {
 			ledChannel: 1,
 			pgmChannel: 2,
+			bgChannelA: 3,
+			bgChannelB: 4,
 			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
 		},
 	},

@@ -256,7 +256,8 @@ export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileNam
 
 /**
  * Timeline pieces for Intro overlay (PgmIntroPlayer / 210), BG loop (ClipPlayer1 / 110),
- * and PGM wipe (PgmEffectsPlayer / 200).
+ * and PGM wipe (UI + mute; hypercomposed studios attach the PGM route STING in
+ * {@link finalizeHypercomposedPart} instead of PLAY overlay on layer 200).
  * These are NOT adlibs — they play on take so operators have absolute control.
  */
 export function parseLayeredVideosFromObjects(
@@ -300,22 +301,26 @@ export function parseLayeredVideosFromObjects(
 		const enableDuration =
 			object.duration > 0 ? object.duration : playLayer === 'wipe' ? DEFAULT_WIPE_DURATION_MS : undefined
 
-		const timelineObjects: TimelineBlueprintExt[] = [
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-				id: '',
-				enable: { start: 0 },
-				layer: casparLayer,
-				priority: 1,
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					file: toCasparPlayPath(fileName),
-					...(loop ? { loop: true } : {}),
-					// Force PLAY even when Package Manager has not verified the file yet.
-					...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1 } } : {}),
-				},
-			}),
-		]
+		const skipWipeOverlay = playLayer === 'wipe' && Boolean(config.casparcg.hypercomposed)
+
+		const timelineObjects: TimelineBlueprintExt[] = skipWipeOverlay
+			? []
+			: [
+					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+						id: '',
+						enable: { start: 0 },
+						layer: casparLayer,
+						priority: 1,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: toCasparPlayPath(fileName),
+							...(loop ? { loop: true } : {}),
+							// Force PLAY even when Package Manager has not verified the file yet.
+							...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1 } } : {}),
+						},
+					}),
+				]
 
 		if (playLayer === 'wipe') {
 			const playbackMutes = getPlaybackForceMuteChannels(config)

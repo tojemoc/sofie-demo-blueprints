@@ -19,23 +19,37 @@ export const LedChannelLayers = {
 } as const
 
 /**
- * Caspar layer numbers on the PGM channel (DoubleBox compose).
+ * Relative Caspar layer numbers for a story look (BG A and BG B use the same stack).
  * Camera (115) sits under ILU (116) so the left ILU window covers CAM overhang without
- * needing a left cover-crop; both sit under DoubleBoxLoop (118); wipe (200); intro (210).
- * GraphicsLogo (123) is the 360° sekúnd bug — PGM only, not LED.
+ * needing a left cover-crop; both sit under DoubleBoxLoop (118); L3D (121).
  */
-export const PgmChannelLayers = {
-	/** Mirrors LED L80 — same kolíska bed on the PGM channel output. */
-	AudioBed: 80,
+export const BgChannelLayers = {
 	ClipPlayer: 110,
 	Camera: 115,
 	IluPlayer: 116,
 	/** DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
 	DoubleBoxLoop: 118,
 	GraphicsLowerThird: 121,
+} as const
+
+/**
+ * Caspar layer numbers on the PGM channel (route bus + persistent overlays).
+ * Story looks compose on BG A/B; PGM only routes the settled mix and keeps logo / intro
+ * above the wipe. EffectsPlayer (200) is retained for compat — story wipes use Route.
+ */
+export const PgmChannelLayers = {
+	/** Mirrors LED L80 — same kolíska bed on the PGM channel output. */
+	AudioBed: 80,
+	/** Full-channel route from BG A or BG B (STING / CUT). */
+	Route: 110,
+	/** Stack numbers shared with {@link BgChannelLayers} (look compose, not PGM mappings). */
+	Camera: BgChannelLayers.Camera,
+	IluPlayer: BgChannelLayers.IluPlayer,
+	DoubleBoxLoop: BgChannelLayers.DoubleBoxLoop,
+	GraphicsLowerThird: BgChannelLayers.GraphicsLowerThird,
 	GraphicsLogo: 123,
 	EffectsPlayer: 200,
-	/** Intro / znelka — above wipe; PGM only (never LED). */
+	/** Intro / znelka — above the routed look; PGM only (never LED). */
 	IntroOverlay: 210,
 } as const
 

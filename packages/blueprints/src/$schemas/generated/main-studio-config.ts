@@ -77,11 +77,14 @@ export interface CasparCGConfig {
 	hypercomposed?: HypercomposedChannels
 }
 /**
- * LED and PGM CasparCG channel assignment for hypercomposed playout
+ * LED, PGM route bus, and BG look CasparCG channels for hypercomposed playout
  */
 export interface HypercomposedChannels {
 	ledChannel: number
 	pgmChannel: number
+	bgChannelA?: number
+	bgChannelB?: number
+	lookPrerollMs?: number
 	pgmCameraProducer?: string
 	pgmCameraVideoFilter?: string
 }

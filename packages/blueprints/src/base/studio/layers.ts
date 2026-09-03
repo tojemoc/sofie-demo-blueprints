@@ -15,24 +15,38 @@ export enum VMixLayers {
 
 export enum CasparCGLayers {
 	CasparCGClipPlayer1 = 'casparcg_clip_player1',
+	/** Look A (BG channel A) fullscreen clip / SYN / weather. */
 	CasparCGClipPlayer2 = 'casparcg_clip_player2',
+	/** Look B (BG channel B) fullscreen clip / SYN / weather. */
+	CasparCGClipPlayer2B = 'casparcg_clip_player2_b',
 	CasparCGClipPlayerPreview = 'casparcg_clip_player_preview',
 	/** Headline ILU media framed with MIXER FILL — must not share ClipPlayer1 with the bg loop. */
 	CasparCGIluPlayer = 'casparcg_ilu_player',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
-	/** PGM story-block alpha wipe (channel 2 layer 200). */
+	/** Compat mapping: PGM layer 200 overlay. Story-block wipes use the PGM route STING instead. */
 	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',
-	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED. */
+	/** PGM route bus — PLAY route://{bgA|bgB} with CUT or STING wipe. */
+	CasparCGPgmRoute = 'casparcg_pgm_route',
+	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED; stays above the route. */
 	CasparCGPgmIntroPlayer = 'casparcg_intro_player_pgm',
-	/** PGM DoubleBox story ILU (channel 2 layer 116) — left window; not headline chrome. */
+	/** Look A DoubleBox story ILU (BG A layer 116) — left window; not headline chrome. */
 	CasparCGPgmIluPlayer = 'casparcg_pgm_ilu_player',
-	/** PGM CAM / UVC (OBS Virtual Camera) framed into the DoubleBox right window (layer 115 under ILU). */
+	/** Look B DoubleBox story ILU (BG B layer 116). */
+	CasparCGPgmIluPlayerB = 'casparcg_pgm_ilu_player_b',
+	/** Look A CAM / UVC framed into the DoubleBox right window (layer 115 under ILU). */
 	CasparCGPgmCamera = 'casparcg_pgm_camera',
-	/** PGM DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
+	/** Look B CAM / UVC (BG B layer 115). */
+	CasparCGPgmCameraB = 'casparcg_pgm_camera_b',
+	/** Look A DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
 	CasparCGPgmDoubleBoxLoop = 'casparcg_pgm_doublebox_loop',
+	/** Look B DoubleBox compositing frame (BG B layer 118). */
+	CasparCGPgmDoubleBoxLoopB = 'casparcg_pgm_doublebox_loop_b',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',
+	/** Look A topic L3Ds that belong inside the wiped scene (BG A layer 121). */
 	CasparCGGraphicsPgmLowerThird = 'casparcg_graphics_pgm_l3d',
+	/** Look B topic / SYN L3Ds (BG B layer 121). */
+	CasparCGGraphicsPgmLowerThirdB = 'casparcg_graphics_pgm_l3d_b',
 	CasparCGGraphicsTicker = 'casparcg_graphics_ticker',
 	CasparCGGraphicsStrap = 'casparcg_graphics_strap',
 	/** 360° sekúnd logo-bug — mapped to PGM channel (not LED). */

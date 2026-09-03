@@ -240,9 +240,19 @@ describe('DoubleBox PGM ILU above CAM', () => {
 			mixer: { opacity: 1, volume: 1 },
 		})
 
-		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
-		expect(wipe, 'wipe must PLAY on PGM layer 200 alongside Camera/ILU/L3D').toBeDefined()
-		expect((wipe?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
+		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(wipe, 'wipe must STING the PGM route from the pre-built look').toBeDefined()
+		expect(wipe?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.ROUTE,
+			channel: 3,
+			transitions: {
+				inTransition: {
+					type: TSR.Transition.STING,
+					maskFile: 'wipes/wipe',
+				},
+			},
+		})
+		expect(timeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
 		expect(result.pieces.some((piece) => piece.name.startsWith('Wipe'))).toBe(true)
 
 		const headlineChrome = timeline.find(

@@ -2,202 +2,144 @@ import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-
 import { literal } from '../../../../common/util.js'
 import { BlueprintConfig } from '../../helpers/config.js'
 import { CasparCGLayers } from '../../layers.js'
-import { LedChannelLayers, PgmChannelLayers } from './casparcgLayers.js'
+import { BgChannelLayers, LedChannelLayers, PgmChannelLayers } from './casparcgLayers.js'
 
-export function getHypercomposedChannels(config: BlueprintConfig): { ledChannel: number; pgmChannel: number } {
-	const hypercomposed = config.studio.casparcg.hypercomposed
-	const ledChannel = hypercomposed?.ledChannel ?? 1
-	let pgmChannel = hypercomposed?.pgmChannel ?? 2
+export interface HypercomposedChannelMap {
+	ledChannel: number
+	pgmChannel: number
+	bgChannelA: number
+	bgChannelB: number
+}
 
-	if (ledChannel === pgmChannel) {
-		pgmChannel = ledChannel + 1
+function nextFreeChannel(preferred: number, used: Set<number>): number {
+	let channel = Number.isFinite(preferred) && preferred >= 1 ? Math.floor(preferred) : 1
+	while (used.has(channel)) {
+		channel++
 	}
+	used.add(channel)
+	return channel
+}
 
-	return { ledChannel, pgmChannel }
+export function getHypercomposedChannels(config: BlueprintConfig): HypercomposedChannelMap {
+	const hypercomposed = config.studio.casparcg.hypercomposed
+	const used = new Set<number>()
+
+	return {
+		ledChannel: nextFreeChannel(hypercomposed?.ledChannel ?? 1, used),
+		pgmChannel: nextFreeChannel(hypercomposed?.pgmChannel ?? 2, used),
+		bgChannelA: nextFreeChannel(hypercomposed?.bgChannelA ?? 3, used),
+		bgChannelB: nextFreeChannel(hypercomposed?.bgChannelB ?? 4, used),
+	}
+}
+
+function casparLayerMapping(
+	channel: number,
+	layer: number,
+	lookahead: LookaheadMode = LookaheadMode.NONE
+): BlueprintMapping<TSR.MappingCasparCGLayer> {
+	return literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+		device: TSR.DeviceType.CASPARCG,
+		deviceId: 'casparcg0',
+		lookahead,
+		options: {
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel,
+			layer,
+		},
+	})
+}
+
+function lookStackMappings(
+	channel: number
+): Pick<
+	BlueprintMappings,
+	| CasparCGLayers.CasparCGClipPlayer2
+	| CasparCGLayers.CasparCGPgmIluPlayer
+	| CasparCGLayers.CasparCGPgmCamera
+	| CasparCGLayers.CasparCGPgmDoubleBoxLoop
+	| CasparCGLayers.CasparCGGraphicsPgmLowerThird
+> {
+	return {
+		[CasparCGLayers.CasparCGClipPlayer2]: casparLayerMapping(
+			channel,
+			BgChannelLayers.ClipPlayer,
+			LookaheadMode.PRELOAD
+		),
+		[CasparCGLayers.CasparCGPgmIluPlayer]: casparLayerMapping(
+			channel,
+			BgChannelLayers.IluPlayer,
+			LookaheadMode.PRELOAD
+		),
+		[CasparCGLayers.CasparCGPgmCamera]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.PRELOAD),
+		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: casparLayerMapping(
+			channel,
+			BgChannelLayers.DoubleBoxLoop,
+			LookaheadMode.PRELOAD
+		),
+		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: casparLayerMapping(
+			channel,
+			BgChannelLayers.GraphicsLowerThird,
+			LookaheadMode.PRELOAD
+		),
+	}
+}
+
+function lookStackMappingsB(
+	channel: number
+): Pick<
+	BlueprintMappings,
+	| CasparCGLayers.CasparCGClipPlayer2B
+	| CasparCGLayers.CasparCGPgmIluPlayerB
+	| CasparCGLayers.CasparCGPgmCameraB
+	| CasparCGLayers.CasparCGPgmDoubleBoxLoopB
+	| CasparCGLayers.CasparCGGraphicsPgmLowerThirdB
+> {
+	return {
+		[CasparCGLayers.CasparCGClipPlayer2B]: casparLayerMapping(
+			channel,
+			BgChannelLayers.ClipPlayer,
+			LookaheadMode.PRELOAD
+		),
+		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparLayerMapping(
+			channel,
+			BgChannelLayers.IluPlayer,
+			LookaheadMode.PRELOAD
+		),
+		[CasparCGLayers.CasparCGPgmCameraB]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.PRELOAD),
+		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparLayerMapping(
+			channel,
+			BgChannelLayers.DoubleBoxLoop,
+			LookaheadMode.PRELOAD
+		),
+		[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]: casparLayerMapping(
+			channel,
+			BgChannelLayers.GraphicsLowerThird,
+			LookaheadMode.PRELOAD
+		),
+	}
 }
 
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
-	const { ledChannel, pgmChannel } = getHypercomposedChannels(config)
+	const { ledChannel, pgmChannel, bgChannelA, bgChannelB } = getHypercomposedChannels(config)
 
 	const mappings: BlueprintMappings = {
-		[CasparCGLayers.CasparCGClipPlayer1]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
+		[CasparCGLayers.CasparCGClipPlayer1]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPlayer),
+		[CasparCGLayers.CasparCGIluPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.IluPlayer),
+		[CasparCGLayers.CasparCGClipPlayerPreview]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPreview),
+		[CasparCGLayers.CasparCGEffectsPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.EffectsPlayer),
+		[CasparCGLayers.CasparCGGraphicsTicker]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsTicker),
+		[CasparCGLayers.CasparCGGraphicsLowerThird]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsLowerThird),
+		[CasparCGLayers.CasparCGGraphicsStrap]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsStrap),
+		[CasparCGLayers.CasparCGAudioBed]: casparLayerMapping(ledChannel, LedChannelLayers.AudioBed),
 
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.ClipPlayer,
-			},
-		}),
-		[CasparCGLayers.CasparCGClipPlayer2]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
+		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.Route),
+		[CasparCGLayers.CasparCGPgmEffectsPlayer]: casparLayerMapping(pgmChannel, PgmChannelLayers.EffectsPlayer),
+		[CasparCGLayers.CasparCGPgmIntroPlayer]: casparLayerMapping(pgmChannel, PgmChannelLayers.IntroOverlay),
+		[CasparCGLayers.CasparCGGraphicsLogo]: casparLayerMapping(pgmChannel, PgmChannelLayers.GraphicsLogo),
+		[CasparCGLayers.CasparCGAudioBedPgm]: casparLayerMapping(pgmChannel, PgmChannelLayers.AudioBed),
 
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.ClipPlayer,
-			},
-		}),
-
-		[CasparCGLayers.CasparCGIluPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.IluPlayer,
-			},
-		}),
-		[CasparCGLayers.CasparCGPgmIluPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.IluPlayer,
-			},
-		}),
-
-		[CasparCGLayers.CasparCGClipPlayerPreview]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.ClipPreview,
-			},
-		}),
-
-		[CasparCGLayers.CasparCGEffectsPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.EffectsPlayer,
-			},
-		}),
-		[CasparCGLayers.CasparCGPgmEffectsPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.EffectsPlayer,
-			},
-		}),
-		[CasparCGLayers.CasparCGPgmIntroPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.IntroOverlay,
-			},
-		}),
-		[CasparCGLayers.CasparCGPgmCamera]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.Camera,
-			},
-		}),
-		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.DoubleBoxLoop,
-			},
-		}),
-		[CasparCGLayers.CasparCGGraphicsTicker]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.GraphicsTicker,
-			},
-		}),
-		[CasparCGLayers.CasparCGGraphicsLowerThird]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.GraphicsLowerThird,
-			},
-		}),
-		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.GraphicsLowerThird,
-			},
-		}),
-		[CasparCGLayers.CasparCGGraphicsStrap]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.GraphicsStrap,
-			},
-		}),
-		[CasparCGLayers.CasparCGGraphicsLogo]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				// 360° sekúnd bug is PGM chrome (DoubleBox), not LED wall content.
-				channel: pgmChannel,
-				layer: PgmChannelLayers.GraphicsLogo,
-			},
-		}),
-		[CasparCGLayers.CasparCGAudioBed]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: ledChannel,
-				layer: LedChannelLayers.AudioBed,
-			},
-		}),
-		[CasparCGLayers.CasparCGAudioBedPgm]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.NONE,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.AudioBed,
-			},
-		}),
+		...lookStackMappings(bgChannelA),
+		...lookStackMappingsB(bgChannelB),
 	}
 
 	return mappings

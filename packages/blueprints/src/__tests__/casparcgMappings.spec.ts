@@ -1,9 +1,13 @@
-import { TSR } from '@sofie-automation/blueprints-integration'
+import { LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { getCasparCGMappings, getHypercomposedChannels } from '../base/studio/applyConfig/mappings/casparcg.js'
-import { LedChannelLayers, PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import {
+	BgChannelLayers,
+	LedChannelLayers,
+	PgmChannelLayers,
+} from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 
 const baseStudioConfig: StudioConfig = {
 	previewRenderer: '',
@@ -44,10 +48,12 @@ function getMappingOptions(layer: CasparCGLayers, studioConfig: StudioConfig = b
 }
 
 describe('casparcgMappings', () => {
-	it('defaults hypercomposed channels to LED=1 and PGM=2', () => {
+	it('defaults hypercomposed channels to LED=1, PGM=2, BG A=3, BG B=4', () => {
 		expect(getHypercomposedChannels({ studio: baseStudioConfig })).toEqual({
 			ledChannel: 1,
 			pgmChannel: 2,
+			bgChannelA: 3,
+			bgChannelB: 4,
 		})
 	})
 
@@ -59,6 +65,8 @@ describe('casparcgMappings', () => {
 				hypercomposed: {
 					ledChannel: 4,
 					pgmChannel: 5,
+					bgChannelA: 6,
+					bgChannelB: 7,
 				},
 			},
 		}
@@ -66,12 +74,16 @@ describe('casparcgMappings', () => {
 		expect(getHypercomposedChannels({ studio: overrideConfig })).toEqual({
 			ledChannel: 4,
 			pgmChannel: 5,
+			bgChannelA: 6,
+			bgChannelB: 7,
 		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer1, overrideConfig).channel).toBe(4)
-		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2, overrideConfig).channel).toBe(5)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmRoute, overrideConfig).channel).toBe(5)
+		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2, overrideConfig).channel).toBe(6)
+		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2B, overrideConfig).channel).toBe(7)
 	})
 
-	it('corrects identical LED and PGM channels to a distinct pair', () => {
+	it('corrects identical LED and PGM channels to a distinct set', () => {
 		expect(
 			getHypercomposedChannels({
 				studio: {
@@ -88,6 +100,8 @@ describe('casparcgMappings', () => {
 		).toEqual({
 			ledChannel: 3,
 			pgmChannel: 4,
+			bgChannelA: 5,
+			bgChannelB: 6,
 		})
 	})
 
@@ -127,11 +141,6 @@ describe('casparcgMappings', () => {
 			channel: 2,
 			layer: PgmChannelLayers.IntroOverlay,
 		})
-		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCamera)).toEqual({
-			mappingType: TSR.MappingCasparCGType.Layer,
-			channel: 2,
-			layer: PgmChannelLayers.Camera,
-		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGAudioBed)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 1,
@@ -144,19 +153,69 @@ describe('casparcgMappings', () => {
 		})
 	})
 
-	it('routes secondary clip player to PGM channel 2', () => {
-		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2)).toEqual({
+	it('routes PGM bus to channel 2 (route + logo above wipe)', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmRoute)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 2,
-			layer: PgmChannelLayers.ClipPlayer,
+			layer: PgmChannelLayers.Route,
+		})
+		expect(PgmChannelLayers.GraphicsLogo).toBeGreaterThan(PgmChannelLayers.Route)
+		expect(PgmChannelLayers.IntroOverlay).toBeGreaterThan(PgmChannelLayers.GraphicsLogo)
+	})
+
+	it('routes look A compose stack to BG channel 3', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 3,
+			layer: BgChannelLayers.ClipPlayer,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCamera)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 3,
+			layer: BgChannelLayers.Camera,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmIluPlayer)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 3,
+			layer: BgChannelLayers.IluPlayer,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 3,
+			layer: BgChannelLayers.DoubleBoxLoop,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 3,
+			layer: BgChannelLayers.GraphicsLowerThird,
 		})
 	})
 
-	it('routes l3d-headline overlay graphics to PGM channel 2', () => {
-		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toEqual({
+	it('routes look B compose stack to BG channel 4 with the same relative layers', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2B)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
-			channel: 2,
-			layer: PgmChannelLayers.GraphicsLowerThird,
+			channel: 4,
+			layer: BgChannelLayers.ClipPlayer,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCameraB)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 4,
+			layer: BgChannelLayers.Camera,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmIluPlayerB)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 4,
+			layer: BgChannelLayers.IluPlayer,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmDoubleBoxLoopB)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 4,
+			layer: BgChannelLayers.DoubleBoxLoop,
+		})
+		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 4,
+			layer: BgChannelLayers.GraphicsLowerThird,
 		})
 	})
 
@@ -170,12 +229,9 @@ describe('casparcgMappings', () => {
 		expect(LedChannelLayers.IluPlayer).toBeLessThan(LedChannelLayers.GraphicsTicker)
 	})
 
-	it('routes DoubleBox story ILU above CAM on PGM channel 2', () => {
-		expect(getMappingOptions(CasparCGLayers.CasparCGPgmIluPlayer)).toEqual({
-			mappingType: TSR.MappingCasparCGType.Layer,
-			channel: 2,
-			layer: PgmChannelLayers.IluPlayer,
-		})
+	it('stacks DoubleBox story ILU above CAM on the look', () => {
+		expect(BgChannelLayers.IluPlayer).toBeGreaterThan(BgChannelLayers.Camera)
+		expect(BgChannelLayers.DoubleBoxLoop).toBeGreaterThan(BgChannelLayers.IluPlayer)
 		expect(PgmChannelLayers.IluPlayer).toBeGreaterThan(PgmChannelLayers.Camera)
 	})
 
@@ -195,7 +251,16 @@ describe('casparcgMappings', () => {
 		}
 	})
 
-	it('routes 360° sekúnd logo-bug to PGM (not LED)', () => {
+	it('preloads BG look mappings and does not lookahead the PGM route', () => {
+		const mappings = getCasparCGMappings({ studio: baseStudioConfig })
+		expect(mappings[CasparCGLayers.CasparCGClipPlayer2]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGClipPlayer2B]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmCamera]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGGraphicsLogo]?.lookahead).toBe(LookaheadMode.NONE)
+	})
+
+	it('routes 360° sekúnd logo-bug to PGM (not LED, not BG look)', () => {
 		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsLogo)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 2,

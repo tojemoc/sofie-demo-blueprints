@@ -21,6 +21,7 @@ import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
 import { getPgmCameraMediaContentOptions, getPgmCameraProducer } from '../helpers/pgmCamera.js'
+import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
@@ -66,7 +67,8 @@ function createPgmCameraTimelineObjects(
 export function generateCameraPart(
 	context: PartContext,
 	part: PartProps<CameraProps>,
-	countupRevealClaim: CountupRevealClaim
+	countupRevealClaim: CountupRevealClaim,
+	lookSlot: LookSlot = 'A'
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
@@ -117,7 +119,7 @@ export function generateCameraPart(
 		pieces.push(addGuest(config, guestObj.attributes.count))
 	}
 
-	return {
+	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
@@ -128,6 +130,16 @@ export function generateCameraPart(
 		adLibPieces: [...graphics.adLibPieces, ...clips],
 		actions: [],
 	}
+	finalizeHypercomposedPart(
+		context,
+		config,
+		result.part,
+		part.payload.externalId,
+		part.objects,
+		result.pieces,
+		lookSlot
+	)
+	return result
 }
 
 function addGuest(config: StudioConfig, count: number): IBlueprintPiece {

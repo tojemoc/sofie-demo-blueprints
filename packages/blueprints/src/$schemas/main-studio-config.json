@@ -102,7 +102,7 @@
 				"hypercomposed": {
 					"type": "object",
 					"title": "HypercomposedChannels",
-					"description": "LED and PGM CasparCG channel assignment for hypercomposed playout",
+					"description": "LED, PGM route bus, and BG look CasparCG channels for hypercomposed playout",
 					"ui:category": "Output topology",
 					"ui:title": "Hypercomposed output channels",
 					"properties": {
@@ -118,12 +118,33 @@
 							"minimum": 1,
 							"default": 2,
 							"ui:title": "PGM channel",
-							"ui:description": "CasparCG channel routed to the PGM output consumer (secondary clip stack)"
+							"ui:description": "CasparCG channel with the route bus + persistent overlays (logo-bug, intro). Story looks are composed on BG A/B, not here."
+						},
+						"bgChannelA": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 3,
+							"ui:title": "BG look channel A",
+							"ui:description": "Render-only Caspar channel that pre-builds look A (e.g. DoubleBox). No Screen/NDI/SDI consumer in caspar.config."
+						},
+						"bgChannelB": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 4,
+							"ui:title": "BG look channel B",
+							"ui:description": "Render-only Caspar channel that pre-builds look B (e.g. fullscreen SYN/VT). Ping-pongs with A so the on-air look is never rebuilt under the PGM route."
+						},
+						"lookPrerollMs": {
+							"type": "integer",
+							"minimum": 0,
+							"default": 1500,
+							"ui:title": "BG look preroll (ms)",
+							"ui:description": "How long wiped Takes wait so the next BG look can cue CEF + clips. v1 uses this fixed preroll (lookahead PRELOAD also fills the idle BG channel). Set 0 to rely on lookahead only."
 						},
 						"pgmCameraProducer": {
 							"type": "string",
 							"ui:title": "PGM camera producer",
-							"ui:description": "Caspar PLAY path for CAM1 on PGM (e.g. dshow://video=OBS Virtual Camera). When set, camera pieces PLAY on PGM layer 115: fullscreen FILL for headlines/MOD; DoubleBox FILL (ILU overlay on layer 116) only for DoubleBox pieces."
+							"ui:description": "Caspar PLAY path for CAM1 (e.g. dshow://video=OBS Virtual Camera). When set, camera pieces PLAY on the look's BG camera layer 115: fullscreen FILL for headlines/MOD; DoubleBox FILL (ILU overlay on layer 116) only for DoubleBox pieces."
 						},
 						"pgmCameraVideoFilter": {
 							"type": "string",

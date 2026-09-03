@@ -70,15 +70,16 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 
 ### PGM wipe + UVC camera (DoubleBox)
 
-- Piece type `wipe` (megarepo `assets/`) → Caspar **PGM** mapping `casparcg_effects_player_pgm` (ch2 layer 200), file `wipes/wipe` (DEFAULT_WIPE_FILE; older pins used `wipes/360_wipe`).
+- Piece type `wipe` (megarepo `assets/`) drives a **PGM route STING** on `casparcg_pgm_route` (ch2 layer 110): `PLAY route://{bgA|bgB}` with wipe media `wipes/wipe` (DEFAULT_WIPE_FILE; older pins used `wipes/360_wipe`). The standalone overlay on `casparcg_effects_player_pgm` (ch2/200) is kept as a compat mapping only.
+- Story looks pre-build on **BG A** (`casparcg.hypercomposed.bgChannelA`, default 3) and **BG B** (default 4), ping-ponged per part so the on-air BG channel is never rebuilt under the route. Caspar `caspar.config` needs ≥4 channels; BG A/B are render-only (no Screen/NDI/SDI consumers).
 - Piece type ids are matched case-insensitively (`wipe` / `WIPE`). Wipe uses Sofie source layer `pgm_wipe` (GFX output) so it coexists with Camera/VT.
 - Bare basenames (`wipe`) are normalized to `wipes/wipe` (same for `loops/` / `assets/` on bg-loop / intro).
-- `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — not LED.
+- `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — **above** the routed look, so it is not wiped away.
 - Baseline loops `assets/countup` silently from rundown take start; first DoubleBox Take fades it in (logo + seconds + SFX in one .mov).
-- Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on `casparcg_pgm_camera` (ch2/115) with DoubleBox FILL. ILU (`casparcg_pgm_ilu_player`, ch2/116) sits above CAM so left overhang is covered without CAM cover-crop.
-- Piece type `doublebox-ilu` → `casparcg_pgm_ilu_player` (ch2/116) with left-window FILL; do **not** use `headline` for thematic DoubleBox.
-- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). PGM ClipPlayer2 is for story VT/SYN/weather — never a companion bg_loop. PGM DoubleBox uses `loops/db_loop` (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY.
-- Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md`.
+- Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on the look's `casparcg_pgm_camera` (layer 115) with DoubleBox FILL. ILU (`casparcg_pgm_ilu_player`, layer 116) sits above CAM so left overhang is covered without CAM cover-crop.
+- Piece type `doublebox-ilu` → look `casparcg_pgm_ilu_player` (layer 116) with left-window FILL; do **not** use `headline` for thematic DoubleBox.
+- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). PGM ClipPlayer2 is the look-A VT/SYN/weather layer on BG A — never a companion bg_loop. PGM DoubleBox uses `loops/db_loop` (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY.
+- Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md` and ADR `docs/adr/0002-wipe-prebuild-bg-channels.md`.
 
 ### Media folder layout (bg-loop / wipe / clips)
 

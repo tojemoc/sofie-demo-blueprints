@@ -41,6 +41,7 @@ import {
 	appendCountupSustainIfRevealed,
 	getCountupRevealClaimForGeneration,
 } from '../helpers/countupReveal.js'
+import { lookSlotForPartIndex } from '../helpers/pgmLook.js'
 
 export function generateParts(
 	context: ISegmentUserContext,
@@ -61,22 +62,28 @@ export function generateParts(
 		},
 	]
 
-	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
+	const parts = intermediateSegment.parts.map((rawPart, partIndex): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
+		const lookSlot = lookSlotForPartIndex(partIndex)
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {
 			case PartType.Camera:
-				newPart = generateCameraPart(partContext, rawPart as unknown as PartProps<CameraProps>, countupRevealClaim)
+				newPart = generateCameraPart(
+					partContext,
+					rawPart as unknown as PartProps<CameraProps>,
+					countupRevealClaim,
+					lookSlot
+				)
 				break
 			case PartType.Remote:
-				newPart = generateRemotePart(partContext, rawPart as unknown as PartProps<CameraProps>)
+				newPart = generateRemotePart(partContext, rawPart as unknown as PartProps<CameraProps>, lookSlot)
 				break
 			case PartType.VT:
-				newPart = generateVTPart(partContext, rawPart as unknown as PartProps<VTProps>)
+				newPart = generateVTPart(partContext, rawPart as unknown as PartProps<VTProps>, lookSlot)
 				break
 			case PartType.VO:
-				newPart = generateVOPart(partContext, rawPart as unknown as PartProps<VOProps>)
+				newPart = generateVOPart(partContext, rawPart as unknown as PartProps<VOProps>, lookSlot)
 				break
 			case PartType.Titles:
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
@@ -88,10 +95,10 @@ export function generateParts(
 				newPart = generateDVEPart(partContext, rawPart as unknown as PartProps<DVEProps>)
 				break
 			case PartType.GFX:
-				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>)
+				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>, lookSlot)
 				break
 			case PartType.LayeredVideo:
-				newPart = generateLayeredVideoPart(partContext, rawPart as unknown as PartProps<LayeredVideoProps>)
+				newPart = generateLayeredVideoPart(partContext, rawPart as unknown as PartProps<LayeredVideoProps>, lookSlot)
 				break
 			case PartType.Invalid:
 				newPart = {
