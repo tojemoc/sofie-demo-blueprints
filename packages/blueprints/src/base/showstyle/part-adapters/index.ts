@@ -41,12 +41,28 @@ import {
 	appendCountupSustainIfRevealed,
 	getCountupRevealClaimForGeneration,
 } from '../helpers/countupReveal.js'
-import { lookSlotForPartIndex } from '../helpers/pgmLook.js'
+import { LookSlotSequence, getLookSlotSequenceForGeneration } from '../helpers/pgmLook.js'
+
+/** Part types that compose a story look on BG A/B and therefore allocate a look slot. */
+function isLookBearingPartType(type: PartType | null): boolean {
+	switch (type) {
+		case PartType.Camera:
+		case PartType.VT:
+		case PartType.VO:
+		case PartType.GFX:
+		case PartType.LayeredVideo:
+			return true
+		default:
+			// Remote / Titles / Intro / DVE / Invalid / null — do not advance the sequence.
+			return false
+	}
+}
 
 export function generateParts(
 	context: ISegmentUserContext,
 	intermediateSegment: SegmentProps,
-	countupRevealClaim: CountupRevealClaim = getCountupRevealClaimForGeneration(context.rundownId)
+	countupRevealClaim: CountupRevealClaim = getCountupRevealClaimForGeneration(context.rundownId),
+	lookSlots: LookSlotSequence = getLookSlotSequenceForGeneration(context.rundownId)
 ): BlueprintResultSegment {
 	context.logDebug('Generating parts for intermediateSegment: ' + JSON.stringify(intermediateSegment, null, 2))
 	const studioConfig = parseConfig(context).studio
@@ -62,9 +78,9 @@ export function generateParts(
 		},
 	]
 
-	const parts = intermediateSegment.parts.map((rawPart, partIndex): BlueprintResultPart => {
+	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
-		const lookSlot = lookSlotForPartIndex(partIndex)
+		const lookSlot = isLookBearingPartType(rawPart.type) ? lookSlots.allocate() : lookSlots.peek()
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {

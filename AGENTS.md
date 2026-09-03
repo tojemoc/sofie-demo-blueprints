@@ -71,7 +71,7 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 ### PGM wipe + UVC camera (DoubleBox)
 
 - Piece type `wipe` (megarepo `assets/`) drives a **PGM route STING** on `casparcg_pgm_route` (ch2 layer 110): `PLAY route://{bgA|bgB}` with wipe media `wipes/wipe` (DEFAULT_WIPE_FILE; older pins used `wipes/360_wipe`). The standalone overlay on `casparcg_effects_player_pgm` (ch2/200) is kept as a compat mapping only.
-- Story looks pre-build on **BG A** (`casparcg.hypercomposed.bgChannelA`, default 3) and **BG B** (default 4), ping-ponged per part so the on-air BG channel is never rebuilt under the route. Caspar `caspar.config` needs ≥4 channels; BG A/B are render-only (no Screen/NDI/SDI consumers).
+- Story looks pre-build on **BG A** (`casparcg.hypercomposed.bgChannelA`, default 3) and **BG B** (default 4), ping-ponged rundown-wide across look-bearing parts (Camera / VT / VO / GFX / LayeredVideo) so the on-air BG channel is never rebuilt under the route. Remote / Titles / Intro / DVE do not consume a look slot. Caspar `caspar.config` needs ≥4 channels; BG A/B are render-only (no Screen/NDI/SDI consumers).
 - Piece type ids are matched case-insensitively (`wipe` / `WIPE`). Wipe uses Sofie source layer `pgm_wipe` (GFX output) so it coexists with Camera/VT.
 - Bare basenames (`wipe`) are normalized to `wipes/wipe` (same for `loops/` / `assets/` on bg-loop / intro).
 - `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — **above** the routed look, so it is not wiped away.

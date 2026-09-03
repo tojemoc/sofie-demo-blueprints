@@ -76,6 +76,64 @@ export function lookSlotForPartIndex(index: number): LookSlot {
 	return index % 2 === 0 ? 'A' : 'B'
 }
 
+/**
+ * Rundown-wide ping-pong for BG look slots. Advances only when a look-bearing
+ * part allocates; non-look parts (Titles / Intro / DVE / Remote / Invalid) peek
+ * the last allocated slot without consuming one.
+ */
+export interface LookSlotSequence {
+	/** Next look slot; advances the rundown-wide counter. */
+	allocate(): LookSlot
+	/** Last allocated slot, or `'A'` if none yet — does not advance. */
+	peek(): LookSlot
+}
+
+export function createLookSlotSequence(): LookSlotSequence {
+	let nextIndex = 0
+	let last: LookSlot | undefined
+	return {
+		allocate(): LookSlot {
+			const slot = lookSlotForPartIndex(nextIndex++)
+			last = slot
+			return slot
+		},
+		peek(): LookSlot {
+			return last ?? 'A'
+		},
+	}
+}
+
+/** Rundown id for the active blueprint generation (set by {@link beginLookSlotGeneration}). */
+let activeLookSlotGenerationRundownId: string | undefined
+
+const lookSlotSequencesByRundownId = new Map<string, LookSlotSequence>()
+
+/** Start a fresh look-slot sequence for this rundown (called from getRundown). */
+export function beginLookSlotGeneration(rundownId: string): void {
+	lookSlotSequencesByRundownId.delete(rundownId)
+	activeLookSlotGenerationRundownId = rundownId
+}
+
+/** Shared sequence for all segments in the current rundown generation. */
+export function getLookSlotSequenceForGeneration(rundownId: string): LookSlotSequence {
+	if (activeLookSlotGenerationRundownId !== rundownId) {
+		beginLookSlotGeneration(rundownId)
+	}
+
+	let sequence = lookSlotSequencesByRundownId.get(rundownId)
+	if (!sequence) {
+		sequence = createLookSlotSequence()
+		lookSlotSequencesByRundownId.set(rundownId, sequence)
+	}
+	return sequence
+}
+
+/** Test helper — vitest shares the module between cases. */
+export function resetLookSlotGenerationForTests(): void {
+	lookSlotSequencesByRundownId.clear()
+	activeLookSlotGenerationRundownId = undefined
+}
+
 export function getLookLayers(slot: LookSlot): LookLayers {
 	return slot === 'B' ? LOOK_B_LAYERS : LOOK_A_LAYERS
 }
