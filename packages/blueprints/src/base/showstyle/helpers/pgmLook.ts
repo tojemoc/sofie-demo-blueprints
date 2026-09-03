@@ -184,12 +184,30 @@ export function remapLookLayers(pieces: IBlueprintPiece[], slot: LookSlot): void
 	}
 }
 
+/** Live dshow/v4l2 producers — must not LOADBG on the idle BG channel during preroll. */
+function isLiveCameraProducerFile(file: unknown): boolean {
+	if (typeof file !== 'string') return false
+	const lower = file.toLowerCase()
+	return lower.startsWith('dshow://') || lower.startsWith('v4l2://') || lower.startsWith('decklink://')
+}
+
+function pieceUsesLiveCameraProducer(piece: IBlueprintPiece): boolean {
+	return (piece.content.timelineObjects ?? []).some((obj) => {
+		const content = obj.content as { type?: string; file?: unknown }
+		return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA && isLiveCameraProducerFile(content.file)
+	})
+}
+
 function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 	if (prerollMs <= 0) return
 
 	for (const piece of pieces) {
 		const usesLook = (piece.content.timelineObjects ?? []).some((obj) => isLookComposeLayer(String(obj.layer)))
 		if (!usesLook) continue
+		// Opening a second OBS Virtual Camera / DShow capture on the idle look while the
+		// on-air look still holds one fills FFmpeg rtbufsize and blacks / crashes Caspar.
+		// Cue file clips + CEF early; start live camera only on Take.
+		if (pieceUsesLiveCameraProducer(piece)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
 }
@@ -211,6 +229,10 @@ export function createPgmRouteTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
 			channel,
+			// Full-channel mix (clip 110 + cam 115 + ILU 116 + db_loop 118 + L3D 121).
+			// Explicit null — some TSR/casparcg-state paths coerce a missing layer to 0,
+			// which becomes AMCP `route://N-0` (empty layer → black PGM) instead of `route://N`.
+			layer: null as unknown as undefined,
 			...(stingFile
 				? {
 						transitions: {

@@ -96,6 +96,7 @@ describe('pgmLook ping-pong + route', () => {
 		expect(routeObj?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
 			channel: 3,
+			layer: null,
 		})
 		expect((routeObj?.content as TSR.TimelineContentCCGRoute).transitions).toBeUndefined()
 	})

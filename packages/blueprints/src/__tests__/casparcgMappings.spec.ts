@@ -255,7 +255,9 @@ describe('casparcgMappings', () => {
 		const mappings = getCasparCGMappings({ studio: baseStudioConfig })
 		expect(mappings[CasparCGLayers.CasparCGClipPlayer2]?.lookahead).toBe(LookaheadMode.PRELOAD)
 		expect(mappings[CasparCGLayers.CasparCGClipPlayer2B]?.lookahead).toBe(LookaheadMode.PRELOAD)
-		expect(mappings[CasparCGLayers.CasparCGPgmCamera]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		// Live dshow must not PRELOAD on the idle look (opens a second Virtual Camera → rtbufsize spam).
+		expect(mappings[CasparCGLayers.CasparCGPgmCamera]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmCameraB]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsLogo]?.lookahead).toBe(LookaheadMode.NONE)
 	})
