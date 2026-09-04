@@ -5,6 +5,9 @@ export const DemoStudioConfig: StudioConfig = {
 	casparcgLatency: 0,
 	casparcgMediaFolder: 'c:/casparcg/sofie-demo-media',
 	ingestMediaFolder: 'c:/casparcg/sofie-demo-media',
+	// Ops: Package Manager must read the SAME tree Caspar plays (e.g. Y:/360-ingest/sofie-demo-media).
+	// If these stay on c:/casparcg/... while Caspar media-path is Y:, Sofie shows false
+	// "Voice Over / ILU / Lower Third can't be found" while AMCP PLAY still succeeds.
 	httpProxyBaseUrl: 'http://localhost:8080/package',
 	visionMixer: {
 		type: VisionMixerDevice.Atem,
@@ -27,6 +30,8 @@ export const DemoStudioConfig: StudioConfig = {
 			bgChannelB: 4,
 			// Caspar PLAY on look camera layer when a camera piece is Taken (camNo 1 = Camera A in smoke).
 			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
+			// Burn-in "1. LED" / "2. PGM" / "3. DoubleBox" / "4. Full" on layer 990 (needs gfx/debug-channel-label).
+			debugChannelLabels: false,
 		},
 	},
 	sisyfosSources: {},

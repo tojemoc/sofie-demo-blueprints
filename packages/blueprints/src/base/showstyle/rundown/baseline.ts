@@ -8,6 +8,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
+import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
@@ -61,6 +62,8 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			}),
 
 			...createBackgroundMusicBaselineTimeline(),
+
+			...createDebugChannelLabelTimeline(config),
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentSisyfosChannels>>({
 				id: '',

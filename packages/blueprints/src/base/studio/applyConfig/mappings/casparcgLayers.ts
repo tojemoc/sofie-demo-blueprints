@@ -51,7 +51,12 @@ export const PgmChannelLayers = {
 	EffectsPlayer: 200,
 	/** Intro / znelka — above the routed look; PGM only (never LED). */
 	IntroOverlay: 210,
+	/** Debug channel name burn-in (top-right). */
+	DebugLabel: 990,
 } as const
+
+/** Shared debug label layer on LED / BG look channels. */
+export const DEBUG_CHANNEL_LABEL_LAYER = PgmChannelLayers.DebugLabel
 
 /**
  * DoubleBox CAM under the frame: ~80% of the frame, right edge stuck to the screen

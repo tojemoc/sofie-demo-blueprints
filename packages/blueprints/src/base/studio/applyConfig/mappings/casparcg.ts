@@ -2,7 +2,7 @@ import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-
 import { literal } from '../../../../common/util.js'
 import { BlueprintConfig } from '../../helpers/config.js'
 import { CasparCGLayers } from '../../layers.js'
-import { BgChannelLayers, LedChannelLayers, PgmChannelLayers } from './casparcgLayers.js'
+import { BgChannelLayers, LedChannelLayers, PgmChannelLayers, DEBUG_CHANNEL_LABEL_LAYER } from './casparcgLayers.js'
 
 export interface HypercomposedChannelMap {
 	ledChannel: number
@@ -70,7 +70,7 @@ function lookStackMappings(
 			BgChannelLayers.IluPlayer,
 			LookaheadMode.PRELOAD
 		),
-		[CasparCGLayers.CasparCGPgmCamera]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.PRELOAD),
+		[CasparCGLayers.CasparCGPgmCamera]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: casparLayerMapping(
 			channel,
 			BgChannelLayers.DoubleBoxLoop,
@@ -105,7 +105,7 @@ function lookStackMappingsB(
 			BgChannelLayers.IluPlayer,
 			LookaheadMode.PRELOAD
 		),
-		[CasparCGLayers.CasparCGPgmCameraB]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.PRELOAD),
+		[CasparCGLayers.CasparCGPgmCameraB]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparLayerMapping(
 			channel,
 			BgChannelLayers.DoubleBoxLoop,
@@ -140,6 +140,11 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 
 		...lookStackMappings(bgChannelA),
 		...lookStackMappingsB(bgChannelB),
+
+		[CasparCGLayers.CasparCGDebugLabelLed]: casparLayerMapping(ledChannel, DEBUG_CHANNEL_LABEL_LAYER),
+		[CasparCGLayers.CasparCGDebugLabelPgm]: casparLayerMapping(pgmChannel, DEBUG_CHANNEL_LABEL_LAYER),
+		[CasparCGLayers.CasparCGDebugLabelDoubleBox]: casparLayerMapping(bgChannelA, DEBUG_CHANNEL_LABEL_LAYER),
+		[CasparCGLayers.CasparCGDebugLabelFull]: casparLayerMapping(bgChannelB, DEBUG_CHANNEL_LABEL_LAYER),
 	}
 
 	return mappings

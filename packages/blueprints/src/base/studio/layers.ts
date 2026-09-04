@@ -54,6 +54,12 @@ export enum CasparCGLayers {
 	CasparCGAudioBed = 'casparcg_audio_bed',
 	/** Background music bed on PGM — mirrors LED audio bed so PGM consumers hear kolíska. */
 	CasparCGAudioBedPgm = 'casparcg_audio_bed_pgm',
+
+	/** Debug burn-in labels (layer 990) — one mapping per hypercomposed channel. */
+	CasparCGDebugLabelLed = 'casparcg_debug_label_led',
+	CasparCGDebugLabelPgm = 'casparcg_debug_label_pgm',
+	CasparCGDebugLabelDoubleBox = 'casparcg_debug_label_doublebox',
+	CasparCGDebugLabelFull = 'casparcg_debug_label_full',
 }
 
 export enum AbstractLayers {

@@ -87,6 +87,11 @@ export interface HypercomposedChannels {
 	lookPrerollMs?: number
 	pgmCameraProducer?: string
 	pgmCameraVideoFilter?: string
+	/**
+	 * Testing only: burn-in channel labels (1. LED / 2. PGM / 3. DoubleBox / 4. Full)
+	 * on Caspar layer 990 via gfx/debug-channel-label.
+	 */
+	debugChannelLabels?: boolean
 }
 export interface InputConfig {
 	input: number
