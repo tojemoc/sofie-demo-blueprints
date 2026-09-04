@@ -128,7 +128,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 
 		const piece = result.pieces[0]
 		expect(piece?.expectedPackages).toHaveLength(1)
-		expect(piece?.content.fileName).toBe(iluFile)
+		expect((piece?.content as { fileName?: string }).fileName).toBe(iluFile)
 		// Caspar can PLAY without PM READY; suppress NR from transient worker restarts.
 		expect(piece?.content.ignoreMediaObjectStatus).toBe(true)
 

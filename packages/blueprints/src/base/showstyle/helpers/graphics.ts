@@ -508,12 +508,9 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 	}
 
 	return [
-		createMediaFileExpectedPackage(
-			context,
-			object.attributes.iluFile as string,
-			[CasparCGLayers.CasparCGIluPlayer],
-			{ includeSideEffects: false }
-		),
+		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [CasparCGLayers.CasparCGIluPlayer], {
+			includeSideEffects: false,
+		}),
 	]
 }
 

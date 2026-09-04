@@ -44,7 +44,7 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			expect(iluPiece?.outputLayerId).toBe('gfx')
 			expect(l3dPiece?.outputLayerId).toBe('gfx')
 			expect(iluPiece?.content.ignoreMediaObjectStatus).toBe(true)
-			expect(iluPiece?.content.fileName).toMatch(/clips\/HEADLINE\d\.mov/i)
+			expect((iluPiece?.content as { fileName?: string }).fileName).toMatch(/clips\/HEADLINE\d\.mov/i)
 			expect(iluPiece?.expectedPackages?.[0]?.sideEffect).toEqual({})
 
 			const tl = result.pieces.flatMap((p) => p.content?.timelineObjects ?? [])
