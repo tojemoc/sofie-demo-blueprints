@@ -43,6 +43,9 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			// GFX output (not flattened PGM) — Caspar mapping is still PGM channel 2.
 			expect(iluPiece?.outputLayerId).toBe('gfx')
 			expect(l3dPiece?.outputLayerId).toBe('gfx')
+			expect(iluPiece?.content.ignoreMediaObjectStatus).toBe(true)
+			expect((iluPiece?.content as { fileName?: string }).fileName).toMatch(/clips\/HEADLINE\d\.mov/i)
+			expect(iluPiece?.expectedPackages?.[0]?.sideEffect).toEqual({})
 
 			const tl = result.pieces.flatMap((p) => p.content?.timelineObjects ?? [])
 			const ilu = tl.find((t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file)

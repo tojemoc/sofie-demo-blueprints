@@ -128,6 +128,9 @@ describe('gfx/headline ILU expectedPackages', () => {
 
 		const piece = result.pieces[0]
 		expect(piece?.expectedPackages).toHaveLength(1)
+		expect((piece?.content as { fileName?: string }).fileName).toBe(iluFile)
+		// Caspar can PLAY without PM READY; suppress NR from transient worker restarts.
+		expect(piece?.content.ignoreMediaObjectStatus).toBe(true)
 
 		const expectedPackage = piece?.expectedPackages?.[0]
 		expect(expectedPackage?.type).toBe(ExpectedPackage.PackageType.MEDIA_FILE)
@@ -144,10 +147,8 @@ describe('gfx/headline ILU expectedPackages', () => {
 				},
 			},
 		])
-		expect(expectedPackage?.sideEffect).toMatchObject({
-			previewContainerId: 'httpProxy0',
-			thumbnailContainerId: 'httpProxy0',
-		})
+		// No preview/thumbnail side effects — those crash PM workers on alpha .mov ILUs.
+		expect(expectedPackage?.sideEffect).toEqual({})
 	})
 
 	it('does not emit expectedPackages without iluFile', () => {
