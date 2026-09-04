@@ -470,6 +470,17 @@ function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
 	return hasHeadlineIluFile(object)
 }
 
+function getIluMediaFileName(object: GraphicObjectBase): string | undefined {
+	if (isDoubleboxIlu(object) || isHeadlineWithIlu(object)) {
+		const iluFile = object.attributes.iluFile
+		return typeof iluFile === 'string' && iluFile.trim() ? iluFile : undefined
+	}
+	if (isPocasieGraphic(object)) {
+		return DEFAULT_POCASIE_BG_FILE
+	}
+	return undefined
+}
+
 function getIluExpectedPackages(context: ICommonContext | undefined, object: GraphicObjectBase) {
 	if (!context) {
 		return undefined
@@ -477,9 +488,14 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 
 	if (isDoubleboxIlu(object)) {
 		return [
-			createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [
-				CasparCGLayers.CasparCGPgmIluPlayer,
-			]),
+			// No preview/thumbnail side effects — alpha .mov ILUs often crash PM workers
+			// ("Restarting due to an error" → Sofie "ILU exists, but is not yet ready").
+			createMediaFileExpectedPackage(
+				context,
+				object.attributes.iluFile as string,
+				[CasparCGLayers.CasparCGPgmIluPlayer],
+				{ includeSideEffects: false }
+			),
 		]
 	}
 
@@ -492,7 +508,12 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 	}
 
 	return [
-		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [CasparCGLayers.CasparCGIluPlayer]),
+		createMediaFileExpectedPackage(
+			context,
+			object.attributes.iluFile as string,
+			[CasparCGLayers.CasparCGIluPlayer],
+			{ includeSideEffects: false }
+		),
 	]
 }
 
@@ -520,6 +541,10 @@ function parseGraphic(
 	const sourceLayer = getGraphicSourceLayer(object)
 	const lifespan = getGraphicLifespan(sourceLayer, object)
 	const templateData = getGraphicTemplateData(object)
+	const iluFileName = getIluMediaFileName(object)
+	// Caspar PLAY does not need Package Manager READY. Transient PM worker failures
+	// ("Restarting due to an error") otherwise band the timeline as NR.
+	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object)
 
 	return {
 		externalId: object.id,
@@ -530,6 +555,8 @@ function parseGraphic(
 		sourceLayerId: sourceLayer,
 		outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
 		content: {
+			...(iluFileName ? { fileName: iluFileName } : {}),
+			...(ignoreIluMediaStatus ? { ignoreMediaObjectStatus: true } : {}),
 			timelineObjects: getGraphicTlObject(config, object, false),
 
 			// Be careful the numbering of the current step is 1-based
@@ -569,6 +596,8 @@ export function parseAdlibGraphic(
 	const lifespan = getGraphicLifespan(sourceLayer, object)
 	const isFullscreen = isFullscreenGraphic(object.clipName) || useHeadlineIluPrerendered(object)
 	const templateData = getGraphicTemplateData(object)
+	const iluFileName = getIluMediaFileName(object)
+	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object)
 
 	return {
 		externalId: object.id,
@@ -581,6 +610,8 @@ export function parseAdlibGraphic(
 		outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
 		prerollDuration: isFullscreen ? config.casparcgLatency : 0,
 		content: {
+			...(iluFileName ? { fileName: iluFileName } : {}),
+			...(ignoreIluMediaStatus ? { ignoreMediaObjectStatus: true } : {}),
 			timelineObjects: getGraphicTlObject(config, object, true),
 
 			templateData,
