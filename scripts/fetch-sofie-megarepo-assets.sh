@@ -32,11 +32,11 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
-PINNED_SOFIE_ASSETS_REF="ac1a211c7d42884d604de7d4a6849d672f4c33a9" # smoke weather cities + L3D headline/subline
+PINNED_SOFIE_ASSETS_REF="729e11728170058673e69db1e98a8c045ee47e21" # smoke scripts restored + weather cities + L3D
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
-	[spravy-v3-smoke-rundown.json]=daa90b1953e9471ecc131cbd5fb5357b44915d3a9d9c03f341d22fe72197c97d
+	[spravy-v3-smoke-rundown.json]=eada1218546339c8e624573fe784bfbcec61350d9e316230fd67998f1714a687
 	[sofie-rundown-editor-piece-types.json]=c6b939f306b8dfbcbd548c1dcdbf8f8b9f589276f40348bfc5646494f0d6c7bc
 	[sofie-rundown-editor-part-types.json]=74d89de9d65298a6d48054ca85cd7319bef56038a09b061f25e81f111040a7e6
 	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
