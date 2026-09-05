@@ -55,7 +55,9 @@ script and relies on `GITHUB_ENV`.
 | Build docs | `yarn build:docs` |
 | Docs dev server | `yarn watch:docs` (port **3030**, base path `/sofie-demo-blueprints/`) |
 
-CI mirrors these steps in `.github/workflows/node.yaml`.
+CI (`.github/workflows/node.yaml`): PRs run typecheck/lint/test only (no `yarn build` /
+`yarn dist`). Blueprint+docs builds, deploy image, and pre-releases run on pushes to
+`develop`/`main`; tagged `v*` pushes create GitHub releases.
 
 ### Gotchas
 
