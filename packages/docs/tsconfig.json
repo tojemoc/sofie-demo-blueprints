@@ -1,12 +1,14 @@
 {
 	// This file is not used in compilation. It is here just for a nice editor experience and ESLint.
 	"extends": "@docusaurus/tsconfig",
-	"include": ["src/**/*", "../../node_modules/@docusaurus/module-type-aliases/src/index.d.ts"],
+	"include": ["src"],
 	"compilerOptions": {
 		"baseUrl": ".",
-		"types": ["node"],
 		"paths": {
 			"@site/*": ["./*"]
-		}
+		},
+		// Pull in classic theme ambient `@theme/*` modules (title/description on Layout, etc.).
+		// The stub in `@docusaurus/module-type-aliases` alone omits those props.
+		"types": ["@docusaurus/theme-classic"]
 	}
 }
