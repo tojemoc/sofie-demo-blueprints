@@ -9,6 +9,7 @@ import {
 	UserEditingType,
 } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
+import { SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import {
 	CameraProps,
@@ -41,9 +42,14 @@ import {
 	appendCountupSustainIfRevealed,
 	getCountupRevealClaimForGeneration,
 } from '../helpers/countupReveal.js'
-import { LookSlotSequence, getLookSlotSequenceForGeneration } from '../helpers/pgmLook.js'
+import {
+	LookSlot,
+	LookSlotSequence,
+	findWipeVideoObject,
+	getLookSlotSequenceForGeneration,
+} from '../helpers/pgmLook.js'
 
-/** Part types that compose a story look on BG A/B and therefore allocate a look slot. */
+/** Part types that compose a story look on BG A/B. */
 function isLookBearingPartType(type: PartType | null): boolean {
 	switch (type) {
 		case PartType.Camera:
@@ -53,9 +59,27 @@ function isLookBearingPartType(type: PartType | null): boolean {
 		case PartType.LayeredVideo:
 			return true
 		default:
-			// Remote / Titles / Intro / DVE / Invalid / null — do not advance the sequence.
+			// Remote / Titles / Intro / DVE / Invalid / null — do not claim a look.
 			return false
 	}
+}
+
+/**
+ * Wiped Takes flip to the idle BG channel (pre-build). Hard cuts stay put so PGM
+ * keeps routing the same channel (headlines 1–3 all on air via one `route://N`).
+ */
+export function resolveLookSlotForPart(
+	type: PartType | null,
+	objects: SomeObject[],
+	lookSlots: LookSlotSequence
+): LookSlot {
+	if (!isLookBearingPartType(type)) {
+		return lookSlots.peek()
+	}
+	if (findWipeVideoObject(objects)) {
+		return lookSlots.allocate()
+	}
+	return lookSlots.ensure()
 }
 
 export function generateParts(
@@ -80,7 +104,7 @@ export function generateParts(
 
 	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
-		const lookSlot = isLookBearingPartType(rawPart.type) ? lookSlots.allocate() : lookSlots.peek()
+		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots)
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {

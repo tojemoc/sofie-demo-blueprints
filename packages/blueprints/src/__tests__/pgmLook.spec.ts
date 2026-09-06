@@ -60,13 +60,15 @@ describe('pgmLook ping-pong + route', () => {
 		expect(lookSlotForPartIndex(2)).toBe('A')
 	})
 
-	it('LookSlotSequence advances only on allocate; peek reuses last', () => {
+	it('LookSlotSequence advances only on allocate; ensure reuses; peek reuses last', () => {
 		const sequence = createLookSlotSequence()
 		expect(sequence.peek()).toBe('A')
-		expect(sequence.allocate()).toBe('A')
+		expect(sequence.ensure()).toBe('A')
 		expect(sequence.peek()).toBe('A')
-		expect(sequence.allocate()).toBe('B')
+		expect(sequence.ensure()).toBe('A') // hard cuts stay put
+		expect(sequence.allocate()).toBe('B') // wipe flips
 		expect(sequence.peek()).toBe('B')
+		expect(sequence.ensure()).toBe('B')
 		expect(sequence.allocate()).toBe('A')
 	})
 
@@ -77,6 +79,26 @@ describe('pgmLook ping-pong + route', () => {
 
 	it('converts wipe cut-point ms to STING frames at 50fps', () => {
 		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(38)
+	})
+
+	it('keeps smoke headlines on one BG look so PGM route stays put across hard cuts', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
+
+		expect(generated.parts.map((part) => part.part.externalId)).toEqual([
+			'part-hl-1',
+			'part-hl-2',
+			'part-hl-3',
+		])
+		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3)
+		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3)
+		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(3)
+
+		const hl2Timeline = generated.parts[1].pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(true)
+		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.lowerThird)).toBe(false)
 	})
 
 	it('hard-cut VO parts still emit a PGM route with no STING', () => {
@@ -123,7 +145,7 @@ describe('pgmLook ping-pong + route', () => {
 		})
 	})
 
-	it('ping-pongs tema-1 DoubleBox then SYN onto opposite BG looks; SYN L3D is not on the PGM route', () => {
+	it('flips look only on wiped Takes; hard-cut SYN after wiped DoubleBox stays on that look', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const synIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
@@ -139,10 +161,6 @@ describe('pgmLook ping-pong + route', () => {
 		}
 
 		const intermediate = convertIngestData(mockIngestContext, ingest)
-		const dbSlot = lookSlotForPartIndex(0)
-		const synSlot = lookSlotForPartIndex(1)
-		expect(dbSlot).not.toBe(synSlot)
-
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
 		const dbPart = generated.parts.find((part) => part.part.externalId === 'part-tema-1-db')
 		const synPart = generated.parts.find((part) => part.part.externalId === 'part-tema-1-syn-1')
@@ -150,27 +168,29 @@ describe('pgmLook ping-pong + route', () => {
 		expect(synPart).toBeDefined()
 		if (!dbPart || !synPart) return
 
-		const dbLayers = dbSlot === 'B' ? LOOK_B_LAYERS : LOOK_A_LAYERS
-		const synLayers = synSlot === 'B' ? LOOK_B_LAYERS : LOOK_A_LAYERS
+		// First wiped look → A (ch3); wiped SYN flips to B (ch4) for pre-build.
+		expect(pgmRouteChannel(dbPart.pieces)).toBe(3)
+		expect(pgmRouteChannel(synPart.pieces)).toBe(4)
+
 		const dbTimeline = dbPart.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		const synTimeline = synPart.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
-		expect(dbTimeline.some((obj) => obj.layer === dbLayers.camera)).toBe(true)
-		expect(dbTimeline.some((obj) => obj.layer === dbLayers.lowerThird)).toBe(true)
-		expect(dbTimeline.some((obj) => obj.layer === synLayers.camera)).toBe(false)
+		expect(dbTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.camera)).toBe(true)
+		expect(dbTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(true)
+		expect(dbTimeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(false)
 
 		const synL3d = synTimeline.find(
 			(obj) =>
-				obj.layer === synLayers.lowerThird &&
+				obj.layer === LOOK_B_LAYERS.lowerThird &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 		expect(synL3d, 'SYN L3D must pre-build on the idle BG look, not on the PGM route channel').toBeDefined()
-		expect(synTimeline.some((obj) => obj.layer === dbLayers.lowerThird)).toBe(false)
+		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
 		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: getLookCasparChannel(hybridCasparConfig, synSlot),
+			channel: 4,
 			transitions: {
 				inTransition: { type: TSR.Transition.STING, maskFile: 'wipes/wipe' },
 			},
@@ -178,11 +198,11 @@ describe('pgmLook ping-pong + route', () => {
 		expect(synTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
 	})
 
-	it('continues look ping-pong across segments so adjacent looks get distinct BG channels', () => {
+	it('continues wipe-driven look flips across segments so adjacent wiped looks get distinct BG channels', () => {
 		const exportData = loadSmokeRundownExport()
 		const lookSlots = createLookSlotSequence()
 
-		// tema-3 has 3 look-bearing parts (A,B,A); per-segment reset would make tema-4's first look also A.
+		// tema-3: wiped DB then hard-cut parts stay on A; tema-4 wiped DB flips to B.
 		const tema3 = generateParts(
 			mockSegmentContext(),
 			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-3')),
@@ -203,12 +223,12 @@ describe('pgmLook ping-pong + route', () => {
 
 		const lastChannel = pgmRouteChannel(tema3Last.pieces)
 		const firstChannel = pgmRouteChannel(tema4First.pieces)
-		expect(lastChannel).toBe(3) // third look → A
-		expect(firstChannel).toBe(4) // continues to B across the segment boundary
+		expect(lastChannel).toBe(3) // hard cuts after wiped DB stay on A
+		expect(firstChannel).toBe(4) // next wiped DB flips to B across the segment boundary
 		expect(firstChannel).not.toBe(lastChannel)
 	})
 
-	it('does not consume a look slot for Remote between look-bearing Camera parts', () => {
+	it('does not flip look for Remote or hard-cut Camera between wiped Takes', () => {
 		const cameraPart = (externalId: string): PartProps<CameraProps> => ({
 			type: PartType.Camera,
 			rawType: 'Cam',
@@ -243,8 +263,8 @@ describe('pgmLook ping-pong + route', () => {
 		}
 
 		const generated = generateParts(mockSegmentContext(), segment, createCountupRevealClaim(), createLookSlotSequence())
-		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3) // Camera allocates A
-		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3) // Remote peeks A (no advance)
-		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4) // next Camera allocates B
+		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3) // Camera ensure → A
+		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3) // Remote peeks A
+		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(3) // hard-cut Camera stays on A
 	})
 })
