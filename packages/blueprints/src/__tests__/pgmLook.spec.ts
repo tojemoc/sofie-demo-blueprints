@@ -87,11 +87,7 @@ describe('pgmLook ping-pong + route', () => {
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
 
-		expect(generated.parts.map((part) => part.part.externalId)).toEqual([
-			'part-hl-1',
-			'part-hl-2',
-			'part-hl-3',
-		])
+		expect(generated.parts.map((part) => part.part.externalId)).toEqual(['part-hl-1', 'part-hl-2', 'part-hl-3'])
 		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3)
 		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3)
 		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(3)
