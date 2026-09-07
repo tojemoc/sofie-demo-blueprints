@@ -46,13 +46,13 @@ LED / PGM / BG look channel numbers for the Caspar hypercomposed topology:
 |-----|--------:|------|
 | `ledChannel` | 1 | LED wall (bg loop + headline ILU) |
 | `pgmChannel` | 2 | Route bus + persistent overlays (logo-bug, intro) |
-| `bgChannelA` | 3 | Pre-build look A (render-only; no Screen/NDI/SDI consumer) |
-| `bgChannelB` | 4 | Pre-build look B (ping-pongs rundown-wide with A across look-bearing parts) |
-| `lookPrerollMs` | 1500 | Extra preroll on wiped Takes so CEF + clips can cue on the next BG channel |
+| `bgChannelA` | 3 | **DoubleBox** look (cam + ILU + `db_loop` + L3D; render-only) |
+| `bgChannelB` | 4 | **Full** look (headlines / SYN / weather / fullscreen cam; render-only) |
+| `lookPrerollMs` | 1500 | Extra preroll on wiped Takes so CEF + clips can cue on the idle BG channel |
 
 `caspar.config` must declare **at least 4 channels**. Four 1080p50 channels can be GPU-heavy — confirm headroom on the studio box if playback stutters.
 
-Wiped Takes play `route://{bg}` on PGM layer 110 with a Caspar STING (wipe media). Logo-bug stays on PGM layer 123 above the route so it is not wiped away.
+Look channels are **semantic** (not index ping-pong): DoubleBox parts always route `route://3`; headlines and other Full parts always `route://4`. Wiped Takes STING PGM onto the incoming look. Logo-bug stays on PGM layer 123 above the route so it is not wiped away.
 
 ## Showstyle Configuration
 

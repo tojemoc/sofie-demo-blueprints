@@ -1,6 +1,6 @@
 import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
-import { ObjectType, StudioGuestObject, GraphicObject } from '../../../common/definitions/objects.js'
+import { ObjectType, StudioGuestObject } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
 import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
@@ -21,15 +21,11 @@ import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
 import { getPgmCameraMediaContentOptions, getPgmCameraProducer } from '../helpers/pgmCamera.js'
-import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
+import { LookSlot, finalizeHypercomposedPart, isDoubleBoxLook } from '../helpers/pgmLook.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
-	if (/doublebox|double-box/i.test(part.rawType || '')) return true
-	return part.objects.some(
-		(obj) =>
-			obj.objectType === ObjectType.Graphic && (obj as GraphicObject).clipName.toLowerCase() === 'gfx/doublebox-ilu'
-	)
+	return isDoubleBoxLook(part.rawType, part.objects)
 }
 
 function createPgmCameraTimelineObjects(

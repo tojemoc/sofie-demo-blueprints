@@ -10,7 +10,7 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 export function generateGfxPart(
 	context: PartContext,
 	part: PartProps<GfxProps>,
-	lookSlot: LookSlot = 'A'
+	lookSlot: LookSlot = 'B'
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 

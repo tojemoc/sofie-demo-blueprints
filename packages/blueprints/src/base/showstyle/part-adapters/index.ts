@@ -45,8 +45,9 @@ import {
 import {
 	LookSlot,
 	LookSlotSequence,
-	findWipeVideoObject,
 	getLookSlotSequenceForGeneration,
+	isDoubleBoxLook,
+	lookSlotForKind,
 } from '../helpers/pgmLook.js'
 
 /** Part types that compose a story look on BG A/B. */
@@ -65,21 +66,21 @@ function isLookBearingPartType(type: PartType | null): boolean {
 }
 
 /**
- * Wiped Takes flip to the idle BG channel (pre-build). Hard cuts stay put so PGM
- * keeps routing the same channel (headlines 1–3 all on air via one `route://N`).
+ * Semantic look channels: DoubleBox → BG A (ch3), Full → BG B (ch4).
+ * Headlines / SYN / weather / fullscreen cam are always Full (`route://4`).
+ * Wipe into DoubleBox STINGs PGM onto `route://3` where db_loop + scene pre-build.
  */
 export function resolveLookSlotForPart(
 	type: PartType | null,
 	objects: SomeObject[],
-	lookSlots: LookSlotSequence
+	lookSlots: LookSlotSequence,
+	rawType?: string
 ): LookSlot {
 	if (!isLookBearingPartType(type)) {
 		return lookSlots.peek()
 	}
-	if (findWipeVideoObject(objects)) {
-		return lookSlots.allocate()
-	}
-	return lookSlots.ensure()
+	const slot = lookSlotForKind(isDoubleBoxLook(rawType, objects) ? 'doublebox' : 'full')
+	return lookSlots.claim(slot)
 }
 
 export function generateParts(
@@ -104,7 +105,7 @@ export function generateParts(
 
 	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
-		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots)
+		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType)
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {
@@ -129,7 +130,9 @@ export function generateParts(
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
 				break
 			case PartType.Intro:
-				newPart = generateIntroPart(partContext, rawPart as unknown as PartProps<IntroProps>)
+				// Intro overlay plays on PGM (210); keep Full underlay so route://4 stays beneath.
+				lookSlots.claim('B')
+				newPart = generateIntroPart(partContext, rawPart as unknown as PartProps<IntroProps>, 'B')
 				break
 			case PartType.DVE:
 				newPart = generateDVEPart(partContext, rawPart as unknown as PartProps<DVEProps>)

@@ -5,7 +5,7 @@ import {
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
-import { SomeObject, VideoObject, ObjectType } from '../../../common/definitions/objects.js'
+import { GraphicObject, SomeObject, VideoObject, ObjectType } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
@@ -72,47 +72,46 @@ export function isHypercomposedStudio(config: StudioConfig): boolean {
 	return Boolean(config.casparcg.hypercomposed)
 }
 
-export function lookSlotForPartIndex(index: number): LookSlot {
-	return index % 2 === 0 ? 'A' : 'B'
+/**
+ * Semantic look channels (not index ping-pong):
+ * - DoubleBox → look `'A'` → `bgChannelA` (default Caspar **3**)
+ * - Full (headlines / SYN / weather / fullscreen cam) → look `'B'` → `bgChannelB` (default **4**)
+ */
+export function lookSlotForKind(kind: 'doublebox' | 'full'): LookSlot {
+	return kind === 'doublebox' ? 'A' : 'B'
+}
+
+/** True when this part should compose on the DoubleBox channel (BG A / ch3). */
+export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
+	if (/doublebox|double-box/i.test(rawType || '')) return true
+	return objects.some(
+		(obj) =>
+			obj.objectType === ObjectType.Graphic &&
+			String((obj as GraphicObject).clipName || '').toLowerCase() === 'gfx/doublebox-ilu'
+	)
 }
 
 /**
- * Rundown-wide look-slot sequence for BG A/B.
- *
- * Flip (allocate) only when a wiped Take needs an idle channel to pre-build on.
- * Hard cuts (headlines, ILU↔SYN) stay on the current look so PGM keeps a stable
- * `route://N` and we do not thrash the single live camera across channels.
- * Non-look parts (Titles / Intro / DVE / Remote / Invalid) only peek.
+ * Tracks the last look-bearing slot so non-look parts (Remote / Titles / DVE)
+ * can peek a stable underlay. Slot choice itself is look-kind based, not alternating.
  */
 export interface LookSlotSequence {
-	/** Next look slot; advances the rundown-wide counter (use for wiped Takes). */
-	allocate(): LookSlot
-	/**
-	 * Claim the current look without flipping — first call allocates `'A'`, later
-	 * calls reuse {@link peek}. Use for hard-cut look-bearing parts.
-	 */
-	ensure(): LookSlot
-	/** Last allocated/ensured slot, or `'A'` if none yet — does not advance. */
+	/** Remember the slot used by the latest look-bearing (or intro) part. */
+	claim(slot: LookSlot): LookSlot
+	/** Last claimed slot, or `'B'` (Full) if none yet — does not change state. */
 	peek(): LookSlot
 }
 
 export function createLookSlotSequence(): LookSlotSequence {
-	let nextIndex = 0
 	let last: LookSlot | undefined
 	return {
-		allocate(): LookSlot {
-			const slot = lookSlotForPartIndex(nextIndex++)
+		claim(slot: LookSlot): LookSlot {
 			last = slot
 			return slot
 		},
-		ensure(): LookSlot {
-			if (last === undefined) {
-				return this.allocate()
-			}
-			return last
-		},
 		peek(): LookSlot {
-			return last ?? 'A'
+			// Default Full — smoke opens on headlines (`route://4`) before any DoubleBox.
+			return last ?? 'B'
 		},
 	}
 }
@@ -346,10 +345,9 @@ function attachRouteToWipePiece(
 }
 
 /**
- * Map story looks onto BG A/B and hold PGM on a full-channel route.
- * Wiped Takes STING the route onto the (usually flipped) look; hard cuts keep
- * the same look and re-assert `route://N` with no transition.
- * Logo / intro stay on PGM above the route and are not remapped.
+ * Map story looks onto BG A (DoubleBox) / BG B (Full) and hold PGM on a full-channel route.
+ * Wiped Takes STING onto the incoming look's fixed channel; hard cuts re-assert
+ * `route://N` with no transition. Logo / intro stay on PGM above the route.
  */
 export function finalizeHypercomposedPart(
 	context: ICommonContext,
