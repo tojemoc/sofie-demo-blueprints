@@ -13,4 +13,4 @@ The Rundown Baseline tells Sofie how the hardware in the studio should be config
 - Configures the CasparCG clip player preview
 - Configures the Sisyfos audio channels
 
-Hypercomposed story looks are **not** in the rundown baseline. PGM starts without a route; the first camera / VT / VO / GFX part attaches `route://{bgA|bgB}` on take. Logo-bug (`assets/countup`) is revealed on the first DoubleBox, still on PGM above the route.
+Hypercomposed story looks are **not** in the rundown baseline. PGM starts without a route; the first look-bearing part attaches `route://{bgChannelB}` (Full, default **4**) or `route://{bgChannelA}` (DoubleBox, default **3**) on take. Intro keeps Full underlay (`route://{bgChannelB}`) beneath the overlay. Logo-bug (`assets/countup`) is revealed on the first DoubleBox, still on PGM above the route.

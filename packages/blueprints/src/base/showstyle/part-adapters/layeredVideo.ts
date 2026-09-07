@@ -12,7 +12,7 @@ import { LookSlot, finalizeHypercomposedPart, findWipeVideoObject } from '../hel
 export function generateLayeredVideoPart(
 	context: PartContext,
 	part: PartProps<LayeredVideoProps>,
-	lookSlot: LookSlot = 'A'
+	lookSlot: LookSlot = 'B'
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 

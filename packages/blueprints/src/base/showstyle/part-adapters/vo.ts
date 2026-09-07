@@ -20,7 +20,7 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 export function generateVOPart(
 	context: PartContext,
 	part: PartProps<VOProps>,
-	lookSlot: LookSlot = 'A'
+	lookSlot: LookSlot = 'B'
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const atemInput = getClipPlayerInput(config)

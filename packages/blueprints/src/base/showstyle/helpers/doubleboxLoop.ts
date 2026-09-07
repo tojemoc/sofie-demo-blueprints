@@ -14,9 +14,9 @@ import { ICommonContext } from '@sofie-automation/blueprints-integration'
 export const DOUBLEBOX_LOOP_FILE = 'loops/db_loop'
 
 /**
- * Create a piece that plays the DoubleBox compositing frame on the look's
- * DoubleBoxLoop layer (BG A/B layer 118) for this part only (WithinPart).
- * SYN / weather / outro are fullscreen and must not keep the cutout frame.
+ * Create a piece that plays the DoubleBox compositing frame on BG A layer 118.
+ * OutOnRundownEnd keeps `loops/db_loop` running on the DoubleBox channel so the
+ * next wiped Take already has the frame up (Full looks route ch4 — frame stays invisible).
  * Headlines / post-intro MOD are fullscreen cam — they never call this helper.
  */
 export function createDoubleBoxLoopPiece(
@@ -30,7 +30,7 @@ export function createDoubleBoxLoopPiece(
 		},
 		externalId: `${partExternalId}_db_loop`,
 		name: 'DoubleBox frame',
-		lifespan: PieceLifespan.WithinPart,
+		lifespan: PieceLifespan.OutOnRundownEnd,
 		sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
 		content: {

@@ -6,14 +6,20 @@ import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
 /**
  * Intro part: overlay video on PGM IntroOverlay (layer 210) — above wipe / compose.
  * Never on LED (LED = headlines + loop only). Optional `bg-loop` stays on ClipPlayer1 (110).
+ * Hypercomposed studios also hold Full underlay (`route://4`) beneath the overlay.
  * DoubleBox frame (`db_loop`) starts on the first DoubleBox camera part — not here —
  * so post-intro MOD can keep fullscreen OBS under L3D.
  */
-export function generateIntroPart(context: PartContext, part: PartProps<IntroProps>): BlueprintResultPart {
+export function generateIntroPart(
+	context: PartContext,
+	part: PartProps<IntroProps>,
+	lookSlot: LookSlot = 'B'
+): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
 	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
@@ -39,7 +45,7 @@ export function generateIntroPart(context: PartContext, part: PartProps<IntroPro
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
-	return {
+	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
@@ -51,4 +57,14 @@ export function generateIntroPart(context: PartContext, part: PartProps<IntroPro
 		adLibPieces: [...graphics.adLibPieces, ...clips],
 		actions: [],
 	}
+	finalizeHypercomposedPart(
+		context,
+		config,
+		result.part,
+		part.payload.externalId,
+		part.objects,
+		result.pieces,
+		lookSlot
+	)
+	return result
 }

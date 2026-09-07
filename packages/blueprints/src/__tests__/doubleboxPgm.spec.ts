@@ -231,6 +231,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
+		const dbLoopPiece = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_db_loop')
+		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 
 		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)

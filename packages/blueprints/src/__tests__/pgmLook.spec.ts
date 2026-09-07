@@ -8,8 +8,10 @@ import {
 	RemoteProps,
 	PartProps,
 	SegmentProps,
+	IntroProps,
 } from '../base/showstyle/definitions/index.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
+import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { PartContext } from '../common/context.js'
@@ -22,7 +24,8 @@ import {
 	LOOK_B_LAYERS,
 	createLookSlotSequence,
 	getLookCasparChannel,
-	lookSlotForPartIndex,
+	isDoubleBoxLook,
+	lookSlotForKind,
 	resetLookSlotGenerationForTests,
 	wipeStingDelayFrames,
 } from '../base/showstyle/helpers/pgmLook.js'
@@ -41,7 +44,7 @@ function pgmRouteChannel(
 	for (const piece of pieces) {
 		for (const obj of piece.content?.timelineObjects ?? []) {
 			if (obj.layer === CasparCGLayers.CasparCGPgmRoute) {
-				const content = obj.content as { channel?: number } | undefined
+				const content = obj.content as { channel?: number; layer?: unknown } | undefined
 				return content?.channel
 			}
 		}
@@ -49,27 +52,50 @@ function pgmRouteChannel(
 	return undefined
 }
 
-describe('pgmLook ping-pong + route', () => {
+function pgmRouteLayer(
+	pieces: ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> } }>
+): unknown {
+	for (const piece of pieces) {
+		for (const obj of piece.content?.timelineObjects ?? []) {
+			if (obj.layer === CasparCGLayers.CasparCGPgmRoute) {
+				return (obj.content as { layer?: unknown } | undefined)?.layer
+			}
+		}
+	}
+	return undefined
+}
+
+describe('pgmLook look-kind channels + route', () => {
 	beforeEach(() => {
 		resetLookSlotGenerationForTests()
 	})
 
-	it('alternates look slots by allocation index', () => {
-		expect(lookSlotForPartIndex(0)).toBe('A')
-		expect(lookSlotForPartIndex(1)).toBe('B')
-		expect(lookSlotForPartIndex(2)).toBe('A')
+	it('maps DoubleBox → A and Full → B', () => {
+		expect(lookSlotForKind('doublebox')).toBe('A')
+		expect(lookSlotForKind('full')).toBe('B')
+		expect(isDoubleBoxLook('DoubleBox', [])).toBe(true)
+		expect(isDoubleBoxLook('Cam', [])).toBe(false)
+		expect(
+			isDoubleBoxLook('Cam', [
+				{
+					id: 'ilu',
+					objectType: 'graphic',
+					objectTime: 0,
+					duration: 0,
+					clipName: 'gfx/doublebox-ilu',
+					attributes: {},
+				} as never,
+			])
+		).toBe(true)
 	})
 
-	it('LookSlotSequence advances only on allocate; ensure reuses; peek reuses last', () => {
+	it('LookSlotSequence claim/peek remembers last look; defaults to Full', () => {
 		const sequence = createLookSlotSequence()
-		expect(sequence.peek()).toBe('A')
-		expect(sequence.ensure()).toBe('A')
-		expect(sequence.peek()).toBe('A')
-		expect(sequence.ensure()).toBe('A') // hard cuts stay put
-		expect(sequence.allocate()).toBe('B') // wipe flips
 		expect(sequence.peek()).toBe('B')
-		expect(sequence.ensure()).toBe('B')
-		expect(sequence.allocate()).toBe('A')
+		expect(sequence.claim('B')).toBe('B')
+		expect(sequence.peek()).toBe('B')
+		expect(sequence.claim('A')).toBe('A')
+		expect(sequence.peek()).toBe('A')
 	})
 
 	it('maps look A to BG 3 and look B to BG 4', () => {
@@ -81,23 +107,27 @@ describe('pgmLook ping-pong + route', () => {
 		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(38)
 	})
 
-	it('keeps smoke headlines on one BG look so PGM route stays put across hard cuts', () => {
+	it('keeps smoke headlines on Full (ch4) with full-channel route layer null', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
 
 		expect(generated.parts.map((part) => part.part.externalId)).toEqual(['part-hl-1', 'part-hl-2', 'part-hl-3'])
-		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3)
-		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3)
-		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(3)
+		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(4)
+		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(4)
+		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4)
+		expect(pgmRouteLayer(generated.parts[0].pieces)).toBeNull()
+		expect(pgmRouteLayer(generated.parts[1].pieces)).toBeNull()
+		expect(pgmRouteLayer(generated.parts[2].pieces)).toBeNull()
 
 		const hl2Timeline = generated.parts[1].pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
-		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(true)
-		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.lowerThird)).toBe(false)
+		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.lowerThird)).toBe(true)
+		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
+		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
 	})
 
-	it('hard-cut VO parts still emit a PGM route with no STING', () => {
+	it('hard-cut VO (Full) emits PGM route://4 with no STING and layer null', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const segment = convertIngestData(mockIngestContext, ingest)
@@ -106,20 +136,20 @@ describe('pgmLook ping-pong + route', () => {
 		if (!synPart) return
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
-		const result = generateVOPart(partContext, synPart as PartProps<VOProps>)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const routePiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmRoute as string))
 		const routeObj = routePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 
 		expect(routePiece).toBeDefined()
 		expect(routeObj?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: 3,
+			channel: 4,
 			layer: null,
 		})
 		expect((routeObj?.content as TSR.TimelineContentCCGRoute).transitions).toBeUndefined()
 	})
 
-	it('remaps look B clips onto channel-4 mappings and routes PGM from 4', () => {
+	it('remaps Full clips onto channel-4 mappings and routes PGM from 4', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const segment = convertIngestData(mockIngestContext, ingest)
@@ -138,10 +168,11 @@ describe('pgmLook ping-pong + route', () => {
 		expect(routeObj?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
 			channel: 4,
+			layer: null,
 		})
 	})
 
-	it('flips look only on wiped Takes; hard-cut SYN after wiped DoubleBox stays on that look', () => {
+	it('wiped DoubleBox → route://3; wiped SYN (Full) → route://4 with STING', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const synIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
@@ -164,9 +195,10 @@ describe('pgmLook ping-pong + route', () => {
 		expect(synPart).toBeDefined()
 		if (!dbPart || !synPart) return
 
-		// First wiped look → A (ch3); wiped SYN flips to B (ch4) for pre-build.
 		expect(pgmRouteChannel(dbPart.pieces)).toBe(3)
 		expect(pgmRouteChannel(synPart.pieces)).toBe(4)
+		expect(pgmRouteLayer(dbPart.pieces)).toBeNull()
+		expect(pgmRouteLayer(synPart.pieces)).toBeNull()
 
 		const dbTimeline = dbPart.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		const synTimeline = synPart.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -180,13 +212,14 @@ describe('pgmLook ping-pong + route', () => {
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		expect(synL3d, 'SYN L3D must pre-build on the idle BG look, not on the PGM route channel').toBeDefined()
+		expect(synL3d, 'SYN L3D must pre-build on Full (ch4), not on DoubleBox').toBeDefined()
 		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
 		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
 			channel: 4,
+			layer: null,
 			transitions: {
 				inTransition: { type: TSR.Transition.STING, maskFile: 'wipes/wipe' },
 			},
@@ -194,11 +227,10 @@ describe('pgmLook ping-pong + route', () => {
 		expect(synTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
 	})
 
-	it('continues wipe-driven look flips across segments so adjacent wiped looks get distinct BG channels', () => {
+	it('keeps DoubleBox on ch3 and Full on ch4 across segments (no index ping-pong)', () => {
 		const exportData = loadSmokeRundownExport()
 		const lookSlots = createLookSlotSequence()
 
-		// tema-3: wiped DB then hard-cut parts stay on A; tema-4 wiped DB flips to B.
 		const tema3 = generateParts(
 			mockSegmentContext(),
 			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-3')),
@@ -212,19 +244,20 @@ describe('pgmLook ping-pong + route', () => {
 			lookSlots
 		)
 
-		const tema3Last = tema3.parts[tema3.parts.length - 1]
-		const tema4First = tema4.parts[0]
-		expect(tema3Last?.part.externalId).toBe('part-tema-3-syn-2')
-		expect(tema4First?.part.externalId).toBe('part-tema-4-db')
+		const tema3Syn = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-1')
+		const tema3Db = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-2') // ILU Drucker (DoubleBox)
+		const tema4Db = tema4.parts[0]
+		expect(tema3Syn).toBeDefined()
+		expect(tema3Db).toBeDefined()
+		expect(tema4Db?.part.externalId).toBe('part-tema-4-db')
+		if (!tema3Syn || !tema3Db || !tema4Db) return
 
-		const lastChannel = pgmRouteChannel(tema3Last.pieces)
-		const firstChannel = pgmRouteChannel(tema4First.pieces)
-		expect(lastChannel).toBe(3) // hard cuts after wiped DB stay on A
-		expect(firstChannel).toBe(4) // next wiped DB flips to B across the segment boundary
-		expect(firstChannel).not.toBe(lastChannel)
+		expect(pgmRouteChannel(tema3Syn.pieces)).toBe(4) // SYN Full
+		expect(pgmRouteChannel(tema3Db.pieces)).toBe(3) // DoubleBox
+		expect(pgmRouteChannel(tema4Db.pieces)).toBe(3) // next DoubleBox still ch3
 	})
 
-	it('does not flip look for Remote or hard-cut Camera between wiped Takes', () => {
+	it('keeps fullscreen Camera / Remote peeks on Full (ch4)', () => {
 		const cameraPart = (externalId: string): PartProps<CameraProps> => ({
 			type: PartType.Camera,
 			rawType: 'Cam',
@@ -259,8 +292,22 @@ describe('pgmLook ping-pong + route', () => {
 		}
 
 		const generated = generateParts(mockSegmentContext(), segment, createCountupRevealClaim(), createLookSlotSequence())
-		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3) // Camera ensure → A
-		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3) // Remote peeks A
-		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(3) // hard-cut Camera stays on A
+		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(4) // fullscreen Cam → Full
+		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(4) // Remote peeks Full
+		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4)
+	})
+
+	it('Intro holds Full underlay route://4 beneath the PGM overlay', () => {
+		const exportData = loadSmokeRundownExport()
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro'))
+		const introPart = segment.parts.find((part) => part.type === PartType.Intro)
+		expect(introPart).toBeDefined()
+		if (!introPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), introPart.payload.externalId)
+		const result = generateIntroPart(partContext, introPart as PartProps<IntroProps>, 'B')
+		expect(pgmRouteChannel(result.pieces)).toBe(4)
+		expect(pgmRouteLayer(result.pieces)).toBeNull()
+		expect(result.pieces.some((piece) => piece.name.startsWith('Intro |'))).toBe(true)
 	})
 })

@@ -80,7 +80,8 @@ describe('wipe piece type → PGM route STING', () => {
 		expect(routeObj?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: 3,
+			channel: 4,
+			layer: null,
 			transitions: {
 				inTransition: {
 					type: TSR.Transition.STING,
@@ -172,7 +173,7 @@ describe('wipe piece type → PGM route STING', () => {
 		const result = generateVTPart(partContext, vtPart as PartProps<VTProps>)
 		expect(result.pieces.some((piece) => piece.name.startsWith('Wipe'))).toBe(true)
 		expect(
-			result.pieces[0]?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
+			result.pieces[0]?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
 		).toBe(true)
 	})
 
