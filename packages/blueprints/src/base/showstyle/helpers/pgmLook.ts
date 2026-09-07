@@ -77,14 +77,22 @@ export function lookSlotForPartIndex(index: number): LookSlot {
 }
 
 /**
- * Rundown-wide ping-pong for BG look slots. Advances only when a look-bearing
- * part allocates; non-look parts (Titles / Intro / DVE / Remote / Invalid) peek
- * the last allocated slot without consuming one.
+ * Rundown-wide look-slot sequence for BG A/B.
+ *
+ * Flip (allocate) only when a wiped Take needs an idle channel to pre-build on.
+ * Hard cuts (headlines, ILU↔SYN) stay on the current look so PGM keeps a stable
+ * `route://N` and we do not thrash the single live camera across channels.
+ * Non-look parts (Titles / Intro / DVE / Remote / Invalid) only peek.
  */
 export interface LookSlotSequence {
-	/** Next look slot; advances the rundown-wide counter. */
+	/** Next look slot; advances the rundown-wide counter (use for wiped Takes). */
 	allocate(): LookSlot
-	/** Last allocated slot, or `'A'` if none yet — does not advance. */
+	/**
+	 * Claim the current look without flipping — first call allocates `'A'`, later
+	 * calls reuse {@link peek}. Use for hard-cut look-bearing parts.
+	 */
+	ensure(): LookSlot
+	/** Last allocated/ensured slot, or `'A'` if none yet — does not advance. */
 	peek(): LookSlot
 }
 
@@ -96,6 +104,12 @@ export function createLookSlotSequence(): LookSlotSequence {
 			const slot = lookSlotForPartIndex(nextIndex++)
 			last = slot
 			return slot
+		},
+		ensure(): LookSlot {
+			if (last === undefined) {
+				return this.allocate()
+			}
+			return last
 		},
 		peek(): LookSlot {
 			return last ?? 'A'
@@ -332,8 +346,9 @@ function attachRouteToWipePiece(
 }
 
 /**
- * Ping-pong story looks onto BG A/B and hold PGM on a full-channel route.
- * Wiped Takes STING the route; hard cuts switch the route with no transition.
+ * Map story looks onto BG A/B and hold PGM on a full-channel route.
+ * Wiped Takes STING the route onto the (usually flipped) look; hard cuts keep
+ * the same look and re-assert `route://N` with no transition.
  * Logo / intro stay on PGM above the route and are not remapped.
  */
 export function finalizeHypercomposedPart(
