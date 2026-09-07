@@ -52,7 +52,7 @@ LED / PGM / BG look channel numbers for the Caspar hypercomposed topology:
 
 `caspar.config` must declare **at least 4 channels**. Four 1080p50 channels can be GPU-heavy — confirm headroom on the studio box if playback stutters.
 
-Look channels are **semantic** (not index ping-pong): DoubleBox parts always route `route://3`; headlines and other Full parts always `route://4`. Wiped Takes STING PGM onto the incoming look. Logo-bug stays on PGM layer 123 above the route so it is not wiped away.
+Look channels are **semantic** (not index ping-pong): DoubleBox parts always route `route://{bgChannelA}` (default **3**); headlines and other Full parts always route `route://{bgChannelB}` (default **4**). Wiped Takes STING PGM onto the incoming look. Logo-bug stays on PGM layer 123 above the route so it is not wiped away.
 
 ## Showstyle Configuration
 

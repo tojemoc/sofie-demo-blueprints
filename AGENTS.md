@@ -80,7 +80,7 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 - Baseline loops `assets/countup` silently from rundown take start; first DoubleBox Take fades it in (logo + seconds + SFX in one .mov).
 - Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on the look's `casparcg_pgm_camera` (layer 115) with DoubleBox FILL. ILU (`casparcg_pgm_ilu_player`, layer 116) sits above CAM so left overhang is covered without CAM cover-crop.
 - Piece type `doublebox-ilu` → look `casparcg_pgm_ilu_player` (layer 116) with left-window FILL; do **not** use `headline` for thematic DoubleBox.
-- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). PGM ClipPlayer2 is the look-A VT/SYN/weather layer on BG A — never a companion bg_loop. PGM DoubleBox uses `loops/db_loop` (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY.
+- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). Full VT/SYN/weather plays on **BG B** `CasparCGClipPlayer2B` (`casparcg_clip_player2_b`, ch4) — never a companion bg_loop on PGM. PGM DoubleBox uses `loops/db_loop` on ch3 (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY.
 - Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md` and ADR `docs/adr/0002-wipe-prebuild-bg-channels.md`.
 
 ### Media folder layout (bg-loop / wipe / clips)
