@@ -4,6 +4,9 @@ name: Trigger CodeRabbit once
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - cursor/pgm-route-hardcut-looks-8972
 
 concurrency:
   group: trigger-coderabbit-pr-81
