@@ -229,10 +229,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
  * casparcg-state `setDefaultValue` coerces ROUTE `layer` null/undefined → 0, so AMCP
  * becomes `route://N-0` (empty layer → black PGM) instead of the full mix `route://N`.
  */
-export function createFullChannelRouteContent(
-	channel: number,
-	stingFile?: string
-): TSR.TimelineContentCCGMedia {
+export function createFullChannelRouteContent(channel: number, stingFile?: string): TSR.TimelineContentCCGMedia {
 	return {
 		deviceType: TSR.DeviceType.CASPARCG,
 		type: TSR.TimelineContentTypeCasparCg.MEDIA,

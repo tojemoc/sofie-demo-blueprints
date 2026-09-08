@@ -69,9 +69,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 							enable: { while: 1 },
 							priority: 0,
 							layer: CasparCGLayers.CasparCGPgmRoute,
-							content: createFullChannelRouteContent(
-								getHypercomposedChannels({ studio: config }).bgChannelB
-							),
+							content: createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
 						}),
 						...([createDoubleBoxBaselineCameraTimeline(config)].filter(
 							(obj): obj is TimelineBlueprintExt<TSR.TimelineContentCCGMedia> => obj !== undefined
