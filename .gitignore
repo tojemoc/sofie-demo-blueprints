@@ -19,3 +19,5 @@ wallaby.conf.js
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
+# Fetched megarepo smoke/type manifests (scripts/fetch-sofie-megarepo-assets.sh)
+.sofie-assets/
