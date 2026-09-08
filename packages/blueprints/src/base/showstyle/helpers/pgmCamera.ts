@@ -1,5 +1,9 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
+import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
+import { CasparCGLayers } from '../../studio/layers.js'
+import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 
 function isLiveFfmpegProducer(producer: string): boolean {
 	return /^dshow:\/\//i.test(producer) || /^v4l2:\/\//i.test(producer) || /^iec61883:\/\//i.test(producer)
@@ -34,4 +38,33 @@ export function getPgmCameraMediaContentOptions(
 	}
 
 	return options
+}
+
+/**
+ * Keep CAM1 warm on DoubleBox (BG A / ch3 layer 115) for the whole rundown.
+ * Opening dshow only on Take into DoubleBox lags the first ILU and floods rtbufsize
+ * while Full (ch4) may still hold a capture during wipe keepalive.
+ */
+export function createDoubleBoxBaselineCameraTimeline(
+	config: StudioConfig
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> | undefined {
+	if (!config.casparcg.hypercomposed) return undefined
+	const producer = getPgmCameraProducer(config)
+	if (!producer) return undefined
+
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { while: 1 },
+		priority: 0,
+		layer: CasparCGLayers.CasparCGPgmCamera,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: producer,
+			mixer: {
+				fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
+			},
+			...getPgmCameraMediaContentOptions(config, producer),
+		},
+	})
 }

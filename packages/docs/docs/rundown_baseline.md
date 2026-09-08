@@ -17,5 +17,6 @@ Hypercomposed studios also baseline:
 
 - LED + Full (BG B) companion `loops/bg_loop`
 - PGM `route://{bgChannelB}` (Full, default **4**) so rehearsal Ready already shows Full
+- CAM1 (`pgmCameraProducer`) warm on DoubleBox (BG A layer 115) with DoubleBox FILL
 
 Intro keeps Full underlay beneath the PGM overlay. Logo-bug (`assets/countup`) is revealed on the first DoubleBox, still on PGM above the route. See [PGM route contract](./pgm_route_contract.md).

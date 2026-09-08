@@ -88,11 +88,10 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(routeObj?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: 4,
-			layer: null,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://4',
 		})
-		expect((routeObj?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition).toBeUndefined()
+		expect((routeObj?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
@@ -217,11 +216,10 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(route?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(route?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: 4,
-			layer: null,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://4',
 		})
-		expect((route?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition).toBeUndefined()
+		expect((route?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 
 	it('generates ForceMute timeline for playback channels during wipe', () => {

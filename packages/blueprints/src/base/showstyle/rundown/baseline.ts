@@ -9,6 +9,8 @@ import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/ge
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
+import { createDoubleBoxBaselineCameraTimeline } from '../helpers/pgmCamera.js'
+import { createFullChannelRouteContent } from '../helpers/pgmLook.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
@@ -47,6 +49,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			// Full (BG B) companion bg_loop under rehearsal / headlines / Privítanie.
 			// Story SYN/VT/weather override the same clip layer with WithinPart priority.
 			// DoubleBox bakes bg art into db_loop on ch3 — not a second bg_loop PLAY there.
+			// CAM1 stays warm on DoubleBox (ch3/115) so the first ILU Take is not a cold dshow open.
 			...(config.casparcg.hypercomposed
 				? [
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
@@ -61,18 +64,16 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 								loop: true,
 							},
 						}),
-						literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',
 							enable: { while: 1 },
 							priority: 0,
 							layer: CasparCGLayers.CasparCGPgmRoute,
-							content: {
-								deviceType: TSR.DeviceType.CASPARCG,
-								type: TSR.TimelineContentTypeCasparCg.ROUTE,
-								channel: getHypercomposedChannels({ studio: config }).bgChannelB,
-								layer: null as unknown as undefined,
-							},
+							content: createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
 						}),
+						...([createDoubleBoxBaselineCameraTimeline(config)].filter(
+							(obj): obj is TimelineBlueprintExt<TSR.TimelineContentCCGMedia> => obj !== undefined
+						) as TimelineBlueprintExt[]),
 					]
 				: []),
 
