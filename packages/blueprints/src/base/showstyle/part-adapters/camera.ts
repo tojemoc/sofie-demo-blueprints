@@ -19,6 +19,7 @@ import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
+import { createFullBgLoopPiece } from '../helpers/fullBgLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
 import { getPgmCameraMediaContentOptions, getPgmCameraProducer } from '../helpers/pgmCamera.js'
 import { LookSlot, finalizeHypercomposedPart, isDoubleBoxLook } from '../helpers/pgmLook.js'
@@ -103,11 +104,14 @@ export function generateCameraPart(
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
 	// Start the DoubleBox frame on first DoubleBox Take (not Intro) so headlines/MOD stay fullscreen.
+	// Fullscreen cam gets companion bg_loop on the Full look clip layer (CSV: headlines / Privítanie).
 	if (doubleBox) {
 		pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
 		if (countupRevealClaim.claim(context.rundownId)) {
 			pieces.push(createCountupRevealPiece(context, config, part.payload.externalId))
 		}
+	} else if (config.casparcg.hypercomposed) {
+		pieces.push(createFullBgLoopPiece(context, config, part.payload.externalId))
 	}
 
 	const guestObj = part.objects.find((p): p is StudioGuestObject => p.objectType === ObjectType.StudioGuest)

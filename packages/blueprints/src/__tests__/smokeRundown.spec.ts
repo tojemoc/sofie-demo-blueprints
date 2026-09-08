@@ -251,7 +251,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const weatherWipe = weather.parts[0]?.objects.find(
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
-		expect(weatherWipe?.clipName).toBe('wipes/wipe')
+		expect(weatherWipe?.clipName).toBe('wipes/wipe_pocasie')
 		expect((weatherWipe?.attributes as { transition?: string }).transition).toBe('Pocasie')
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))

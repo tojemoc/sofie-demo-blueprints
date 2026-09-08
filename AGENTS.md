@@ -72,16 +72,16 @@ Full TV automation demo requires Sofie Core r53, playout-gateway, and a rundown 
 
 ### PGM wipe + UVC camera (DoubleBox)
 
-- Piece type `wipe` (megarepo `assets/`) drives a **PGM route STING** on `casparcg_pgm_route` (ch2 layer 110): `PLAY route://{bgA|bgB}` with wipe media `wipes/wipe` (DEFAULT_WIPE_FILE; older pins used `wipes/360_wipe`). The standalone overlay on `casparcg_effects_player_pgm` (ch2/200) is kept as a compat mapping only.
-- Story looks compose on fixed semantic channels: **BG A / DoubleBox** (`casparcg.hypercomposed.bgChannelA`, default 3) and **BG B / Full** (default 4). DoubleBox parts (rawType / `gfx/doublebox-ilu`) always use ch3; headlines, SYN/VT/weather, and fullscreen camera always use ch4 (`route://4`). Wiped Takes STING PGM onto the incoming look's channel (wipe into DoubleBox → `route://3` with `db_loop` already playing). Remote / Titles / DVE peek the last look; Intro keeps Full underlay (`route://4`) beneath the PGM overlay. Caspar `caspar.config` needs ≥4 channels; BG A/B are render-only (no Screen/NDI/SDI consumers — NDI on 3/4 is fine for monitoring only).
+- Piece type `wipe` (megarepo `assets/`): **DoubleBox** Takes drive a **PGM route STING** on `casparcg_pgm_route` (ch2 layer 110) onto `route://{bgA}` with wipe media. **Full-section** Takes (SJV / ŠPORT / Počasie / tip) PLAY wipe on `casparcg_effects_player_pgm` (ch2/200) and hard-cut `route://{bgB}` at `WIPE_CUT_POINT_MS` (~760 ms). Default wipe file `wipes/wipe`; themed `wipes/wipe_sjv` / `_sport` / `_pocasie` pass through (must exist on disk).
+- Story looks compose on fixed semantic channels: **BG A / DoubleBox** (`casparcg.hypercomposed.bgChannelA`, default 3) and **BG B / Full** (default 4). DoubleBox parts (rawType / `gfx/doublebox-ilu`) always use ch3; headlines, SYN/VT/weather, and fullscreen camera always use ch4 (`route://4`). Remote / Titles / DVE peek the last look; Intro keeps Full underlay (`route://4`) beneath the PGM overlay. Caspar `caspar.config` needs ≥4 channels; BG A/B are render-only (no Screen/NDI/SDI consumers — NDI on 3/4 is fine for monitoring only).
 - Piece type ids are matched case-insensitively (`wipe` / `WIPE`). Wipe uses Sofie source layer `pgm_wipe` (GFX output) so it coexists with Camera/VT.
 - Bare basenames (`wipe`) are normalized to `wipes/wipe` (same for `loops/` / `assets/` on bg-loop / intro).
 - `gfx/logo-bug` (360° sekúnd bug) maps to **PGM** `casparcg_graphics_logo` (ch2 layer 123) — **above** the routed look, so it is not wiped away.
-- Baseline loops `assets/countup` silently from rundown take start; first DoubleBox Take fades it in (logo + seconds + SFX in one .mov).
+- Baseline loops `assets/countup` is **not** started at rundown take; first DoubleBox Take fades it in (logo + seconds + SFX in one .mov).
 - Set studio `casparcg.hypercomposed.pgmCameraProducer` (e.g. `dshow://video=OBS Virtual Camera`) so camera pieces also PLAY on the look's `casparcg_pgm_camera` (layer 115) with DoubleBox FILL. ILU (`casparcg_pgm_ilu_player`, layer 116) sits above CAM so left overhang is covered without CAM cover-crop.
 - Piece type `doublebox-ilu` → look `casparcg_pgm_ilu_player` (layer 116) with left-window FILL; do **not** use `headline` for thematic DoubleBox.
-- Baseline `loops/bg_loop` plays on **LED only** (`casparcg_clip_player1`). Full VT/SYN/weather plays on **BG B** `CasparCGClipPlayer2B` (`casparcg_clip_player2_b`, ch4) — never a companion bg_loop on PGM. PGM DoubleBox uses `loops/db_loop` on ch3 (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY.
-- Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md` and ADR `docs/adr/0002-wipe-prebuild-bg-channels.md`.
+- Baseline `loops/bg_loop` plays on **LED** (`casparcg_clip_player1`) and, when hypercomposed, also on **Full BG B** (`casparcg_clip_player2_b`) for rehearsal/headlines/Privítanie. Story SYN/VT/weather override that Full clip layer. PGM DoubleBox uses `loops/db_loop` on ch3 (bg art baked into the alpha frame) — that is not a second `bg_loop` PLAY on DoubleBox.
+- Topology notes live in the sofie megarepo: `docs/integration/DOUBLEBOX-PGM.md` and ADR `docs/adr/0002-wipe-prebuild-bg-channels.md`. Docs in this repo: `packages/docs/docs/pgm_route_contract.md`.
 
 ### Media folder layout (bg-loop / wipe / clips)
 

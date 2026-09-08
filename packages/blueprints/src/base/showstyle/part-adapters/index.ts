@@ -49,6 +49,7 @@ import {
 	isDoubleBoxLook,
 	lookSlotForKind,
 } from '../helpers/pgmLook.js'
+import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 
 /** Part types that compose a story look on BG A/B. */
 function isLookBearingPartType(type: PartType | null): boolean {
@@ -180,6 +181,16 @@ export function generateParts(
 			newPart.pieces,
 			countupRevealClaim
 		)
+		if (
+			studioConfig.casparcg.hypercomposed &&
+			isLookBearingPartType(rawPart.type) &&
+			segmentUsesLedBgLoopZoom({
+				name: intermediateSegment.payload.name,
+				externalId: intermediateSegment.payload.externalId,
+			})
+		) {
+			newPart.pieces.push(createLedBgLoopZoomPiece(studioConfig, rawPart.payload.externalId))
+		}
 		// Add userEditOperations to any part (include the segment ones?):
 		newPart.part.userEditOperations = [...userEditOperationsOnSegment]
 

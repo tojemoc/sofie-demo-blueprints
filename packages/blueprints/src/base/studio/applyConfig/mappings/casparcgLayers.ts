@@ -34,8 +34,9 @@ export const BgChannelLayers = {
 
 /**
  * Caspar layer numbers on the PGM channel (route bus + persistent overlays).
- * Story looks compose on BG A/B; PGM only routes the settled mix and keeps logo / intro
- * above the wipe. EffectsPlayer (200) is retained for compat — story wipes use Route.
+ * Story looks compose on BG A/B; PGM routes the settled mix and keeps logo / intro above.
+ * DoubleBox wipes use route STING; Full-section wipes PLAY on EffectsPlayer (200) while
+ * the route hard-cuts at {@link WIPE_CUT_POINT_MS} under the cover.
  */
 export const PgmChannelLayers = {
 	/** Mirrors LED L80 — same kolíska bed on the PGM channel output. */
@@ -48,6 +49,7 @@ export const PgmChannelLayers = {
 	DoubleBoxLoop: BgChannelLayers.DoubleBoxLoop,
 	GraphicsLowerThird: BgChannelLayers.GraphicsLowerThird,
 	GraphicsLogo: 123,
+	/** Full-section / themed wipes (SJV / ŠPORT / …) — PGM-direct overlay. */
 	EffectsPlayer: 200,
 	/** Intro / znelka — above the routed look; PGM only (never LED). */
 	IntroOverlay: 210,
@@ -84,6 +86,17 @@ export const PGM_FULLSCREEN_CAMERA_FILL = {
 	y: 0,
 	xScale: 1,
 	yScale: 1,
+} as const
+
+/**
+ * LED `bg_loop` during tema / SJV / ŠPORT / Počasie — mild center zoom.
+ * Provisional (~15%); tune against wall framing in megarepo / demo-assets if needed.
+ */
+export const LED_BG_LOOP_TEMA_FILL = {
+	x: -0.075,
+	y: -0.075,
+	xScale: 1.15,
+	yScale: 1.15,
 } as const
 
 export type MixerFillRect = {
@@ -133,3 +146,6 @@ export const PGM_DOUBLEBOX_CAMERA_CROP = coverCropForFill(PGM_DOUBLEBOX_CAMERA_F
 
 /** Center cover-crop for DoubleBox left ILU window. */
 export const PGM_DOUBLEBOX_ILU_CROP = coverCropForFill(PGM_DOUBLEBOX_ILU_FILL, 'center')
+
+/** Cover-crop paired with {@link LED_BG_LOOP_TEMA_FILL}. */
+export const LED_BG_LOOP_TEMA_CROP = coverCropForFill(LED_BG_LOOP_TEMA_FILL, 'center')

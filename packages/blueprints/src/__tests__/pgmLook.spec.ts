@@ -172,7 +172,7 @@ describe('pgmLook look-kind channels + route', () => {
 		})
 	})
 
-	it('wiped DoubleBox → route://3; wiped SYN (Full) → route://4 with STING', () => {
+	it('wiped DoubleBox → route://3 STING; wiped SYN (Full) → PGM overlay + delayed route://4', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const synIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
@@ -207,6 +207,17 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(dbTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(true)
 		expect(dbTimeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(false)
 
+		const dbRoute = dbTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(dbRoute?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.ROUTE,
+			channel: 3,
+			layer: null,
+			transitions: {
+				inTransition: { type: TSR.Transition.STING, maskFile: 'wipes/wipe' },
+			},
+		})
+		expect(dbTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
+
 		const synL3d = synTimeline.find(
 			(obj) =>
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
@@ -216,15 +227,14 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
 		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(synRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
 			channel: 4,
 			layer: null,
-			transitions: {
-				inTransition: { type: TSR.Transition.STING, maskFile: 'wipes/wipe' },
-			},
 		})
-		expect(synTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
+		expect((synRoute?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition).toBeUndefined()
+		expect(synTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 	})
 
 	it('keeps DoubleBox on ch3 and Full on ch4 across segments (no index ping-pong)', () => {
@@ -309,5 +319,55 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(pgmRouteChannel(result.pieces)).toBe(4)
 		expect(pgmRouteLayer(result.pieces)).toBeNull()
 		expect(result.pieces.some((piece) => piece.name.startsWith('Intro |'))).toBe(true)
+	})
+
+	it('smoke CSV contract: headlines/privítanie→4, tema ILU↔SYN→3/4, SJV wipe overlay on Full', () => {
+		const exportData = loadSmokeRundownExport()
+		const lookSlots = createLookSlotSequence()
+		const countup = createCountupRevealClaim()
+
+		const gen = (segmentId: string) =>
+			generateParts(
+				mockSegmentContext(),
+				convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segmentId)),
+				countup,
+				lookSlots
+			)
+
+		const headlines = gen('seg-headlines')
+		for (const part of headlines.parts) {
+			expect(pgmRouteChannel(part.pieces)).toBe(4)
+			expect(part.pieces.some((piece) => piece.externalId.endsWith('_full_bg_loop'))).toBe(true)
+		}
+
+		const introSeg = gen('seg-intro')
+		const intro = introSeg.parts.find((part) => part.part.externalId === 'part-intro')
+		const privitanie = introSeg.parts.find((part) => part.part.externalId === 'part-intro-mod')
+		expect(pgmRouteChannel(intro?.pieces ?? [])).toBe(4)
+		expect(pgmRouteChannel(privitanie?.pieces ?? [])).toBe(4)
+		expect(privitanie?.pieces.some((piece) => piece.externalId.endsWith('_full_bg_loop'))).toBe(true)
+
+		const tema1 = gen('seg-tema-1')
+		const db = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-db')
+		const syn = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-syn-1')
+		expect(pgmRouteChannel(db?.pieces ?? [])).toBe(3)
+		expect(pgmRouteChannel(syn?.pieces ?? [])).toBe(4)
+		const dbRoute = (db?.pieces ?? [])
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(dbRoute?.content).toMatchObject({
+			transitions: { inTransition: { type: TSR.Transition.STING } },
+		})
+		expect(db?.pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(true)
+		expect(syn?.pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(true)
+
+		const sjv = gen('seg-sjv')
+		const sjvOpen = sjv.parts.find((part) => part.part.externalId === 'part-sjv-open')
+		expect(pgmRouteChannel(sjvOpen?.pieces ?? [])).toBe(4)
+		const sjvTimeline = (sjvOpen?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
+		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
+		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(sjvRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect((sjvRoute?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition).toBeUndefined()
 	})
 })

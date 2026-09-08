@@ -9,6 +9,7 @@ import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/ge
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
+import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
@@ -43,9 +44,37 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			// PGM ClipPlayer2 is reserved for story VT/SYN/weather — never baseline bg_loop.
-			// LED owns loops/bg_loop; PGM shows OBS cam / DoubleBox / intro overlays instead.
-			// db_loop on PGM 118 bakes bg art into the DoubleBox frame — that is not bg_loop PLAY.
+			// Full (BG B) companion bg_loop under rehearsal / headlines / Privítanie.
+			// Story SYN/VT/weather override the same clip layer with WithinPart priority.
+			// DoubleBox bakes bg art into db_loop on ch3 — not a second bg_loop PLAY there.
+			...(config.casparcg.hypercomposed
+				? [
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+							id: '',
+							enable: { while: 1 },
+							priority: 0,
+							layer: CasparCGLayers.CasparCGClipPlayer2B,
+							content: {
+								deviceType: TSR.DeviceType.CASPARCG,
+								type: TSR.TimelineContentTypeCasparCg.MEDIA,
+								file: LED_BACKGROUND_LOOP_FILE,
+								loop: true,
+							},
+						}),
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
+							id: '',
+							enable: { while: 1 },
+							priority: 0,
+							layer: CasparCGLayers.CasparCGPgmRoute,
+							content: {
+								deviceType: TSR.DeviceType.CASPARCG,
+								type: TSR.TimelineContentTypeCasparCg.ROUTE,
+								channel: getHypercomposedChannels({ studio: config }).bgChannelB,
+								layer: null as unknown as undefined,
+							},
+						}),
+					]
+				: []),
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
 				id: '',

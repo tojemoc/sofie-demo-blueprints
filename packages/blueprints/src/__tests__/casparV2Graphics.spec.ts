@@ -28,6 +28,12 @@ const hybridCasparConfig: StudioConfig = {
 	casparcg: {
 		host: 'localhost',
 		port: 5250,
+		hypercomposed: {
+			ledChannel: 1,
+			pgmChannel: 2,
+			bgChannelA: 3,
+			bgChannelB: 4,
+		},
 	},
 	sisyfosSources: {},
 	vmixSources: {},
@@ -346,26 +352,32 @@ describe('casparV2Graphics', () => {
 		expect(logo).toBeUndefined()
 	})
 
-	it('loops background clip on LED clip player only in rundown baseline', () => {
+	it('loops bg_loop on LED and Full (BG B) in hypercomposed baseline; holds route://4', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
-		const pgmLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
-		const bgOnAnyPgm = baseline.timelineObjects?.filter(
-			(obj) =>
-				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
-				'file' in obj.content &&
-				(obj.content as { file?: string }).file === 'loops/bg_loop' &&
-				obj.layer !== CasparCGLayers.CasparCGClipPlayer1
-		)
+		const fullLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
+		const pgmClip2 = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
+		const route = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 
-		expect(pgmLoop).toBeUndefined()
-		expect(bgOnAnyPgm).toEqual([])
+		expect(pgmClip2).toBeUndefined()
 		expect(ledLoop?.enable).toEqual({ while: 1 })
 		expect(ledLoop?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'loops/bg_loop',
 			loop: true,
+		})
+		expect(fullLoop?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'loops/bg_loop',
+			loop: true,
+		})
+		expect(route?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.ROUTE,
+			channel: 4,
+			layer: null,
 		})
 	})
 
