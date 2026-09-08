@@ -1,0 +1,423 @@
+[
+	{
+		"id": "camera",
+		"entityType": "piece",
+		"name": "Camera",
+		"shortName": "Cam",
+		"colour": "#18791C",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "camNo",
+				"label": "Camera number",
+				"type": "number",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "video",
+		"entityType": "piece",
+		"name": "Video clip (SOT/VID)",
+		"shortName": "VID",
+		"colour": "#0a20ed",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "File name",
+				"type": "mediaPick",
+				"subdir": "clips",
+				"includeInName": true
+			},
+			{
+				"id": "sourceDuration",
+				"label": "Source duration (ms)",
+				"type": "number"
+			},
+			{
+				"id": "trimIn",
+				"label": "Trim in (seconds)",
+				"type": "number"
+			},
+			{
+				"id": "trimOut",
+				"label": "Trim out (seconds)",
+				"type": "number"
+			},
+			{
+				"id": "volume",
+				"label": "Volume (0–1)",
+				"type": "number"
+			}
+		]
+	},
+	{
+		"id": "intro",
+		"entityType": "piece",
+		"name": "Intro overlay",
+		"shortName": "INTRO",
+		"colour": "#666666",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "Overlay clip (PGM only — e.g. assets/intro_michal)",
+				"type": "mediaPick",
+				"subdir": "assets",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "bg-loop",
+		"entityType": "piece",
+		"name": "Background loop",
+		"shortName": "BG",
+		"colour": "#4a5568",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "Loop file",
+				"type": "mediaPick",
+				"subdir": "loops",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "bg-music",
+		"entityType": "piece",
+		"name": "Background music",
+		"shortName": "BGM",
+		"colour": "#4a7568",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "Music file",
+				"type": "mediaPick",
+				"subdir": "loops",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "wipe",
+		"entityType": "piece",
+		"name": "PGM wipe",
+		"shortName": "WIPE",
+		"colour": "#343a40",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "Wipe clip",
+				"type": "mediaPick",
+				"subdir": "wipes",
+				"includeInName": true
+			},
+			{
+				"id": "transition",
+				"label": "Transition label",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "l3d-tema",
+		"entityType": "piece",
+		"name": "L3D Téma",
+		"shortName": "L3DT",
+		"colour": "#8c564b",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-tema",
+		"payload": [
+			{
+				"id": "headline",
+				"label": "Headline",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "subline",
+				"label": "Subline",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "l3d-mod",
+		"entityType": "piece",
+		"name": "L3D Moderátor",
+		"shortName": "L3DM",
+		"colour": "#a0522d",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-mod",
+		"payload": [
+			{
+				"id": "name",
+				"label": "Name",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "title",
+				"label": "Title",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "l3d-predstavovak",
+		"entityType": "piece",
+		"name": "L3D Predstavovak",
+		"shortName": "L3DP",
+		"colour": "#a0522d",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-predstavovak",
+		"payload": [
+			{
+				"id": "name",
+				"label": "Name",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "title",
+				"label": "Title",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "l3d-headline",
+		"entityType": "piece",
+		"name": "L3D Headline",
+		"shortName": "L3DH",
+		"colour": "#9467bd",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-headline",
+		"payload": [
+			{
+				"id": "headline",
+				"label": "Headline",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "subline",
+				"label": "Subline",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "l3d-syn",
+		"entityType": "piece",
+		"name": "L3D SYN",
+		"shortName": "L3DS",
+		"colour": "#ED7200",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-syn",
+		"payload": [
+			{
+				"id": "name",
+				"label": "Name",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "role",
+				"label": "Role",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "l3d-sjv",
+		"entityType": "piece",
+		"name": "L3D SJV",
+		"shortName": "SJV",
+		"colour": "#8c564b",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-sjv",
+		"payload": [
+			{
+				"id": "kicker",
+				"label": "Kicker",
+				"type": "string"
+			},
+			{
+				"id": "headline",
+				"label": "Headline",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "l3d-sport",
+		"entityType": "piece",
+		"name": "L3D Šport",
+		"shortName": "SPORT",
+		"colour": "#2ca02c",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-sport",
+		"payload": [
+			{
+				"id": "kicker",
+				"label": "Kicker",
+				"type": "string"
+			},
+			{
+				"id": "headline",
+				"label": "Headline",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "source",
+		"entityType": "piece",
+		"name": "Source pill",
+		"shortName": "SRC",
+		"colour": "#636363",
+		"includeTypeInName": true,
+		"previewTemplate": "source",
+		"payload": [
+			{
+				"id": "source",
+				"label": "Source",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	},
+	{
+		"id": "weather",
+		"entityType": "piece",
+		"name": "Weather",
+		"shortName": "WX",
+		"colour": "#17becf",
+		"includeTypeInName": true,
+		"previewTemplate": "weather",
+		"payload": [
+			{
+				"id": "bypass",
+				"label": "Bypass (premade animation)",
+				"type": "boolean"
+			},
+			{
+				"id": "fileName",
+				"label": "Bypass clip",
+				"type": "mediaPick",
+				"subdir": "assets"
+			},
+			{
+				"id": "cities",
+				"label": "Cities JSON (HTML mode)",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "headline",
+		"entityType": "piece",
+		"name": "ILU Headline",
+		"shortName": "ILU",
+		"colour": "#9467bd",
+		"includeTypeInName": true,
+		"previewTemplate": "headline",
+		"payload": [
+			{
+				"id": "iluFile",
+				"label": "ILU clip",
+				"type": "mediaPick",
+				"subdir": "clips"
+			},
+			{
+				"id": "iluPrerendered",
+				"label": "ILU prerendered/bypass",
+				"type": "boolean"
+			},
+			{
+				"id": "sourceEnabled",
+				"label": "Source",
+				"type": "boolean"
+			},
+			{
+				"id": "source",
+				"label": "Source text",
+				"type": "string"
+			}
+		]
+	},
+	{
+		"id": "doublebox-ilu",
+		"entityType": "piece",
+		"name": "ILU DoubleBox",
+		"shortName": "DBILU",
+		"colour": "#6f42c1",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "text",
+				"label": "Label",
+				"type": "string",
+				"includeInName": true
+			},
+			{
+				"id": "iluFile",
+				"label": "ILU clip (PGM left window)",
+				"type": "mediaPick",
+				"subdir": "clips"
+			}
+		]
+	},
+	{
+		"id": "logo-bug",
+		"entityType": "piece",
+		"name": "Logo Bug",
+		"shortName": "Logo",
+		"colour": "#7f7f7f",
+		"includeTypeInName": true,
+		"payload": []
+	},
+	{
+		"id": "outro",
+		"entityType": "piece",
+		"name": "Outro",
+		"shortName": "Outro",
+		"colour": "#bcbd22",
+		"includeTypeInName": true,
+		"payload": [
+			{
+				"id": "fileName",
+				"label": "Outro clip (default assets/outro)",
+				"type": "mediaPick",
+				"subdir": "assets"
+			}
+		]
+	},
+	{
+		"id": "l3d-odporucanie",
+		"entityType": "piece",
+		"name": "L3D Odporúčanie",
+		"shortName": "L3DO",
+		"colour": "#8c564b",
+		"includeTypeInName": true,
+		"previewTemplate": "l3d-odporucanie",
+		"payload": [
+			{
+				"id": "headline",
+				"label": "Headline",
+				"type": "string",
+				"includeInName": true
+			}
+		]
+	}
+]

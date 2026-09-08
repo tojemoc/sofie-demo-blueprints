@@ -23,9 +23,9 @@ export enum CasparCGLayers {
 	/** Headline ILU media framed with MIXER FILL — must not share ClipPlayer1 with the bg loop. */
 	CasparCGIluPlayer = 'casparcg_ilu_player',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
-	/** Compat mapping: PGM layer 200 overlay. Story-block wipes use the PGM route STING instead. */
+	/** Compat mapping: PGM layer 200 overlay for story-block wipes. */
 	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',
-	/** PGM route bus — PLAY route://{bgA|bgB} with CUT or STING wipe. */
+	/** PGM route bus — PLAY MEDIA route://{bgA|bgB} (hard cut under wipe overlay). */
 	CasparCGPgmRoute = 'casparcg_pgm_route',
 	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED; stays above the route. */
 	CasparCGPgmIntroPlayer = 'casparcg_intro_player_pgm',

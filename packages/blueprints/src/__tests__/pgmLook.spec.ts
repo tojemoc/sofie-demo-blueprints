@@ -22,6 +22,7 @@ import { createCountupRevealClaim } from '../base/showstyle/helpers/countupRevea
 import {
 	LOOK_A_LAYERS,
 	LOOK_B_LAYERS,
+	createFullChannelRouteContent,
 	createLookSlotSequence,
 	getLookCasparChannel,
 	isDoubleBoxLook,
@@ -105,8 +106,24 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(getLookCasparChannel(hybridCasparConfig, 'B')).toBe(4)
 	})
 
-	it('converts wipe cut-point ms to STING frames at 50fps', () => {
+	it('converts wipe cut-point ms to frames at 50fps (docs helper; casparcg-state wants ms)', () => {
 		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(38)
+	})
+
+	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {
+		const content = createFullChannelRouteContent(3, 'wipes/wipe')
+		expect(content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://3',
+			transitions: {
+				inTransition: {
+					type: TSR.Transition.STING,
+					maskFile: 'wipes/wipe',
+					delay: WIPE_CUT_POINT_MS,
+				},
+			},
+		})
+		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
 	})
 
 	it('keeps smoke headlines on Full (ch4) with MEDIA route://4', () => {
@@ -172,7 +189,7 @@ describe('pgmLook look-kind channels + route', () => {
 		})
 	})
 
-	it('wiped DoubleBox → route://3 STING; wiped SYN (Full) → PGM overlay + delayed route://4', () => {
+	it('wiped DoubleBox → PGM overlay + delayed route://3; wiped SYN (Full) → overlay + delayed route://4', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const synIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
@@ -208,14 +225,13 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(dbTimeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(false)
 
 		const dbRoute = dbTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(dbRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
-			transitions: {
-				inTransition: { type: TSR.Transition.STING, maskFile: 'wipes/wipe' },
-			},
 		})
-		expect(dbTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
+		expect((dbRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
+		expect(dbTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 
 		const synL3d = synTimeline.find(
 			(obj) =>
@@ -385,9 +401,13 @@ describe('pgmLook look-kind channels + route', () => {
 		const dbRoute = (db?.pieces ?? [])
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.content).toMatchObject({
-			transitions: { inTransition: { type: TSR.Transition.STING } },
-		})
+		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect((dbRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
+		expect(
+			(db?.pieces ?? [])
+				.flatMap((piece) => piece.content.timelineObjects ?? [])
+				.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		).toBe(true)
 		expect(db?.pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(true)
 		expect(syn?.pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(true)
 

@@ -12,7 +12,7 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 | Headline 1–3 | Full (4) | `route://4` | hard cut | Full companion `bg_loop` + cam + L3D |
 | Intro | Full underlay (4) | `route://4` | `intro.mov` on PGM 210 | Overlay on PGM; no `4→3` under intro |
 | Privítanie (Cam) | Full (4) | `route://4` | — | Fullscreen cam + `l3d-predstavovak` |
-| Tema N ILU (open) | DoubleBox (3) | `route://3` | `wipe.mov` **STING** | Route switches under wipe; `db_loop` + cam + countup |
+| Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 200** | Route hard-cuts at wipe cut point (~760 ms); `db_loop` + cam + countup |
 | Tema N SYN | Full (4) | `route://4` | hard cut | |
 | Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut | |
 | SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 200** | Route hard-cuts at wipe cut point (~760 ms); Full pre-built |

@@ -37,7 +37,7 @@ export function isRundownEditorGraphicPieceType(pieceType: string): boolean {
  * Video piece types that play on dedicated Caspar layers (not VT/ClipPlayer takeover).
  * - `intro` → PGM IntroOverlay (210), above wipe / camera / gfx — never LED
  * - `bg-loop` → ClipPlayer1 (110), LED background behind camera
- * - `wipe` → PGM route STING (BG look transition); layer 200 overlay only when not hypercomposed
+ * - `wipe` → PGM EffectsPlayer overlay + delayed MEDIA `route://N` cut (BG look transition)
  */
 export const RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES = ['intro', 'bg-loop', 'wipe', 'outro'] as const
 

@@ -39,7 +39,7 @@ export enum SourceLayer {
 	 */
 	LedBgLoopZoom = 'led_bg_loop_zoom',
 	/**
-	 * PGM story-block wipe — DoubleBox: route STING; Full-section: EffectsPlayer overlay
+	 * PGM story-block wipe — EffectsPlayer overlay + delayed MEDIA route cut (DoubleBox + Full)
 	 * with route hard-cut at the wipe cut point.
 	 * Dedicated graphics source layer so wipe never shares Titles/VT with intro and is not
 	 * pruned against Camera/VT on the exclusive `pgm` group.

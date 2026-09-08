@@ -69,7 +69,7 @@ function isLookBearingPartType(type: PartType | null): boolean {
 /**
  * Semantic look channels: DoubleBox → BG A (ch3), Full → BG B (ch4).
  * Headlines / SYN / weather / fullscreen cam are always Full (`route://4`).
- * Wipe into DoubleBox STINGs PGM onto `route://3` where db_loop + scene pre-build.
+ * Wipe into DoubleBox PLAYs wipe on PGM 200 and hard-cuts MEDIA `route://3` at the cut point.
  */
 export function resolveLookSlotForPart(
 	type: PartType | null,
