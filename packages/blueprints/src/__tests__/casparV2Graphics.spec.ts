@@ -33,6 +33,7 @@ const hybridCasparConfig: StudioConfig = {
 			pgmChannel: 2,
 			bgChannelA: 3,
 			bgChannelB: 4,
+			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
 		},
 	},
 	sisyfosSources: {},
@@ -352,12 +353,13 @@ describe('casparV2Graphics', () => {
 		expect(logo).toBeUndefined()
 	})
 
-	it('loops bg_loop on LED and Full (BG B) in hypercomposed baseline; holds route://4', () => {
+	it('loops bg_loop on LED and Full (BG B); holds MEDIA route://4; warms DoubleBox CAM1', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
 		const fullLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
 		const pgmClip2 = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
 		const route = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const warmCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
 
 		expect(pgmClip2).toBeUndefined()
 		expect(ledLoop?.enable).toEqual({ while: 1 })
@@ -375,9 +377,18 @@ describe('casparV2Graphics', () => {
 		})
 		expect(route?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: 4,
-			layer: null,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://4',
+		})
+		expect(warmCam?.enable).toEqual({ while: 1 })
+		expect(warmCam?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'dshow://video=OBS Virtual Camera',
+			noStarttime: true,
+			mixer: {
+				fill: { x: 0.2, y: 0.1, xScale: 0.8, yScale: 0.8 },
+			},
 		})
 	})
 

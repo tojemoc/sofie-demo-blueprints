@@ -1,11 +1,14 @@
+import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import {
+	createDoubleBoxBaselineCameraTimeline,
 	getPgmCameraMediaContentOptions,
 	getPgmCameraProducer,
 	getPgmCameraVideoFilter,
 } from '../base/showstyle/helpers/pgmCamera.js'
-import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { StudioConfig } from '../base/studio/helpers/config.js'
+import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
 
 describe('pgmCamera helpers', () => {
 	it('reads producer from hypercomposed studio config', () => {
@@ -43,5 +46,35 @@ describe('pgmCamera helpers', () => {
 			noStarttime: true,
 			videoFilter: 'scale=1280:720',
 		})
+	})
+
+	it('baselines warm DoubleBox CAM1 with DoubleBox FILL', () => {
+		const warm = createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)
+		expect(warm?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
+		expect(warm?.enable).toEqual({ while: 1 })
+		expect(warm?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'dshow://video=OBS Virtual Camera',
+			noStarttime: true,
+			mixer: {
+				fill: { x: 0.2, y: 0.1, xScale: 0.8, yScale: 0.8 },
+			},
+		})
+	})
+
+	it('skips warm DoubleBox CAM1 when producer unset', () => {
+		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
+		const config = {
+			...hybridCasparConfig,
+			casparcg: {
+				...hybridCasparConfig.casparcg,
+				hypercomposed: {
+					...hypercomposed,
+					pgmCameraProducer: '',
+				},
+			},
+		} as StudioConfig
+		expect(createDoubleBoxBaselineCameraTimeline(config)).toBeUndefined()
 	})
 })

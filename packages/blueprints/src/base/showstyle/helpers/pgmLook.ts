@@ -217,12 +217,48 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 	for (const piece of pieces) {
 		const usesLook = (piece.content.timelineObjects ?? []).some((obj) => isLookComposeLayer(String(obj.layer)))
 		if (!usesLook) continue
-		// Opening a second OBS Virtual Camera / DShow capture on the idle look while the
-		// on-air look still holds one fills FFmpeg rtbufsize and blacks / crashes Caspar.
-		// Cue file clips + CEF early; start live camera only on Take.
+		// DoubleBox CAM1 is baseline-warmed on ch3. Still skip live-cam preroll on Full (ch4)
+		// pieces so we do not open a second OBS Virtual Camera capture early during lookahead.
 		if (pieceUsesLiveCameraProducer(piece)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
+}
+
+/**
+ * Full-channel underlay as MEDIA `route://N` (not TSR ROUTE).
+ * casparcg-state `setDefaultValue` coerces ROUTE `layer` null/undefined → 0, so AMCP
+ * becomes `route://N-0` (empty layer → black PGM) instead of the full mix `route://N`.
+ */
+export function createFullChannelRouteContent(
+	channel: number,
+	stingFile?: string
+): TSR.TimelineContentCCGMedia {
+	return {
+		deviceType: TSR.DeviceType.CASPARCG,
+		type: TSR.TimelineContentTypeCasparCg.MEDIA,
+		file: `route://${channel}`,
+		noStarttime: true,
+		...(stingFile
+			? {
+					transitions: {
+						inTransition: {
+							type: TSR.Transition.STING,
+							maskFile: stingFile,
+							overlayFile: stingFile,
+							delay: wipeStingDelayFrames(),
+						},
+					},
+				}
+			: {}),
+	}
+}
+
+/** Parse `route://3` / `route://3-0` style MEDIA files back to the Caspar channel. */
+export function parseRouteMediaChannel(file: unknown): number | undefined {
+	if (typeof file !== 'string') return undefined
+	const match = /^route:\/\/(\d+)(?:-\d+)?$/i.exec(file.trim())
+	if (!match) return undefined
+	return Number(match[1])
 }
 
 export function createPgmRouteTimelineObject(
@@ -230,38 +266,18 @@ export function createPgmRouteTimelineObject(
 	slot: LookSlot,
 	wipeFile?: string,
 	options?: { sting?: boolean; routeStartMs?: number }
-): TimelineBlueprintExt<TSR.TimelineContentCCGRoute> {
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const channel = getLookCasparChannel(config, slot)
 	const useSting = Boolean(wipeFile) && options?.sting !== false
 	const stingFile = useSting && wipeFile ? toCasparPlayPath(wipeFile) : undefined
 	const routeStartMs = options?.routeStartMs ?? 0
 
-	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { start: routeStartMs },
 		layer: CasparCGLayers.CasparCGPgmRoute,
 		priority: 1,
-		content: {
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel,
-			// Full-channel mix (clip 110 + cam 115 + ILU 116 + db_loop 118 + L3D 121).
-			// Explicit null — some TSR/casparcg-state paths coerce a missing layer to 0,
-			// which becomes AMCP `route://N-0` (empty layer → black PGM) instead of `route://N`.
-			layer: null as unknown as undefined,
-			...(stingFile
-				? {
-						transitions: {
-							inTransition: {
-								type: TSR.Transition.STING,
-								maskFile: stingFile,
-								overlayFile: stingFile,
-								delay: wipeStingDelayFrames(),
-							},
-						},
-					}
-				: {}),
-		},
+		content: createFullChannelRouteContent(channel, stingFile),
 	})
 }
 

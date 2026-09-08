@@ -23,4 +23,6 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
-**Never:** `route://N-0` (empty layer → black PGM). Route objects must use full-channel `layer: null`.
+**CAM1:** Baseline keeps `pgmCameraProducer` playing on DoubleBox ch3/115 for the rundown so the first ILU wipe is not a cold dshow open.
+
+**Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).

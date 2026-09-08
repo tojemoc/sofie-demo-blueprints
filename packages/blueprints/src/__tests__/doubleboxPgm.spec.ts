@@ -245,8 +245,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(wipe, 'wipe must STING the PGM route from the pre-built look').toBeDefined()
 		expect(wipe?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			channel: 3,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://3',
 			transitions: {
 				inTransition: {
 					type: TSR.Transition.STING,
