@@ -25,7 +25,11 @@ import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorType
 
 export type LookSlot = 'A' | 'B'
 
-/** Caspar channel format for STING delay (720p50 / 1080p50). */
+/**
+ * Caspar channel format used when converting wipe cut-point ms → STING frames.
+ * Note: casparcg-state `Transition.delay` expects **milliseconds** and calls
+ * `time2Frames` itself — do not pre-convert when setting `inTransition.delay`.
+ */
 export const WIPE_STING_FRAME_RATE = 50
 
 /** Default wait so CEF + clips can cue on the idle BG channel before a wiped Take. */
@@ -168,6 +172,7 @@ export function isLookComposeLayer(layer: string): boolean {
 	return LOOK_COMPOSE_LAYERS.has(layer)
 }
 
+/** Convert wipe cut-point ms → frames at {@link WIPE_STING_FRAME_RATE} (docs / tests only). */
 export function wipeStingDelayFrames(cutPointMs: number = WIPE_CUT_POINT_MS): number {
 	return Math.max(0, Math.round((cutPointMs / 1000) * WIPE_STING_FRAME_RATE))
 }
@@ -228,6 +233,10 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
  * Full-channel underlay as MEDIA `route://N` (not TSR ROUTE).
  * casparcg-state `setDefaultValue` coerces ROUTE `layer` null/undefined → 0, so AMCP
  * becomes `route://N-0` (empty layer → black PGM) instead of the full mix `route://N`.
+ *
+ * Story-block wipes prefer EffectsPlayer overlay + delayed hard-cut (see
+ * {@link wipeUsesPgmOverlay}) — STING on the route is kept only as an optional escape
+ * hatch. When used, `delay` must be **ms** (casparcg-state converts to frames).
  */
 export function createFullChannelRouteContent(channel: number, stingFile?: string): TSR.TimelineContentCCGMedia {
 	return {
@@ -242,7 +251,7 @@ export function createFullChannelRouteContent(channel: number, stingFile?: strin
 							type: TSR.Transition.STING,
 							maskFile: stingFile,
 							overlayFile: stingFile,
-							delay: wipeStingDelayFrames(),
+							delay: WIPE_CUT_POINT_MS,
 						},
 					},
 				}
@@ -294,12 +303,16 @@ function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprint
 }
 
 /**
- * DoubleBox wipes: Caspar STING on the route (pre-built idle look).
- * Full-section wipes (SJV / ŠPORT / Počasie / tip): wipe PLAY on PGM EffectsPlayer;
- * route hard-cuts at {@link WIPE_CUT_POINT_MS} under the cover.
+ * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 200) and
+ * hard-cut MEDIA `route://N` at {@link WIPE_CUT_POINT_MS} under the cover.
+ *
+ * DoubleBox previously used Caspar STING on the route, but casparcg-state coerces
+ * ROUTE `layer` → 0 (`route://N-0` → black PGM) and STING `delay` was easy to
+ * mis-unit (frames vs ms → TRIGGER_POINT=0). Overlay + delayed MEDIA cut matches
+ * the working Full-section path (SJV / ŠPORT / Počasie / tip).
  */
-export function wipeUsesPgmOverlay(slot: LookSlot): boolean {
-	return slot === 'B'
+export function wipeUsesPgmOverlay(_slot: LookSlot): boolean {
+	return true
 }
 
 function createPgmRoutePiece(
@@ -427,8 +440,8 @@ function attachRouteToWipePiece(
 
 /**
  * Map story looks onto BG A (DoubleBox) / BG B (Full) and hold PGM on a full-channel route.
- * DoubleBox wiped Takes STING onto ch3; Full-section wiped Takes PLAY wipe on PGM and
- * hard-cut `route://4` at the wipe cut point. Hard cuts re-assert `route://N` with no
+ * Wiped Takes PLAY wipe on PGM EffectsPlayer and hard-cut MEDIA `route://N` at the wipe
+ * cut point (DoubleBox → ch3, Full → ch4). Hard cuts re-assert `route://N` with no
  * transition. Logo / intro stay on PGM above the route.
  */
 export function finalizeHypercomposedPart(

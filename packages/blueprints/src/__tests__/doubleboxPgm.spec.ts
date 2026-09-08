@@ -23,6 +23,7 @@ import {
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
+import { WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 
 describe('DoubleBox PGM ILU above CAM', () => {
 	const exportData = loadSmokeRundownExport()
@@ -243,18 +244,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(wipe, 'wipe must STING the PGM route from the pre-built look').toBeDefined()
+		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()
+		expect(wipe?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
-			transitions: {
-				inTransition: {
-					type: TSR.Transition.STING,
-					maskFile: 'wipes/wipe',
-				},
-			},
 		})
-		expect(timeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
+		expect((wipe?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
+		expect(timeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 		expect(result.pieces.some((piece) => piece.name.startsWith('Wipe'))).toBe(true)
 
 		const headlineChrome = timeline.find(

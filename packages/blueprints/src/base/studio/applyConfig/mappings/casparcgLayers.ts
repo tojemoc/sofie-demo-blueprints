@@ -35,13 +35,13 @@ export const BgChannelLayers = {
 /**
  * Caspar layer numbers on the PGM channel (route bus + persistent overlays).
  * Story looks compose on BG A/B; PGM routes the settled mix and keeps logo / intro above.
- * DoubleBox wipes use route STING; Full-section wipes PLAY on EffectsPlayer (200) while
+ * DoubleBox and Full-section wipes PLAY on EffectsPlayer (200) while
  * the route hard-cuts at {@link WIPE_CUT_POINT_MS} under the cover.
  */
 export const PgmChannelLayers = {
 	/** Mirrors LED L80 — same kolíska bed on the PGM channel output. */
 	AudioBed: 80,
-	/** Full-channel route from BG A or BG B (STING / CUT). */
+	/** Full-channel route from BG A or BG B (MEDIA route://N hard cut). */
 	Route: 110,
 	/** Stack numbers shared with {@link BgChannelLayers} (look compose, not PGM mappings). */
 	Camera: BgChannelLayers.Camera,

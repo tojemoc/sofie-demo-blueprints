@@ -52,7 +52,7 @@ LED / PGM / BG look channel numbers for the Caspar hypercomposed topology:
 
 `caspar.config` must declare **at least 4 channels**. Four 1080p50 channels can be GPU-heavy — confirm headroom on the studio box if playback stutters.
 
-Look channels are **semantic** (not index ping-pong): DoubleBox parts always route `route://{bgChannelA}` (default **3**); headlines and other Full parts always route `route://{bgChannelB}` (default **4**). DoubleBox wiped Takes STING PGM onto ch3. Full-section wiped Takes (SJV / ŠPORT / Počasie / tip) PLAY the wipe on PGM EffectsPlayer (200) and hard-cut `route://4` at the wipe cut point. Logo-bug stays on PGM layer 123 above the route so it is not wiped away. Full contract table: [PGM route contract](./pgm_route_contract.md).
+Look channels are **semantic** (not index ping-pong): DoubleBox parts always route `route://{bgChannelA}` (default **3**); headlines and other Full parts always route `route://{bgChannelB}` (default **4**). All hypercomposed wiped Takes PLAY the wipe on PGM EffectsPlayer (200) and hard-cut MEDIA `route://N` at the wipe cut point (DoubleBox → ch3, Full-section → ch4). Logo-bug stays on PGM layer 123 above the route so it is not wiped away. Full contract table: [PGM route contract](./pgm_route_contract.md).
 
 ## Showstyle Configuration
 

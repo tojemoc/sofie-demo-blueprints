@@ -238,9 +238,8 @@ export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileNam
 
 /**
  * Timeline pieces for Intro overlay (PgmIntroPlayer / 210), BG loop (ClipPlayer1 / 110),
- * and PGM wipe (UI + mute; hypercomposed studios attach route STING for DoubleBox or
- * PGM EffectsPlayer overlay + delayed route cut for Full in
- * {@link finalizeHypercomposedPart}).
+ * and PGM wipe (UI + mute; hypercomposed studios attach EffectsPlayer overlay + delayed
+ * MEDIA route cut in {@link finalizeHypercomposedPart}).
  * These are NOT adlibs — they play on take so operators have absolute control.
  */
 export function parseLayeredVideosFromObjects(
