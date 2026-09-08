@@ -30,7 +30,17 @@ export enum SourceLayer {
 	 */
 	PgmDoubleBoxLoop = 'pgm_doublebox_loop',
 	/**
-	 * PGM story-block wipe — drives the PGM route STING (not a standalone overlay on 200).
+	 * Full-look companion `loops/bg_loop` on BG B clip layer (headlines / Privítanie).
+	 * Separate from VT so SYN can own the same Caspar clip layer later.
+	 */
+	FullBgLoop = 'full_bg_loop',
+	/**
+	 * LED `bg_loop` tema zoom (FILL+CROP on ClipPlayer1) during tema / SJV / ŠPORT / Počasie.
+	 */
+	LedBgLoopZoom = 'led_bg_loop_zoom',
+	/**
+	 * PGM story-block wipe — DoubleBox: route STING; Full-section: EffectsPlayer overlay
+	 * with route hard-cut at the wipe cut point.
 	 * Dedicated graphics source layer so wipe never shares Titles/VT with intro and is not
 	 * pruned against Camera/VT on the exclusive `pgm` group.
 	 */
@@ -62,6 +72,8 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.IluMedia:
 		case SourceLayer.PgmLowerThird:
 		case SourceLayer.PgmDoubleBoxLoop:
+		case SourceLayer.FullBgLoop:
+		case SourceLayer.LedBgLoopZoom:
 		case SourceLayer.PgmWipe:
 		case SourceLayer.PgmRoute:
 		case SourceLayer.Strap:

@@ -9,7 +9,7 @@ import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { normalizeLayeredVideoFileName } from '../base/showstyle/helpers/clips.js'
+import { normalizeLayeredVideoFileName, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
 	loadSmokeRundownExport,
@@ -50,10 +50,10 @@ function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, sy
 	return { ingest, synExternalId }
 }
 
-describe('wipe piece type → PGM route STING', () => {
+describe('wipe piece type → PGM route / overlay', () => {
 	const exportData = loadSmokeRundownExport()
 
-	it('normalizes lowercase wipe onto a PGM route STING for SYN (VO) parts', () => {
+	it('Full SYN wipe plays on PGM EffectsPlayer; route://4 hard-cuts at wipe cut point', () => {
 		const { ingest, synExternalId } = withWipeOnSyn(exportData)
 		const segment = convertIngestData(mockIngestContext, ingest)
 		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
@@ -69,30 +69,30 @@ describe('wipe piece type → PGM route STING', () => {
 		if (!synPart) return
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
-		const result = generateVOPart(partContext, synPart as PartProps<VOProps>)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 
 		expect(wipePiece?.lifespan).toBe(PieceLifespan.WithinPart)
 		expect(wipePiece?.sourceLayerId).toBe(SourceLayer.PgmWipe)
 		expect(wipePiece?.outputLayerId).toBe('gfx')
+		const overlay = wipePiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer
+		)
+		expect(overlay?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'wipes/wipe',
+		})
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
+		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(routeObj?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.ROUTE,
 			channel: 4,
 			layer: null,
-			transitions: {
-				inTransition: {
-					type: TSR.Transition.STING,
-					maskFile: 'wipes/wipe',
-					overlayFile: 'wipes/wipe',
-				},
-			},
 		})
-		expect(
-			wipePiece?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
-		).toBe(false)
+		expect((routeObj?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition).toBeUndefined()
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
@@ -115,15 +115,12 @@ describe('wipe piece type → PGM route STING', () => {
 		if (!synPart) return
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
-		const result = generateVOPart(partContext, synPart as PartProps<VOProps>)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const generated = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
-		const route = generated?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		const sting = (route?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition as {
-			type: string
-			maskFile: string
-		}
-		expect(sting.type).toBe(TSR.Transition.STING)
-		expect(sting.maskFile).toBe('wipes/wipe')
+		const overlay = generated?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer
+		)
+		expect((overlay?.content as TSR.TimelineContentCCGMedia).file).toBe('wipes/wipe')
 	})
 
 	it('accepts uppercase WIPE piece type ids from ingest', () => {
@@ -210,18 +207,21 @@ describe('wipe piece type → PGM route STING', () => {
 
 		if (!wipeOnly || wipeOnly.type !== PartType.LayeredVideo) return
 		const partContext = new PartContext(mockSegmentContext(), wipeOnly.payload.externalId)
-		const result = generateLayeredVideoPart(partContext, wipeOnly)
+		const result = generateLayeredVideoPart(partContext, wipeOnly, 'B')
 		expect(result.pieces).toHaveLength(1)
-		expect(result.pieces[0]?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGPgmRoute)
-		expect(result.pieces[0]?.content.timelineObjects?.[0]?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.ROUTE,
-			transitions: {
-				inTransition: {
-					type: TSR.Transition.STING,
-					maskFile: 'wipes/360_wipe',
-				},
-			},
+		const timeline = result.pieces[0]?.content.timelineObjects ?? []
+		expect(timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'wipes/360_wipe',
 		})
+		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(route?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(route?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.ROUTE,
+			channel: 4,
+			layer: null,
+		})
+		expect((route?.content as TSR.TimelineContentCCGRoute).transitions?.inTransition).toBeUndefined()
 	})
 
 	it('generates ForceMute timeline for playback channels during wipe', () => {
@@ -279,10 +279,10 @@ describe('normalizeLayeredVideoFileName', () => {
 		expect(normalizeLayeredVideoFileName('effects', 'deep/nested/intro.mov')).toBe('assets/intro')
 	})
 
-	it('falls back labelled story wipes to wipes/wipe until dedicated media exists', () => {
-		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sjv')).toBe('wipes/wipe')
-		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sport')).toBe('wipes/wipe')
-		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_pocasie')).toBe('wipes/wipe')
+	it('preserves themed story wipe paths for demo-assets media', () => {
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sjv')).toBe('wipes/wipe_sjv')
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_sport')).toBe('wipes/wipe_sport')
+		expect(normalizeLayeredVideoFileName('wipe', 'wipes/wipe_pocasie')).toBe('wipes/wipe_pocasie')
 	})
 
 	it('does not treat inherited object keys as wipe aliases', () => {

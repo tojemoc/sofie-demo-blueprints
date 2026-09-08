@@ -228,14 +228,17 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 export function createPgmRouteTimelineObject(
 	config: StudioConfig,
 	slot: LookSlot,
-	wipeFile?: string
+	wipeFile?: string,
+	options?: { sting?: boolean; routeStartMs?: number }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGRoute> {
 	const channel = getLookCasparChannel(config, slot)
-	const stingFile = wipeFile ? toCasparPlayPath(wipeFile) : undefined
+	const useSting = Boolean(wipeFile) && options?.sting !== false
+	const stingFile = useSting && wipeFile ? toCasparPlayPath(wipeFile) : undefined
+	const routeStartMs = options?.routeStartMs ?? 0
 
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGRoute>>({
 		id: '',
-		enable: { start: 0 },
+		enable: { start: routeStartMs },
 		layer: CasparCGLayers.CasparCGPgmRoute,
 		priority: 1,
 		content: {
@@ -262,6 +265,30 @@ export function createPgmRouteTimelineObject(
 	})
 }
 
+function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { start: 0, duration: DEFAULT_WIPE_DURATION_MS },
+		layer: CasparCGLayers.CasparCGPgmEffectsPlayer,
+		priority: 1,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: toCasparPlayPath(wipeFile),
+			mixer: { volume: 1 },
+		},
+	})
+}
+
+/**
+ * DoubleBox wipes: Caspar STING on the route (pre-built idle look).
+ * Full-section wipes (SJV / ŠPORT / Počasie / tip): wipe PLAY on PGM EffectsPlayer;
+ * route hard-cuts at {@link WIPE_CUT_POINT_MS} under the cover.
+ */
+export function wipeUsesPgmOverlay(slot: LookSlot): boolean {
+	return slot === 'B'
+}
+
 function createPgmRoutePiece(
 	context: ICommonContext,
 	config: StudioConfig,
@@ -271,12 +298,29 @@ function createPgmRoutePiece(
 	wipeFile: string | undefined
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
+	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
 			: undefined
 
-	const timelineObjects: TimelineBlueprintExt[] = [createPgmRouteTimelineObject(config, slot, wipeFile)]
+	const timelineObjects: TimelineBlueprintExt[] = []
+	if (overlayWipe && wipeFile) {
+		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile))
+		timelineObjects.push(
+			createPgmRouteTimelineObject(config, slot, wipeFile, {
+				sting: false,
+				routeStartMs: WIPE_CUT_POINT_MS,
+			})
+		)
+	} else {
+		timelineObjects.push(
+			createPgmRouteTimelineObject(config, slot, wipeFile, {
+				sting: hasWipe,
+			})
+		)
+	}
+
 	if (hasWipe) {
 		const playbackMutes = getPlaybackForceMuteChannels(config)
 		if (playbackMutes.length > 0) {
@@ -309,9 +353,16 @@ function createPgmRoutePiece(
 		},
 		expectedPackages: wipeFile
 			? [
-					createMediaFileExpectedPackage(context, wipeFile, [CasparCGLayers.CasparCGPgmRoute], {
-						includeSideEffects: true,
-					}),
+					createMediaFileExpectedPackage(
+						context,
+						wipeFile,
+						overlayWipe
+							? [CasparCGLayers.CasparCGPgmEffectsPlayer, CasparCGLayers.CasparCGPgmRoute]
+							: [CasparCGLayers.CasparCGPgmRoute],
+						{
+							includeSideEffects: true,
+						}
+					),
 				]
 			: undefined,
 		prerollDuration: config.casparcgLatency,
@@ -328,15 +379,32 @@ function attachRouteToWipePiece(
 	const mutes = (wipePiece.content.timelineObjects ?? []).filter(
 		(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
 	)
-	wipePiece.content.timelineObjects = [createPgmRouteTimelineObject(config, slot, wipeFile), ...mutes]
+	const overlayWipe = wipeUsesPgmOverlay(slot)
+	wipePiece.content.timelineObjects = overlayWipe
+		? [
+				createPgmWipeOverlayTimelineObject(wipeFile),
+				createPgmRouteTimelineObject(config, slot, wipeFile, {
+					sting: false,
+					routeStartMs: WIPE_CUT_POINT_MS,
+				}),
+				...mutes,
+			]
+		: [createPgmRouteTimelineObject(config, slot, wipeFile, { sting: true }), ...mutes]
 	wipePiece.enable = { start: 0 }
 	wipePiece.prerollDuration = config.casparcgLatency
 	wipePiece.content.ignoreAudioFormat = true
 	wipePiece.content.ignoreMediaObjectStatus = true
 	wipePiece.expectedPackages = [
-		createMediaFileExpectedPackage(context, wipeFile, [CasparCGLayers.CasparCGPgmRoute], {
-			includeSideEffects: true,
-		}),
+		createMediaFileExpectedPackage(
+			context,
+			wipeFile,
+			overlayWipe
+				? [CasparCGLayers.CasparCGPgmEffectsPlayer, CasparCGLayers.CasparCGPgmRoute]
+				: [CasparCGLayers.CasparCGPgmRoute],
+			{
+				includeSideEffects: true,
+			}
+		),
 	]
 	const channel = getLookCasparChannel(config, slot)
 	if (!wipePiece.name.includes('route://')) {
@@ -346,8 +414,9 @@ function attachRouteToWipePiece(
 
 /**
  * Map story looks onto BG A (DoubleBox) / BG B (Full) and hold PGM on a full-channel route.
- * Wiped Takes STING onto the incoming look's fixed channel; hard cuts re-assert
- * `route://N` with no transition. Logo / intro stay on PGM above the route.
+ * DoubleBox wiped Takes STING onto ch3; Full-section wiped Takes PLAY wipe on PGM and
+ * hard-cut `route://4` at the wipe cut point. Hard cuts re-assert `route://N` with no
+ * transition. Logo / intro stay on PGM above the route.
  */
 export function finalizeHypercomposedPart(
 	context: ICommonContext,

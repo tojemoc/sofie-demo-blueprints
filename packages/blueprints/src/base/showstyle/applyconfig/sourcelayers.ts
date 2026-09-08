@@ -109,6 +109,22 @@ export function getSourceLayer(): ISourceLayer[] {
 			// No exclusiveGroup — persistent db_loop must not block VT parts on SourceLayer.VT.
 		},
 		{
+			_id: SourceLayer.FullBgLoop,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 208,
+			name: 'Full bg_loop',
+			abbreviation: 'Fbg',
+			isHidden: true,
+		},
+		{
+			_id: SourceLayer.LedBgLoopZoom,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 209,
+			name: 'LED bg_loop zoom',
+			abbreviation: 'LedZ',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.PgmWipe,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 206,
