@@ -9,13 +9,17 @@ import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 
 /**
  * Segments where LED `bg_loop` should be zoomed/cropped (tema + section blocks).
- * Matches smoke ids (`seg-tema-*` / `seg-sjv` / …) and display names (ŠPORT / Počasie).
- * Tip / avízo / outro keep the baseline fullscreen loop.
+ * Matches smoke ids (`seg-tema-*` / `seg-sjv` / …) and display-name tokens (ŠPORT / Počasie).
+ * Display-name alternatives use Unicode letter boundaries so `sport` does not match
+ * inside names like `Transport`. Tip / avízo / outro keep the baseline fullscreen loop.
  */
 export function segmentUsesLedBgLoopZoom(segment: { name?: string; externalId?: string }): boolean {
-	const haystack = `${segment.externalId ?? ''} ${segment.name ?? ''}`
-	if (!haystack.trim()) return false
-	return /seg-tema|seg-sjv|seg-sport|seg-weather|\btema\b|sjv|sport|šport|pocasie|počasie|weather/i.test(haystack)
+	const haystack = `${segment.externalId ?? ''} ${segment.name ?? ''}`.trim()
+	if (!haystack) return false
+	// Ids: `seg-tema-1` etc. (`\b` after tema still holds before `-1`).
+	if (/\bseg-(?:tema|sjv|sport|weather)\b/i.test(haystack)) return true
+	// Display names: complete tokens only (JS `\b` is ASCII-only; use \p{L}).
+	return /(?<![\p{L}\p{N}])(?:tema|sjv|sport|šport|pocasie|počasie|weather)(?![\p{L}\p{N}])/iu.test(haystack)
 }
 
 /**

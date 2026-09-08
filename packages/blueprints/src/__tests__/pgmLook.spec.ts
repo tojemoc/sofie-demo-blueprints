@@ -307,6 +307,31 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4)
 	})
 
+	it('does not add LED bg zoom for Transport near-match segment names', () => {
+		const segment: SegmentProps = {
+			type: SegmentType.STORY,
+			payload: { name: 'Transport', externalId: 'seg-transport' },
+			parts: [
+				{
+					type: PartType.Camera,
+					rawType: 'Cam',
+					rawTitle: 'part-transport-cam',
+					payload: {
+						externalId: 'part-transport-cam',
+						name: 'Transport cam',
+						script: '',
+						input: { id: 1, type: SourceType.Camera },
+						duration: 5000,
+					},
+					objects: [],
+				},
+			],
+		}
+
+		const generated = generateParts(mockSegmentContext(), segment, createCountupRevealClaim(), createLookSlotSequence())
+		expect(generated.parts[0].pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(false)
+	})
+
 	it('Intro holds Full underlay route://4 beneath the PGM overlay', () => {
 		const exportData = loadSmokeRundownExport()
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro'))
