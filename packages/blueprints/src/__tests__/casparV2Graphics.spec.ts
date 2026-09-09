@@ -439,7 +439,7 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
-	it('plays gfx/pocasie HTML over assets/bg_pocasie blind-map video', () => {
+	it('plays gfx/pocasie HTML over loops/bg_loop (transparent over Full underlay)', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
 				id: 'wx1',
@@ -464,7 +464,8 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 
-		expect((bg?.content as TSR.TimelineContentCCGMedia).file).toBe('assets/bg_pocasie')
+		expect((bg?.content as TSR.TimelineContentCCGMedia).file).toBe('loops/bg_loop')
+		expect((bg?.content as TSR.TimelineContentCCGMedia).loop).toBe(true)
 		expect((html?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/pocasie')
 	})
 

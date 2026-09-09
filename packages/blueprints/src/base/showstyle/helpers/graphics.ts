@@ -26,6 +26,7 @@ import {
 	PGM_DOUBLEBOX_ILU_FILL,
 	coverCropForFill,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -246,8 +247,12 @@ const HEADLINE_ILU_FULLSCREEN_FILL = {
 	yScale: 1,
 }
 
-/** Blind-map video under the pocasie HTML animation (fullscreen PGM). */
-export const DEFAULT_POCASIE_BG_FILE = 'assets/bg_pocasie'
+/**
+ * Underlay under transparent gfx/pocasie HTML on the Full look clip layer.
+ * Same media as LED / Full companion baseline — never the opaque `assets/bg_pocasie`
+ * blind-map (that hid `loops/bg_loop` on PGM via `route://4`).
+ */
+export const DEFAULT_POCASIE_BG_FILE = LED_BACKGROUND_LOOP_FILE
 
 /** Default city rows when RE weather piece has no `cities` JSON (matches gfx/pocasie.html). */
 export const DEFAULT_POCASIE_CITIES = [
@@ -396,7 +401,7 @@ function getGraphicTlObject(
 		return getDoubleboxIluMediaObject(object, isAdlib)
 	}
 
-	// Počasie: blind-map video on PGM clip player + HTML gfx/pocasie overlay.
+	// Počasie: transparent HTML over Full-look bg_loop (ClipPlayer2 → remapped to BG B).
 	if (isPocasieGraphic(object)) {
 		const fullscreenAtemInput = getClipPlayerInput(config)
 		const templateName = resolveCasparTemplateName('gfx/pocasie')
@@ -411,6 +416,7 @@ function getGraphicTlObject(
 					deviceType: TSR.DeviceType.CASPARCG,
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
 					file: toCasparPlayPath(DEFAULT_POCASIE_BG_FILE),
+					loop: true,
 				},
 			}),
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
