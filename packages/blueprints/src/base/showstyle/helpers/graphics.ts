@@ -188,17 +188,28 @@ function getTemplateAttributes(
 		}
 
 		// Malformed JSON, non-arrays, and [] all fall back to the template sample set.
-		const cityRows: unknown[] = Array.isArray(cities) && cities.length > 0 ? cities : [...DEFAULT_POCASIE_CITIES]
+		const fromPayload = Array.isArray(cities) && cities.length > 0 ? cities : null
+		let cityRows: unknown[] = fromPayload ?? [...DEFAULT_POCASIE_CITIES]
 
-		for (const row of cityRows) {
-			if (!row || typeof row !== 'object') continue
-			const entry = row as Record<string, unknown>
-			const region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
-			if (!region) continue
-			if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
-			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
-			if (entry.delay !== undefined) mapped[`${region}_delay`] = entry.delay
-			if (entry.image !== undefined) mapped[`${region}_img`] = entry.image
+		const applyCityRows = (rows: unknown[]): number => {
+			let applied = 0
+			for (const row of rows) {
+				if (!row || typeof row !== 'object') continue
+				const entry = row as Record<string, unknown>
+				const region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
+				if (!region) continue
+				applied++
+				if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
+				if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
+				if (entry.delay !== undefined) mapped[`${region}_delay`] = entry.delay
+				if (entry.image !== undefined) mapped[`${region}_img`] = entry.image
+			}
+			return applied
+		}
+
+		// Rows without `region` (legacy name/temp/condition only) map nothing — use defaults.
+		if (applyCityRows(cityRows) === 0 && fromPayload) {
+			applyCityRows([...DEFAULT_POCASIE_CITIES])
 		}
 
 		delete mapped.cities

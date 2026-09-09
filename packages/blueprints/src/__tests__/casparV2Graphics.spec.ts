@@ -554,6 +554,36 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
+	it('falls back to DEFAULT_POCASIE_CITIES when city rows lack region codes', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-no-region',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					cities: '[{"name":"BRATISLAVA","temp":"4","condition":"cloudy"}]',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toMatchObject({
+			BA_temp: '4',
+			BA_name: 'BRATISLAVA',
+			KE_temp: '2',
+			KE_name: 'KOŠICE',
+		})
+		expect(caspar.data).not.toHaveProperty('cities')
+	})
+
 	it('applies casparcgLatency preroll to headline ILU adlibs', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
