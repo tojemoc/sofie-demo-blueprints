@@ -64,10 +64,11 @@ export const DEBUG_CHANNEL_LABEL_LAYER = PgmChannelLayers.DebugLabel
  * DoubleBox CAM under the frame: ~80% of the frame, right edge stuck to the screen
  * right edge. ILU (higher layer) covers the left overhang — no CAM crop required.
  * The alpha `db_loop`/`dp_loop` cutouts reveal the right window; left is ILU.
+ * y is ~30px above the previous 0.1 so CAM meets the right cutout top (1080p).
  */
 export const PGM_DOUBLEBOX_CAMERA_FILL = {
 	x: 0.2,
-	y: 0.1,
+	y: 0.072,
 	xScale: 0.8,
 	yScale: 0.8,
 } as const
@@ -89,14 +90,14 @@ export const PGM_FULLSCREEN_CAMERA_FILL = {
 } as const
 
 /**
- * LED `bg_loop` during tema / SJV / ŠPORT / Počasie — mild center zoom.
- * Provisional (~15%); tune against wall framing in megarepo / demo-assets if needed.
+ * LED `bg_loop` during tema / SJV / ŠPORT / Počasie — 120% zoom, biased right.
+ * x=-0.2 pins the scaled frame to the right edge (+50% of the 20% overflow from left).
  */
 export const LED_BG_LOOP_TEMA_FILL = {
-	x: -0.075,
-	y: -0.075,
-	xScale: 1.15,
-	yScale: 1.15,
+	x: -0.2,
+	y: -0.1,
+	xScale: 1.2,
+	yScale: 1.2,
 } as const
 
 export type MixerFillRect = {
@@ -147,5 +148,5 @@ export const PGM_DOUBLEBOX_CAMERA_CROP = coverCropForFill(PGM_DOUBLEBOX_CAMERA_F
 /** Center cover-crop for DoubleBox left ILU window. */
 export const PGM_DOUBLEBOX_ILU_CROP = coverCropForFill(PGM_DOUBLEBOX_ILU_FILL, 'center')
 
-/** Cover-crop paired with {@link LED_BG_LOOP_TEMA_FILL}. */
-export const LED_BG_LOOP_TEMA_CROP = coverCropForFill(LED_BG_LOOP_TEMA_FILL, 'center')
+/** Cover-crop paired with {@link LED_BG_LOOP_TEMA_FILL} (right-biased pan). */
+export const LED_BG_LOOP_TEMA_CROP = coverCropForFill(LED_BG_LOOP_TEMA_FILL, 'from-left')

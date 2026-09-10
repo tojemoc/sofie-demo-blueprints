@@ -19,7 +19,7 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 | SYN avízo / last words | Full (4) | `route://4` | hard cut | |
 | Outro | Full (4) | `route://4` | `outro.mov` on PGM | |
 
-**LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a mild zoom FILL+CROP. Tip / avízo / outro return to fullscreen.
+**LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a 120% zoom FILL+CROP biased right (`FILL -0.2 -0.1 1.2 1.2`). Tip / avízo / outro return to fullscreen.
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
