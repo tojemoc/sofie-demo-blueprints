@@ -387,7 +387,7 @@ describe('casparV2Graphics', () => {
 			file: 'dshow://video=OBS Virtual Camera',
 			noStarttime: true,
 			mixer: {
-				fill: { x: 0.2, y: 0.1, xScale: 0.8, yScale: 0.8 },
+				fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 },
 			},
 		})
 	})
