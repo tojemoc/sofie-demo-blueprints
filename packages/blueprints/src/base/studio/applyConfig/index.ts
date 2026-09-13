@@ -148,7 +148,11 @@ function generatePackageContainers(config: BlueprintConfig): Record<string, Stud
 						type: Accessor.AccessType.LOCAL_FOLDER,
 						label: 'Local',
 						allowRead: true,
-						allowWrite: true,
+						// Verify-only. Package Manager `putPackageStream` unlinks the target
+						// before copy, and `removePackage` / cleanup cron delete files that are
+						// no longer ExpectedPackages. Operators place clips on the NAS themselves;
+						// write access would delete those originals on rundown/blueprint updates.
+						allowWrite: false,
 						folderPath: mediaPackages.ingestMediaFolder,
 					},
 				},
@@ -163,7 +167,7 @@ function generatePackageContainers(config: BlueprintConfig): Record<string, Stud
 						type: Accessor.AccessType.LOCAL_FOLDER,
 						label: 'Local',
 						allowRead: true,
-						allowWrite: true,
+						allowWrite: false,
 						folderPath: mediaPackages.casparcgMediaFolder,
 					},
 				},

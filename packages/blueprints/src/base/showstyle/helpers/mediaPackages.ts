@@ -26,7 +26,8 @@ export const HTTP_PROXY_PACKAGE_CONTAINER_ID = 'httpProxy0'
  *   assets/<file>
  *
  * VT `fileName` and gfx/headline `iluFile` should use this layout so Package Manager
- * can stage files under the ingest folder and copy them into the CasparCG media tree.
+ * can *verify* files under the ingest / Caspar folders. Those LOCAL_FOLDER accessors
+ * are read-only — PM must not copy or delete operator-placed NAS media.
  */
 export const DEMO_MEDIA_PATH_PATTERN = /^(clips|loops|wipes|assets)\/[^/]+$/
 

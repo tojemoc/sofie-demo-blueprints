@@ -205,6 +205,7 @@ export function getSourceLayer(): ISourceLayer[] {
 			_rank: 50,
 			name: 'Script',
 			abbreviation: 'Scr',
+			onPresenterScreen: true,
 		},
 	]
 	return layers
