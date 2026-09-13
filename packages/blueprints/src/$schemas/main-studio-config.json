@@ -286,14 +286,14 @@
 		"casparcgMediaFolder": {
 			"type": "string",
 			"ui:title": "CasparCG media folder",
-			"ui:description": "Local folder where Package Manager copies media for CasparCG playout. Use forward slashes only (e.g. c:/casparcg/sofie-demo-media).",
+			"ui:description": "Local/NAS folder CasparCG plays from. Package Manager only checks that files exist here (read-only) — it will not copy or delete. Use forward slashes only (e.g. Y:/360-ingest/sofie-demo-media).",
 			"ui:category": "Package Manager",
 			"default": "c:/casparcg/sofie-demo-media"
 		},
 		"ingestMediaFolder": {
 			"type": "string",
 			"ui:title": "Ingest media folder",
-			"ui:description": "Staging folder where editors drop source media; Package Manager copies from here to CasparCG. Use forward slashes only. For demo, use the same path as CasparCG media folder.",
+			"ui:description": "Folder used to verify editor ingest paths. Prefer the same path as CasparCG media folder. Package Manager will not write or delete files here. Use forward slashes only.",
 			"ui:category": "Package Manager",
 			"default": "c:/casparcg/sofie-demo-media"
 		},

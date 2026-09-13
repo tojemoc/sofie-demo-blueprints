@@ -349,7 +349,7 @@ describe('applyConfig package containers', () => {
 		})
 	})
 
-	it('generates config-driven ingest and caspar containers for copy workflow', () => {
+	it('generates read-only ingest and caspar containers so Package Manager cannot delete NAS files', () => {
 		const config: StudioConfig = {
 			...hybridCasparConfig,
 			casparcgMediaFolder: 'd:/playout/media',
@@ -361,11 +361,13 @@ describe('applyConfig package containers', () => {
 		const containers = result.packageContainers
 
 		expect(containers?.[INGEST_PACKAGE_CONTAINER_ID]?.container.accessors.ingest0).toMatchObject({
-			allowWrite: true,
+			allowRead: true,
+			allowWrite: false,
 			folderPath: 'd:/playout/ingest',
 		})
 		expect(containers?.[CASPARCG_PACKAGE_CONTAINER_ID]?.container.accessors.casparcg0).toMatchObject({
-			allowWrite: true,
+			allowRead: true,
+			allowWrite: false,
 			folderPath: 'd:/playout/media',
 		})
 		expect(containers?.httpProxy0?.container.accessors.http0).toMatchObject({

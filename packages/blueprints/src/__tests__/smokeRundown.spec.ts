@@ -9,6 +9,7 @@ import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { resolveSegmentType } from '../common/definitions/rundownEditorTypes.js'
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import {
 	hybridCasparConfig,
@@ -137,6 +138,21 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		expect(result.part.expectedDuration).toBe(8000)
 		expect(result.part.autoNext).toBe(false)
+	})
+
+	it('emits Sofie Script pieces from top-level smoke part scripts', () => {
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
+		const headline = segment.parts.find((part) => part.payload.externalId === 'part-hl-1')
+		expect(headline?.payload.script).toMatch(/Osobné údaje v OR SR/)
+		if (!headline) return
+
+		const partContext = new PartContext(mockSegmentContext(), headline.payload.externalId)
+		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>, createCountupRevealClaim())
+		const scriptPiece = result.pieces.find((piece) => piece.sourceLayerId === String(SourceLayer.Script))
+		expect(scriptPiece, 'HEADLINE1 must produce a Script piece for the Sofie script track').toBeDefined()
+		expect(scriptPiece?.content).toMatchObject({
+			fullScript: headline.payload.script,
+		})
 	})
 
 	it('HEADLINE ILU+cam parts are timed without Sofie AUTO', () => {

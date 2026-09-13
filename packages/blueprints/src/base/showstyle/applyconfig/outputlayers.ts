@@ -28,7 +28,7 @@ export function getOutputLayer(): IOutputLayer[] {
 		{
 			_id: OutputLayer.Script,
 			name: 'Script',
-			_rank: 200,
+			_rank: 40,
 			isPGM: false,
 			isFlattened: false,
 		},
