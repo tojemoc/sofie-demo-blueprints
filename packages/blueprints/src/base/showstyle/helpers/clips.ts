@@ -36,8 +36,18 @@ export const DEFAULT_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
 /** Fallback wipe length when RE leaves duration empty/0 (full stinger overlay). */
 export const DEFAULT_WIPE_DURATION_MS = 2500
 
-/** Cut point within the wipe stinger — when the screen is fully covered and content switches. */
+/**
+ * Cut point within the wipe stinger — when the screen is fully covered and content switches.
+ * Tuned for `wipes/wipe*.mov` cover frame (~0.76s into the 2.5s stinger).
+ */
 export const WIPE_CUT_POINT_MS = 760
+
+/**
+ * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
+ * Without this the overlay cues ~3s late and the route cut at {@link WIPE_CUT_POINT_MS}
+ * happens before the wipe covers.
+ */
+export const DEFAULT_WIPE_PREROLL_MS = 3000
 
 function resolveVideoFileName(object: VideoObject): string | undefined {
 	const fromAttributes = object.attributes?.fileName
@@ -299,7 +309,7 @@ export function parseLayeredVideosFromObjects(
 							file: toCasparPlayPath(fileName),
 							...(loop ? { loop: true } : {}),
 							// Force PLAY even when Package Manager has not verified the file yet.
-							...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1 } } : {}),
+							...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1, opacity: 1 } } : {}),
 						},
 					}),
 				]

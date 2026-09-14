@@ -109,6 +109,8 @@ export type GraphicObjectAttributes = {
 	bypass?: boolean | string
 	/** Media path for weather bypass / outro jingle (e.g. assets/weather, assets/outro). */
 	fileName?: string
+	/** Caspar mixer volume 0–1 for ILU MEDIA (default 0.5 in blueprints). */
+	volume?: number
 }
 /*
 Note that we are not using the interfaces defined in Sofie,

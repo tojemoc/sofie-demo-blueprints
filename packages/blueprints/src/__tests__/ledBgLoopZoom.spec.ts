@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
+import { ICommonContext } from '@sofie-automation/blueprints-integration'
 import { segmentUsesLedBgLoopZoom, createLedBgLoopZoomPiece } from '../base/showstyle/helpers/ledBgLoopZoom.js'
+import {
+	segmentUsesLedPodHeadline,
+	createLedPodHeadlinePiece,
+	LED_POD_HEADLINE_FILE,
+} from '../base/showstyle/helpers/ledPodHeadline.js'
 import { LED_BG_LOOP_TEMA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
 
 describe('segmentUsesLedBgLoopZoom', () => {
@@ -27,12 +34,13 @@ describe('segmentUsesLedBgLoopZoom', () => {
 })
 
 describe('LED_BG_LOOP_TEMA_FILL', () => {
-	it('is 120% zoom pinned to the right edge', () => {
+	it('pans ~1.085×50% screen right with matching scale (covers DoubleBox cam cutout)', () => {
+		const shift = 1.085 * 0.5
 		expect(LED_BG_LOOP_TEMA_FILL).toEqual({
-			x: -0.2,
-			y: -0.1,
-			xScale: 1.2,
-			yScale: 1.2,
+			x: -shift,
+			y: -(shift * 0.5),
+			xScale: 1 + shift,
+			yScale: 1 + shift,
 		})
 	})
 
@@ -44,6 +52,25 @@ describe('LED_BG_LOOP_TEMA_FILL', () => {
 			mixer: {
 				fill: { ...LED_BG_LOOP_TEMA_FILL },
 			},
+		})
+	})
+})
+
+describe('LED pod headline', () => {
+	it('matches headlines segments only', () => {
+		expect(segmentUsesLedPodHeadline({ externalId: 'seg-headlines', name: 'HEADLINES' })).toBe(true)
+		expect(segmentUsesLedPodHeadline({ externalId: 'seg-tema-1', name: 'Obchodný register' })).toBe(false)
+	})
+
+	it('plays assets/pod_headline on LED layer 112', () => {
+		const context = {
+			getHashId: (s: string) => s,
+		} as unknown as ICommonContext
+		const piece = createLedPodHeadlinePiece(context, hybridCasparConfig, 'part-hl-1')
+		expect(piece.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGLedPodHeadline)
+		expect(piece.content.timelineObjects?.[0]?.content).toMatchObject({
+			file: LED_POD_HEADLINE_FILE,
+			loop: true,
 		})
 	})
 })

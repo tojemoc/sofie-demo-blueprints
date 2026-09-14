@@ -17,7 +17,7 @@ import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { getClipPlayerInput } from './clips.js'
+import { getClipPlayerInput, parseClipVolume } from './clips.js'
 import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
@@ -26,7 +26,6 @@ import {
 	PGM_DOUBLEBOX_ILU_FILL,
 	coverCropForFill,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
-import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -73,6 +72,7 @@ function getTemplateAttributes(
 	delete templateAttributes.iluFallback
 	delete templateAttributes.iluPrerendered
 	delete templateAttributes.bypass
+	delete templateAttributes.volume
 
 	if (normalizedClip === 'gfx/source') {
 		const source = typeof templateAttributes.source === 'string' ? templateAttributes.source.trim() : ''
@@ -249,10 +249,12 @@ const HEADLINE_ILU_FULLSCREEN_FILL = {
 
 /**
  * Underlay under transparent gfx/pocasie HTML on the Full look clip layer.
- * Same media as LED / Full companion baseline — never the opaque `assets/bg_pocasie`
- * blind-map (that hid `loops/bg_loop` on PGM via `route://4`).
+ * Production map/loop: `assets/bg_pocasie` (see demo-assets MEDIA_LAYOUT).
  */
-export const DEFAULT_POCASIE_BG_FILE = LED_BACKGROUND_LOOP_FILE
+export const DEFAULT_POCASIE_BG_FILE = 'assets/bg_pocasie'
+
+/** Default Caspar mixer volume for ILU MEDIA when RE leaves volume unset. */
+export const DEFAULT_ILU_VOLUME = 0.5
 
 /** Default city rows when RE weather piece has no `cities` JSON (matches gfx/pocasie.html). */
 export const DEFAULT_POCASIE_CITIES = [
@@ -269,10 +271,19 @@ export const DEFAULT_POCASIE_CITIES = [
 /** Default Caspar path for outro jingle overlay (on top of everything). */
 export const DEFAULT_OUTRO_FILE = 'assets/outro'
 
+function resolveIluVolume(object: GraphicObjectBase): number {
+	const raw = object.attributes?.volume
+	if (raw === undefined || raw === null) {
+		return DEFAULT_ILU_VOLUME
+	}
+	return parseClipVolume(typeof raw === 'number' ? raw : Number(raw))
+}
+
 function createHeadlineIluMediaTimelineObject(
 	iluFile: string,
 	mode: 'slot' | 'fullscreen',
-	isAdlib?: boolean
+	isAdlib?: boolean,
+	volume: number = DEFAULT_ILU_VOLUME
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const fill = mode === 'fullscreen' ? HEADLINE_ILU_FULLSCREEN_FILL : HEADLINE_ILU_SLOT_FILL
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
@@ -289,6 +300,7 @@ function createHeadlineIluMediaTimelineObject(
 			file: toCasparPlayPath(iluFile),
 			mixer: {
 				fill,
+				volume,
 				...(mode === 'slot' ? { crop: HEADLINE_ILU_SLOT_CROP } : {}),
 			},
 		},
@@ -305,12 +317,13 @@ function getHeadlineIluMediaObject(
 	}
 
 	const mode = useHeadlineIluPrerendered(object) ? 'fullscreen' : 'slot'
-	return [createHeadlineIluMediaTimelineObject(iluFile, mode, isAdlib)]
+	return [createHeadlineIluMediaTimelineObject(iluFile, mode, isAdlib, resolveIluVolume(object))]
 }
 
 function createDoubleboxIluMediaTimelineObject(
 	iluFile: string,
-	isAdlib?: boolean
+	isAdlib?: boolean,
+	volume: number = DEFAULT_ILU_VOLUME
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -326,6 +339,7 @@ function createDoubleboxIluMediaTimelineObject(
 			mixer: {
 				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+				volume,
 			},
 		},
 	})
@@ -339,7 +353,7 @@ function getDoubleboxIluMediaObject(
 	if (!iluFile || !isDoubleboxIlu(object)) {
 		return []
 	}
-	return [createDoubleboxIluMediaTimelineObject(iluFile, isAdlib)]
+	return [createDoubleboxIluMediaTimelineObject(iluFile, isAdlib, resolveIluVolume(object))]
 }
 
 /** PGM L3D HTML templates — LED allow-list is headline ILU + bg_loop only. */

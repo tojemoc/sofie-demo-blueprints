@@ -23,7 +23,8 @@ export function segmentUsesLedBgLoopZoom(segment: { name?: string; externalId?: 
 }
 
 /**
- * Re-assert LED baseline `loops/bg_loop` with 120% right-biased FILL+CROP on ClipPlayer1.
+ * Re-assert LED baseline `loops/bg_loop` with right-shifted FILL+CROP on ClipPlayer1
+ * (vMix shift 1.085 where 1.0 = 50% screen → Caspar FILL x≈-0.5425, scale≈1.5425).
  * WithinPart — baseline fullscreen returns when the part ends (tip/outro/avízo).
  */
 export function createLedBgLoopZoomPiece(config: StudioConfig, partExternalId: string): IBlueprintPiece {

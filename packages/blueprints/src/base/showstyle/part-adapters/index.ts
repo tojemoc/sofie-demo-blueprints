@@ -50,6 +50,7 @@ import {
 	lookSlotForKind,
 } from '../helpers/pgmLook.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
+import { createLedPodHeadlinePiece, segmentUsesLedPodHeadline } from '../helpers/ledPodHeadline.js'
 
 /** Part types that compose a story look on BG A/B. */
 function isLookBearingPartType(type: PartType | null): boolean {
@@ -190,6 +191,20 @@ export function generateParts(
 			})
 		) {
 			newPart.pieces.push(createLedBgLoopZoomPiece(studioConfig, rawPart.payload.externalId))
+		}
+		if (
+			studioConfig.casparcg.hypercomposed &&
+			segmentUsesLedPodHeadline({
+				name: intermediateSegment.payload.name,
+				externalId: intermediateSegment.payload.externalId,
+			})
+		) {
+			newPart.pieces.push(createLedPodHeadlinePiece(partContext, studioConfig, rawPart.payload.externalId))
+		}
+		// Editorial skip / float from Rundown Editor — Sofie must not take these parts.
+		const ingestPayload = rawPart.payload as { float?: boolean; skip?: boolean }
+		if (ingestPayload.float || ingestPayload.skip) {
+			newPart.part.floated = true
 		}
 		// Add userEditOperations to any part (include the segment ones?):
 		newPart.part.userEditOperations = [...userEditOperationsOnSegment]

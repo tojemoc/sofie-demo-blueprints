@@ -39,6 +39,10 @@ export enum SourceLayer {
 	 */
 	LedBgLoopZoom = 'led_bg_loop_zoom',
 	/**
+	 * LED `assets/pod_headline` underlay (layer 112) during headlines — above bg_loop, under ILU.
+	 */
+	LedPodHeadline = 'led_pod_headline',
+	/**
 	 * PGM story-block wipe — EffectsPlayer overlay + delayed MEDIA route cut (DoubleBox + Full)
 	 * with route hard-cut at the wipe cut point.
 	 * Dedicated graphics source layer so wipe never shares Titles/VT with intro and is not
@@ -74,6 +78,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.PgmDoubleBoxLoop:
 		case SourceLayer.FullBgLoop:
 		case SourceLayer.LedBgLoopZoom:
+		case SourceLayer.LedPodHeadline:
 		case SourceLayer.PgmWipe:
 		case SourceLayer.PgmRoute:
 		case SourceLayer.Strap:
