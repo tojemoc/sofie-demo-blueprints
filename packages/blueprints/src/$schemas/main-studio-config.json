@@ -144,7 +144,7 @@
 						"pgmCameraProducer": {
 							"type": "string",
 							"ui:title": "PGM camera producer",
-							"ui:description": "Caspar PLAY path for CAM1 (e.g. dshow://video=OBS Virtual Camera). Hypercomposed studios keep this warm on DoubleBox (BG A layer 115) from rundown baseline. Camera pieces also PLAY on the active look's camera layer: DoubleBox FILL on ch3; fullscreen FILL on Full (ch4)."
+							"ui:description": "Caspar producer for CAM1: ffmpeg URI (dshow://video=…) or DeckLink AMCP text (DECKLINK DEVICE 1 FORMAT 1080p5000 — blueprints emit TSR INPUT, not a quoted clip). Hypercomposed studios keep CAM1 warm on DoubleBox (BG A layer 115) from rundown baseline. Camera pieces also PLAY on the active look's camera layer: DoubleBox FILL on ch3; fullscreen FILL on Full (ch4)."
 						},
 						"pgmCameraVideoFilter": {
 							"type": "string",
