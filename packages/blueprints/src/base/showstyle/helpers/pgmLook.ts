@@ -205,7 +205,7 @@ export function remapLookLayers(pieces: IBlueprintPiece[], slot: LookSlot): void
 /** Live dshow/v4l2 producers — must not LOADBG on the idle BG channel during preroll. */
 function isLiveCameraProducerFile(file: unknown): boolean {
 	if (typeof file !== 'string') return false
-	const lower = file.toLowerCase()
+	const lower = file.toLowerCase().trim()
 	return lower.startsWith('dshow://') || lower.startsWith('v4l2://') || lower.startsWith('decklink://')
 }
 

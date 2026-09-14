@@ -14,7 +14,7 @@ import { StudioConfig } from '../base/studio/helpers/config.js'
 import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
 
 describe('pgmCamera helpers', () => {
-	it('reads producer from hypercomposed studio config', () => {
+	it('reads producer from hypercomposed studio config only', () => {
 		expect(getPgmCameraProducer(hybridCasparConfig)).toBe('dshow://video=OBS Virtual Camera')
 	})
 
@@ -51,7 +51,7 @@ describe('pgmCamera helpers', () => {
 		})
 	})
 
-	it('baselines warm DoubleBox CAM1 with DoubleBox FILL', () => {
+	it('baselines warm DoubleBox CAM1 with config dshow as MEDIA (not DeckLink)', () => {
 		const warm = createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)
 		expect(warm?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
 		expect(warm?.enable).toEqual({ while: 1 })
@@ -64,9 +64,10 @@ describe('pgmCamera helpers', () => {
 				fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 },
 			},
 		})
+		expect(warm?.content).not.toHaveProperty('inputType')
 	})
 
-	it('parses DeckLink producer strings from studio config', () => {
+	it('parses DeckLink only when config string is DeckLink AMCP', () => {
 		expect(parseDecklinkProducer('DECKLINK DEVICE 1 FORMAT 1080p5000')).toEqual({
 			device: 1,
 			format: '1080p5000',
@@ -76,9 +77,22 @@ describe('pgmCamera helpers', () => {
 			format: '1080I5000',
 		})
 		expect(parseDecklinkProducer('dshow://video=OBS Virtual Camera')).toBeUndefined()
+		expect(parseDecklinkProducer('clips/cam.mov')).toBeUndefined()
 	})
 
-	it('maps DeckLink to TSR INPUT (unquoted AMCP) instead of MEDIA clip path', () => {
+	it('emits MEDIA with exact dshow string — never invents DeckLink INPUT', () => {
+		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'dshow://video=OBS Virtual Camera', {
+			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+		})
+		expect(content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'dshow://video=OBS Virtual Camera',
+		})
+		expect(content).not.toHaveProperty('inputType')
+		expect(content).not.toHaveProperty('device')
+	})
+
+	it('maps DeckLink config string to INPUT using device/format from that string', () => {
 		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 1 FORMAT 1080p5000', {
 			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 		})
@@ -92,7 +106,7 @@ describe('pgmCamera helpers', () => {
 		expect(casparFormatToChannelFormat('1080p5000')).toBe(TSR.ChannelFormat.HD_1080P5000)
 	})
 
-	it('baselines DeckLink CAM1 as structured INPUT', () => {
+	it('baselines DeckLink only when studio config producer is DeckLink text', () => {
 		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
 		const config = {
 			...hybridCasparConfig,
