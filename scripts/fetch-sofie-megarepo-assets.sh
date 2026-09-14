@@ -32,11 +32,11 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
-PINNED_SOFIE_ASSETS_REF="0237090c34dca9569df9b0c9aa0c63158bb2f1e4" # SPRÁVY smoke 2026-09-14 export (sofie#58)
+PINNED_SOFIE_ASSETS_REF="71acdf8711c48686e14a94493cc6b04e5b27d38d" # SPRÁVY smoke 2026-09-14 export + ilu-zaver závěr (sofie#58)
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
-	[spravy-v3-smoke-rundown.json]=3ce16c324d79101cb3a840d61fdb0d95d55c643c8da23420c7f5aee2e5da71a0
+	[spravy-v3-smoke-rundown.json]=0ba76d11e3bc063100d2a62b8a7706fb6854f05181139954d8415d20550e0eab
 	[sofie-rundown-editor-piece-types.json]=e8bfa1aa062965c98981982f02a4eb2d1233f63e0254f84c46ed7676e618b001
 	[sofie-rundown-editor-part-types.json]=2bd2c0c6f29e4f84575ba86e47ee20861cd4ffe75a2421d7a6b833d6dc5c991b
 	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
