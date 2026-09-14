@@ -417,7 +417,7 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
-	it('maps l3d-odporucanie to gfx/outro Caspar template on disk', () => {
+	it('maps l3d-odporucanie to gfx/l3d-odporucanie Caspar template on disk', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
 				id: 'odp1',
@@ -433,7 +433,7 @@ describe('casparV2Graphics', () => {
 		])
 
 		const caspar = result.pieces[0]?.content.timelineObjects?.[0]
-		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/outro')
+		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/l3d-odporucanie')
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
 			headline: 'Sledujte na www.360tka.sk',
 		})

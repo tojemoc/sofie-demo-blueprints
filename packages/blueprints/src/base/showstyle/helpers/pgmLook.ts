@@ -305,10 +305,10 @@ function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprint
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Opaque cover: force full opacity so premultiplied/half-alpha wipe masters
-			// still read as solid where RGB is meant to be opaque. Remaster wipe.mov if
-			// soft edges remain wrong (straight vs premultiplied alpha).
-			mixer: { volume: 1, opacity: 1 },
+			// Wipe master carries its own alpha — do not add channel/layer keyers or
+			// FILL/CROP. Soft/half-transparent opaque regions are an encode issue
+			// (straight vs premultiplied), not a Caspar mixer filter.
+			mixer: { volume: 1 },
 		},
 	})
 }
@@ -402,7 +402,12 @@ function createPgmRoutePiece(
 					),
 				]
 			: undefined,
-		prerollDuration: Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS),
+		// Wipe overlay needs a long LOADBG window. Hard-cut route pieces must use only
+		// casparcgLatency — lookPrerollMs / wipe preroll on every route delayed every Take
+		// by ~1.5–3s (UI advanced, AMCP held). BG cueing for hard cuts is lookahead's job.
+		prerollDuration: hasWipe
+			? Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
+			: config.casparcgLatency,
 	})
 }
 

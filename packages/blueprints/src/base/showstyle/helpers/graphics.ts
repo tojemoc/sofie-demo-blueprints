@@ -47,9 +47,8 @@ function normalizeGraphicClipName(clipName: string): string {
 /** Map Sofie clipNames to on-disk Caspar template paths from demo-assets `template/gfx/`. */
 function resolveCasparTemplateName(clipName: string): string {
 	const normalized = normalizeGraphicClipName(clipName)
-	if (normalized === 'gfx/l3d-odporucanie') {
-		return 'gfx/outro'
-	}
+	// l3d-odporucanie ships as its own HTML (jednou-vetou shell, no kicker).
+	// Older deploys only had gfx/outro — keep that as a documented fallback in docs only.
 	return normalized
 }
 
@@ -217,11 +216,20 @@ function getTemplateAttributes(
 }
 
 /**
- * ILU headline pieces always use prerendered alpha .mov fullscreen over bg_loop.
- * Cropped ILU + headline-fallback chrome is disabled until further notice.
+ * Headline ILU sizing:
+ * - `iluPrerendered` / `bypass` explicit true → fullscreen alpha .mov over bg_loop
+ * - explicit false → cropped slot FILL (HEADLINE_ILU_SLOT_*)
+ * - flag absent + iluFile → fullscreen (legacy production headlines)
+ *
+ * Závěr / DoubleBox avízo must use piece type `doublebox-ilu` (PGM window FILL),
+ * not headline+bypass — bypass alone never yields the DoubleBox left window.
  */
 function useHeadlineIluPrerendered(object: GraphicObjectBase): boolean {
-	return hasHeadlineIluFile(object)
+	if (!hasHeadlineIluFile(object)) return false
+	const attrs = object.attributes
+	if (attrs.iluPrerendered !== undefined) return isTruthyAttribute(attrs.iluPrerendered)
+	if (attrs.bypass !== undefined) return isTruthyAttribute(attrs.bypass)
+	return true
 }
 
 function hasHeadlineIluFile(object: GraphicObjectBase): boolean {

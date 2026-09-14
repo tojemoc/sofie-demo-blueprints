@@ -96,11 +96,11 @@ describe('L3D Caspar template field contracts', () => {
 		expect(data).not.toHaveProperty('role')
 	})
 
-	it('gfx/l3d-odporucanie resolves to gfx/outro with headline', () => {
+	it('gfx/l3d-odporucanie resolves to gfx/l3d-odporucanie with headline', () => {
 		const { templateName, data } = casparData('gfx/l3d-odporucanie', {
 			headline: 'Sledujte na www.360tka.sk',
 		})
-		expect(templateName).toBe('gfx/outro')
+		expect(templateName).toBe('gfx/l3d-odporucanie')
 		expect(data).toEqual({ headline: 'Sledujte na www.360tka.sk' })
 	})
 })

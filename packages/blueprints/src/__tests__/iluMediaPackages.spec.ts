@@ -206,7 +206,7 @@ describe('gfx/headline ILU expectedPackages', () => {
 					isAdlib: false,
 					attributes: {
 						iluFile,
-						iluPrerendered: false,
+						iluPrerendered: true,
 						source: 'Reuters',
 					},
 				},
@@ -231,6 +231,36 @@ describe('gfx/headline ILU expectedPackages', () => {
 			},
 		})
 		expect(piece?.expectedPackages?.[0]?.layers).toEqual([CasparCGLayers.CasparCGIluPlayer])
+	})
+
+	it('honours iluPrerendered/bypass false as cropped headline ILU slot (not fullscreen)', () => {
+		const iluFile = 'clips/foo.mp4'
+
+		const result = parseGraphicsFromObjects(
+			hybridCasparConfig,
+			[
+				{
+					id: 'headline-slot',
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/headline',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {
+						iluFile,
+						iluPrerendered: false,
+					},
+				},
+			],
+			context
+		)
+
+		const media = result.pieces[0]?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer
+		)
+		const mixer = (media?.content as TSR.TimelineContentCCGMedia).mixer
+		expect(mixer?.fill).not.toEqual({ x: 0, y: 0, xScale: 1, yScale: 1 })
+		expect(mixer?.crop).toBeDefined()
 	})
 
 	it('treats legacy iluFallback as prerendered/bypass ON', () => {

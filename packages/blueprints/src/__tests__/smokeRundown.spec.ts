@@ -273,7 +273,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		expect(
 			outro.parts.some(
-				(part) => part.rawType?.match(/ilu/i) && part.objects.some((obj) => obj.clipName === 'gfx/headline')
+				(part) => part.rawType?.match(/doublebox/i) && part.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')
 			)
 		).toBe(true)
 		expect(

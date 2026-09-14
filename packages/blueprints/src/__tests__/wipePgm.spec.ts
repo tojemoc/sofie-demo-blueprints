@@ -82,7 +82,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
-			mixer: { volume: 1, opacity: 1 },
+			mixer: { volume: 1 },
 		})
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
@@ -260,6 +260,25 @@ describe('wipe piece type → PGM route / overlay', () => {
 			{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
 			{ mappedLayer: 'sisyfos_source_playback1', isPgm: 0 },
 		])
+	})
+
+	it('hard-cut PGM route pieces use only casparcgLatency (no look/wipe preroll)', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const syn = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
+		expect(syn).toBeDefined()
+		if (!syn) return
+		const payload = syn.payload as { pieces: Array<{ objectType: string }> }
+		payload.pieces = payload.pieces.filter((piece) => piece.objectType.toLowerCase() !== 'wipe')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === 'part-tema-1-syn-1')
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		const routePiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmRoute as string))
+		expect(routePiece).toBeDefined()
+		// Softie holds Take by max piece preroll — look/wipe ms here made every hard cut lag ~1.5–3s.
+		expect(routePiece?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 	})
 })
 
