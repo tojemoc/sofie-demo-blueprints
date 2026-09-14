@@ -262,7 +262,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		])
 	})
 
-	it('hard-cut PGM route pieces do not inherit wipe 3s preroll', () => {
+	it('hard-cut PGM route pieces use only casparcgLatency (no look/wipe preroll)', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const syn = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
 		expect(syn).toBeDefined()
@@ -277,7 +277,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const routePiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmRoute as string))
 		expect(routePiece).toBeDefined()
-		expect(routePiece?.prerollDuration ?? 0).toBeLessThan(3000)
+		// Softie holds Take by max piece preroll — look/wipe ms here made every hard cut lag ~1.5–3s.
+		expect(routePiece?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 	})
 })
 

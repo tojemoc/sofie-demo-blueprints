@@ -402,11 +402,12 @@ function createPgmRoutePiece(
 					),
 				]
 			: undefined,
-		// Wipe overlay needs a long LOADBG window; hard-cut route pieces must NOT inherit
-		// that or every Take holds ~DEFAULT_WIPE_PREROLL_MS before AMCP fires.
+		// Wipe overlay needs a long LOADBG window. Hard-cut route pieces must use only
+		// casparcgLatency — lookPrerollMs / wipe preroll on every route delayed every Take
+		// by ~1.5–3s (UI advanced, AMCP held). BG cueing for hard cuts is lookahead's job.
 		prerollDuration: hasWipe
 			? Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
-			: Math.max(config.casparcgLatency, getLookPrerollMs(config)),
+			: config.casparcgLatency,
 	})
 }
 

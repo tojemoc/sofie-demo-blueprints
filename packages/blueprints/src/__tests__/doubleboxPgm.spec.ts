@@ -325,4 +325,53 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'mixed-case doublebox-ilu must still include db_loop').toBeDefined()
 	})
+
+	it('coerces stale headline+bypass ILU on a DoubleBox part to doublebox-ilu window FILL', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
+		const part = ingest.parts.find((p) => p.externalId === 'part-avizo-db')
+		expect(part).toBeDefined()
+		if (!part) return
+
+		const payload = part.payload as {
+			type: string
+			pieces: Array<{
+				id: string
+				objectType: string
+				objectTime?: number
+				duration?: number
+				clipName?: string
+				attributes: Record<string, unknown>
+			}>
+		}
+		payload.type = 'doublebox'
+		// Simulate pre-migration závěr piece still typed as headline with bypass ON.
+		payload.pieces = payload.pieces.map((piece) =>
+			piece.objectType === 'doublebox-ilu'
+				? {
+						...piece,
+						objectType: 'headline',
+						attributes: {
+							...piece.attributes,
+							iluPrerendered: true,
+							bypass: true,
+						},
+					}
+				: piece
+		)
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-avizo-db')
+		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
+
+		const partContext = new PartContext(mockSegmentContext(), dbPart!.payload.externalId)
+		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>, createCountupRevealClaim())
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+		const ilu = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer)
+		expect(ilu?.content).toMatchObject({
+			mixer: {
+				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+			},
+		})
+	})
 })
