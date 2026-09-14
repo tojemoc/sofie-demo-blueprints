@@ -134,6 +134,13 @@
 							"ui:title": "BG look channel B",
 							"ui:description": "Render-only Caspar channel that pre-builds look B (e.g. fullscreen SYN/VT). Ping-pongs with A so the on-air look is never rebuilt under the PGM route."
 						},
+						"camIngestChannel": {
+							"type": "integer",
+							"minimum": 1,
+							"default": 5,
+							"ui:title": "CAM ingest channel",
+							"ui:description": "Render-only helper that permanently holds DeckLink / dshow (sole EnableVideoInput). Look A/B camera layers PLAY route://N from this channel. caspar.config needs ≥5 channels or PLAY/LOADBG on this index returns 400."
+						},
 						"lookPrerollMs": {
 							"type": "integer",
 							"minimum": 0,
@@ -144,18 +151,18 @@
 						"pgmCameraProducer": {
 							"type": "string",
 							"ui:title": "PGM camera producer",
-							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). dshow://video=… → MEDIA as-is. DECKLINK DEVICE N FORMAT … → TSR INPUT / PlayDecklink (unquoted). Live producers are exclusive — only the active look (ch3 or ch4 layer 115) holds the device; the idle look gets EMPTY (no rundown-long baseline warm on DoubleBox). AMCP must include DEVICE — sofie-core Yarn-patches casparcg-connection so PlayDecklink emits DECKLINK DEVICE <n>; rebuild/restart playout-gateway to pick that up (blueprint re-upload alone is not enough). Do not use MEDIA for DeckLink or Sofie quotes it as a clip path (404 File not found). After any change: re-upload blueprints if needed, then Reset Rundown / re-activate so camera pieces regenerate."
+							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). Opened once on camIngestChannel (default 5); look layers use MEDIA route://5 with FILL — never a second DECKLINK/dshow on 3-115/4-115. dshow://video=… → MEDIA on ingest. DECKLINK DEVICE N FORMAT … → TSR INPUT on ingest (PlayDecklink). AMCP must include DEVICE — sofie-core Yarn-patches casparcg-connection so PlayDecklink emits DECKLINK DEVICE <n>; rebuild/restart playout-gateway to pick that up (blueprint re-upload alone is not enough). After any change: re-upload blueprints if needed, then Reset Rundown / re-activate so ingest baseline + look routes regenerate."
 						},
 						"pgmCameraVideoFilter": {
 							"type": "string",
 							"ui:title": "PGM camera video filter (VF)",
-							"ui:description": "Optional libavfilter for the PGM UVC producer (Caspar VF), e.g. scale=1280:720. Lowers decode load on dshow://virtual cameras."
+							"ui:description": "Optional libavfilter for the CAM ingest producer (Caspar VF), e.g. scale=1280:720. Applied on the ingest channel only."
 						},
 						"debugChannelLabels": {
 							"type": "boolean",
 							"default": false,
 							"ui:title": "Debug channel labels",
-							"ui:description": "Testing only: burn-in labels on layer 990 of each Caspar channel (1. LED / 2. PGM / 3. DoubleBox / 4. Full) via gfx/debug-channel-label. Copy the megarepo template into Caspar template-path before enabling."
+							"ui:description": "Testing only: burn-in labels on layer 990 of each Caspar channel (1. LED / 2. PGM / 3. DoubleBox / 4. Full / 5. CAM) via gfx/debug-channel-label. Copy the megarepo template into Caspar template-path before enabling."
 						}
 					},
 					"required": ["ledChannel", "pgmChannel"],

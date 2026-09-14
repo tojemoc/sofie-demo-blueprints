@@ -3,6 +3,7 @@ import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 
 /** Caspar MEDIA or DeckLink INPUT — always derived from studio `pgmCameraProducer`. */
@@ -66,6 +67,11 @@ export function isLivePgmCameraProducer(producer: string): boolean {
 	return isLiveFfmpegProducer(producer) || parseDecklinkProducer(producer) !== undefined
 }
 
+/** Caspar channel that permanently holds live CAM (default **5**). */
+export function getCamIngestChannel(config: StudioConfig): number {
+	return getHypercomposedChannels({ studio: config }).camIngestChannel
+}
+
 /** MEDIA-only options (dshow/v4l2/etc.) — noStarttime avoids spurious SEEK on live URIs. */
 export function getPgmCameraMediaContentOptions(
 	config: StudioConfig,
@@ -86,24 +92,16 @@ export function getPgmCameraMediaContentOptions(
 }
 
 /**
- * Build camera timeline content from the studio config producer string only.
+ * Native producer content for the **ingest** channel only (channel 5 by default).
+ * This is the sole timeline object allowed to open DeckLink / dshow.
  *
- * - `dshow://…` / files → MEDIA with `file` = that exact string (quoted by Sofie; fine for URIs).
- * - `DECKLINK DEVICE N FORMAT …` → INPUT parsed from that same string (PlayDecklink, unquoted).
- *   Sofie always quotes MEDIA clips; quoting native DECKLINK AMCP makes Caspar look for a file
- *   (`404 PLAY FAILED` / File not found).
- *
- * Note on the word `DEVICE`: blueprints do **not** strip it from config. We parse device index
- * + format into TSR INPUT; playout's casparcg-connection serializes PlayDecklink as
- * `DECKLINK <n> FORMAT <fmt>` (no `DEVICE` keyword). That is intentional upstream and Caspar
- * accepts it. A log line like `DeckLink … [1|1080p5000] Could not enable video input` means
- * device+format were parsed — `EnableVideoInput` failed for hardware/config reasons (device
- * already used as a DeckLink consumer, Desktop Video connector mode, no signal, etc.).
+ * - `DECKLINK DEVICE N FORMAT …` → INPUT (PlayDecklink, unquoted).
+ * - `dshow://…` / files → MEDIA with `file` = that exact string.
  */
 export function createPgmCameraTimelineContent(
 	config: StudioConfig,
 	producer: string,
-	mixer: TSR.Mixer
+	mixer?: TSR.Mixer
 ): PgmCameraTimelineContent {
 	const decklink = parseDecklinkProducer(producer)
 	const videoFilter = getPgmCameraVideoFilter(config)
@@ -115,7 +113,7 @@ export function createPgmCameraTimelineContent(
 			inputType: 'decklink',
 			device: decklink.device,
 			deviceFormat: resolveDecklinkDeviceFormat(decklink.format),
-			mixer,
+			...(mixer ? { mixer } : {}),
 			...(videoFilter ? { videoFilter } : {}),
 		}
 	}
@@ -124,19 +122,58 @@ export function createPgmCameraTimelineContent(
 		deviceType: TSR.DeviceType.CASPARCG,
 		type: TSR.TimelineContentTypeCasparCg.MEDIA,
 		file: producer,
-		mixer,
+		...(mixer ? { mixer } : {}),
 		...getPgmCameraMediaContentOptions(config, producer),
 	}
 }
 
 /**
- * Optional non-live CAM still/file on DoubleBox (BG A / ch3 layer 115) for the rundown.
+ * Look A/B camera layer content (BG 3/4 layer 115).
  *
- * Live producers (DeckLink / dshow / v4l2) are **not** baseline-warmed: a rundown-long
- * PLAY on ch3-115 would still hold the exclusive device when Full/headline parts open the
- * same producer on ch4-115 (`EnableVideoInput` / dual dshow fail). Live CAM is owned only
- * by the active look's WithinPart piece; {@link releaseIdleLookLiveCamera} CLEARs the idle
- * look with EMPTY. Change config, then Reset Rundown to apply.
+ * Live producers → MEDIA `route://{camIngestChannel}` with the look FILL (DeckLink stays
+ * open only on the ingest helper). File/still producers → play the file on the look layer.
+ */
+export function createLookCameraTimelineContent(
+	config: StudioConfig,
+	producer: string,
+	mixer: TSR.Mixer
+): PgmCameraTimelineContent {
+	if (isLivePgmCameraProducer(producer)) {
+		const channel = getCamIngestChannel(config)
+		return {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: `route://${channel}`,
+			noStarttime: true,
+			mixer,
+		}
+	}
+	return createPgmCameraTimelineContent(config, producer, mixer)
+}
+
+/**
+ * Keep live CAM open for the whole rundown on the ingest helper channel (default ch5).
+ * Look pieces never PLAY DeckLink/dshow — they route from here. Change config, then Reset Rundown.
+ */
+export function createCameraIngestBaselineTimeline(
+	config: StudioConfig
+): TimelineBlueprintExt<PgmCameraTimelineContent> | undefined {
+	if (!config.casparcg.hypercomposed) return undefined
+	const producer = getPgmCameraProducer(config)
+	if (!producer || !isLivePgmCameraProducer(producer)) return undefined
+
+	return literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({
+		id: '',
+		enable: { while: 1 },
+		priority: 0,
+		layer: CasparCGLayers.CasparCGPgmCameraIngest,
+		content: createPgmCameraTimelineContent(config, producer),
+	})
+}
+
+/**
+ * Optional non-live CAM still/file on DoubleBox (BG A / ch3 layer 115) for the rundown.
+ * Live producers use {@link createCameraIngestBaselineTimeline} instead.
  */
 export function createDoubleBoxBaselineCameraTimeline(
 	config: StudioConfig
@@ -144,7 +181,6 @@ export function createDoubleBoxBaselineCameraTimeline(
 	if (!config.casparcg.hypercomposed) return undefined
 	const producer = getPgmCameraProducer(config)
 	if (!producer) return undefined
-	// Exclusive capture — never hold on look A while look B may also need the device.
 	if (isLivePgmCameraProducer(producer)) return undefined
 
 	return literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({

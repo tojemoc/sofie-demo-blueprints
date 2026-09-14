@@ -33,6 +33,15 @@ export const BgChannelLayers = {
 } as const
 
 /**
+ * Render-only helper channel that holds the single live CAM producer (DeckLink / dshow).
+ * Looks sample it via MEDIA `route://N` on BG layer 115 — never open DEVICE 1 twice.
+ */
+export const CamIngestChannelLayers = {
+	/** Fullscreen live capture — only DeckLink/dshow PLAY in the studio. */
+	Camera: 10,
+} as const
+
+/**
  * Caspar layer numbers on the PGM channel (route bus + persistent overlays).
  * Story looks compose on BG A/B; PGM routes the settled mix and keeps logo / intro above.
  * DoubleBox and Full-section wipes PLAY on EffectsPlayer (200) while

@@ -5,6 +5,7 @@ import { CasparCGLayers } from '../base/studio/layers.js'
 import { getCasparCGMappings, getHypercomposedChannels } from '../base/studio/applyConfig/mappings/casparcg.js'
 import {
 	BgChannelLayers,
+	CamIngestChannelLayers,
 	LedChannelLayers,
 	PgmChannelLayers,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
@@ -48,12 +49,13 @@ function getMappingOptions(layer: CasparCGLayers, studioConfig: StudioConfig = b
 }
 
 describe('casparcgMappings', () => {
-	it('defaults hypercomposed channels to LED=1, PGM=2, BG A=3, BG B=4', () => {
+	it('defaults hypercomposed channels to LED=1, PGM=2, BG A=3, BG B=4, CAM ingest=5', () => {
 		expect(getHypercomposedChannels({ studio: baseStudioConfig })).toEqual({
 			ledChannel: 1,
 			pgmChannel: 2,
 			bgChannelA: 3,
 			bgChannelB: 4,
+			camIngestChannel: 5,
 		})
 	})
 
@@ -67,6 +69,7 @@ describe('casparcgMappings', () => {
 					pgmChannel: 5,
 					bgChannelA: 6,
 					bgChannelB: 7,
+					camIngestChannel: 8,
 				},
 			},
 		}
@@ -76,11 +79,13 @@ describe('casparcgMappings', () => {
 			pgmChannel: 5,
 			bgChannelA: 6,
 			bgChannelB: 7,
+			camIngestChannel: 8,
 		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer1, overrideConfig).channel).toBe(4)
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmRoute, overrideConfig).channel).toBe(5)
 		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2, overrideConfig).channel).toBe(6)
 		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2B, overrideConfig).channel).toBe(7)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCameraIngest, overrideConfig).channel).toBe(8)
 	})
 
 	it('corrects identical LED and PGM channels to a distinct set', () => {
@@ -102,6 +107,7 @@ describe('casparcgMappings', () => {
 			pgmChannel: 4,
 			bgChannelA: 5,
 			bgChannelB: 6,
+			camIngestChannel: 7,
 		})
 	})
 
@@ -161,6 +167,14 @@ describe('casparcgMappings', () => {
 		})
 		expect(PgmChannelLayers.GraphicsLogo).toBeGreaterThan(PgmChannelLayers.Route)
 		expect(PgmChannelLayers.IntroOverlay).toBeGreaterThan(PgmChannelLayers.GraphicsLogo)
+	})
+
+	it('routes CAM ingest helper to channel 5 (sole DeckLink/dshow open)', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCameraIngest)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 5,
+			layer: CamIngestChannelLayers.Camera,
+		})
 	})
 
 	it('routes look A compose stack to BG channel 3', () => {
@@ -255,9 +269,10 @@ describe('casparcgMappings', () => {
 		const mappings = getCasparCGMappings({ studio: baseStudioConfig })
 		expect(mappings[CasparCGLayers.CasparCGClipPlayer2]?.lookahead).toBe(LookaheadMode.PRELOAD)
 		expect(mappings[CasparCGLayers.CasparCGClipPlayer2B]?.lookahead).toBe(LookaheadMode.PRELOAD)
-		// Live dshow must not PRELOAD on the idle look (opens a second Virtual Camera → rtbufsize spam).
+		// Look CAM layers route://ingest — no native DeckLink PRELOAD. Ingest mapping also NONE.
 		expect(mappings[CasparCGLayers.CasparCGPgmCamera]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmCameraB]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmCameraIngest]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsLogo]?.lookahead).toBe(LookaheadMode.NONE)
 	})

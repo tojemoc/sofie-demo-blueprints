@@ -37,6 +37,7 @@ describe('createDebugChannelLabelTimeline', () => {
 			{ layer: CasparCGLayers.CasparCGDebugLabelPgm, label: '2. PGM' },
 			{ layer: CasparCGLayers.CasparCGDebugLabelDoubleBox, label: '3. DoubleBox' },
 			{ layer: CasparCGLayers.CasparCGDebugLabelFull, label: '4. Full' },
+			{ layer: CasparCGLayers.CasparCGDebugLabelCamIngest, label: '5. CAM' },
 		])
 	})
 
@@ -51,6 +52,7 @@ describe('createDebugChannelLabelTimeline', () => {
 						pgmChannel: 5,
 						bgChannelA: 6,
 						bgChannelB: 7,
+						camIngestChannel: 8,
 						debugChannelLabels: true,
 					},
 				},
@@ -60,6 +62,7 @@ describe('createDebugChannelLabelTimeline', () => {
 			{ layer: CasparCGLayers.CasparCGDebugLabelPgm, label: '5. PGM' },
 			{ layer: CasparCGLayers.CasparCGDebugLabelDoubleBox, label: '6. DoubleBox' },
 			{ layer: CasparCGLayers.CasparCGDebugLabelFull, label: '7. Full' },
+			{ layer: CasparCGLayers.CasparCGDebugLabelCamIngest, label: '8. CAM' },
 		])
 	})
 })

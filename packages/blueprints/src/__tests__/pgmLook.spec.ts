@@ -148,17 +148,21 @@ describe('pgmLook look-kind channels + route', () => {
 		const liveCam = hl2Timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
 		expect(liveCam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'dshow://video=OBS Virtual Camera',
+			file: 'route://5',
+			noStarttime: true,
 		})
-		const idleClear = hl2Timeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
-		expect(idleClear?.priority).toBe(2)
-		expect(idleClear?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'EMPTY',
-		})
+		// Idle look must not open DeckLink — only route from ingest (or nothing).
+		expect(
+			hl2Timeline.some(
+				(obj) =>
+					obj.layer === LOOK_A_LAYERS.camera &&
+					((obj.content as { file?: string }).file?.startsWith('dshow://') ||
+						(obj.content as { inputType?: string }).inputType === 'decklink')
+			)
+		).toBe(false)
 	})
 
-	it('DoubleBox live CAM plays on look A and EMPTYs look B camera layer', () => {
+	it('DoubleBox live CAM plays route://5 on look A (no DeckLink on look B)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -172,17 +176,18 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!doubleBox) return
 
 		const timeline = doubleBox.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
-		const liveCam = timeline.find(
-			(obj) =>
-				obj.layer === LOOK_A_LAYERS.camera &&
-				(obj.content as { file?: string }).file?.startsWith('dshow://')
-		)
-		expect(liveCam).toBeDefined()
-		const idleClear = timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
-		expect(idleClear?.content).toMatchObject({
+		const liveCam = timeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
+		expect(liveCam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'EMPTY',
+			file: 'route://5',
 		})
+		expect(
+			timeline.some(
+				(obj) =>
+					obj.layer === LOOK_B_LAYERS.camera &&
+					(obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(false)
 	})
 
 	it('hard-cut VO (Full) emits PGM MEDIA route://4 with no STING', () => {
@@ -261,17 +266,17 @@ describe('pgmLook look-kind channels + route', () => {
 
 		expect(dbTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.camera)).toBe(true)
 		expect(dbTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(true)
-		// Idle Full camera layer is EMPTY (releases exclusive DeckLink/dshow), not a second live open.
-		const dbIdleCam = dbTimeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
-		expect(dbIdleCam?.content).toMatchObject({
+		const dbCam = dbTimeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
+		expect(dbCam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'EMPTY',
+			file: 'route://5',
 		})
 		expect(
 			dbTimeline.some(
 				(obj) =>
 					obj.layer === LOOK_B_LAYERS.camera &&
-					(obj.content as { file?: string; inputType?: string }).file?.startsWith?.('dshow://')
+					((obj.content as { file?: string }).file?.startsWith?.('dshow://') ||
+						(obj.content as { inputType?: string }).inputType === 'decklink')
 			)
 		).toBe(false)
 

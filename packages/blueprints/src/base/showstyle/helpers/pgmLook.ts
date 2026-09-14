@@ -202,7 +202,7 @@ export function remapLookLayers(pieces: IBlueprintPiece[], slot: LookSlot): void
 	}
 }
 
-/** Live dshow/v4l2 producers — must not LOADBG on the idle BG channel during preroll. */
+/** True when a look piece still opens native live capture (should not happen after ch5 ingest). */
 function isLiveCameraProducerFile(file: unknown): boolean {
 	if (typeof file !== 'string') return false
 	const lower = file.toLowerCase().trim()
@@ -223,61 +223,14 @@ function pieceUsesLiveCameraProducer(piece: IBlueprintPiece): boolean {
 	})
 }
 
-/** Caspar EMPTY producer — releases the previous look's DeckLink / dshow hold. */
-export const CASPAR_EMPTY_PRODUCER = 'EMPTY'
-
-/**
- * DeckLink / dshow can only EnableVideoInput (or open capture) once. When the active look
- * plays a live CAM on its layer 115, force the idle look's camera layer to EMPTY so wipe
- * keepalive / a prior part cannot keep the same device open on the other BG channel.
- */
-export function releaseIdleLookLiveCamera(pieces: IBlueprintPiece[], lookSlot: LookSlot): void {
-	const activeCameraLayer = getLookLayers(lookSlot).camera
-	const idleCameraLayer = getLookLayers(lookSlot === 'A' ? 'B' : 'A').camera
-
-	for (const piece of pieces) {
-		const objs = piece.content.timelineObjects
-		if (!objs?.length) continue
-
-		const hasLiveCamOnActive = objs.some((obj) => {
-			if (String(obj.layer) !== (activeCameraLayer as string)) return false
-			return isLiveCameraTimelineContent(obj.content as { type?: string; file?: unknown; inputType?: string })
-		})
-		if (!hasLiveCamOnActive) continue
-
-		const alreadyCleared = objs.some(
-			(obj) =>
-				String(obj.layer) === (idleCameraLayer as string) &&
-				(obj.content as { type?: string; file?: unknown })?.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
-				String((obj.content as { file?: unknown }).file || '').toUpperCase() === CASPAR_EMPTY_PRODUCER
-		)
-		if (alreadyCleared) continue
-
-		objs.push(
-			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-				id: '',
-				enable: { start: 0 },
-				// Above WithinPart cam (priority 1) so wipe keepalive on the idle look yields.
-				priority: 2,
-				layer: idleCameraLayer,
-				content: {
-					deviceType: TSR.DeviceType.CASPARCG,
-					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					file: CASPAR_EMPTY_PRODUCER,
-				},
-			})
-		)
-	}
-}
-
 function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 	if (prerollMs <= 0) return
 
 	for (const piece of pieces) {
 		const usesLook = (piece.content.timelineObjects ?? []).some((obj) => isLookComposeLayer(String(obj.layer)))
 		if (!usesLook) continue
-		// Skip live-cam preroll on both looks so lookahead never opens DeckLink/dshow on the
-		// idle BG channel while the on-air look still holds the exclusive device.
+		// Native DeckLink/dshow must not LOADBG on look layers (ingest helper owns the device).
+		// Look CAM is normally MEDIA route://5 — safe to preroll; skip only if a piece still has INPUT.
 		if (pieceUsesLiveCameraProducer(piece)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
@@ -510,9 +463,6 @@ export function finalizeHypercomposedPart(
 	if (!isHypercomposedStudio(config)) return
 
 	remapLookLayers(pieces, lookSlot)
-	// After remap: live CAM is on this look's 115 — EMPTY the other look so DeckLink/dshow
-	// is not held on both 3-115 and 4-115 (EnableVideoInput / dual capture fail).
-	releaseIdleLookLiveCamera(pieces, lookSlot)
 
 	const wipe = findWipeVideoObject(objects)
 	const wipeFile = wipe

@@ -33,9 +33,14 @@ export enum CasparCGLayers {
 	CasparCGPgmIluPlayer = 'casparcg_pgm_ilu_player',
 	/** Look B DoubleBox story ILU (BG B layer 116). */
 	CasparCGPgmIluPlayerB = 'casparcg_pgm_ilu_player_b',
-	/** Look A CAM / UVC framed into the DoubleBox right window (layer 115 under ILU). */
+	/**
+	 * Live CAM ingest helper channel (default Caspar **5**) — the only mapping that
+	 * opens DeckLink / dshow. Look A/B camera layers route from here.
+	 */
+	CasparCGPgmCameraIngest = 'casparcg_pgm_camera_ingest',
+	/** Look A CAM framed into the DoubleBox right window (layer 115 under ILU) — usually route://ingest. */
 	CasparCGPgmCamera = 'casparcg_pgm_camera',
-	/** Look B CAM / UVC (BG B layer 115). */
+	/** Look B CAM (BG B layer 115) — usually route://ingest. */
 	CasparCGPgmCameraB = 'casparcg_pgm_camera_b',
 	/** Look A DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
 	CasparCGPgmDoubleBoxLoop = 'casparcg_pgm_doublebox_loop',
@@ -60,6 +65,7 @@ export enum CasparCGLayers {
 	CasparCGDebugLabelPgm = 'casparcg_debug_label_pgm',
 	CasparCGDebugLabelDoubleBox = 'casparcg_debug_label_doublebox',
 	CasparCGDebugLabelFull = 'casparcg_debug_label_full',
+	CasparCGDebugLabelCamIngest = 'casparcg_debug_label_cam_ingest',
 }
 
 export enum AbstractLayers {

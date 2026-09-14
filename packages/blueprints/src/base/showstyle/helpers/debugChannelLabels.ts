@@ -25,6 +25,7 @@ export function createDebugChannelLabelTimeline(config: StudioConfig): TimelineB
 		{ layer: CasparCGLayers.CasparCGDebugLabelPgm, label: `${channels.pgmChannel}. PGM` },
 		{ layer: CasparCGLayers.CasparCGDebugLabelDoubleBox, label: `${channels.bgChannelA}. DoubleBox` },
 		{ layer: CasparCGLayers.CasparCGDebugLabelFull, label: `${channels.bgChannelB}. Full` },
+		{ layer: CasparCGLayers.CasparCGDebugLabelCamIngest, label: `${channels.camIngestChannel}. CAM` },
 	]
 
 	return debugLabels.map(({ layer, label }) =>
