@@ -144,7 +144,7 @@
 						"pgmCameraProducer": {
 							"type": "string",
 							"ui:title": "PGM camera producer",
-							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). dshow://video=… → MEDIA as-is. DECKLINK DEVICE N FORMAT … → TSR INPUT (unquoted PlayDecklink). After any change: Reset Rundown / re-activate so baseline + camera pieces regenerate — otherwise Sofie keeps the previous producer on air."
+							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). dshow://video=… → MEDIA as-is. DECKLINK DEVICE N FORMAT … → TSR INPUT / PlayDecklink (unquoted; AMCP may show DECKLINK N without the DEVICE keyword — Caspar accepts both). Do not use MEDIA for DeckLink or Sofie quotes it as a clip path (404 File not found). After any change: re-upload blueprints if needed, then Reset Rundown / re-activate so baseline + camera pieces regenerate."
 						},
 						"pgmCameraVideoFilter": {
 							"type": "string",

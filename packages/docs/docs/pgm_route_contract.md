@@ -25,4 +25,13 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **CAM1:** Baseline keeps `pgmCameraProducer` playing on DoubleBox ch3/115 for the rundown so the first ILU wipe is not a cold dshow open.
 
+**DeckLink producer:** set studio `casparcg.hypercomposed.pgmCameraProducer` to e.g.
+`DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** (PlayDecklink),
+not quoted MEDIA. Playout AMCP often looks like `PLAY 3-115 DECKLINK 1 FORMAT 1080P5000`
+(no `DEVICE` keyword) — that comes from `casparcg-connection`, and Caspar accepts both forms.
+`DeckLink … [1|1080p5000] Could not enable video input` means device+format parsed; fix
+hardware (device not also a consumer, Desktop Video connector mode, live signal). Older
+bundles that sent DeckLink as MEDIA produced `404 PLAY FAILED` / File not found — re-upload
+blueprints (≥ #89) and Reset Rundown.
+
 **Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).

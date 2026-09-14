@@ -8,6 +8,7 @@ import {
 	getPgmCameraProducer,
 	getPgmCameraVideoFilter,
 	parseDecklinkProducer,
+	resolveDecklinkDeviceFormat,
 } from '../base/showstyle/helpers/pgmCamera.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { StudioConfig } from '../base/studio/helpers/config.js'
@@ -104,6 +105,23 @@ describe('pgmCamera helpers', () => {
 			deviceFormat: TSR.ChannelFormat.HD_1080P5000,
 		})
 		expect(casparFormatToChannelFormat('1080p5000')).toBe(TSR.ChannelFormat.HD_1080P5000)
+		// PlayDecklink AMCP omits the DEVICE keyword (casparcg-connection); Caspar still gets device=1.
+		expect(content).not.toHaveProperty('file')
+	})
+
+	it('falls back to 1080P5000 when FORMAT token is unknown (never FORMAT INVALID)', () => {
+		expect(resolveDecklinkDeviceFormat(undefined)).toBe(TSR.ChannelFormat.HD_1080P5000)
+		expect(resolveDecklinkDeviceFormat('not-a-mode')).toBe(TSR.ChannelFormat.HD_1080P5000)
+		expect(casparFormatToChannelFormat('not-a-mode')).toBe(TSR.ChannelFormat.INVALID)
+
+		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 3 FORMAT nope', {
+			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+		})
+		expect(content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.INPUT,
+			device: 3,
+			deviceFormat: TSR.ChannelFormat.HD_1080P5000,
+		})
 	})
 
 	it('baselines DeckLink only when studio config producer is DeckLink text', () => {
