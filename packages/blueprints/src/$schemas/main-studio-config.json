@@ -144,7 +144,7 @@
 						"pgmCameraProducer": {
 							"type": "string",
 							"ui:title": "PGM camera producer",
-							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). dshow://video=… → MEDIA as-is. DECKLINK DEVICE N FORMAT … → TSR INPUT / PlayDecklink (unquoted). AMCP must include DEVICE — sofie-core Yarn-patches casparcg-connection so PlayDecklink emits DECKLINK DEVICE <n>; rebuild/restart playout-gateway to pick that up (blueprint re-upload alone is not enough). Do not use MEDIA for DeckLink or Sofie quotes it as a clip path (404 File not found). After any change: re-upload blueprints if needed, then Reset Rundown / re-activate so baseline + camera pieces regenerate."
+							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). dshow://video=… → MEDIA as-is. DECKLINK DEVICE N FORMAT … → TSR INPUT / PlayDecklink (unquoted). Live producers are exclusive — only the active look (ch3 or ch4 layer 115) holds the device; the idle look gets EMPTY (no rundown-long baseline warm on DoubleBox). AMCP must include DEVICE — sofie-core Yarn-patches casparcg-connection so PlayDecklink emits DECKLINK DEVICE <n>; rebuild/restart playout-gateway to pick that up (blueprint re-upload alone is not enough). Do not use MEDIA for DeckLink or Sofie quotes it as a clip path (404 File not found). After any change: re-upload blueprints if needed, then Reset Rundown / re-activate so camera pieces regenerate."
 						},
 						"pgmCameraVideoFilter": {
 							"type": "string",

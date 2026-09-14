@@ -52,20 +52,8 @@ describe('pgmCamera helpers', () => {
 		})
 	})
 
-	it('baselines warm DoubleBox CAM1 with config dshow as MEDIA (not DeckLink)', () => {
-		const warm = createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)
-		expect(warm?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
-		expect(warm?.enable).toEqual({ while: 1 })
-		expect(warm?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'dshow://video=OBS Virtual Camera',
-			noStarttime: true,
-			mixer: {
-				fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 },
-			},
-		})
-		expect(warm?.content).not.toHaveProperty('inputType')
+	it('does not baseline-warm live dshow CAM1 (exclusive capture)', () => {
+		expect(createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)).toBeUndefined()
 	})
 
 	it('parses DeckLink only when config string is DeckLink AMCP', () => {
@@ -124,7 +112,7 @@ describe('pgmCamera helpers', () => {
 		})
 	})
 
-	it('baselines DeckLink only when studio config producer is DeckLink text', () => {
+	it('does not baseline-warm live DeckLink (exclusive EnableVideoInput)', () => {
 		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
 		const config = {
 			...hybridCasparConfig,
@@ -136,12 +124,26 @@ describe('pgmCamera helpers', () => {
 				},
 			},
 		} as StudioConfig
+		expect(createDoubleBoxBaselineCameraTimeline(config)).toBeUndefined()
+	})
+
+	it('baselines non-live file CAM when studio producer is a clip path', () => {
+		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
+		const config = {
+			...hybridCasparConfig,
+			casparcg: {
+				...hybridCasparConfig.casparcg,
+				hypercomposed: {
+					...hypercomposed,
+					pgmCameraProducer: 'clips/cam_still',
+				},
+			},
+		} as StudioConfig
 		const warm = createDoubleBoxBaselineCameraTimeline(config)
+		expect(warm?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
 		expect(warm?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.INPUT,
-			inputType: 'decklink',
-			device: 1,
-			deviceFormat: TSR.ChannelFormat.HD_1080P5000,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'clips/cam_still',
 		})
 	})
 

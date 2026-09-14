@@ -49,7 +49,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			// Full (BG B) companion bg_loop under rehearsal / headlines / Privítanie.
 			// Story SYN/VT/weather override the same clip layer with WithinPart priority.
 			// DoubleBox bakes bg art into db_loop on ch3 — not a second bg_loop PLAY there.
-			// CAM1 stays warm on DoubleBox (ch3/115) so the first ILU Take is not a cold dshow open.
+			// Live CAM1 is not baseline-warmed (exclusive DeckLink/dshow) — only the active look holds it.
 			...(config.casparcg.hypercomposed
 				? [
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({

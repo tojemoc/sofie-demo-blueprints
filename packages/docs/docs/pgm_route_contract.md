@@ -23,7 +23,11 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
-**CAM1:** Baseline keeps `pgmCameraProducer` playing on DoubleBox ch3/115 for the rundown so the first ILU wipe is not a cold dshow open.
+**CAM1:** Live producers (`DECKLINK …`, `dshow://…`) are **not** baseline-warmed.
+Only the active look's camera piece holds the exclusive device (DoubleBox → ch3/115,
+Full/headlines → ch4/115). The idle look's layer 115 is forced to `EMPTY` so wipe
+keepalive cannot leave DeckLink open on both channels (`EnableVideoInput` fails on the
+second open).
 
 **DeckLink producer:** set studio `casparcg.hypercomposed.pgmCameraProducer` to e.g.
 `DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** (PlayDecklink),

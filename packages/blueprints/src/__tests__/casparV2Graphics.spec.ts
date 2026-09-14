@@ -353,7 +353,7 @@ describe('casparV2Graphics', () => {
 		expect(logo).toBeUndefined()
 	})
 
-	it('loops bg_loop on LED and Full (BG B); holds MEDIA route://4; warms DoubleBox CAM1', () => {
+	it('loops bg_loop on LED and Full (BG B); holds MEDIA route://4; does not warm live CAM1', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
 		const fullLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
@@ -380,16 +380,8 @@ describe('casparV2Graphics', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
 		})
-		expect(warmCam?.enable).toEqual({ while: 1 })
-		expect(warmCam?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'dshow://video=OBS Virtual Camera',
-			noStarttime: true,
-			mixer: {
-				fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 },
-			},
-		})
+		// Live dshow/DeckLink must not hold ch3-115 for the whole rundown (Full uses ch4-115).
+		expect(warmCam).toBeUndefined()
 	})
 
 	it('excludes internal pieceName from Caspar data and templateData', () => {

@@ -130,8 +130,13 @@ export function createPgmCameraTimelineContent(
 }
 
 /**
- * Keep CAM1 warm on DoubleBox (BG A / ch3 layer 115) for the whole rundown.
- * Producer comes only from studio config — change config, then Reset Rundown to apply.
+ * Optional non-live CAM still/file on DoubleBox (BG A / ch3 layer 115) for the rundown.
+ *
+ * Live producers (DeckLink / dshow / v4l2) are **not** baseline-warmed: a rundown-long
+ * PLAY on ch3-115 would still hold the exclusive device when Full/headline parts open the
+ * same producer on ch4-115 (`EnableVideoInput` / dual dshow fail). Live CAM is owned only
+ * by the active look's WithinPart piece; {@link releaseIdleLookLiveCamera} CLEARs the idle
+ * look with EMPTY. Change config, then Reset Rundown to apply.
  */
 export function createDoubleBoxBaselineCameraTimeline(
 	config: StudioConfig
@@ -139,6 +144,8 @@ export function createDoubleBoxBaselineCameraTimeline(
 	if (!config.casparcg.hypercomposed) return undefined
 	const producer = getPgmCameraProducer(config)
 	if (!producer) return undefined
+	// Exclusive capture — never hold on look A while look B may also need the device.
+	if (isLivePgmCameraProducer(producer)) return undefined
 
 	return literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({
 		id: '',
