@@ -9,6 +9,9 @@ import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackage
 /** Caspar PLAY path for the LED headline pod underlay (PNG under ILU movs). */
 export const LED_POD_HEADLINE_FILE = 'assets/pod_headline'
 
+/** On-disk path for Package Manager (extension required; PLAY stays extensionless). */
+export const LED_POD_HEADLINE_PACKAGE_FILE = 'assets/pod_headline.png'
+
 /**
  * Segments that show opening headlines on LED (pod under ILU movs).
  */
@@ -57,7 +60,7 @@ export function createLedPodHeadlinePiece(
 		},
 		prerollDuration: config.casparcgLatency,
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, LED_POD_HEADLINE_FILE, [CasparCGLayers.CasparCGLedPodHeadline]),
+			createMediaFileExpectedPackage(context, LED_POD_HEADLINE_PACKAGE_FILE, [CasparCGLayers.CasparCGLedPodHeadline]),
 		],
 	})
 }

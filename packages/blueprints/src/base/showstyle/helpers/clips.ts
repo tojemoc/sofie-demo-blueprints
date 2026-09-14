@@ -349,7 +349,8 @@ export function parseLayeredVideosFromObjects(
 						includeSideEffects: playLayer !== 'background',
 					}),
 				],
-				prerollDuration: config.casparcgLatency,
+				prerollDuration:
+					playLayer === 'wipe' ? Math.max(config.casparcgLatency, DEFAULT_WIPE_PREROLL_MS) : config.casparcgLatency,
 			}),
 		]
 	})

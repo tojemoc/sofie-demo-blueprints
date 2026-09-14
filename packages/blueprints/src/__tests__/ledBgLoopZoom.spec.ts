@@ -72,5 +72,9 @@ describe('LED pod headline', () => {
 			file: LED_POD_HEADLINE_FILE,
 			loop: true,
 		})
+		// Package Manager needs the real PNG path (extensionless → toPackageManagerPath would append .mov).
+		expect(piece.expectedPackages?.[0]?.content).toMatchObject({
+			filePath: 'assets/pod_headline.png',
+		})
 	})
 })
