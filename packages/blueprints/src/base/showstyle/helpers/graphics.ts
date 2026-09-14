@@ -207,11 +207,7 @@ function getTemplateAttributes(
 			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
 			if (entry.delay !== undefined) mapped[`${region}_delay`] = entry.delay
 			const image =
-				entry.image !== undefined
-					? entry.image
-					: typeof entry.condition === 'string'
-						? entry.condition
-						: undefined
+				entry.image !== undefined ? entry.image : typeof entry.condition === 'string' ? entry.condition : undefined
 			if (image !== undefined) mapped[`${region}_img`] = image
 		}
 
