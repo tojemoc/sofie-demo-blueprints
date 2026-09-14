@@ -361,9 +361,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const segment = convertIngestData(mockIngestContext, ingest)
 		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-avizo-db')
-		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
+		expect(dbPart).toBeDefined()
+		if (!dbPart) return
+		expect(dbPart.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
 
-		const partContext = new PartContext(mockSegmentContext(), dbPart!.payload.externalId)
+		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
 		const result = generateCameraPart(partContext, dbPart as PartProps<CameraProps>, createCountupRevealClaim())
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		const ilu = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer)
