@@ -27,11 +27,10 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **DeckLink producer:** set studio `casparcg.hypercomposed.pgmCameraProducer` to e.g.
 `DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** (PlayDecklink),
-not quoted MEDIA. Playout AMCP often looks like `PLAY 3-115 DECKLINK 1 FORMAT 1080P5000`
-(no `DEVICE` keyword) — that comes from `casparcg-connection`, and Caspar accepts both forms.
-`DeckLink … [1|1080p5000] Could not enable video input` means device+format parsed; fix
-hardware (device not also a consumer, Desktop Video connector mode, live signal). Older
-bundles that sent DeckLink as MEDIA produced `404 PLAY FAILED` / File not found — re-upload
-blueprints (≥ #89) and Reset Rundown.
+not quoted MEDIA. Sofie Core’s Yarn patch on `casparcg-connection` makes playout emit
+`PLAY … DECKLINK DEVICE <n> FORMAT …` (upstream omitted `DEVICE`, which breaks some
+DeckLink cards). Older MEDIA bundles produced `404 PLAY FAILED` / File not found — use
+blueprints ≥ #89 and Reset Rundown. If AMCP still lacks `DEVICE`, upgrade/restart
+**playout-gateway**, not only blueprints.
 
 **Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).
