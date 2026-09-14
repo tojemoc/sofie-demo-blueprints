@@ -25,7 +25,7 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **CAM1:** Live producers open once on **CAM ingest** (`camIngestChannel`, default **5**).
 Look camera layers PLAY MEDIA `route://5` with FILL (DoubleBox or fullscreen). Never
-`PLAY … DECKLINK` on both `3-115` and `4-115`.
+`PLAY … DECKLINK` on either `3-115` or `4-115`.
 
 **DeckLink producer:** set studio `casparcg.hypercomposed.pgmCameraProducer` to e.g.
 `DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** on the ingest
