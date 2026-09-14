@@ -180,7 +180,9 @@ describe('pgmCamera helpers', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'clips/cam_still',
 		})
-		expect(createLookCameraTimelineContent(config, 'clips/cam_still', { fill: { x: 0, y: 0, xScale: 1, yScale: 1 } })).toMatchObject({
+		expect(
+			createLookCameraTimelineContent(config, 'clips/cam_still', { fill: { x: 0, y: 0, xScale: 1, yScale: 1 } })
+		).toMatchObject({
 			file: 'clips/cam_still',
 		})
 	})

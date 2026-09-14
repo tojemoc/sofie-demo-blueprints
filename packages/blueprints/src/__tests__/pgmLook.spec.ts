@@ -182,11 +182,7 @@ describe('pgmLook look-kind channels + route', () => {
 			file: 'route://5',
 		})
 		expect(
-			timeline.some(
-				(obj) =>
-					obj.layer === LOOK_B_LAYERS.camera &&
-					(obj.content as { file?: string }).file === 'EMPTY'
-			)
+			timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
 		).toBe(false)
 	})
 
