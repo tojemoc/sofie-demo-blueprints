@@ -25,4 +25,12 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **CAM1:** Baseline keeps `pgmCameraProducer` playing on DoubleBox ch3/115 for the rundown so the first ILU wipe is not a cold dshow open.
 
+**DeckLink producer:** set studio `casparcg.hypercomposed.pgmCameraProducer` to e.g.
+`DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** (PlayDecklink),
+not quoted MEDIA. Sofie Core’s Yarn patch on `casparcg-connection` makes playout emit
+`PLAY … DECKLINK DEVICE <n> FORMAT …` (upstream omitted `DEVICE`, which breaks some
+DeckLink cards). Older MEDIA bundles produced `404 PLAY FAILED` / File not found — use
+blueprints ≥ #89 and Reset Rundown. If AMCP still lacks `DEVICE`, upgrade/restart
+**playout-gateway**, not only blueprints.
+
 **Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).

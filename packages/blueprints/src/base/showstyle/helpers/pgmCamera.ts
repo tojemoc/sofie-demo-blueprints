@@ -17,6 +17,10 @@ function isLiveFfmpegProducer(producer: string): boolean {
 /**
  * Parse studio config when it is Caspar DeckLink AMCP text.
  * Returns undefined for dshow:// and every other producer — never invents DeckLink.
+ *
+ * Accepts both `DECKLINK DEVICE N …` (Caspar docs) and `DECKLINK N …` (what
+ * casparcg-connection's PlayDecklink serializer emits). Caspar's producer parser
+ * treats them equivalently (`get_param(DEVICE)` or `params[1]`).
  */
 export function parseDecklinkProducer(producer: string): { device: number; format?: string } | undefined {
 	const match = DECKLINK_PRODUCER_RE.exec(producer.trim())
@@ -36,6 +40,13 @@ export function casparFormatToChannelFormat(format: string): TSR.ChannelFormat {
 		}
 	}
 	return TSR.ChannelFormat.INVALID
+}
+
+/** Prefer a known ChannelFormat; never emit FORMAT INVALID on air. */
+export function resolveDecklinkDeviceFormat(format: string | undefined): TSR.ChannelFormat {
+	if (!format) return TSR.ChannelFormat.HD_1080P5000
+	const mapped = casparFormatToChannelFormat(format)
+	return mapped === TSR.ChannelFormat.INVALID ? TSR.ChannelFormat.HD_1080P5000 : mapped
 }
 
 /** Exact studio `pgmCameraProducer` string (trimmed), or undefined if unset. */
@@ -79,7 +90,15 @@ export function getPgmCameraMediaContentOptions(
  *
  * - `dshow://…` / files → MEDIA with `file` = that exact string (quoted by Sofie; fine for URIs).
  * - `DECKLINK DEVICE N FORMAT …` → INPUT parsed from that same string (PlayDecklink, unquoted).
- *   Sofie always quotes MEDIA clips; quoting native DECKLINK AMCP makes Caspar look for a file.
+ *   Sofie always quotes MEDIA clips; quoting native DECKLINK AMCP makes Caspar look for a file
+ *   (`404 PLAY FAILED` / File not found).
+ *
+ * Note on the word `DEVICE`: blueprints do **not** strip it from config. We parse device index
+ * + format into TSR INPUT; playout's casparcg-connection serializes PlayDecklink as
+ * `DECKLINK <n> FORMAT <fmt>` (no `DEVICE` keyword). That is intentional upstream and Caspar
+ * accepts it. A log line like `DeckLink … [1|1080p5000] Could not enable video input` means
+ * device+format were parsed — `EnableVideoInput` failed for hardware/config reasons (device
+ * already used as a DeckLink consumer, Desktop Video connector mode, no signal, etc.).
  */
 export function createPgmCameraTimelineContent(
 	config: StudioConfig,
@@ -95,7 +114,7 @@ export function createPgmCameraTimelineContent(
 			type: TSR.TimelineContentTypeCasparCg.INPUT,
 			inputType: 'decklink',
 			device: decklink.device,
-			deviceFormat: decklink.format ? casparFormatToChannelFormat(decklink.format) : TSR.ChannelFormat.HD_1080P5000,
+			deviceFormat: resolveDecklinkDeviceFormat(decklink.format),
 			mixer,
 			...(videoFilter ? { videoFilter } : {}),
 		}
