@@ -79,11 +79,9 @@ describe('pgmCamera helpers', () => {
 	})
 
 	it('maps DeckLink to TSR INPUT (unquoted AMCP) instead of MEDIA clip path', () => {
-		const content = createPgmCameraTimelineContent(
-			hybridCasparConfig,
-			'DECKLINK DEVICE 1 FORMAT 1080p5000',
-			{ fill: { x: 0, y: 0, xScale: 1, yScale: 1 } }
-		)
+		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 1 FORMAT 1080p5000', {
+			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+		})
 		expect(content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.INPUT,

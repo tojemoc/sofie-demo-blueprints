@@ -209,11 +209,7 @@ function isLiveCameraProducerFile(file: unknown): boolean {
 	return lower.startsWith('dshow://') || lower.startsWith('v4l2://') || lower.startsWith('decklink://')
 }
 
-function isLiveCameraTimelineContent(content: {
-	type?: string
-	file?: unknown
-	inputType?: string
-}): boolean {
+function isLiveCameraTimelineContent(content: { type?: string; file?: unknown; inputType?: string }): boolean {
 	if (content?.type === TSR.TimelineContentTypeCasparCg.INPUT && content.inputType === 'decklink') {
 		return true
 	}

@@ -27,9 +27,9 @@ export function parseDecklinkProducer(producer: string): { device: number; forma
 /** Map Caspar FORMAT tokens (e.g. 1080p5000) to TSR {@link TSR.ChannelFormat}. */
 export function casparFormatToChannelFormat(format: string): TSR.ChannelFormat {
 	const normalized = format.trim().toUpperCase()
-	for (const value of Object.values(TSR.ChannelFormat)) {
+	for (const value of Object.values<TSR.ChannelFormat>(TSR.ChannelFormat)) {
 		if (typeof value === 'string' && value.toUpperCase() === normalized) {
-			return value as TSR.ChannelFormat
+			return value
 		}
 	}
 	return TSR.ChannelFormat.INVALID
@@ -91,9 +91,7 @@ export function createPgmCameraTimelineContent(
 			type: TSR.TimelineContentTypeCasparCg.INPUT,
 			inputType: 'decklink',
 			device: decklink.device,
-			deviceFormat: decklink.format
-				? casparFormatToChannelFormat(decklink.format)
-				: TSR.ChannelFormat.HD_1080P5000,
+			deviceFormat: decklink.format ? casparFormatToChannelFormat(decklink.format) : TSR.ChannelFormat.HD_1080P5000,
 			mixer,
 			...(videoFilter ? { videoFilter } : {}),
 		}
