@@ -70,6 +70,13 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			})
 			expect(l3d, `${part.payload.name} missing PGM l3d-headline`).toBeTruthy()
 			expect(fallback, `${part.payload.name} should not use headline-fallback chrome`).toBeUndefined()
+
+			const sfx = result.pieces.find((p) => p.externalId === `${part.payload.externalId}_headline_sfx`)
+			expect(sfx, `${part.payload.name} missing headline SFX`).toBeTruthy()
+			expect(sfx?.sourceLayerId).toBe(String(SourceLayer.AudioBed))
+			expect((sfx?.content as { fileName?: string }).fileName).toBe('assets/headline_sfx')
+			const sfxFiles = (sfx?.content.timelineObjects ?? []).map((obj) => (obj.content as { file?: string }).file)
+			expect(sfxFiles).toEqual(['assets/headline_sfx', 'assets/headline_sfx'])
 		}
 	})
 })

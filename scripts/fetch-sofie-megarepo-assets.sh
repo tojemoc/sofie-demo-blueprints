@@ -32,13 +32,13 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
-PINNED_SOFIE_ASSETS_REF="e297e0911331667ad0b3c0bd21843356456bf93a" # SPRÁVY show polish (ILU vol, závěr DoubleBox)
+PINNED_SOFIE_ASSETS_REF="8c56de013e4cb5e42e9a8f4cd69dc6568d18d6cc" # SPRÁVY polish-2 (headline_sfx, ilu-zaver)
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
-	[spravy-v3-smoke-rundown.json]=17fa86e2c1127ab7dea303bf5af1cf141fea37513edf7fa1804c9de924f2d939
-	[sofie-rundown-editor-piece-types.json]=7531c99d0d37684bd855f172ee6ca2ebe51db24e0260dea3f34563f0005de515
-	[sofie-rundown-editor-part-types.json]=74d89de9d65298a6d48054ca85cd7319bef56038a09b061f25e81f111040a7e6
+	[spravy-v3-smoke-rundown.json]=953ef26d858047efbe1621672633e12e033ca60a6507ce5441678ed431d7928a
+	[sofie-rundown-editor-piece-types.json]=e8bfa1aa062965c98981982f02a4eb2d1233f63e0254f84c46ed7676e618b001
+	[sofie-rundown-editor-part-types.json]=2bd2c0c6f29e4f84575ba86e47ee20861cd4ffe75a2421d7a6b833d6dc5c991b
 	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
 )
 

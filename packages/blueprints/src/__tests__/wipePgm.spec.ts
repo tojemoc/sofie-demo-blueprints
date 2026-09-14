@@ -82,8 +82,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
-			mixer: { volume: 1 },
 		})
+		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer).toBeUndefined()
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
 		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })

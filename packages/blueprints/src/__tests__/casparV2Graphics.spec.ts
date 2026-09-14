@@ -328,7 +328,7 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('does not start assets/countup in rundown baseline (reveal on first DoubleBox)', () => {
+	it('starts assets/countup on PGM logo layer from Rehearsal (baseline)', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const countup = baseline.timelineObjects?.find(
 			(obj) =>
@@ -338,7 +338,14 @@ describe('casparV2Graphics', () => {
 				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
 		)
 
-		expect(countup).toBeUndefined()
+		expect(countup?.enable).toEqual({ while: 1 })
+		expect(countup?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'assets/countup',
+			loop: true,
+			mixer: { opacity: 1, volume: 1 },
+		})
 	})
 
 	it('does not start gfx/logo-bug HTML in rundown baseline', () => {
@@ -354,13 +361,14 @@ describe('casparV2Graphics', () => {
 		expect(logo).toBeUndefined()
 	})
 
-	it('loops bg_loop on LED and Full (BG B); holds MEDIA route://4; baselines live CAM on ingest ch5', () => {
+	it('loops bg_loop on LED and Full (BG B); holds MEDIA route://4; baselines live CAM on ingest + Full look', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
 		const fullLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
 		const pgmClip2 = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
 		const route = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		const warmCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
+		const fullLookCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)
 		const ingestCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraIngest)
 
 		expect(pgmClip2).toBeUndefined()
@@ -383,6 +391,12 @@ describe('casparV2Graphics', () => {
 			file: 'route://4',
 		})
 		expect(warmCam).toBeUndefined()
+		expect(fullLookCam?.enable).toEqual({ while: 1 })
+		expect(fullLookCam?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://5',
+		})
 		expect(ingestCam?.enable).toEqual({ while: 1 })
 		expect(ingestCam?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
@@ -439,7 +453,7 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
-	it('plays gfx/pocasie HTML over assets/bg_pocasie (transparent over weather map)', () => {
+	it('plays gfx/pocasie HTML over assets/bg_pocasie on ILU layer (bg_loop stays under on clip layer)', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
 				id: 'wx1',
@@ -455,7 +469,7 @@ describe('casparV2Graphics', () => {
 		const timeline = result.pieces[0]?.content.timelineObjects ?? []
 		const bg = timeline.find(
 			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGClipPlayer2 &&
+				obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
 				(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA
 		)
 		const html = timeline.find(

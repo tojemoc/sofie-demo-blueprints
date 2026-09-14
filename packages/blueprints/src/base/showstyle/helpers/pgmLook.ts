@@ -305,10 +305,7 @@ function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprint
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Wipe master carries its own alpha — do not add channel/layer keyers or
-			// FILL/CROP. Soft/half-transparent opaque regions are an encode issue
-			// (straight vs premultiplied), not a Caspar mixer filter.
-			mixer: { volume: 1 },
+			// Wipe master carries its own alpha — clean MEDIA, no mixer/keyer/FILL/CROP.
 		},
 	})
 }

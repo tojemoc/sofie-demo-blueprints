@@ -2,7 +2,8 @@ import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { GfxProps, PartProps } from '../definitions/index.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
-import { parseGraphicsFromObjects } from '../helpers/graphics.js'
+import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
+import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
@@ -25,6 +26,10 @@ export function generateGfxPart(
 
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
+
+	if (partHasHeadlineIlu(part.objects)) {
+		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId))
+	}
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

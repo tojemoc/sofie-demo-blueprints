@@ -26,6 +26,7 @@ import {
 	PGM_DOUBLEBOX_ILU_FILL,
 	coverCropForFill,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
@@ -59,6 +60,14 @@ function isPocasieGraphic(object: GraphicObjectBase): boolean {
 
 function isDoubleboxIlu(object: GraphicObjectBase): boolean {
 	return normalizeGraphicClipName(object.clipName) === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
+}
+
+/**
+ * Závěr avízo ILU — windowed like DoubleBox ILU on Full look (ch4), no db_loop frame.
+ * PGM shows CAM1 full via route://4; LED keeps bg_loop with route://4 on top.
+ */
+function isIluZaver(object: GraphicObjectBase): boolean {
+	return normalizeGraphicClipName(object.clipName) === 'gfx/ilu-zaver' && !!object.attributes.iluFile
 }
 
 function getTemplateAttributes(
@@ -236,6 +245,11 @@ function hasHeadlineIluFile(object: GraphicObjectBase): boolean {
 	return object.clipName === 'gfx/headline' && !!object.attributes.iluFile
 }
 
+/** True when any object is a headline ILU clip (for per-Take SFX, etc.). */
+export function partHasHeadlineIlu(objects: SomeObject[]): boolean {
+	return objects.some((obj) => obj.objectType === ObjectType.Graphic && hasHeadlineIluFile(obj as GraphicObjectBase))
+}
+
 /** Crop a full-frame 16:9 clip into the HTML #ilu-slide window (cover, no squish). */
 const HEADLINE_ILU_SLOT_FILL = {
 	x: 0.08,
@@ -364,6 +378,35 @@ function getDoubleboxIluMediaObject(
 	return [createDoubleboxIluMediaTimelineObject(iluFile, isAdlib, resolveIluVolume(object))]
 }
 
+function getIluZaverTimelineObjects(
+	config: StudioConfig,
+	object: GraphicObjectBase,
+	isAdlib?: boolean
+): TimelineBlueprintExt[] {
+	const iluFile = typeof object.attributes.iluFile === 'string' ? object.attributes.iluFile : undefined
+	if (!iluFile || !isIluZaver(object)) {
+		return []
+	}
+	const bgChannelB = getHypercomposedChannels({ studio: config }).bgChannelB
+
+	return [
+		createDoubleboxIluMediaTimelineObject(iluFile, isAdlib, resolveIluVolume(object)),
+		// LED: bg_loop (baseline) + full-channel route://4 on top (CAM + windowed ILU).
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer: CasparCGLayers.CasparCGEffectsPlayer,
+			priority: 1 + (isAdlib ? 10 : 0),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: `route://${bgChannelB}`,
+				noStarttime: true,
+			},
+		}),
+	]
+}
+
 /** PGM L3D HTML templates — LED allow-list is headline ILU + bg_loop only. */
 const PGM_L3D_CLIP_NAMES = new Set([
 	'gfx/l3d-headline',
@@ -382,7 +425,7 @@ function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
 }
 
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
-	if (isDoubleboxIlu(object)) {
+	if (isDoubleboxIlu(object) || isIluZaver(object)) {
 		// Media-only piece (no HTML); keep off the exclusive pgm group used by Camera/VT.
 		return SourceLayer.LowerThird
 	} else if (hasHeadlineIluFile(object)) {
@@ -423,7 +466,14 @@ function getGraphicTlObject(
 		return getDoubleboxIluMediaObject(object, isAdlib)
 	}
 
-	// Počasie: transparent HTML over Full-look bg_loop (ClipPlayer2 → remapped to BG B).
+	// Závěr ILU: windowed MEDIA on Full look + LED route://4 over bg_loop (no db_loop).
+	if (isIluZaver(object)) {
+		return getIluZaverTimelineObjects(config, object, isAdlib)
+	}
+
+	// Počasie: transparent HTML over Full-look stack:
+	// bg_loop stays on ClipPlayer2 (baseline / fullBgLoop); bg_pocasie on ILU layer above it;
+	// city-card HTML on PGM L3D.
 	if (isPocasieGraphic(object)) {
 		const fullscreenAtemInput = getClipPlayerInput(config)
 		const templateName = resolveCasparTemplateName('gfx/pocasie')
@@ -432,7 +482,7 @@ function getGraphicTlObject(
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 				id: '',
 				enable: { start: 0 },
-				layer: CasparCGLayers.CasparCGClipPlayer2,
+				layer: CasparCGLayers.CasparCGPgmIluPlayer,
 				priority: 0 + (isAdlib ? 10 : 0),
 				content: {
 					deviceType: TSR.DeviceType.CASPARCG,
@@ -499,7 +549,7 @@ function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
 }
 
 function getIluMediaFileName(object: GraphicObjectBase): string | undefined {
-	if (isDoubleboxIlu(object) || isHeadlineWithIlu(object)) {
+	if (isDoubleboxIlu(object) || isIluZaver(object) || isHeadlineWithIlu(object)) {
 		const iluFile = object.attributes.iluFile
 		return typeof iluFile === 'string' && iluFile.trim() ? iluFile : undefined
 	}
@@ -514,21 +564,23 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 		return undefined
 	}
 
-	if (isDoubleboxIlu(object)) {
+	if (isDoubleboxIlu(object) || isIluZaver(object)) {
 		return [
 			// No preview/thumbnail side effects — alpha .mov ILUs often crash PM workers
 			// ("Restarting due to an error" → Sofie "ILU exists, but is not yet ready").
 			createMediaFileExpectedPackage(
 				context,
 				object.attributes.iluFile as string,
-				[CasparCGLayers.CasparCGPgmIluPlayer],
+				isIluZaver(object)
+					? [CasparCGLayers.CasparCGPgmIluPlayer, CasparCGLayers.CasparCGEffectsPlayer]
+					: [CasparCGLayers.CasparCGPgmIluPlayer],
 				{ includeSideEffects: false }
 			),
 		]
 	}
 
 	if (isPocasieGraphic(object)) {
-		return [createMediaFileExpectedPackage(context, DEFAULT_POCASIE_BG_FILE, [CasparCGLayers.CasparCGClipPlayer2])]
+		return [createMediaFileExpectedPackage(context, DEFAULT_POCASIE_BG_FILE, [CasparCGLayers.CasparCGPgmIluPlayer])]
 	}
 
 	if (!isHeadlineWithIlu(object)) {
@@ -543,7 +595,7 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 }
 
 function getGraphicTemplateData(object: GraphicObjectBase): GraphicObjectAttributes {
-	if (isDoubleboxIlu(object)) {
+	if (isDoubleboxIlu(object) || isIluZaver(object)) {
 		return getTemplateAttributes(object.clipName, object.attributes, { omitIluFile: true })
 	}
 
@@ -569,7 +621,7 @@ function parseGraphic(
 	const iluFileName = getIluMediaFileName(object)
 	// Caspar PLAY does not need Package Manager READY. Transient PM worker failures
 	// ("Restarting due to an error") otherwise band the timeline as NR.
-	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object)
+	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object) || isIluZaver(object)
 
 	return {
 		externalId: object.id,
@@ -622,7 +674,7 @@ export function parseAdlibGraphic(
 	const isFullscreen = isFullscreenGraphic(object.clipName) || useHeadlineIluPrerendered(object)
 	const templateData = getGraphicTemplateData(object)
 	const iluFileName = getIluMediaFileName(object)
-	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object)
+	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object) || isIluZaver(object)
 
 	return {
 		externalId: object.id,

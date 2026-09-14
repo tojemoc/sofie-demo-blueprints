@@ -273,7 +273,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		expect(
 			outro.parts.some(
-				(part) => part.rawType?.match(/doublebox/i) && part.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')
+				(part) => !part.rawType?.match(/doublebox/i) && part.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')
 			)
 		).toBe(true)
 		expect(
@@ -283,15 +283,16 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		).toBe(true)
 	})
 
-	it('routes labelled SJV / Šport opening wipes through GFX parts', () => {
-		for (const [segmentId, partExternalId] of [
-			['seg-sjv', 'part-sjv-open'],
-			['seg-sport', 'part-sport-open'],
+	it('lands SJV / Šport opening wipes on the first SYN (open GFX parts are skipped)', () => {
+		for (const [segmentId, openId, synId] of [
+			['seg-sjv', 'part-sjv-open', 'part-sjv-syn-1'],
+			['seg-sport', 'part-sport-open', 'part-sport-syn-1'],
 		] as const) {
 			const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segmentId))
-			const openPart = segment.parts.find((part) => part.payload.externalId === partExternalId)
-			expect(openPart?.type).toBe(PartType.GFX)
-			const wipe = openPart?.objects.find(
+			const openPart = segment.parts.find((part) => part.payload.externalId === openId)
+			const synPart = segment.parts.find((part) => part.payload.externalId === synId)
+			expect(openPart?.payload.skip || openPart?.payload.float).toBeTruthy()
+			const wipe = synPart?.objects.find(
 				(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 			)
 			expect(wipe).toBeDefined()

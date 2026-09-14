@@ -12,7 +12,8 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { CameraProps, PartProps } from '../definitions/index.js'
 import { getAudioObjectOnLayer, getAudioPrimaryObject } from '../helpers/audio.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
-import { parseGraphicsFromObjects } from '../helpers/graphics.js'
+import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
+import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
@@ -110,6 +111,10 @@ export function generateCameraPart(
 		}
 	} else if (config.casparcg.hypercomposed) {
 		pieces.push(createFullBgLoopPiece(context, config, part.payload.externalId))
+	}
+
+	if (partHasHeadlineIlu(part.objects)) {
+		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId))
 	}
 
 	const guestObj = part.objects.find((p): p is StudioGuestObject => p.objectType === ObjectType.StudioGuest)

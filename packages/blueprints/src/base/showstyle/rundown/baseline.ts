@@ -9,7 +9,11 @@ import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/ge
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
-import { createCameraIngestBaselineTimeline, createDoubleBoxBaselineCameraTimeline } from '../helpers/pgmCamera.js'
+import {
+	createCameraIngestBaselineTimeline,
+	createDoubleBoxBaselineCameraTimeline,
+	createFullLookBaselineCameraTimeline,
+} from '../helpers/pgmCamera.js'
 import { createFullChannelRouteContent } from '../helpers/pgmLook.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
@@ -71,9 +75,30 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 							layer: CasparCGLayers.CasparCGPgmRoute,
 							content: createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
 						}),
-						...([createCameraIngestBaselineTimeline(config), createDoubleBoxBaselineCameraTimeline(config)].filter(
+						// Full-look CAM1 on BG B so Rehearsal / pre-Take already shows presenter
+						// under route://4 (ingest stays on ch5; this layer only routes it).
+						...([
+							createCameraIngestBaselineTimeline(config),
+							createFullLookBaselineCameraTimeline(config),
+							createDoubleBoxBaselineCameraTimeline(config),
+						].filter(
 							(obj): obj is NonNullable<ReturnType<typeof createCameraIngestBaselineTimeline>> => obj !== undefined
 						) as TimelineBlueprintExt[]),
+						// Logo + seconds visible from Rehearsal start (not delayed to first DoubleBox).
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+							id: '',
+							enable: { while: 1 },
+							priority: 0,
+							layer: CasparCGLayers.CasparCGGraphicsLogo,
+							content: {
+								deviceType: TSR.DeviceType.CASPARCG,
+								type: TSR.TimelineContentTypeCasparCg.MEDIA,
+								file: PGM_COUNTUP_FILE,
+								loop: true,
+								noStarttime: true,
+								mixer: { opacity: 1, volume: 1 },
+							},
+						}),
 					]
 				: []),
 
