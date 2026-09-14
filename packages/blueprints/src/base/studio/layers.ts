@@ -22,6 +22,8 @@ export enum CasparCGLayers {
 	CasparCGClipPlayerPreview = 'casparcg_clip_player_preview',
 	/** Headline ILU media framed with MIXER FILL — must not share ClipPlayer1 with the bg loop. */
 	CasparCGIluPlayer = 'casparcg_ilu_player',
+	/** LED pod underlay under headline ILU movs (`assets/pod_headline`, layer 112). */
+	CasparCGLedPodHeadline = 'casparcg_led_pod_headline',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
 	/** Compat mapping: PGM layer 200 overlay for story-block wipes. */
 	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',

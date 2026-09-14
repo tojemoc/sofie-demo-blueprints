@@ -15,6 +15,7 @@ import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casp
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import {
 	DEFAULT_WIPE_DURATION_MS,
+	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
@@ -304,7 +305,10 @@ function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprint
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			mixer: { volume: 1 },
+			// Opaque cover: force full opacity so premultiplied/half-alpha wipe masters
+			// still read as solid where RGB is meant to be opaque. Remaster wipe.mov if
+			// soft edges remain wrong (straight vs premultiplied alpha).
+			mixer: { volume: 1, opacity: 1 },
 		},
 	})
 }
@@ -398,7 +402,7 @@ function createPgmRoutePiece(
 					),
 				]
 			: undefined,
-		prerollDuration: config.casparcgLatency,
+		prerollDuration: Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS),
 	})
 }
 
@@ -424,7 +428,7 @@ function attachRouteToWipePiece(
 			]
 		: [createPgmRouteTimelineObject(config, slot, wipeFile, { sting: true }), ...mutes]
 	wipePiece.enable = { start: 0 }
-	wipePiece.prerollDuration = config.casparcgLatency
+	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 	wipePiece.content.ignoreAudioFormat = true
 	wipePiece.content.ignoreMediaObjectStatus = true
 	wipePiece.expectedPackages = [

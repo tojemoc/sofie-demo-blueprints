@@ -133,6 +133,7 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 
 	const mappings: BlueprintMappings = {
 		[CasparCGLayers.CasparCGClipPlayer1]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPlayer),
+		[CasparCGLayers.CasparCGLedPodHeadline]: casparLayerMapping(ledChannel, LedChannelLayers.PodHeadline),
 		[CasparCGLayers.CasparCGIluPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.IluPlayer),
 		[CasparCGLayers.CasparCGClipPlayerPreview]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPreview),
 		[CasparCGLayers.CasparCGEffectsPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.EffectsPlayer),

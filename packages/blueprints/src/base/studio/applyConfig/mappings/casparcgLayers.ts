@@ -9,6 +9,11 @@ export const LedChannelLayers = {
 	AudioBed: 80,
 	ClipPreview: 100,
 	ClipPlayer: 110,
+	/**
+	 * Static pod underlay during headlines — above `bg_loop`, under ILU movs.
+	 * Disk: `assets/pod_headline.png` (Caspar PLAY `assets/pod_headline`).
+	 */
+	PodHeadline: 112,
 	IluPlayer: 115,
 	GraphicsTicker: 120,
 	GraphicsLowerThird: 121,
@@ -99,14 +104,18 @@ export const PGM_FULLSCREEN_CAMERA_FILL = {
 } as const
 
 /**
- * LED `bg_loop` during tema / SJV / ŠPORT / Počasie — 120% zoom, biased right.
- * x=-0.2 pins the scaled frame to the right edge (+50% of the 20% overflow from left).
+ * LED `bg_loop` during tema / SJV / ŠPORT / Počasie (DoubleBox window on LED).
+ * vMix shift factor **1.085** where **1.0 = 50% of screen width** → pan 0.5425 right;
+ * scale grows by the same amount so the frame still covers after the pan (covers the
+ * camera cutout visible in DoubleBox).
  */
+export const LED_BG_LOOP_RIGHT_SHIFT = 1.085 * 0.5
+
 export const LED_BG_LOOP_TEMA_FILL = {
-	x: -0.2,
-	y: -0.1,
-	xScale: 1.2,
-	yScale: 1.2,
+	x: -LED_BG_LOOP_RIGHT_SHIFT,
+	y: -(LED_BG_LOOP_RIGHT_SHIFT * 0.5),
+	xScale: 1 + LED_BG_LOOP_RIGHT_SHIFT,
+	yScale: 1 + LED_BG_LOOP_RIGHT_SHIFT,
 } as const
 
 export type MixerFillRect = {

@@ -82,6 +82,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
+			mixer: { volume: 1, opacity: 1 },
 		})
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
@@ -93,6 +94,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 		})
 		expect((routeObj?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
+		// Preroll so Caspar LOADBGs the alpha wipe before Take (~3s cue otherwise).
+		expect(wipePiece?.prerollDuration).toBeGreaterThanOrEqual(3000)
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
 		expect(result.pieces[0]?.name).not.toContain('wipe')

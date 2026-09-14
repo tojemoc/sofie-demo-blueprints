@@ -125,6 +125,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			isHidden: true,
 		},
 		{
+			_id: SourceLayer.LedPodHeadline,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 210,
+			name: 'LED pod headline',
+			abbreviation: 'Pod',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.PgmWipe,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 206,

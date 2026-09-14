@@ -62,6 +62,10 @@ export interface PartBaseProps {
 	duration: number
 	name: string
 	script?: string
+	/** Editorial float from Rundown Editor — part must not play in Sofie. */
+	float?: boolean
+	/** Editorial skip (RE) — treated like float for Sofie playout. */
+	skip?: boolean
 }
 
 export interface CameraProps extends PartBaseProps {

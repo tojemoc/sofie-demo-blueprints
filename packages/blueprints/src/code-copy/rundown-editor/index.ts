@@ -31,6 +31,8 @@ export interface EditorIngestPart {
 	duration?: number
 	// type: string
 	float: boolean
+	/** Editorial skip — omit from Sofie playout (same as float). */
+	skip?: boolean
 	script: string
 
 	pieces: EditorIngestPiece[]
