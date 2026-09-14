@@ -309,7 +309,7 @@ export function parseLayeredVideosFromObjects(
 							file: toCasparPlayPath(fileName),
 							...(loop ? { loop: true } : {}),
 							// Force PLAY even when Package Manager has not verified the file yet.
-							...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1, opacity: 1 } } : {}),
+							...(playLayer === 'wipe' || playLayer === 'effects' ? { mixer: { volume: 1 } } : {}),
 						},
 					}),
 				]
