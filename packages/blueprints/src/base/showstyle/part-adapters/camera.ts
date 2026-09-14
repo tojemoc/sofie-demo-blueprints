@@ -21,7 +21,11 @@ import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { createFullBgLoopPiece } from '../helpers/fullBgLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
-import { createPgmCameraTimelineContent, getPgmCameraProducer, PgmCameraTimelineContent } from '../helpers/pgmCamera.js'
+import {
+	createLookCameraTimelineContent,
+	getPgmCameraProducer,
+	PgmCameraTimelineContent,
+} from '../helpers/pgmCamera.js'
 import { LookSlot, finalizeHypercomposedPart, isDoubleBoxLook } from '../helpers/pgmLook.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
@@ -50,7 +54,7 @@ function createPgmCameraTimelineObjects(
 			enable: { start: 0 },
 			layer: CasparCGLayers.CasparCGPgmCamera,
 			priority: 1,
-			content: createPgmCameraTimelineContent(config, producer, mixer),
+			content: createLookCameraTimelineContent(config, producer, mixer),
 		}),
 	]
 }

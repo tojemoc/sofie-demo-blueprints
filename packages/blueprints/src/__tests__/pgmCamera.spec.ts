@@ -2,8 +2,11 @@ import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import {
 	casparFormatToChannelFormat,
+	createCameraIngestBaselineTimeline,
 	createDoubleBoxBaselineCameraTimeline,
+	createLookCameraTimelineContent,
 	createPgmCameraTimelineContent,
+	getCamIngestChannel,
 	getPgmCameraMediaContentOptions,
 	getPgmCameraProducer,
 	getPgmCameraVideoFilter,
@@ -17,6 +20,7 @@ import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
 describe('pgmCamera helpers', () => {
 	it('reads producer from hypercomposed studio config only', () => {
 		expect(getPgmCameraProducer(hybridCasparConfig)).toBe('dshow://video=OBS Virtual Camera')
+		expect(getCamIngestChannel(hybridCasparConfig)).toBe(5)
 	})
 
 	it('sets noStarttime on live dshow/v4l2 producers', () => {
@@ -52,20 +56,29 @@ describe('pgmCamera helpers', () => {
 		})
 	})
 
-	it('baselines warm DoubleBox CAM1 with config dshow as MEDIA (not DeckLink)', () => {
-		const warm = createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)
-		expect(warm?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
-		expect(warm?.enable).toEqual({ while: 1 })
-		expect(warm?.content).toMatchObject({
-			deviceType: TSR.DeviceType.CASPARCG,
+	it('baselines live dshow on CAM ingest ch5 — not on DoubleBox look A', () => {
+		expect(createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)).toBeUndefined()
+		const ingest = createCameraIngestBaselineTimeline(hybridCasparConfig)
+		expect(ingest?.layer).toBe(CasparCGLayers.CasparCGPgmCameraIngest)
+		expect(ingest?.enable).toEqual({ while: 1 })
+		expect(ingest?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'dshow://video=OBS Virtual Camera',
 			noStarttime: true,
-			mixer: {
-				fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 },
-			},
 		})
-		expect(warm?.content).not.toHaveProperty('inputType')
+	})
+
+	it('look CAM for live producers is MEDIA route://5 with FILL (not DeckLink INPUT)', () => {
+		const content = createLookCameraTimelineContent(hybridCasparConfig, 'dshow://video=OBS Virtual Camera', {
+			fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 },
+		})
+		expect(content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://5',
+			noStarttime: true,
+			mixer: { fill: { x: 0.2, y: 0.072, xScale: 0.8, yScale: 0.8 } },
+		})
+		expect(content).not.toHaveProperty('inputType')
 	})
 
 	it('parses DeckLink only when config string is DeckLink AMCP', () => {
@@ -81,10 +94,8 @@ describe('pgmCamera helpers', () => {
 		expect(parseDecklinkProducer('clips/cam.mov')).toBeUndefined()
 	})
 
-	it('emits MEDIA with exact dshow string — never invents DeckLink INPUT', () => {
-		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'dshow://video=OBS Virtual Camera', {
-			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
-		})
+	it('emits MEDIA with exact dshow string on ingest — never invents DeckLink INPUT', () => {
+		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'dshow://video=OBS Virtual Camera')
 		expect(content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'dshow://video=OBS Virtual Camera',
@@ -93,10 +104,8 @@ describe('pgmCamera helpers', () => {
 		expect(content).not.toHaveProperty('device')
 	})
 
-	it('maps DeckLink config string to INPUT using device/format from that string', () => {
-		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 1 FORMAT 1080p5000', {
-			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
-		})
+	it('maps DeckLink config string to INPUT on ingest using device/format from that string', () => {
+		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 1 FORMAT 1080p5000')
 		expect(content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.INPUT,
@@ -105,26 +114,10 @@ describe('pgmCamera helpers', () => {
 			deviceFormat: TSR.ChannelFormat.HD_1080P5000,
 		})
 		expect(casparFormatToChannelFormat('1080p5000')).toBe(TSR.ChannelFormat.HD_1080P5000)
-		// PlayDecklink AMCP omits the DEVICE keyword (casparcg-connection); Caspar still gets device=1.
 		expect(content).not.toHaveProperty('file')
 	})
 
-	it('falls back to 1080P5000 when FORMAT token is unknown (never FORMAT INVALID)', () => {
-		expect(resolveDecklinkDeviceFormat(undefined)).toBe(TSR.ChannelFormat.HD_1080P5000)
-		expect(resolveDecklinkDeviceFormat('not-a-mode')).toBe(TSR.ChannelFormat.HD_1080P5000)
-		expect(casparFormatToChannelFormat('not-a-mode')).toBe(TSR.ChannelFormat.INVALID)
-
-		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 3 FORMAT nope', {
-			fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
-		})
-		expect(content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.INPUT,
-			device: 3,
-			deviceFormat: TSR.ChannelFormat.HD_1080P5000,
-		})
-	})
-
-	it('baselines DeckLink only when studio config producer is DeckLink text', () => {
+	it('look CAM for DeckLink is route://5 — INPUT only on ingest baseline', () => {
 		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
 		const config = {
 			...hybridCasparConfig,
@@ -136,16 +129,65 @@ describe('pgmCamera helpers', () => {
 				},
 			},
 		} as StudioConfig
-		const warm = createDoubleBoxBaselineCameraTimeline(config)
-		expect(warm?.content).toMatchObject({
+
+		expect(createDoubleBoxBaselineCameraTimeline(config)).toBeUndefined()
+		const ingest = createCameraIngestBaselineTimeline(config)
+		expect(ingest?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.INPUT,
 			inputType: 'decklink',
 			device: 1,
+		})
+		expect(
+			createLookCameraTimelineContent(config, 'DECKLINK DEVICE 1 FORMAT 1080p5000', {
+				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+			})
+		).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://5',
+			noStarttime: true,
+		})
+	})
+
+	it('falls back to 1080P5000 when FORMAT token is unknown (never FORMAT INVALID)', () => {
+		expect(resolveDecklinkDeviceFormat(undefined)).toBe(TSR.ChannelFormat.HD_1080P5000)
+		expect(resolveDecklinkDeviceFormat('not-a-mode')).toBe(TSR.ChannelFormat.HD_1080P5000)
+		expect(casparFormatToChannelFormat('not-a-mode')).toBe(TSR.ChannelFormat.INVALID)
+
+		const content = createPgmCameraTimelineContent(hybridCasparConfig, 'DECKLINK DEVICE 3 FORMAT nope')
+		expect(content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.INPUT,
+			device: 3,
 			deviceFormat: TSR.ChannelFormat.HD_1080P5000,
 		})
 	})
 
-	it('skips warm DoubleBox CAM1 when producer unset', () => {
+	it('baselines non-live file CAM on DoubleBox look A (not ingest)', () => {
+		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
+		const config = {
+			...hybridCasparConfig,
+			casparcg: {
+				...hybridCasparConfig.casparcg,
+				hypercomposed: {
+					...hypercomposed,
+					pgmCameraProducer: 'clips/cam_still',
+				},
+			},
+		} as StudioConfig
+		expect(createCameraIngestBaselineTimeline(config)).toBeUndefined()
+		const warm = createDoubleBoxBaselineCameraTimeline(config)
+		expect(warm?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
+		expect(warm?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'clips/cam_still',
+		})
+		expect(
+			createLookCameraTimelineContent(config, 'clips/cam_still', { fill: { x: 0, y: 0, xScale: 1, yScale: 1 } })
+		).toMatchObject({
+			file: 'clips/cam_still',
+		})
+	})
+
+	it('skips ingest + DoubleBox CAM baselines when producer unset', () => {
 		const hypercomposed = hybridCasparConfig.casparcg.hypercomposed ?? { ledChannel: 1, pgmChannel: 2 }
 		const config = {
 			...hybridCasparConfig,
@@ -157,6 +199,7 @@ describe('pgmCamera helpers', () => {
 				},
 			},
 		} as StudioConfig
+		expect(createCameraIngestBaselineTimeline(config)).toBeUndefined()
 		expect(createDoubleBoxBaselineCameraTimeline(config)).toBeUndefined()
 	})
 })

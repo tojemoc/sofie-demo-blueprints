@@ -2,13 +2,21 @@ import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-
 import { literal } from '../../../../common/util.js'
 import { BlueprintConfig } from '../../helpers/config.js'
 import { CasparCGLayers } from '../../layers.js'
-import { BgChannelLayers, LedChannelLayers, PgmChannelLayers, DEBUG_CHANNEL_LABEL_LAYER } from './casparcgLayers.js'
+import {
+	BgChannelLayers,
+	CamIngestChannelLayers,
+	LedChannelLayers,
+	PgmChannelLayers,
+	DEBUG_CHANNEL_LABEL_LAYER,
+} from './casparcgLayers.js'
 
 export interface HypercomposedChannelMap {
 	ledChannel: number
 	pgmChannel: number
 	bgChannelA: number
 	bgChannelB: number
+	/** Render-only helper that holds the single live CAM (DeckLink / dshow). Default 5. */
+	camIngestChannel: number
 }
 
 function nextFreeChannel(preferred: number, used: Set<number>): number {
@@ -29,6 +37,7 @@ export function getHypercomposedChannels(config: BlueprintConfig): Hypercomposed
 		pgmChannel: nextFreeChannel(hypercomposed?.pgmChannel ?? 2, used),
 		bgChannelA: nextFreeChannel(hypercomposed?.bgChannelA ?? 3, used),
 		bgChannelB: nextFreeChannel(hypercomposed?.bgChannelB ?? 4, used),
+		camIngestChannel: nextFreeChannel(hypercomposed?.camIngestChannel ?? 5, used),
 	}
 }
 
@@ -120,7 +129,7 @@ function lookStackMappingsB(
 }
 
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
-	const { ledChannel, pgmChannel, bgChannelA, bgChannelB } = getHypercomposedChannels(config)
+	const { ledChannel, pgmChannel, bgChannelA, bgChannelB, camIngestChannel } = getHypercomposedChannels(config)
 
 	const mappings: BlueprintMappings = {
 		[CasparCGLayers.CasparCGClipPlayer1]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPlayer),
@@ -138,6 +147,13 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGGraphicsLogo]: casparLayerMapping(pgmChannel, PgmChannelLayers.GraphicsLogo),
 		[CasparCGLayers.CasparCGAudioBedPgm]: casparLayerMapping(pgmChannel, PgmChannelLayers.AudioBed),
 
+		// Sole DeckLink / dshow open — looks sample via route://camIngestChannel on layer 115.
+		[CasparCGLayers.CasparCGPgmCameraIngest]: casparLayerMapping(
+			camIngestChannel,
+			CamIngestChannelLayers.Camera,
+			LookaheadMode.NONE
+		),
+
 		...lookStackMappings(bgChannelA),
 		...lookStackMappingsB(bgChannelB),
 
@@ -145,6 +161,7 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGDebugLabelPgm]: casparLayerMapping(pgmChannel, DEBUG_CHANNEL_LABEL_LAYER),
 		[CasparCGLayers.CasparCGDebugLabelDoubleBox]: casparLayerMapping(bgChannelA, DEBUG_CHANNEL_LABEL_LAYER),
 		[CasparCGLayers.CasparCGDebugLabelFull]: casparLayerMapping(bgChannelB, DEBUG_CHANNEL_LABEL_LAYER),
+		[CasparCGLayers.CasparCGDebugLabelCamIngest]: casparLayerMapping(camIngestChannel, DEBUG_CHANNEL_LABEL_LAYER),
 	}
 
 	return mappings

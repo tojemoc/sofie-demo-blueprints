@@ -175,7 +175,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(pgmCam?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'dshow://video=OBS Virtual Camera',
+			file: 'route://5',
 			noStarttime: true,
 			mixer: {
 				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },

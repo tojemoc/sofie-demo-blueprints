@@ -202,7 +202,7 @@ export function remapLookLayers(pieces: IBlueprintPiece[], slot: LookSlot): void
 	}
 }
 
-/** Live dshow/v4l2 producers — must not LOADBG on the idle BG channel during preroll. */
+/** True when a look piece still opens native live capture (should not happen after ch5 ingest). */
 function isLiveCameraProducerFile(file: unknown): boolean {
 	if (typeof file !== 'string') return false
 	const lower = file.toLowerCase().trim()
@@ -229,8 +229,8 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 	for (const piece of pieces) {
 		const usesLook = (piece.content.timelineObjects ?? []).some((obj) => isLookComposeLayer(String(obj.layer)))
 		if (!usesLook) continue
-		// DoubleBox CAM1 is baseline-warmed on ch3. Still skip live-cam preroll on Full (ch4)
-		// pieces so we do not open a second OBS Virtual Camera capture early during lookahead.
+		// Native DeckLink/dshow must not LOADBG on look layers (ingest helper owns the device).
+		// Look CAM is normally MEDIA route://5 — safe to preroll; skip only if a piece still has INPUT.
 		if (pieceUsesLiveCameraProducer(piece)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}

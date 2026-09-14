@@ -28,9 +28,10 @@ export const DemoStudioConfig: StudioConfig = {
 			pgmChannel: 2,
 			bgChannelA: 3,
 			bgChannelB: 4,
-			// Caspar PLAY on look camera layer when a camera piece is Taken (camNo 1 = Camera A in smoke).
+			camIngestChannel: 5,
+			// Opened once on ch5 ingest; look 3/4-115 PLAY route://5 (never a second DeckLink).
 			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
-			// Burn-in "1. LED" / "2. PGM" / "3. DoubleBox" / "4. Full" on layer 990 (needs gfx/debug-channel-label).
+			// Burn-in "1. LED" … "5. CAM" on layer 990 (needs gfx/debug-channel-label).
 			debugChannelLabels: false,
 		},
 	},

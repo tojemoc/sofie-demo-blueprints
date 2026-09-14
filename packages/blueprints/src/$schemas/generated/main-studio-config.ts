@@ -77,18 +77,20 @@ export interface CasparCGConfig {
 	hypercomposed?: HypercomposedChannels
 }
 /**
- * LED, PGM route bus, and BG look CasparCG channels for hypercomposed playout
+ * LED, PGM route bus, BG look, and CAM ingest CasparCG channels for hypercomposed playout
  */
 export interface HypercomposedChannels {
 	ledChannel: number
 	pgmChannel: number
 	bgChannelA?: number
 	bgChannelB?: number
+	/** Render-only helper that holds the single live CAM (default 5). */
+	camIngestChannel?: number
 	lookPrerollMs?: number
 	pgmCameraProducer?: string
 	pgmCameraVideoFilter?: string
 	/**
-	 * Testing only: burn-in channel labels (1. LED / 2. PGM / 3. DoubleBox / 4. Full)
+	 * Testing only: burn-in channel labels (1. LED / 2. PGM / 3. DoubleBox / 4. Full / 5. CAM)
 	 * on Caspar layer 990 via gfx/debug-channel-label.
 	 */
 	debugChannelLabels?: boolean

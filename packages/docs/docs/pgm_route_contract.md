@@ -23,14 +23,16 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
-**CAM1:** Baseline keeps `pgmCameraProducer` playing on DoubleBox ch3/115 for the rundown so the first ILU wipe is not a cold dshow open.
+**CAM1:** Live producers open once on **CAM ingest** (`camIngestChannel`, default **5**).
+Look camera layers PLAY MEDIA `route://5` with FILL (DoubleBox or fullscreen). Never
+`PLAY … DECKLINK` on either `3-115` or `4-115`.
 
 **DeckLink producer:** set studio `casparcg.hypercomposed.pgmCameraProducer` to e.g.
-`DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** (PlayDecklink),
-not quoted MEDIA. Sofie Core’s Yarn patch on `casparcg-connection` makes playout emit
-`PLAY … DECKLINK DEVICE <n> FORMAT …` (upstream omitted `DEVICE`, which breaks some
-DeckLink cards). Older MEDIA bundles produced `404 PLAY FAILED` / File not found — use
-blueprints ≥ #89 and Reset Rundown. If AMCP still lacks `DEVICE`, upgrade/restart
-**playout-gateway**, not only blueprints.
+`DECKLINK DEVICE 1 FORMAT 1080p5000`. Blueprints map that to TSR **INPUT** on the ingest
+channel only. Sofie Core’s Yarn patch on `casparcg-connection` makes playout emit
+`PLAY … DECKLINK DEVICE <n> FORMAT …`. Older MEDIA bundles produced `404 PLAY FAILED` —
+use blueprints ≥ #89 and Reset Rundown. If AMCP still lacks `DEVICE`, upgrade/restart
+**playout-gateway**. If look layers still show `DECKLINK` on 3/4-115, upload the ch5-ingest
+bundle and Reset Rundown. `caspar.config` needs **≥5** channels.
 
 **Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).
