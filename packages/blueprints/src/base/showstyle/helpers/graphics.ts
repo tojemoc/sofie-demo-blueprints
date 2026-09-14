@@ -206,7 +206,9 @@ function getTemplateAttributes(
 			if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
 			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
 			if (entry.delay !== undefined) mapped[`${region}_delay`] = entry.delay
-			if (entry.image !== undefined) mapped[`${region}_img`] = entry.image
+			const image =
+				entry.image !== undefined ? entry.image : typeof entry.condition === 'string' ? entry.condition : undefined
+			if (image !== undefined) mapped[`${region}_img`] = image
 		}
 
 		delete mapped.cities
