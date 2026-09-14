@@ -187,7 +187,21 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 						...(playLayer === 'background' && piece.attributes.loop === undefined ? { loop: true } : {}),
 					}
 				} else if (isRundownEditorGraphicPieceType(piece.objectType)) {
-					const graphicPieceType = piece.objectType.trim().toLowerCase()
+					let graphicPieceType = piece.objectType.trim().toLowerCase()
+					const partRawType = String(partPayload.type || part.name || '')
+					// Stale závěr/avízo pieces often remain `headline` + bypass after smoke migrated
+					// to `doublebox-ilu`. On a DoubleBox part, coerce so ILU gets PGM window FILL
+					// instead of fullscreen prerendered bypass.
+					if (
+						graphicPieceType === 'headline' &&
+						/doublebox|double-box/i.test(partRawType) &&
+						typeof piece.attributes.iluFile === 'string' &&
+						piece.attributes.iluFile.trim()
+					) {
+						graphicPieceType = 'doublebox-ilu'
+						delete piece.attributes.iluPrerendered
+						delete piece.attributes.bypass
+					}
 					piece.clipName = graphicPieceType === 'weather' ? 'gfx/pocasie' : 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic
 
