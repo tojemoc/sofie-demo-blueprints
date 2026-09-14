@@ -144,7 +144,7 @@
 						"pgmCameraProducer": {
 							"type": "string",
 							"ui:title": "PGM camera producer",
-							"ui:description": "Caspar producer for CAM1: ffmpeg URI (dshow://video=…) or DeckLink AMCP text (DECKLINK DEVICE 1 FORMAT 1080p5000 — blueprints emit TSR INPUT, not a quoted clip). Hypercomposed studios keep CAM1 warm on the DoubleBox BG look (bgChannelA, default ch 3, layer 115) from rundown baseline. Camera pieces also PLAY on the active look's camera layer: DoubleBox FILL on bgChannelA; fullscreen FILL on bgChannelB (default ch 4)."
+							"ui:description": "Caspar producer for CAM1 from this field only (never hardcoded). dshow://video=… → MEDIA as-is. DECKLINK DEVICE N FORMAT … → TSR INPUT (unquoted PlayDecklink). After any change: Reset Rundown / re-activate so baseline + camera pieces regenerate — otherwise Sofie keeps the previous producer on air."
 						},
 						"pgmCameraVideoFilter": {
 							"type": "string",

@@ -72,7 +72,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 							content: createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
 						}),
 						...([createDoubleBoxBaselineCameraTimeline(config)].filter(
-							(obj): obj is TimelineBlueprintExt<TSR.TimelineContentCCGMedia> => obj !== undefined
+							(obj): obj is NonNullable<ReturnType<typeof createDoubleBoxBaselineCameraTimeline>> => obj !== undefined
 						) as TimelineBlueprintExt[]),
 					]
 				: []),

@@ -5,7 +5,7 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 
-/** Caspar AMCP media or structured DeckLink input (must not be quoted as a clip path). */
+/** Caspar MEDIA or DeckLink INPUT — always derived from studio `pgmCameraProducer`. */
 export type PgmCameraTimelineContent = TSR.TimelineContentCCGMedia | TSR.TimelineContentCCGInput
 
 const DECKLINK_PRODUCER_RE = /^DECKLINK(?:\s+DEVICE)?\s+(\d+)(?:\s+FORMAT\s+(\S+))?$/i
@@ -14,7 +14,10 @@ function isLiveFfmpegProducer(producer: string): boolean {
 	return /^dshow:\/\//i.test(producer) || /^v4l2:\/\//i.test(producer) || /^iec61883:\/\//i.test(producer)
 }
 
-/** Parse studio `pgmCameraProducer` when set to Caspar DeckLink AMCP syntax. */
+/**
+ * Parse studio config when it is Caspar DeckLink AMCP text.
+ * Returns undefined for dshow:// and every other producer — never invents DeckLink.
+ */
 export function parseDecklinkProducer(producer: string): { device: number; format?: string } | undefined {
 	const match = DECKLINK_PRODUCER_RE.exec(producer.trim())
 	if (!match) return undefined
@@ -35,7 +38,7 @@ export function casparFormatToChannelFormat(format: string): TSR.ChannelFormat {
 	return TSR.ChannelFormat.INVALID
 }
 
-/** Caspar PLAY path for the PGM UVC / virtual camera layer. */
+/** Exact studio `pgmCameraProducer` string (trimmed), or undefined if unset. */
 export function getPgmCameraProducer(config: StudioConfig): string | undefined {
 	const producer = config.casparcg.hypercomposed?.pgmCameraProducer?.trim()
 	return producer || undefined
@@ -47,7 +50,12 @@ export function getPgmCameraVideoFilter(config: StudioConfig): string | undefine
 	return filter || undefined
 }
 
-/** Extra fields for live dshow/v4l2 producers — avoids spurious seek + reduces AMCP churn. */
+/** True when the configured producer is a live capture (ffmpeg URI or DeckLink AMCP). */
+export function isLivePgmCameraProducer(producer: string): boolean {
+	return isLiveFfmpegProducer(producer) || parseDecklinkProducer(producer) !== undefined
+}
+
+/** MEDIA-only options (dshow/v4l2/etc.) — noStarttime avoids spurious SEEK on live URIs. */
 export function getPgmCameraMediaContentOptions(
 	config: StudioConfig,
 	producer: string
@@ -66,16 +74,12 @@ export function getPgmCameraMediaContentOptions(
 	return options
 }
 
-/** True when {@link getPgmCameraProducer} resolves to a live capture (ffmpeg URI or DeckLink). */
-export function isLivePgmCameraProducer(producer: string): boolean {
-	return isLiveFfmpegProducer(producer) || parseDecklinkProducer(producer) !== undefined
-}
-
 /**
- * Timeline content for the PGM camera layer.
+ * Build camera timeline content from the studio config producer string only.
  *
- * DeckLink strings must use {@link TSR.TimelineContentTypeCasparCg.INPUT} — quoting them as MEDIA
- * makes Caspar treat `DECKLINK DEVICE …` as a missing file (404 PLAY FAILED).
+ * - `dshow://…` / files → MEDIA with `file` = that exact string (quoted by Sofie; fine for URIs).
+ * - `DECKLINK DEVICE N FORMAT …` → INPUT parsed from that same string (PlayDecklink, unquoted).
+ *   Sofie always quotes MEDIA clips; quoting native DECKLINK AMCP makes Caspar look for a file.
  */
 export function createPgmCameraTimelineContent(
 	config: StudioConfig,
@@ -108,8 +112,7 @@ export function createPgmCameraTimelineContent(
 
 /**
  * Keep CAM1 warm on DoubleBox (BG A / ch3 layer 115) for the whole rundown.
- * Opening dshow only on Take into DoubleBox lags the first ILU and floods rtbufsize
- * while Full (ch4) may still hold a capture during wipe keepalive.
+ * Producer comes only from studio config — change config, then Reset Rundown to apply.
  */
 export function createDoubleBoxBaselineCameraTimeline(
 	config: StudioConfig
