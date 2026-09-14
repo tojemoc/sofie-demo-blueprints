@@ -209,10 +209,17 @@ function isLiveCameraProducerFile(file: unknown): boolean {
 	return lower.startsWith('dshow://') || lower.startsWith('v4l2://') || lower.startsWith('decklink://')
 }
 
+function isLiveCameraTimelineContent(content: { type?: string; file?: unknown; inputType?: string }): boolean {
+	if (content?.type === TSR.TimelineContentTypeCasparCg.INPUT && content.inputType === 'decklink') {
+		return true
+	}
+	return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA && isLiveCameraProducerFile(content.file)
+}
+
 function pieceUsesLiveCameraProducer(piece: IBlueprintPiece): boolean {
 	return (piece.content.timelineObjects ?? []).some((obj) => {
-		const content = obj.content as { type?: string; file?: unknown }
-		return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA && isLiveCameraProducerFile(content.file)
+		const content = obj.content as { type?: string; file?: unknown; inputType?: string }
+		return isLiveCameraTimelineContent(content)
 	})
 }
 

@@ -1,4 +1,4 @@
-import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { BlueprintResultPart, IBlueprintPiece, PieceLifespan } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { ObjectType, StudioGuestObject } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
@@ -21,7 +21,7 @@ import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { createFullBgLoopPiece } from '../helpers/fullBgLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
-import { getPgmCameraMediaContentOptions, getPgmCameraProducer } from '../helpers/pgmCamera.js'
+import { createPgmCameraTimelineContent, getPgmCameraProducer, PgmCameraTimelineContent } from '../helpers/pgmCamera.js'
 import { LookSlot, finalizeHypercomposedPart, isDoubleBoxLook } from '../helpers/pgmLook.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
@@ -32,7 +32,7 @@ export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
 function createPgmCameraTimelineObjects(
 	config: StudioConfig,
 	mode: 'fullscreen' | 'doublebox'
-): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+): TimelineBlueprintExt<PgmCameraTimelineContent>[] {
 	const producer = getPgmCameraProducer(config)
 	if (!producer) return []
 
@@ -45,18 +45,12 @@ function createPgmCameraTimelineObjects(
 				}
 
 	return [
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({
 			id: '',
 			enable: { start: 0 },
 			layer: CasparCGLayers.CasparCGPgmCamera,
 			priority: 1,
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: producer,
-				mixer,
-				...getPgmCameraMediaContentOptions(config, producer),
-			},
+			content: createPgmCameraTimelineContent(config, producer, mixer),
 		}),
 	]
 }
