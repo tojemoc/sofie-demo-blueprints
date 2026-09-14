@@ -11,6 +11,11 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'source',
 	/** Thematic DoubleBox left-window ILU (PGM 115) — not headline chrome. */
 	'doublebox-ilu',
+	/**
+	 * Závěr avízo ILU — windowed like DoubleBox on Full look (ch4), no db_loop;
+	 * LED shows bg_loop + route://4.
+	 */
+	'ilu-zaver',
 	'l3d-headline',
 	'l3d-mod',
 	/** Topic / guest nameplate (Figma predstavovak). */

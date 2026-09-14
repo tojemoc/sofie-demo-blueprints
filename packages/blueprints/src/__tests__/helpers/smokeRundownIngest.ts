@@ -33,6 +33,7 @@ export type SmokeRundownExport = {
 		playlistId: string | null
 		rank: number
 		float?: boolean
+		skip?: boolean
 		partType?: string
 		duration?: number
 		script?: string
@@ -118,7 +119,8 @@ export function smokeExportToIngestSegment(
 				rank: 0,
 				name: part.name,
 				type: part.payload.type,
-				float: false,
+				float: Boolean(part.float),
+				skip: Boolean((part as { skip?: boolean }).skip),
 				script: part.script ?? part.payload.script ?? '',
 				duration: part.duration ?? part.payload.duration ?? 0,
 				pieces: exportData.pieces

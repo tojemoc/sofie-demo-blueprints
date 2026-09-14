@@ -327,8 +327,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 	})
 
 	it('coerces stale headline+bypass ILU on a DoubleBox part to doublebox-ilu window FILL', () => {
-		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
-		const part = ingest.parts.find((p) => p.externalId === 'part-avizo-db')
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
 		expect(part).toBeDefined()
 		if (!part) return
 
@@ -344,7 +344,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 			}>
 		}
 		payload.type = 'doublebox'
-		// Simulate pre-migration závěr piece still typed as headline with bypass ON.
+		// Simulate pre-migration piece still typed as headline with bypass ON.
 		payload.pieces = payload.pieces.map((piece) =>
 			piece.objectType === 'doublebox-ilu'
 				? {
@@ -360,7 +360,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-avizo-db')
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
 		expect(dbPart).toBeDefined()
 		if (!dbPart) return
 		expect(dbPart.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
@@ -375,5 +375,33 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 			},
 		})
+	})
+
+	it('plays ilu-zaver windowed on Full look with LED route://4 and no db_loop', () => {
+		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
+		const zaver = segment.parts.find((p) => p.payload.externalId === 'part-avizo-db')
+		expect(zaver).toBeDefined()
+		if (!zaver) return
+		expect(zaver.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')).toBe(true)
+		expect(zaver.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(false)
+
+		const partContext = new PartContext(mockSegmentContext(), zaver.payload.externalId)
+		const result = generateCameraPart(partContext, zaver as PartProps<CameraProps>, createCountupRevealClaim())
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+
+		const ilu = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer)
+		expect(ilu?.content).toMatchObject({
+			mixer: {
+				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+			},
+		})
+		expect(timeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(false)
+		const ledRoute = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGEffectsPlayer &&
+				(obj.content as TSR.TimelineContentCCGMedia).file === 'route://4'
+		)
+		expect(ledRoute).toBeDefined()
 	})
 })

@@ -2,7 +2,10 @@ import { TSR } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
-import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import {
+	PGM_DOUBLEBOX_CAMERA_FILL,
+	PGM_FULLSCREEN_CAMERA_FILL,
+} from '../../studio/applyConfig/mappings/casparcgLayers.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 
@@ -190,6 +193,28 @@ export function createDoubleBoxBaselineCameraTimeline(
 		layer: CasparCGLayers.CasparCGPgmCamera,
 		content: createPgmCameraTimelineContent(config, producer, {
 			fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
+		}),
+	})
+}
+
+/**
+ * Live CAM1 fullscreen on Full look (BG B / ch4 layer 115) for the whole rundown.
+ * Rehearsal / pre-first-Take already shows presenter under baseline `route://4`.
+ */
+export function createFullLookBaselineCameraTimeline(
+	config: StudioConfig
+): TimelineBlueprintExt<PgmCameraTimelineContent> | undefined {
+	if (!config.casparcg.hypercomposed) return undefined
+	const producer = getPgmCameraProducer(config)
+	if (!producer || !isLivePgmCameraProducer(producer)) return undefined
+
+	return literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({
+		id: '',
+		enable: { while: 1 },
+		priority: 0,
+		layer: CasparCGLayers.CasparCGPgmCameraB,
+		content: createLookCameraTimelineContent(config, producer, {
+			fill: { ...PGM_FULLSCREEN_CAMERA_FILL },
 		}),
 	})
 }

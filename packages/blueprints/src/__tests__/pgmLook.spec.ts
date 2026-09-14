@@ -464,9 +464,9 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(syn?.pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(true)
 
 		const sjv = gen('seg-sjv')
-		const sjvOpen = sjv.parts.find((part) => part.part.externalId === 'part-sjv-open')
-		expect(pgmRouteChannel(sjvOpen?.pieces ?? [])).toBe(4)
-		const sjvTimeline = (sjvOpen?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
+		const sjvSyn = sjv.parts.find((part) => part.part.externalId === 'part-sjv-syn-1')
+		expect(pgmRouteChannel(sjvSyn?.pieces ?? [])).toBe(4)
+		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(sjvRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
