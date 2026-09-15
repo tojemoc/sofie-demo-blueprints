@@ -232,9 +232,11 @@ function layeredVideoCasparLayer(playLayer: VideoPlayLayer): CasparCGLayers {
 	return CasparCGLayers.CasparCGClipPlayer1
 }
 
-function layeredVideoLifespan(playLayer: VideoPlayLayer): PieceLifespan {
+function layeredVideoLifespan(playLayer: VideoPlayLayer, fileName?: string): PieceLifespan {
 	// Overlay intros are within the part; bg-loop sticks so operators can see/control it across takes.
 	// Wipes are within-part (fire on take into the story).
+	// Outro jingle freezes on its last frame for the rest of the rundown (no bed restart flash).
+	if (playLayer === 'effects' && isOutroVideoFile(fileName)) return PieceLifespan.OutOnRundownEnd
 	if (playLayer === 'effects' || playLayer === 'wipe') return PieceLifespan.WithinPart
 	return PieceLifespan.OutOnRundownEnd
 }
@@ -325,8 +327,15 @@ export function parseLayeredVideosFromObjects(
 					: `BG loop | ${fileName}`
 
 		// Wipes are short PGM transitions: never leave an open-ended piece covering the wipe layer.
+		// Outro holds last frame for the rundown — do not end the piece when the mov ends.
 		const enableDuration =
-			object.duration > 0 ? object.duration : playLayer === 'wipe' ? resolveWipeDurationMs() : undefined
+			playLayer === 'effects' && isOutroVideoFile(fileName)
+				? undefined
+				: object.duration > 0
+					? object.duration
+					: playLayer === 'wipe'
+						? resolveWipeDurationMs()
+						: undefined
 
 		const skipWipeOverlay = playLayer === 'wipe' && Boolean(config.casparcg.hypercomposed)
 
@@ -343,6 +352,8 @@ export function parseLayeredVideosFromObjects(
 							type: TSR.TimelineContentTypeCasparCg.MEDIA,
 							file: toCasparPlayPath(fileName),
 							...(loop ? { loop: true } : {}),
+							// Outro: hold last frame after the jingle ends (piece OutOnRundownEnd).
+							...(playLayer === 'effects' && isOutroVideoFile(fileName) ? { loop: false } : {}),
 							// Force PLAY even when Package Manager has not verified the file yet.
 							...(playLayer === 'effects' ? { mixer: { volume: 1 } } : {}),
 						},
@@ -370,7 +381,7 @@ export function parseLayeredVideosFromObjects(
 				},
 				externalId: object.id,
 				name: displayName,
-				lifespan: layeredVideoLifespan(playLayer),
+				lifespan: layeredVideoLifespan(playLayer, fileName),
 				sourceLayerId: sourceLayer,
 				outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
 				content: {

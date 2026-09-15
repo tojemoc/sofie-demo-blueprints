@@ -29,8 +29,14 @@ import { parseVT } from './vt.js'
 function normalizeGenericGraphicTemplate(template: unknown): string {
 	const clipName = typeof template === 'string' ? template.trim() : ''
 	if (!clipName) return ''
-	if (clipName.toLowerCase().startsWith('gfx/')) return clipName
-	if (isRundownEditorGraphicPieceType(clipName)) return 'gfx/' + clipName.toLowerCase()
+	const lower = clipName.toLowerCase()
+	const withoutPrefix = lower.startsWith('gfx/') ? lower.slice(4) : lower
+	// Retired RE piece — still accept legacy template attrs, play as l3d-syn.
+	if (withoutPrefix === 'l3d-predstavovak') {
+		return 'gfx/l3d-syn'
+	}
+	if (lower.startsWith('gfx/')) return clipName
+	if (isRundownEditorGraphicPieceType(clipName)) return 'gfx/' + withoutPrefix
 	return clipName
 }
 
@@ -202,10 +208,10 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 						delete piece.attributes.iluPrerendered
 						delete piece.attributes.bypass
 					}
-					// Opening/intro presenter L3D must be `l3d-mod` (not guest/topic `l3d-predstavovak`).
-					// Older smoke / RE exports still tag the MOD nameplate as predstavovak.
-					if (graphicPieceType === 'l3d-predstavovak' && type === SegmentType.OPENING) {
-						graphicPieceType = 'l3d-mod'
+					// Opening/intro presenter L3D must be `l3d-mod`.
+					// Retired guest/topic `l3d-predstavovak` → `l3d-syn` (RE no longer ships it).
+					if (graphicPieceType === 'l3d-predstavovak') {
+						graphicPieceType = type === SegmentType.OPENING ? 'l3d-mod' : 'l3d-syn'
 					}
 					piece.clipName = graphicPieceType === 'weather' ? 'gfx/pocasie' : 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic

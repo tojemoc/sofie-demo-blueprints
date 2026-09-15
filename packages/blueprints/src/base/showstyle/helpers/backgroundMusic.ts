@@ -47,6 +47,9 @@ export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TS
 /**
  * Mute LED+PGM kolíska beds (A and C) while an overlay owns the soundtrack.
  * Priority 2 beats the C-bed (priority 1) and baseline A-bed.
+ *
+ * Outro mute is OutOnRundownEnd so beds stay quiet after the jingle (no restart).
+ * Intro mute is WithinPart so the first DoubleBox reveal can bring audio back.
  */
 export function createBackgroundMusicMutePiece(
 	config: StudioConfig,
@@ -54,14 +57,15 @@ export function createBackgroundMusicMutePiece(
 	label: 'Intro' | 'Outro',
 	durationMs?: number
 ): IBlueprintPiece {
+	const persistAfterPart = label === 'Outro'
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
-			...(durationMs !== undefined ? { duration: durationMs } : {}),
+			...(durationMs !== undefined && !persistAfterPart ? { duration: durationMs } : {}),
 		},
 		externalId: `${partExternalId}_bg_music_mute`,
 		name: `BG music mute (${label})`,
-		lifespan: PieceLifespan.WithinPart,
+		lifespan: persistAfterPart ? PieceLifespan.OutOnRundownEnd : PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.AudioBed,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
 		content: {

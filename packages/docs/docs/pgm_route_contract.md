@@ -15,15 +15,21 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 | Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 205** from Take | Overlay at 0; route hard-cuts at `WIPE_CUT_POINT_MS`; keepalive previous look through sting; `db_loop` + cam + countup |
 | Tema N SYN | Full (4) | `route://4` | hard cut | L3D ADD after short `L3D_OUT_MS` |
 | Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut | |
-| SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 205** from Take | `wipe_pocasie` EMPTYs ch4 clip/CAM/`db_loop` at 0; weather MEDIA/L3D at cut |
+| SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 205** from Take | L3D layer EMPTYed at 0 then ADD at cut; `wipe_pocasie` also EMPTYs ch4 clip/CAM/`db_loop`; weather MEDIA/L3D at cut |
 | SYN avízo / last words | Full (4) | `route://4` | hard cut | LED: windowed `ilu-zaver` (~60–68%) over `bg_loop`; PGM: CAM + L3DO |
-| Outro | Full (4) | `route://4` | `outro.mov` on PGM 210 | beds/SFX muted |
+| Outro | Full (4) | `route://4` | `outro.mov` on PGM 210 | beds/SFX muted **OutOnRundownEnd**; freeze last frame |
 
 **LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a
 right-shifted FILL+CROP (`FILL -0.5425 -0.27125 1.5425 1.5425` — vMix shift 1.085 where
 1.0 = 50% of screen) so the loop covers the DoubleBox camera cutout. Tip / avízo / outro
 return to fullscreen. Headlines also PLAY `assets/pod_headline` on LED layer **112**
 (above bg_loop 110, under ILU 115).
+
+**L3D:** Take EMPTYs look layer 121 before the delayed CG ADD (`L3D_OUT_MS` / wipe cut) so
+keepalive cannot stack two templates and same-name SJV/ŠPORT Takes do not CG UPDATE.
+Retired `l3d-predstavovak` → `l3d-syn` (opening → `l3d-mod`).
+
+**Wipe overlay:** PGM 205 mixer `keyer:false` + `straightAlpha:true` (straight-alpha `wipe.mov`).
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 

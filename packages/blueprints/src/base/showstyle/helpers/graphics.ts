@@ -46,6 +46,10 @@ function normalizeGraphicClipName(clipName: string): string {
 /** Map Sofie clipNames to on-disk Caspar template paths from demo-assets `template/gfx/`. */
 function resolveCasparTemplateName(clipName: string): string {
 	const normalized = normalizeGraphicClipName(clipName)
+	// Retired RE type: guest/topic nameplate is l3d-syn only (opening MOD stays l3d-mod upstream).
+	if (normalized === 'gfx/l3d-predstavovak') {
+		return 'gfx/l3d-syn'
+	}
 	// l3d-odporucanie ships as its own HTML (jednou-vetou shell, no kicker).
 	// Older deploys only had gfx/outro — keep that as a documented fallback in docs only.
 	return normalized
@@ -127,7 +131,7 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (normalizedClip === 'gfx/l3d-predstavovak' || normalizedClip === 'gfx/l3d-mod') {
+	if (normalizedClip === 'gfx/l3d-mod') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.name === undefined && mapped.headline !== undefined) {
 			mapped.name = mapped.headline
@@ -145,7 +149,7 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (normalizedClip === 'gfx/l3d-syn') {
+	if (normalizedClip === 'gfx/l3d-syn' || normalizedClip === 'gfx/l3d-predstavovak') {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.name === undefined && mapped.headline !== undefined) {
 			mapped.name = mapped.headline
@@ -156,6 +160,10 @@ function getTemplateAttributes(
 		// Rundown Editor field is `role`; l3d-syn.html binds the second line from `title`.
 		if (mapped.title === undefined && mapped.role !== undefined) {
 			mapped.title = mapped.role
+		}
+		// Empty title leaves the previous Caspar field value — send whitespace to clear.
+		if (typeof mapped.title === 'string' && mapped.title.trim() === '') {
+			mapped.title = '\u00a0'
 		}
 		delete mapped.headline
 		delete mapped.subline

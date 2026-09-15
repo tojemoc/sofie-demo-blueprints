@@ -156,6 +156,13 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(!Array.isArray(hl2L3d?.enable) && hl2L3d?.enable.start).toBe(L3D_OUT_MS)
 		expect((hl2L3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
+		const l3dClear = generated.parts[1].pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(l3dClear).toBeDefined()
+		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
+			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(l3dEmpty?.layer).toBe(LOOK_B_LAYERS.lowerThird)
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
 
 		const liveCam = hl2Timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
 		expect(liveCam?.content).toMatchObject({
