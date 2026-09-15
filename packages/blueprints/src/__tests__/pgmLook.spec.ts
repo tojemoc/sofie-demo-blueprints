@@ -207,6 +207,26 @@ describe('pgmLook look-kind channels + route', () => {
 		expect((routeObj?.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
 	})
 
+	it('clears Full-look CAM (EMPTY) so SYN on 4-110 is not covered by baseline route://5', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.type === PartType.VO)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+
+		expect(timeline.some((obj) => obj.layer === LOOK_B_LAYERS.clip)).toBe(true)
+		expect(
+			timeline.some(
+				(obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
+	})
+
 	it('remaps Full clips onto channel-4 mappings and routes PGM from 4', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')

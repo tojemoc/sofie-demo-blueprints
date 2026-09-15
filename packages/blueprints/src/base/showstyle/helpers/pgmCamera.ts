@@ -218,3 +218,23 @@ export function createFullLookBaselineCameraTimeline(
 		}),
 	})
 }
+
+/**
+ * Clear the look camera layer (115) so fullscreen editorial (SYN/VT) / weather underlay
+ * on layer 110/116 is not covered by baseline `route://5` CAM (often black → audio-only).
+ * Uses Caspar EMPTY; layer id is Look A (`CasparCGPgmCamera`) so {@link remapLookLayers}
+ * sends it to Look B when needed.
+ */
+export function createLookCameraClearTimelineObject(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { start: 0 },
+		layer: CasparCGLayers.CasparCGPgmCamera,
+		priority: 1,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'EMPTY',
+		},
+	})
+}
