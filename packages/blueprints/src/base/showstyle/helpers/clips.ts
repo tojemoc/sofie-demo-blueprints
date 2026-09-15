@@ -49,6 +49,18 @@ export const WIPE_CUT_POINT_MS = 760
  */
 export const DEFAULT_WIPE_PREROLL_MS = 3000
 
+/**
+ * How long Host/Playback ForceMute + editorial Caspar duck last.
+ * Must end with the wipe SFX — not an oversized tail after the stinger.
+ * Defaults to the visual wipe length; override via RE wipe piece duration when set.
+ */
+export function resolveWipeDurationMs(wipeDurationFromIngest?: number): number {
+	if (typeof wipeDurationFromIngest === 'number' && Number.isFinite(wipeDurationFromIngest) && wipeDurationFromIngest > 0) {
+		return Math.floor(wipeDurationFromIngest)
+	}
+	return DEFAULT_WIPE_DURATION_MS
+}
+
 function resolveVideoFileName(object: VideoObject): string | undefined {
 	const fromAttributes = object.attributes?.fileName
 	if (typeof fromAttributes === 'string' && fromAttributes.trim()) {
@@ -291,7 +303,11 @@ export function parseLayeredVideosFromObjects(
 
 		// Wipes are short PGM transitions: never leave an open-ended piece covering layer 200.
 		const enableDuration =
-			object.duration > 0 ? object.duration : playLayer === 'wipe' ? DEFAULT_WIPE_DURATION_MS : undefined
+			object.duration > 0
+				? object.duration
+				: playLayer === 'wipe'
+					? resolveWipeDurationMs()
+					: undefined
 
 		const skipWipeOverlay = playLayer === 'wipe' && Boolean(config.casparcg.hypercomposed)
 
