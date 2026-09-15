@@ -63,19 +63,21 @@ describe('L3D Caspar template field contracts', () => {
 		expect(data).toEqual({ headline: 'Slovan', kicker: 'ŠPORT' })
 	})
 
-	it('gfx/l3d-predstavovak → name + title (headline/subline aliases)', () => {
-		const { data } = casparData('gfx/l3d-predstavovak', {
+	it('gfx/l3d-predstavovak coerces to gfx/l3d-syn with name + title', () => {
+		const { templateName, data } = casparData('gfx/l3d-predstavovak', {
 			headline: 'Gabi',
 			subline: 'moderátorka',
 		})
+		expect(templateName).toBe('gfx/l3d-syn')
 		expect(data).toEqual({ name: 'Gabi', title: 'moderátorka' })
 	})
 
-	it('gfx/l3d-predstavovak clears empty title with whitespace', () => {
-		const { data } = casparData('gfx/l3d-predstavovak', {
+	it('gfx/l3d-predstavovak clears empty title with whitespace (via l3d-syn)', () => {
+		const { templateName, data } = casparData('gfx/l3d-predstavovak', {
 			name: 'Topic',
 			title: '',
 		})
+		expect(templateName).toBe('gfx/l3d-syn')
 		expect(data).toEqual({ name: 'Topic', title: '\u00a0' })
 	})
 

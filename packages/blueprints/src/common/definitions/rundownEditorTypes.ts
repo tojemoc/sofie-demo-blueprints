@@ -18,8 +18,6 @@ export const RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES = [
 	'ilu-zaver',
 	'l3d-headline',
 	'l3d-mod',
-	/** Topic / guest nameplate (Figma predstavovak). */
-	'l3d-predstavovak',
 	'l3d-tema',
 	'l3d-syn',
 	'l3d-sjv',
@@ -35,6 +33,10 @@ export type RundownEditorGraphicPieceType = (typeof RUNDOWN_EDITOR_GRAPHIC_PIECE
 /** Membership check after trim/lowercase — returns boolean (not a type predicate on the raw input). */
 export function isRundownEditorGraphicPieceType(pieceType: string): boolean {
 	const normalized = pieceType.trim().toLowerCase()
+	if (normalized === 'l3d-predstavovak') {
+		// Retired RE type — still recognized so ingest can coerce to l3d-syn / l3d-mod.
+		return true
+	}
 	return (RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES as readonly string[]).includes(normalized)
 }
 

@@ -114,16 +114,19 @@ function createCountupPiece(
 	context: ICommonContext,
 	config: StudioConfig,
 	partExternalId: string,
-	mode: 'reveal' | 'sustain' | 'mute'
+	mode: 'reveal' | 'sustain' | 'mute',
+	options?: { persistMute?: boolean }
 ): IBlueprintPiece {
 	const name = mode === 'reveal' ? '360 countup' : mode === 'mute' ? '360 countup (mute)' : '360 countup (hold)'
+	const persistMute = mode === 'mute' && options?.persistMute
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
 		},
 		externalId: `${partExternalId}_countup_${mode}`,
 		name,
-		lifespan: mode === 'mute' ? PieceLifespan.WithinPart : PieceLifespan.OutOnRundownEnd,
+		// Outro mute must survive the part so kolíska/countup SFX do not restart after the jingle.
+		lifespan: mode === 'mute' && !persistMute ? PieceLifespan.WithinPart : PieceLifespan.OutOnRundownEnd,
 		sourceLayerId: SourceLayer.Logo,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Logo),
 		content: {
@@ -167,9 +170,10 @@ export function createCountupSustainPiece(
 export function createCountupMutePiece(
 	context: ICommonContext,
 	config: StudioConfig,
-	partExternalId: string
+	partExternalId: string,
+	options?: { persist?: boolean }
 ): IBlueprintPiece {
-	return createCountupPiece(context, config, partExternalId, 'mute')
+	return createCountupPiece(context, config, partExternalId, 'mute', { persistMute: options?.persist })
 }
 
 /** True when this part should keep countup SFX off (Intro overlay or závěr / outro). */
@@ -190,18 +194,32 @@ export function partShouldMuteCountup(rawType: string | undefined, objects: Some
 	})
 }
 
+/** True when countup mute must survive the part (outro jingle — no SFX restart after). */
+export function partShouldPersistCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
+	if (/outro/i.test(rawType || '')) return true
+	return objects.some((obj) => {
+		if (obj.objectType !== ObjectType.Video) return false
+		const clip = String((obj as { clipName?: string }).clipName || '').toLowerCase()
+		const file =
+			typeof (obj as { attributes?: { fileName?: string } }).attributes?.fileName === 'string'
+				? (obj as { attributes: { fileName: string } }).attributes.fileName.toLowerCase()
+				: ''
+		return /(^|\/)outro(\.|$)/i.test(clip) || /(^|\/)outro(\.|$)/i.test(file)
+	})
+}
+
 export function appendCountupSustainIfRevealed(
 	context: PartContext,
 	config: StudioConfig,
 	partExternalId: string,
 	pieces: IBlueprintPiece[],
 	countupRevealClaim: CountupRevealClaim,
-	options?: { mute?: boolean }
+	options?: { mute?: boolean; persistMute?: boolean }
 ): void {
 	if (!countupRevealClaim.isRevealed(context.rundownId)) return
 	if (pieces.some((piece) => piece.externalId?.includes('_countup_'))) return
 	if (options?.mute) {
-		pieces.push(createCountupMutePiece(context, config, partExternalId))
+		pieces.push(createCountupMutePiece(context, config, partExternalId, { persist: options.persistMute }))
 		return
 	}
 	pieces.push(createCountupSustainPiece(context, config, partExternalId))

@@ -198,7 +198,7 @@ describe('casparV2Graphics', () => {
 		})
 	})
 
-	it('normalizes mixed-case L3D clipNames and drops alias fields for predstavovak', () => {
+	it('normalizes mixed-case L3D clipNames and maps retired predstavovak to l3d-syn', () => {
 		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
 				id: 'pred-mixed',
@@ -212,7 +212,7 @@ describe('casparV2Graphics', () => {
 		]).pieces[0]
 
 		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
-		expect(caspar?.name).toBe('gfx/l3d-predstavovak')
+		expect(caspar?.name).toBe('gfx/l3d-syn')
 		expect(caspar?.data).toEqual({ name: 'Gabi', title: 'moderátorka' })
 		expect(caspar?.data).not.toHaveProperty('headline')
 		expect(caspar?.data).not.toHaveProperty('subline')
@@ -541,6 +541,13 @@ describe('casparV2Graphics', () => {
 		)
 		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_CUT_POINT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
+		const l3dClear = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(l3dClear).toBeDefined()
+		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
+			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(l3dEmpty?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
 	})
 
 	it('mutes kolíska beds while the outro overlay plays', () => {
@@ -575,7 +582,16 @@ describe('casparV2Graphics', () => {
 		const generated = generateParts(mockSegmentContext(), segment, claim)
 		const generatedOutro = generated.parts.find((part) => part.part.externalId === outroPart.payload.externalId)
 		expect(generatedOutro?.pieces.some((piece) => piece.name === 'BG music mute (Outro)')).toBe(true)
-		expect(generatedOutro?.pieces.some((piece) => piece.externalId?.endsWith('_countup_mute'))).toBe(true)
+		const bgMute = generatedOutro?.pieces.find((piece) => piece.name === 'BG music mute (Outro)')
+		expect(bgMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		const outroVideo = generatedOutro?.pieces.find((piece) => piece.name.startsWith('Outro |'))
+		expect(outroVideo?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(
+			(outroVideo?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia | undefined)?.loop
+		).toBe(false)
+		const countupMute = generatedOutro?.pieces.find((piece) => piece.externalId?.endsWith('_countup_mute'))
+		expect(countupMute).toBeDefined()
+		expect(countupMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 	})
 
 	it('decodes legacy cities JSON for gfx/pocasie template data', () => {
@@ -858,7 +874,7 @@ describe('casparV2Graphics', () => {
 		expect(object?.attributes).toMatchObject({ name: 'Gabriela Kajtárová', title: 'moderátorka' })
 	})
 
-	it('keeps story-segment l3d-predstavovak as guest/topic nameplate', () => {
+	it('coerces story-segment l3d-predstavovak to gfx/l3d-syn (retired nameplate)', () => {
 		const segment = convertIngestData(
 			{
 				logError: () => undefined,
@@ -896,7 +912,7 @@ describe('casparV2Graphics', () => {
 			} as never
 		)
 
-		expect(segment.parts[0]?.objects[0]?.clipName).toBe('gfx/l3d-predstavovak')
+		expect(segment.parts[0]?.objects[0]?.clipName).toBe('gfx/l3d-syn')
 	})
 
 	it('normalizes generic graphic template names without gfx/ prefixes', () => {
@@ -938,14 +954,14 @@ describe('casparV2Graphics', () => {
 		)
 
 		const object = segment.parts[0]?.objects[0]
-		expect(object?.clipName).toBe('gfx/l3d-predstavovak')
+		expect(object?.clipName).toBe('gfx/l3d-syn')
 
 		const piece = parseGraphicsFromObjects(hybridCasparConfig, segment.parts[0]?.objects ?? []).pieces[0]
 		expect(piece?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(piece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 
 		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
-		expect(caspar?.name).toBe('gfx/l3d-predstavovak')
+		expect(caspar?.name).toBe('gfx/l3d-syn')
 		expect(caspar?.data).toEqual({ name: 'Gabi', title: 'moderátorka', template: 'l3d-predstavovak' })
 	})
 })

@@ -84,6 +84,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/wipe',
 			mixer: {
 				keyer: false,
+				straightAlpha: true,
 				blend: TSR.BlendMode.NORMAL,
 				chroma: { keyer: TSR.Chroma.NONE },
 				opacity: 1,
@@ -92,6 +93,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			},
 		})
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
+		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBe(true)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
@@ -243,8 +245,10 @@ describe('wipe piece type → PGM route / overlay', () => {
 		if (!wipeOnly || wipeOnly.type !== PartType.LayeredVideo) return
 		const partContext = new PartContext(mockSegmentContext(), wipeOnly.payload.externalId)
 		const result = generateLayeredVideoPart(partContext, wipeOnly, 'B')
-		expect(result.pieces).toHaveLength(1)
-		const timeline = result.pieces[0]?.content.timelineObjects ?? []
+		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
+		expect(wipePiece).toBeDefined()
+		expect(result.pieces.some((piece) => piece.externalId?.endsWith('_l3d_clear'))).toBe(true)
+		const timeline = wipePiece?.content.timelineObjects ?? []
 		expect(timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/360_wipe',

@@ -330,7 +330,11 @@ function createPgmWipeOverlayTimelineObject(
 			// fresh PGM layer (205) so leftover MIXER KEYER on old 200 cannot stick.
 			// Explicit FILL+opacity forces a MIXER write even when keyer:false is default.
 			mixer: {
+				// Alpha .mov composite — never MIXER KEYER / CHROMA (those luma-key RGB).
+				// straightAlpha: remastered wipe.mov is straight (non-premultiplied) alpha;
+				// without this Caspar treats it as premul and the sting looks "keyed".
 				keyer: false,
+				straightAlpha: true,
 				blend: TSR.BlendMode.NORMAL,
 				chroma: {
 					keyer: TSR.Chroma.NONE,
@@ -557,14 +561,24 @@ export function finalizeHypercomposedPart(
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
-		// Keepalive through the sting so Take never drops the previous look before
-		// wipe cover (that showed as tearing / a glitch-cut then a late wipe).
+		// Keepalive through the sting so Take never drops the previous look VIDEO
+		// before wipe cover (that showed as tearing / a glitch-cut then a late wipe).
+		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
 		part.inTransition = {
 			blockTakeDuration: wipeDurationMs,
 			previousPartKeepaliveDuration: wipeDurationMs,
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
+	}
+
+	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
+	const l3dInDelay = hasWipe ? WIPE_CUT_POINT_MS : hasIncomingL3d ? L3D_OUT_MS : 0
+
+	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
+	// (SJV→SJV, ŠPORT→ŠPORT) otherwise become CG UPDATE (text swap, no IN anim).
+	if (hasIncomingL3d || hasWipe) {
+		appendL3dLayerClear(pieces, partExternalId, lookSlot, 0, l3dInDelay > 0 ? l3dInDelay : undefined)
 	}
 
 	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie)
@@ -718,14 +732,15 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
 }
 
 /**
- * On Take: outgoing L3Ds STOP immediately (no keepalive / no postroll on templates).
+ * On Take: previous L3D is EMPTYed (see {@link appendL3dLayerClear}) so keepalive
+ * cannot stack two templates. Incoming L3Ds ADD after a gap — never CG UPDATE.
  *
  * Wiped Takes: wipe overlay covers from 0 — do not delay look MEDIA (that raced the
  * sting and tore). Incoming L3Ds ADD at the cover cut so the in-anim is visible.
  * `wipe_pocasie` also holds weather MEDIA until the cut so CLEAR can drop the last
  * sport SYN under the sting before bg_pocasie / weather GFX appear.
  *
- * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after STOP.
+ * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after CLEAR.
  */
 function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, wipePocasie = false): void {
 	const hasWipe = wipeDurationMs > 0
@@ -744,11 +759,66 @@ function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, 
 
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
 			if (!isCasparMedia(content)) continue
-			// Look CLEAR EMPTYs must stay at Take so sport SYN drops under wipe_pocasie.
+			// Look / L3D CLEAR EMPTYs must stay at Take (sport SYN + previous L3D).
 			if ((content as { file?: string }).file === 'EMPTY') continue
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
 		}
 	}
+}
+
+function partHasIncomingL3dTemplate(pieces: IBlueprintPiece[]): boolean {
+	return pieces.some((piece) =>
+		(piece.content.timelineObjects ?? []).some((obj) => {
+			const layer = String(obj.layer)
+			if (!L3D_TEMPLATE_LAYERS.has(layer)) return false
+			return isCasparTemplate(obj.content as { type?: string })
+		})
+	)
+}
+
+/**
+ * EMPTY the look L3D layer at Take so a keepalive'd previous template cannot stack
+ * under the wipe / hard-cut gap. Duration covers until the delayed CG ADD; omit
+ * duration when there is no incoming L3D (wiped Take into a graphic-free part).
+ */
+function appendL3dLayerClear(
+	pieces: IBlueprintPiece[],
+	partExternalId: string,
+	lookSlot: LookSlot,
+	startMs: number,
+	clearDurationMs?: number
+): void {
+	const layer = getLookLayers(lookSlot).lowerThird
+	pieces.push(
+		literal<IBlueprintPiece>({
+			enable: { start: startMs },
+			externalId: `${partExternalId}_l3d_clear`,
+			name: 'L3D CLEAR (auto-hide previous)',
+			lifespan: PieceLifespan.WithinPart,
+			// GFX — not PgmLowerThird — so Core processAndPrune does not drop the
+			// incoming L3D piece that also starts at 0 on the exclusive PGM L3D track.
+			sourceLayerId: SourceLayer.GFX,
+			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.GFX),
+			content: {
+				timelineObjects: [
+					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+						id: '',
+						enable: {
+							start: 0,
+							...(clearDurationMs !== undefined ? { duration: clearDurationMs } : {}),
+						},
+						layer,
+						priority: 2,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'EMPTY',
+						},
+					}),
+				],
+			},
+		})
+	)
 }
 
 /** Outgoing look VIDEO stays up through L3D out + wipe cover; L3D templates must not. */
