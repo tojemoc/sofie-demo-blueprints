@@ -23,6 +23,7 @@ import {
 	LOOK_A_LAYERS,
 	LOOK_B_LAYERS,
 	L3D_OUT_MS,
+	LOOK_MEDIA_POSTROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
 	getLookCasparChannel,
@@ -109,6 +110,7 @@ describe('pgmLook look-kind channels + route', () => {
 
 	it('converts wipe cut-point ms to frames at 50fps (docs helper; casparcg-state wants ms)', () => {
 		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(38)
+		expect(LOOK_MEDIA_POSTROLL_MS).toBe(L3D_OUT_MS + WIPE_CUT_POINT_MS)
 	})
 
 	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {

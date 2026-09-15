@@ -46,8 +46,12 @@ export const DEFAULT_LOOK_PREROLL_MS = 1500
  */
 export const L3D_OUT_MS = 500
 
-/** Keep outgoing look MEDIA on the timeline through L3D out + wipe cover-frame. */
-export const LOOK_MEDIA_POSTROLL_MS = L3D_OUT_MS + WIPE_CUT_POINT_MS
+/**
+ * Keep outgoing look MEDIA on the timeline through L3D out + wipe cover-frame.
+ * 760 is {@link WIPE_CUT_POINT_MS}; inlined so this const does not read clips.ts
+ * during module init (webpack CJS: clips → baseline → pgmLook cycle).
+ */
+export const LOOK_MEDIA_POSTROLL_MS = L3D_OUT_MS + 760
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
