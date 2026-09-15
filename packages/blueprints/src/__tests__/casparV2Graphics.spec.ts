@@ -586,9 +586,9 @@ describe('casparV2Graphics', () => {
 		expect(bgMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		const outroVideo = generatedOutro?.pieces.find((piece) => piece.name.startsWith('Outro |'))
 		expect(outroVideo?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
-		expect(
-			(outroVideo?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia | undefined)?.loop
-		).toBe(false)
+		expect((outroVideo?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia | undefined)?.loop).toBe(
+			false
+		)
 		const countupMute = generatedOutro?.pieces.find((piece) => piece.externalId?.endsWith('_countup_mute'))
 		expect(countupMute).toBeDefined()
 		expect(countupMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
