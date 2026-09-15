@@ -1,10 +1,11 @@
 import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { LayeredVideoProps, PartProps } from '../definitions/index.js'
-import { parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { parseLayeredVideosFromObjects, partHasOutroOverlay } from '../helpers/clips.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart, findWipeVideoObject } from '../helpers/pgmLook.js'
+import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 
 /**
  * Video-only wipe / bg-loop parts (no graphic, no take-over VT/VO clip).
@@ -24,6 +25,16 @@ export function generateLayeredVideoPart(
 	const pieces = [...layeredVideos]
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
+
+	if (partHasOutroOverlay(part.objects)) {
+		pieces.push(
+			createOutroBackgroundMusicMutePiece(
+				config,
+				part.payload.externalId,
+				part.payload.duration > 0 ? part.payload.duration : undefined
+			)
+		)
+	}
 
 	const result: BlueprintResultPart = {
 		part: {

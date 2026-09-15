@@ -26,8 +26,6 @@ import {
 	PGM_DOUBLEBOX_ILU_FILL,
 	coverCropForFill,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
-import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
-
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
 	adLibPieces: IBlueprintAdLibPiece[]
@@ -63,8 +61,9 @@ function isDoubleboxIlu(object: GraphicObjectBase): boolean {
 }
 
 /**
- * Závěr avízo ILU — windowed like DoubleBox ILU on Full look (ch4), no db_loop frame.
- * PGM shows CAM1 full via route://4; LED keeps bg_loop with route://4 on top.
+ * Závěr avízo ILU — fullscreen alpha on LED 115 over baseline `bg_loop`.
+ * CAM1 and `l3d-odporucanie` stay on the Full look (PGM). Never `route://4` on LED
+ * (that put CAM1 on the wall).
  */
 function isIluZaver(object: GraphicObjectBase): boolean {
 	return normalizeGraphicClipName(object.clipName) === 'gfx/ilu-zaver' && !!object.attributes.iluFile
@@ -399,7 +398,7 @@ function getDoubleboxIluMediaObject(
 }
 
 function getIluZaverTimelineObjects(
-	config: StudioConfig,
+	_config: StudioConfig,
 	object: GraphicObjectBase,
 	isAdlib?: boolean
 ): TimelineBlueprintExt[] {
@@ -407,24 +406,8 @@ function getIluZaverTimelineObjects(
 	if (!iluFile || !isIluZaver(object)) {
 		return []
 	}
-	const bgChannelB = getHypercomposedChannels({ studio: config }).bgChannelB
 
-	return [
-		createDoubleboxIluMediaTimelineObject(iluFile, isAdlib, resolveIluVolume(object)),
-		// LED: bg_loop (baseline) + full-channel route://4 on top (CAM + windowed ILU).
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			enable: { start: 0 },
-			layer: CasparCGLayers.CasparCGEffectsPlayer,
-			priority: 1 + (isAdlib ? 10 : 0),
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: `route://${bgChannelB}`,
-				noStarttime: true,
-			},
-		}),
-	]
+	return [createHeadlineIluMediaTimelineObject(iluFile, 'fullscreen', isAdlib, resolveIluVolume(object))]
 }
 
 /** PGM L3D HTML templates — LED allow-list is headline ILU + bg_loop only. */
@@ -486,7 +469,7 @@ function getGraphicTlObject(
 		return getDoubleboxIluMediaObject(object, isAdlib)
 	}
 
-	// Závěr ILU: windowed MEDIA on Full look + LED route://4 over bg_loop (no db_loop).
+	// Závěr ILU: fullscreen MEDIA on LED 115 over bg_loop. CAM + L3DO stay on PGM.
 	if (isIluZaver(object)) {
 		return getIluZaverTimelineObjects(config, object, isAdlib)
 	}
@@ -522,7 +505,7 @@ function getGraphicTlObject(
 					templateType: 'html',
 					name: templateName,
 					data: { ...templateData },
-					useStopCommand: false,
+					useStopCommand: true,
 				},
 			}),
 			...createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency),
@@ -558,7 +541,7 @@ function getGraphicTlObject(
 				data: {
 					...getTemplateAttributes(clipName, object.attributes),
 				},
-				useStopCommand: isFullscreen ? false : true,
+				useStopCommand: true,
 			},
 		}),
 		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
@@ -591,9 +574,7 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 			createMediaFileExpectedPackage(
 				context,
 				object.attributes.iluFile as string,
-				isIluZaver(object)
-					? [CasparCGLayers.CasparCGPgmIluPlayer, CasparCGLayers.CasparCGEffectsPlayer]
-					: [CasparCGLayers.CasparCGPgmIluPlayer],
+				isIluZaver(object) ? [CasparCGLayers.CasparCGIluPlayer] : [CasparCGLayers.CasparCGPgmIluPlayer],
 				{ includeSideEffects: false }
 			),
 		]

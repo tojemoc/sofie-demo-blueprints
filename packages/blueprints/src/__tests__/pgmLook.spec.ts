@@ -22,6 +22,7 @@ import { createCountupRevealClaim } from '../base/showstyle/helpers/countupRevea
 import {
 	LOOK_A_LAYERS,
 	LOOK_B_LAYERS,
+	L3D_OUT_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
 	getLookCasparChannel,
@@ -144,6 +145,15 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.lowerThird)).toBe(true)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
+
+		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration).toBe(0)
+		const hl2L3d = hl2Timeline.find(
+			(obj) =>
+				obj.layer === LOOK_B_LAYERS.lowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+		expect(!Array.isArray(hl2L3d?.enable) && hl2L3d?.enable.start).toBe(L3D_OUT_MS)
+		expect((hl2L3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 
 		const liveCam = hl2Timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
 		expect(liveCam?.content).toMatchObject({
@@ -295,7 +305,7 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 
 		const dbRoute = dbTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(dbRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
 		expect(dbRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -312,7 +322,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
 		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(synRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(synRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -471,7 +481,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const dbRoute = (db?.pieces ?? [])
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(dbRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
 		expect((dbRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(
 			(db?.pieces ?? [])
@@ -487,7 +497,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(sjvRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(sjvRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
 		expect((sjvRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 })

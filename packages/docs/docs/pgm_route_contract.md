@@ -12,12 +12,12 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 | Headline 1–3 | Full (4) | `route://4` | hard cut | Full companion `bg_loop` + cam + L3D |
 | Intro | Full underlay (4) | `route://4` | `intro.mov` on PGM 210 | Overlay on PGM; no `4→3` under intro |
 | Privítanie (Cam) | Full (4) | `route://4` | — | Fullscreen cam + `l3d-predstavovak` |
-| Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 200** | Route hard-cuts at wipe cut point (~760 ms); `db_loop` + cam + countup |
-| Tema N SYN | Full (4) | `route://4` | hard cut | |
-| Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut | |
-| SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 200** | Route hard-cuts at wipe cut point (~760 ms); Full pre-built |
-| SYN avízo / last words | Full (4) | `route://4` | hard cut | |
-| Outro | Full (4) | `route://4` | `outro.mov` on PGM | |
+| Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 205** | L3D out, then overlay; route hard-cuts at L3D_OUT+cut point; `db_loop` + cam + countup |
+| Tema N SYN | Full (4) | `route://4` | hard cut after L3D out | |
+| Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut after L3D out | |
+| SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 205** | `wipe_pocasie` EMPTYs ch4 clip/CAM/`db_loop` |
+| SYN avízo / last words | Full (4) | `route://4` | hard cut after L3D out | LED: `ilu-zaver` over `bg_loop`; PGM: CAM + L3DO |
+| Outro | Full (4) | `route://4` | `outro.mov` on PGM 210 | beds/SFX muted |
 
 **LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a
 right-shifted FILL+CROP (`FILL -0.5425 -0.27125 1.5425 1.5425` — vMix shift 1.085 where

@@ -262,6 +262,25 @@ export function normalizeLayeredVideoFileName(playLayer: VideoPlayLayer, fileNam
 	return trimmed
 }
 
+/** True when a Caspar PLAY path is the weather stinger (`wipes/wipe_pocasie`). */
+export function isWipePocasieFile(fileName: string | undefined): boolean {
+	return /wipe_pocasie/i.test(fileName || '')
+}
+
+/** True when a Caspar PLAY path is the outro jingle overlay. */
+export function isOutroVideoFile(fileName: string | undefined): boolean {
+	return /(^|\/)outro(\.|$)/i.test((fileName || '').replace(/\\/g, '/'))
+}
+
+/** True when this part plays `assets/outro` (or RE piece type outro) on PGM 210. */
+export function partHasOutroOverlay(objects: SomeObject[]): boolean {
+	return objects.some((obj) => {
+		if (obj.objectType !== ObjectType.Video) return false
+		if (getVideoPlayLayer(obj) !== 'effects') return false
+		return isOutroVideoFile(resolveVideoFileName(obj) ?? obj.clipName)
+	})
+}
+
 /**
  * Timeline pieces for Intro overlay (PgmIntroPlayer / 210), BG loop (ClipPlayer1 / 110),
  * and PGM wipe (UI + mute; hypercomposed studios attach EffectsPlayer overlay + delayed
@@ -300,12 +319,12 @@ export function parseLayeredVideosFromObjects(
 
 		const displayName =
 			playLayer === 'effects'
-				? `Intro | ${fileName}`
+				? `${isOutroVideoFile(fileName) ? 'Outro' : 'Intro'} | ${fileName}`
 				: playLayer === 'wipe'
 					? `Wipe${transitionLabel ? ` · ${transitionLabel}` : ''} | ${fileName}`
 					: `BG loop | ${fileName}`
 
-		// Wipes are short PGM transitions: never leave an open-ended piece covering layer 200.
+		// Wipes are short PGM transitions: never leave an open-ended piece covering the wipe layer.
 		const enableDuration =
 			object.duration > 0 ? object.duration : playLayer === 'wipe' ? resolveWipeDurationMs() : undefined
 

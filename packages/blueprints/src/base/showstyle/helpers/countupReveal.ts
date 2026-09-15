@@ -176,6 +176,14 @@ export function createCountupMutePiece(
 export function partShouldMuteCountup(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/intro|outro|zaver|závěr/i.test(rawType || '')) return true
 	return objects.some((obj) => {
+		if (obj.objectType === ObjectType.Video) {
+			const clip = String((obj as { clipName?: string }).clipName || '').toLowerCase()
+			const file =
+				typeof (obj as { attributes?: { fileName?: string } }).attributes?.fileName === 'string'
+					? (obj as { attributes: { fileName: string } }).attributes.fileName.toLowerCase()
+					: ''
+			if (/(^|\/)outro(\.|$)/i.test(clip) || /(^|\/)outro(\.|$)/i.test(file)) return true
+		}
 		if (obj.objectType !== ObjectType.Graphic) return false
 		const clip = String((obj as { clipName?: string }).clipName || '').toLowerCase()
 		return clip === 'gfx/ilu-zaver' || clip === 'gfx/outro' || clip.endsWith('/outro')
