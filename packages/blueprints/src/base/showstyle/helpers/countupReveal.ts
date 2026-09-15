@@ -176,9 +176,12 @@ export function createCountupMutePiece(
 	return createCountupPiece(context, config, partExternalId, 'mute', { persistMute: options?.persist })
 }
 
-/** True when this part should keep countup SFX off (Intro overlay or závěr / outro). */
-export function partShouldMuteCountup(rawType: string | undefined, objects: SomeObject[]): boolean {
-	if (/intro|outro|zaver|závěr/i.test(rawType || '')) return true
+/**
+ * Shared outro / závěr classification (jingle video, gfx/outro, gfx/ilu-zaver, rawType).
+ * Intro is intentionally excluded — muted for the part but not persisted after Take.
+ */
+export function partIsOutroOrZaverCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
+	if (/outro|zaver|závěr/i.test(rawType || '')) return true
 	return objects.some((obj) => {
 		if (obj.objectType === ObjectType.Video) {
 			const clip = String((obj as { clipName?: string }).clipName || '').toLowerCase()
@@ -194,9 +197,8 @@ export function partShouldMuteCountup(rawType: string | undefined, objects: Some
 	})
 }
 
-/** True when countup mute must survive the part (outro jingle — no SFX restart after). */
-export function partShouldPersistCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
-	if (/outro/i.test(rawType || '')) return true
+function partIsIntroCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
+	if (/intro/i.test(rawType || '') && !partIsOutroOrZaverCountupMute(rawType, objects)) return true
 	return objects.some((obj) => {
 		if (obj.objectType !== ObjectType.Video) return false
 		const clip = String((obj as { clipName?: string }).clipName || '').toLowerCase()
@@ -204,8 +206,18 @@ export function partShouldPersistCountupMute(rawType: string | undefined, object
 			typeof (obj as { attributes?: { fileName?: string } }).attributes?.fileName === 'string'
 				? (obj as { attributes: { fileName: string } }).attributes.fileName.toLowerCase()
 				: ''
-		return /(^|\/)outro(\.|$)/i.test(clip) || /(^|\/)outro(\.|$)/i.test(file)
+		return /(^|\/)intro(\.|$)/i.test(clip) || /(^|\/)intro(\.|$)/i.test(file)
 	})
+}
+
+/** True when this part should keep countup SFX off (Intro overlay or závěr / outro). */
+export function partShouldMuteCountup(rawType: string | undefined, objects: SomeObject[]): boolean {
+	return partIsIntroCountupMute(rawType, objects) || partIsOutroOrZaverCountupMute(rawType, objects)
+}
+
+/** True when countup mute must survive the part (outro / závěr — no SFX restart after). */
+export function partShouldPersistCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
+	return partIsOutroOrZaverCountupMute(rawType, objects)
 }
 
 export function appendCountupSustainIfRevealed(

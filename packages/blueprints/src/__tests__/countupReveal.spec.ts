@@ -9,6 +9,7 @@ import {
 	createCountupRevealClaim,
 	getCountupRevealClaimForGeneration,
 	partShouldMuteCountup,
+	partShouldPersistCountupMute,
 	resetCountupRevealGenerationForTests,
 } from '../base/showstyle/helpers/countupReveal.js'
 import { PartContext } from '../common/context.js'
@@ -211,9 +212,29 @@ describe('countupReveal claim', () => {
 	it('classifies mute via rawType / ilu-zaver clipName; append mute uses WithinPart volume 0', () => {
 		expect(partShouldMuteCountup('Intro', [])).toBe(true)
 		expect(partShouldMuteCountup('outro', [])).toBe(true)
+		expect(partShouldMuteCountup('Závěr', [])).toBe(true)
 		expect(partShouldMuteCountup('Camera', [])).toBe(false)
 		expect(
 			partShouldMuteCountup('GFX', [
+				{
+					id: 'zaver',
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/ilu-zaver',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {},
+				},
+			])
+		).toBe(true)
+
+		// Intro muted for the part only; outro / závěr / ilu-zaver persist after Take.
+		expect(partShouldPersistCountupMute('Intro', [])).toBe(false)
+		expect(partShouldPersistCountupMute('outro', [])).toBe(true)
+		expect(partShouldPersistCountupMute('Závěr', [])).toBe(true)
+		expect(partShouldPersistCountupMute('zaver', [])).toBe(true)
+		expect(
+			partShouldPersistCountupMute('GFX', [
 				{
 					id: 'zaver',
 					objectType: ObjectType.Graphic,
@@ -237,16 +258,29 @@ describe('countupReveal claim', () => {
 			content?: { timelineObjects?: Array<{ content?: TSR.TimelineContentCCGMedia }> }
 		}> = []
 		appendCountupSustainIfRevealed(
+			new PartContext(mockSegmentContext(), 'part-intro'),
+			hybridCasparConfig,
+			'part-intro',
+			mutePieces as never,
+			claim,
+			{ mute: true, persistMute: false }
+		)
+		const introMute = mutePieces.find((piece) => piece.externalId === 'part-intro_countup_mute')
+		expect(introMute?.lifespan).toBe(PieceLifespan.WithinPart)
+		expect(introMute?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 0 })
+
+		const outroMutePieces: typeof mutePieces = []
+		appendCountupSustainIfRevealed(
 			new PartContext(mockSegmentContext(), 'part-outro'),
 			hybridCasparConfig,
 			'part-outro',
-			mutePieces as never,
+			outroMutePieces as never,
 			claim,
-			{ mute: true }
+			{ mute: true, persistMute: true }
 		)
-		const mutePiece = mutePieces.find((piece) => piece.externalId === 'part-outro_countup_mute')
-		expect(mutePiece?.lifespan).toBe(PieceLifespan.WithinPart)
-		expect(mutePiece?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 0 })
+		const outroMute = outroMutePieces.find((piece) => piece.externalId === 'part-outro_countup_mute')
+		expect(outroMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(outroMute?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 0 })
 
 		const sustainPieces: Array<{
 			externalId?: string
