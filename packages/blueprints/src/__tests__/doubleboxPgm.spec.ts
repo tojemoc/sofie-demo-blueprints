@@ -23,7 +23,7 @@ import {
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
-import { L3D_OUT_MS, LOOK_B_LAYERS } from '../base/showstyle/helpers/pgmLook.js'
+import { LOOK_B_LAYERS } from '../base/showstyle/helpers/pgmLook.js'
 import { WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 
 describe('DoubleBox PGM ILU above CAM', () => {
@@ -251,7 +251,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()
-		expect(wipe?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(wipe?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -383,7 +383,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 	})
 
-	it('plays ilu-zaver fullscreen on LED over bg_loop; CAM and L3DO stay on PGM', () => {
+	it('plays ilu-zaver windowed on LED over bg_loop; CAM and L3DO stay on PGM', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		const zaver = segment.parts.find((p) => p.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver'))
 		expect(zaver).toBeDefined()
@@ -399,7 +399,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(ledIlu?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			mixer: {
-				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 			},
 		})
 		expect(timeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer)).toBe(false)

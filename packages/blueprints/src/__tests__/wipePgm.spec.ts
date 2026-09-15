@@ -10,7 +10,6 @@ import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { normalizeLayeredVideoFileName, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
-import { L3D_OUT_MS } from '../base/showstyle/helpers/pgmLook.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
 	loadSmokeRundownExport,
@@ -93,10 +92,10 @@ describe('wipe piece type → PGM route / overlay', () => {
 			},
 		})
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
-		expect(overlay?.enable).toEqual({ start: L3D_OUT_MS, duration: 2500 })
+		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
-		expect(routeObj?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(routeObj?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -109,6 +108,23 @@ describe('wipe piece type → PGM route / overlay', () => {
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
 		expect(result.pieces[0]?.name).not.toContain('wipe')
+	})
+
+	it('keeps previous look through the wipe (no pre-sting hard cut)', () => {
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(2500)
+		expect(result.part.inTransition?.blockTakeDuration).toBe(2500)
+		const overlay = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
 	})
 
 	it('prefixes bare wipe basenames with wipes/', () => {
@@ -234,7 +250,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/360_wipe',
 		})
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(route?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(route?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -269,7 +285,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		const muteObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === SisyfosLayers.ForceMute)
 		expect(muteObj).toBeDefined()
-		expect(muteObj?.enable).toEqual({ start: L3D_OUT_MS, duration: 2500 })
+		expect(muteObj?.enable).toEqual({ start: 0, duration: 2500 })
 		const muteContent = muteObj?.content as TSR.TimelineContentSisyfosChannels
 		expect(muteContent.type).toBe(TSR.TimelineContentTypeSisyfos.CHANNELS)
 		expect(muteContent.channels).toEqual([

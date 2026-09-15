@@ -40,18 +40,18 @@ export const WIPE_STING_FRAME_RATE = 50
 export const DEFAULT_LOOK_PREROLL_MS = 1500
 
 /**
- * Time for the outgoing L3D `CG STOP` out-animation to play on the current look
- * before the picture cuts or the wipe overlay starts. Incoming L3Ds ADD only after
- * the cut/wipe so the in-animation is not covered.
+ * Hard-cut only: brief beat after outgoing `CG STOP` before the next L3D ADDs.
+ * Wiped Takes must not use this — the wipe covers from frame 0; delaying the
+ * overlay/route made Take look like a hard cut (tear/glitch) then a late sting.
  */
-export const L3D_OUT_MS = 500
+export const L3D_OUT_MS = 200
 
 /**
- * Keep outgoing look MEDIA on the timeline through L3D out + wipe cover-frame.
+ * Keep outgoing look MEDIA on the timeline through the wipe cover-frame.
  * 760 is {@link WIPE_CUT_POINT_MS}; inlined so this const does not read clips.ts
  * during module init (webpack CJS: clips → baseline → pgmLook cycle).
  */
-export const LOOK_MEDIA_POSTROLL_MS = L3D_OUT_MS + 760
+export const LOOK_MEDIA_POSTROLL_MS = 760
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -370,7 +370,6 @@ function createPgmRoutePiece(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
-	const overlayStartMs = L3D_OUT_MS
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -378,18 +377,19 @@ function createPgmRoutePiece(
 
 	const timelineObjects: TimelineBlueprintExt[] = []
 	if (overlayWipe && wipeFile) {
-		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, overlayStartMs))
+		// Overlay from Take (0) — never leave a naked hard-cut window before the sting.
+		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0))
 		timelineObjects.push(
 			createPgmRouteTimelineObject(config, slot, wipeFile, {
 				sting: false,
-				routeStartMs: overlayStartMs + WIPE_CUT_POINT_MS,
+				routeStartMs: WIPE_CUT_POINT_MS,
 			})
 		)
 	} else {
 		timelineObjects.push(
 			createPgmRouteTimelineObject(config, slot, wipeFile, {
 				sting: hasWipe,
-				routeStartMs: overlayStartMs,
+				routeStartMs: 0,
 			})
 		)
 	}
@@ -400,7 +400,7 @@ function createPgmRoutePiece(
 			timelineObjects.push({
 				...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes),
 				enable: {
-					start: overlayStartMs,
+					start: 0,
 					duration: wipeDurationMs,
 				},
 			})
@@ -460,20 +460,19 @@ function attachRouteToWipePiece(
 	)
 	// Keep ForceMute aligned with the wipe SFX / overlay window (not an open-ended mute).
 	for (const mute of mutes) {
-		mute.enable = { start: L3D_OUT_MS, duration: wipeDurationMs }
+		mute.enable = { start: 0, duration: wipeDurationMs }
 	}
 	const overlayWipe = wipeUsesPgmOverlay(slot)
-	const overlayStartMs = L3D_OUT_MS
 	wipePiece.content.timelineObjects = overlayWipe
 		? [
-				createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, overlayStartMs),
+				createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0),
 				createPgmRouteTimelineObject(config, slot, wipeFile, {
 					sting: false,
-					routeStartMs: overlayStartMs + WIPE_CUT_POINT_MS,
+					routeStartMs: WIPE_CUT_POINT_MS,
 				}),
 				...mutes,
 			]
-		: [createPgmRouteTimelineObject(config, slot, wipeFile, { sting: true, routeStartMs: overlayStartMs }), ...mutes]
+		: [createPgmRouteTimelineObject(config, slot, wipeFile, { sting: true, routeStartMs: 0 }), ...mutes]
 	wipePiece.enable = { start: 0 }
 	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 	wipePiece.content.ignoreAudioFormat = true
@@ -554,28 +553,26 @@ export function finalizeHypercomposedPart(
 			)
 		: undefined
 	const hasWipe = Boolean(wipe && wipeFile)
-	const takeHoldMs = L3D_OUT_MS + (hasWipe ? wipeDurationMs : 0)
+	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
+		// Keepalive through the sting so Take never drops the previous look before
+		// wipe cover (that showed as tearing / a glitch-cut then a late wipe).
 		part.inTransition = {
-			blockTakeDuration: takeHoldMs,
-			previousPartKeepaliveDuration: 0,
+			blockTakeDuration: wipeDurationMs,
+			previousPartKeepaliveDuration: wipeDurationMs,
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
-	} else {
-		part.inTransition = {
-			blockTakeDuration: L3D_OUT_MS,
-			previousPartKeepaliveDuration: 0,
-			partContentDelayDuration: 0,
-		}
 	}
 
-	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0)
+	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie)
 
-	if (wipeFile && isWipePocasieFile(wipeFile)) {
-		appendLookChannelClear(pieces, partExternalId, lookSlot, L3D_OUT_MS)
+	if (wipePocasie) {
+		// EMPTY leftover sport SYN under wipe_pocasie from frame 0 (piece start 0,
+		// nested EMPTY start 0). Weather MEDIA/L3D wait until the cover cut.
+		appendLookChannelClear(pieces, partExternalId, lookSlot, 0)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
@@ -722,13 +719,18 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
 
 /**
  * On Take: outgoing L3Ds STOP immediately (no keepalive / no postroll on templates).
- * Incoming look MEDIA waits {@link L3D_OUT_MS} so the out-animation is visible,
- * then the cut/wipe happens. Incoming L3Ds wait until after the cut/wipe so the
- * in-animation is not covered.
+ *
+ * Wiped Takes: wipe overlay covers from 0 — do not delay look MEDIA (that raced the
+ * sting and tore). Incoming L3Ds ADD at the cover cut so the in-anim is visible.
+ * `wipe_pocasie` also holds weather MEDIA until the cut so CLEAR can drop the last
+ * sport SYN under the sting before bg_pocasie / weather GFX appear.
+ *
+ * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after STOP.
  */
-function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number): void {
-	const lookMediaDelay = L3D_OUT_MS
-	const l3dInDelay = L3D_OUT_MS + Math.max(0, wipeDurationMs)
+function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, wipePocasie = false): void {
+	const hasWipe = wipeDurationMs > 0
+	const lookMediaDelay = wipePocasie ? WIPE_CUT_POINT_MS : 0
+	const l3dInDelay = hasWipe ? WIPE_CUT_POINT_MS : L3D_OUT_MS
 
 	for (const piece of pieces) {
 		for (const obj of piece.content.timelineObjects ?? []) {
@@ -742,6 +744,8 @@ function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number):
 
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
 			if (!isCasparMedia(content)) continue
+			// Look CLEAR EMPTYs must stay at Take so sport SYN drops under wipe_pocasie.
+			if ((content as { file?: string }).file === 'EMPTY') continue
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
 		}
 	}

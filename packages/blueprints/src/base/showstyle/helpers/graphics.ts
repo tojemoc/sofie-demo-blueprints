@@ -61,7 +61,7 @@ function isDoubleboxIlu(object: GraphicObjectBase): boolean {
 }
 
 /**
- * Závěr avízo ILU — fullscreen alpha on LED 115 over baseline `bg_loop`.
+ * Závěr avízo ILU — windowed (~60–68%) alpha on LED 115 over baseline `bg_loop`.
  * CAM1 and `l3d-odporucanie` stay on the Full look (PGM). Never `route://4` on LED
  * (that put CAM1 on the wall).
  */
@@ -407,7 +407,26 @@ function getIluZaverTimelineObjects(
 		return []
 	}
 
-	return [createHeadlineIluMediaTimelineObject(iluFile, 'fullscreen', isAdlib, resolveIluVolume(object))]
+	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not fullscreen.
+	return [
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer: CasparCGLayers.CasparCGIluPlayer,
+			priority: 1 + (isAdlib ? 10 : 0),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: toCasparPlayPath(iluFile),
+				loop: false,
+				mixer: {
+					crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+					fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+					volume: resolveIluVolume(object),
+				},
+			},
+		}),
+	]
 }
 
 /** PGM L3D HTML templates — LED allow-list is headline ILU + bg_loop only. */
@@ -469,7 +488,7 @@ function getGraphicTlObject(
 		return getDoubleboxIluMediaObject(object, isAdlib)
 	}
 
-	// Závěr ILU: fullscreen MEDIA on LED 115 over bg_loop. CAM + L3DO stay on PGM.
+	// Závěr ILU: windowed MEDIA on LED 115 over bg_loop. CAM + L3DO stay on PGM.
 	if (isIluZaver(object)) {
 		return getIluZaverTimelineObjects(config, object, isAdlib)
 	}

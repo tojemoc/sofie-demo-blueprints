@@ -7,8 +7,7 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
-import { L3D_OUT_MS } from '../base/showstyle/helpers/pgmLook.js'
-import { DEFAULT_WIPE_DURATION_MS } from '../base/showstyle/helpers/clips.js'
+import { WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { PartContext } from '../common/context.js'
@@ -516,9 +515,9 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
 		)
 		expect(bg).toBeDefined()
-		expect(bg?.enable).toEqual({ start: L3D_OUT_MS })
+		expect(bg?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_look_channel_clear'))
-		expect(clearPiece?.enable).toEqual({ start: L3D_OUT_MS })
+		expect(clearPiece?.enable).toEqual({ start: 0 })
 		const emptyEnables = (clearPiece?.content.timelineObjects ?? [])
 			.filter((obj) => (obj.content as { file?: string }).file === 'EMPTY')
 			.map((obj) => obj.enable)
@@ -540,7 +539,7 @@ describe('casparV2Graphics', () => {
 				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(L3D_OUT_MS + DEFAULT_WIPE_DURATION_MS)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_CUT_POINT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 	})
 

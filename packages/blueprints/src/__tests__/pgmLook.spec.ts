@@ -110,7 +110,7 @@ describe('pgmLook look-kind channels + route', () => {
 
 	it('converts wipe cut-point ms to frames at 50fps (docs helper; casparcg-state wants ms)', () => {
 		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(38)
-		expect(LOOK_MEDIA_POSTROLL_MS).toBe(L3D_OUT_MS + WIPE_CUT_POINT_MS)
+		expect(LOOK_MEDIA_POSTROLL_MS).toBe(WIPE_CUT_POINT_MS)
 	})
 
 	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {
@@ -148,7 +148,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
 
-		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration).toBe(0)
+		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(0)
 		const hl2L3d = hl2Timeline.find(
 			(obj) =>
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
@@ -307,7 +307,7 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 
 		const dbRoute = dbTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(dbRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -324,7 +324,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
 		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(synRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(synRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -483,7 +483,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const dbRoute = (db?.pieces ?? [])
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect((dbRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(
 			(db?.pieces ?? [])
@@ -499,7 +499,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(sjvRoute?.enable).toEqual({ start: L3D_OUT_MS + WIPE_CUT_POINT_MS })
+		expect(sjvRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect((sjvRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 })
