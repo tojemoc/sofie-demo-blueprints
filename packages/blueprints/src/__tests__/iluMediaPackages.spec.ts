@@ -226,6 +226,8 @@ describe('gfx/headline ILU expectedPackages', () => {
 		expect(media?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'clips/foo',
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			loop: false,
 			mixer: {
 				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 			},

@@ -117,6 +117,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(media?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'clips/ILU bednar',
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			loop: false,
 			mixer: {
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
 				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
