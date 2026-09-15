@@ -15,7 +15,6 @@ import { createVisionMixerObjects } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
 import { createMediaFileExpectedPackage, isDemoMediaPath, toCasparPlayPath } from './mediaPackages.js'
-import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { getWipeForceMuteChannels } from './backgroundMusic.js'
 
@@ -31,7 +30,8 @@ export interface ClipProps {
 	volume?: number
 }
 
-export const DEFAULT_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
+/** Same path as baseline `LED_BACKGROUND_LOOP_FILE`. Do not import baseline here (webpack CJS cycle). */
+export const DEFAULT_BG_LOOP_FILE = 'loops/bg_loop'
 
 /** Fallback wipe length when RE leaves duration empty/0 (full stinger overlay). */
 export const DEFAULT_WIPE_DURATION_MS = 2500
