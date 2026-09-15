@@ -643,6 +643,11 @@ function parseGraphic(
 	// ("Restarting due to an error") otherwise band the timeline as NR.
 	const ignoreIluMediaStatus = isHeadlineWithIlu(object) || isDoubleboxIlu(object) || isIluZaver(object)
 
+	// ILU MEDIA must stay on the timeline until Take: RE duration is often the clip
+	// length, which is shorter than the part. Ending the piece early CLEARs Caspar
+	// even with loop:false (hold-last-frame only applies while the object is active).
+	const holdIluUntilTake = isHeadlineWithIlu(object) || isDoubleboxIlu(object) || isIluZaver(object)
+
 	return {
 		externalId: object.id,
 		name: `${object.clipName} | ${Object.values<any>(object.attributes)
@@ -677,7 +682,7 @@ function parseGraphic(
 		},
 		enable: {
 			start: object.objectTime,
-			duration: object.duration > 0 ? object.duration : undefined,
+			duration: holdIluUntilTake ? undefined : object.duration > 0 ? object.duration : undefined,
 		},
 		prerollDuration: config.casparcgLatency,
 		expectedPackages: getIluExpectedPackages(context, object),
