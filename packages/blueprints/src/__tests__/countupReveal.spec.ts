@@ -1,3 +1,4 @@
+import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, beforeEach, expect, it } from 'vitest'
 import { PartType, CameraProps, PartProps, VOProps } from '../base/showstyle/definitions/index.js'
 import { generateCameraPart, partUsesDoubleBoxCamera } from '../base/showstyle/part-adapters/camera.js'
@@ -7,6 +8,7 @@ import {
 	beginCountupRevealGeneration,
 	createCountupRevealClaim,
 	getCountupRevealClaimForGeneration,
+	partShouldMuteCountup,
 	resetCountupRevealGenerationForTests,
 } from '../base/showstyle/helpers/countupReveal.js'
 import { PartContext } from '../common/context.js'
@@ -204,5 +206,63 @@ describe('countupReveal claim', () => {
 			claim
 		)
 		expect(synResult.pieces.some((piece) => piece.externalId === 'part-syn-1_countup_sustain')).toBe(true)
+	})
+
+	it('classifies mute via rawType / ilu-zaver clipName; append mute uses WithinPart volume 0', () => {
+		expect(partShouldMuteCountup('Intro', [])).toBe(true)
+		expect(partShouldMuteCountup('outro', [])).toBe(true)
+		expect(partShouldMuteCountup('Camera', [])).toBe(false)
+		expect(
+			partShouldMuteCountup('GFX', [
+				{
+					id: 'zaver',
+					objectType: ObjectType.Graphic,
+					clipName: 'gfx/ilu-zaver',
+					objectTime: 0,
+					duration: 5000,
+					isAdlib: false,
+					attributes: {},
+				},
+			])
+		).toBe(true)
+
+		const rundownId = 'spravy-v3-smoke'
+		beginCountupRevealGeneration(rundownId)
+		const claim = getCountupRevealClaimForGeneration(rundownId)
+		claim.claim(rundownId)
+
+		const mutePieces: Array<{
+			externalId?: string
+			lifespan?: PieceLifespan
+			content?: { timelineObjects?: Array<{ content?: TSR.TimelineContentCCGMedia }> }
+		}> = []
+		appendCountupSustainIfRevealed(
+			new PartContext(mockSegmentContext(), 'part-outro'),
+			hybridCasparConfig,
+			'part-outro',
+			mutePieces as never,
+			claim,
+			{ mute: true }
+		)
+		const mutePiece = mutePieces.find((piece) => piece.externalId === 'part-outro_countup_mute')
+		expect(mutePiece?.lifespan).toBe(PieceLifespan.WithinPart)
+		expect(mutePiece?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 0 })
+
+		const sustainPieces: Array<{
+			externalId?: string
+			lifespan?: PieceLifespan
+			content?: { timelineObjects?: Array<{ content?: TSR.TimelineContentCCGMedia }> }
+		}> = []
+		appendCountupSustainIfRevealed(
+			new PartContext(mockSegmentContext(), 'part-later'),
+			hybridCasparConfig,
+			'part-later',
+			sustainPieces as never,
+			claim,
+			{ mute: false }
+		)
+		const sustainPiece = sustainPieces.find((piece) => piece.externalId === 'part-later_countup_sustain')
+		expect(sustainPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(sustainPiece?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 1 })
 	})
 })

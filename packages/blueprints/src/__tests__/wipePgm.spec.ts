@@ -180,6 +180,13 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(
 			result.pieces[0]?.content.timelineObjects?.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
 		).toBe(true)
+		// SourceLayer.VT → clear Full-look CAM so clip on 4-110 is not covered by baseline route://5
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+		expect(
+			timeline.some(
+				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
 	})
 
 	it('routes wipe-only GFX parts to LayeredVideo (not Invalid GFX)', () => {
