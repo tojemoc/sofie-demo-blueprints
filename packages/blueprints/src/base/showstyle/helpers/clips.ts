@@ -17,7 +17,7 @@ import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-
 import { createMediaFileExpectedPackage, isDemoMediaPath, toCasparPlayPath } from './mediaPackages.js'
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 import { getAudioObjectOnLayer } from './audio.js'
-import { getPlaybackForceMuteChannels } from './backgroundMusic.js'
+import { getWipeForceMuteChannels } from './backgroundMusic.js'
 
 export interface ClipProps {
 	fileName: string
@@ -315,10 +315,10 @@ export function parseLayeredVideosFromObjects(
 				]
 
 		if (playLayer === 'wipe') {
-			const playbackMutes = getPlaybackForceMuteChannels(config)
-			if (playbackMutes.length > 0) {
+			const wipeMutes = getWipeForceMuteChannels(config)
+			if (wipeMutes.length > 0) {
 				timelineObjects.push({
-					...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, playbackMutes),
+					...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes),
 					enable: {
 						start: 0,
 						...(enableDuration !== undefined ? { duration: enableDuration } : {}),

@@ -16,6 +16,9 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
+import { getAudioObjectOnLayer } from '../helpers/audio.js'
+import { getHostForceMuteChannels } from '../helpers/backgroundMusic.js'
+import { SisyfosLayers } from '../../studio/layers.js'
 
 export function generateVOPart(
 	context: PartContext,
@@ -25,6 +28,35 @@ export function generateVOPart(
 	const config = parseConfig(context).studio
 	const atemInput = getClipPlayerInput(config)
 	const playback = resolveClipPlayback(part.payload.clipProps)
+
+	const timelineObjects: TimelineBlueprintExt[] = [
+		...createVisionMixerObjects(config, atemInput?.input || 0, config.casparcgLatency),
+
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer: getEditorialClipCasparLayer(config),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+
+				file: stripExtension(part.payload.clipProps.fileName),
+				...(playback.seekMs > 0 ? { seek: playback.seekMs } : {}),
+				// Hold last frame if the clip is shorter than the part — never blank.
+				loop: false,
+				mixer: {
+					volume: playback.volume,
+				},
+			},
+			priority: 1,
+		}),
+	]
+
+	// Mic is an input under SYN — keep Host ForceMuted for the Take (Guest stays open).
+	const hostMutes = getHostForceMuteChannels(config)
+	if (hostMutes.length > 0) {
+		timelineObjects.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, hostMutes))
+	}
 
 	const cameraPiece: IBlueprintPiece = {
 		enable: {
@@ -40,26 +72,7 @@ export function generateVOPart(
 		content: {
 			fileName: part.payload.clipProps.fileName,
 
-			timelineObjects: [
-				...createVisionMixerObjects(config, atemInput?.input || 0, config.casparcgLatency),
-
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: { start: 0 },
-					layer: getEditorialClipCasparLayer(config),
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-
-						file: stripExtension(part.payload.clipProps.fileName),
-						...(playback.seekMs > 0 ? { seek: playback.seekMs } : {}),
-						mixer: {
-							volume: playback.volume,
-						},
-					},
-					priority: 1,
-				}),
-			],
+			timelineObjects,
 
 			sourceDuration: playback.durationMs ?? part.payload.clipProps.sourceDuration,
 			seek: playback.seekMs > 0 ? playback.seekMs : undefined,

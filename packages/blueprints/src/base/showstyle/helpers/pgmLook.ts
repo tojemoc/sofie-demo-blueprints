@@ -21,7 +21,7 @@ import {
 	normalizeLayeredVideoFileName,
 } from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
-import { getPlaybackForceMuteChannels } from './backgroundMusic.js'
+import { getWipeForceMuteChannels } from './backgroundMusic.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 
 export type LookSlot = 'A' | 'B'
@@ -305,7 +305,19 @@ function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprint
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Wipe master carries its own alpha — clean MEDIA, no mixer/keyer/FILL/CROP.
+			// Alpha-only composite: never KEYER/CHROMA (those luma-key RGB). Soft edges
+			// after remastering wipe.mov are encode (straight vs premultiplied), not mixer.
+			mixer: {
+				keyer: false,
+				blend: TSR.BlendMode.NORMAL,
+				chroma: {
+					keyer: TSR.Chroma.NONE,
+					threshold: 0,
+					softness: 0,
+					spill: 0,
+				},
+				volume: 1,
+			},
 		},
 	})
 }
@@ -356,10 +368,10 @@ function createPgmRoutePiece(
 	}
 
 	if (hasWipe) {
-		const playbackMutes = getPlaybackForceMuteChannels(config)
-		if (playbackMutes.length > 0) {
+		const wipeMutes = getWipeForceMuteChannels(config)
+		if (wipeMutes.length > 0) {
 			timelineObjects.push({
-				...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, playbackMutes),
+				...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes),
 				enable: {
 					start: 0,
 					duration: DEFAULT_WIPE_DURATION_MS,
@@ -456,6 +468,9 @@ function attachRouteToWipePiece(
  * Wiped Takes PLAY wipe on PGM EffectsPlayer and hard-cut MEDIA `route://N` at the wipe
  * cut point (DoubleBox → ch3, Full → ch4). Hard cuts re-assert `route://N` with no
  * transition. Logo / intro stay on PGM above the route.
+ *
+ * During wipe SFX, mute Caspar mixer volume on SYN/ILU/look clip layers so only the wipe
+ * bed is audible (Sisyfos ForceMute alone does not duck route:// clip audio).
  */
 export function finalizeHypercomposedPart(
 	context: ICommonContext,
@@ -487,6 +502,7 @@ export function finalizeHypercomposedPart(
 			previousPartKeepaliveDuration: DEFAULT_WIPE_DURATION_MS,
 			partContentDelayDuration: 0,
 		}
+		muteEditorialClipAudioDuringWipe(pieces, DEFAULT_WIPE_DURATION_MS)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
@@ -503,4 +519,52 @@ export function finalizeHypercomposedPart(
 	}
 
 	pieces.push(createPgmRoutePiece(context, config, partExternalId, lookSlot, wipe, wipe ? wipeFile : undefined))
+}
+
+/** Layers whose Caspar MEDIA audio rides the PGM route and must duck under wipe SFX. */
+const EDITORIAL_AUDIO_LOOK_LAYERS = new Set<string>([
+	CasparCGLayers.CasparCGClipPlayer2,
+	CasparCGLayers.CasparCGClipPlayer2B,
+	CasparCGLayers.CasparCGPgmIluPlayer,
+	CasparCGLayers.CasparCGPgmIluPlayerB,
+	CasparCGLayers.CasparCGIluPlayer,
+])
+
+function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDurationMs: number): void {
+	for (const piece of pieces) {
+		const objects = piece.content.timelineObjects ?? []
+		for (const obj of objects) {
+			if (!EDITORIAL_AUDIO_LOOK_LAYERS.has(String(obj.layer))) continue
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
+
+			const baseVolume =
+				typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+
+			const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
+				TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+			>
+			;(obj as TimelineBlueprintExt).keyframes = [
+				...existing,
+				{
+					id: '',
+					enable: { start: 0, duration: wipeDurationMs },
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						mixer: { volume: 0 },
+					},
+				},
+				{
+					id: '',
+					enable: { start: wipeDurationMs },
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						mixer: { volume: baseVolume },
+					},
+				},
+			]
+		}
+	}
 }

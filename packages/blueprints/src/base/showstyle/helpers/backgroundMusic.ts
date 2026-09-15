@@ -15,8 +15,8 @@ export const BG_MUSIC_A_FILE = 'loops/bg_music_a'
 /** C-block background music (from Šport segment onward). */
 export const BG_MUSIC_C_FILE = 'loops/bg_music_c'
 
-/** Koliska: louder sting at the start of the bed, then duck to underscore. */
-export const KOLISKA_HIT_DURATION_MS = 4000
+/** Koliska: louder sting at the start of each bed, then duck to underscore over 2s. */
+export const KOLISKA_HIT_DURATION_MS = 2000
 export const KOLISKA_HIT_VOLUME = 1
 export const KOLISKA_BED_VOLUME = 0.45
 
@@ -41,46 +41,6 @@ export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TS
 		enable: { while: 1 },
 		volume: KOLISKA_HIT_VOLUME,
 		keyframes: koliskaMixerKeyframes(),
-	})
-}
-
-function createBackgroundMusicPiece(
-	context: ICommonContext,
-	config: StudioConfig,
-	externalId: string,
-	name: string,
-	file: string,
-	lifespan: PieceLifespan,
-	durationMs?: number
-): IBlueprintPiece {
-	return literal<IBlueprintPiece>({
-		enable: {
-			start: 0,
-			...(durationMs !== undefined ? { duration: durationMs } : {}),
-		},
-		externalId,
-		name,
-		lifespan,
-		sourceLayerId: SourceLayer.AudioBed,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
-		content: {
-			fileName: file,
-			timelineObjects: createDualChannelAudioBedTimelineObjects(file, {
-				volume: KOLISKA_HIT_VOLUME,
-				priority: 1,
-			}),
-		},
-		expectedPackages: [
-			createMediaFileExpectedPackage(
-				context,
-				file,
-				[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
-				{
-					includeSideEffects: true,
-				}
-			),
-		],
-		prerollDuration: config.casparcgLatency,
 	})
 }
 
@@ -113,20 +73,39 @@ export function createIntroBackgroundMusicMutePiece(
 	})
 }
 
-/** Swap to C-bed from the first Take in Šport onward. */
+/** Swap to C-bed from the first Take in Šport onward (same koliska hit → duck envelope). */
 export function createSportBackgroundMusicPiece(
 	context: ICommonContext,
 	config: StudioConfig,
 	segmentExternalId: string
 ): IBlueprintPiece {
-	return createBackgroundMusicPiece(
-		context,
-		config,
-		`${segmentExternalId}_bg_music_c`,
-		'BG music C (Šport)',
-		BG_MUSIC_C_FILE,
-		PieceLifespan.OutOnRundownEnd
-	)
+	return literal<IBlueprintPiece>({
+		enable: { start: 0 },
+		externalId: `${segmentExternalId}_bg_music_c`,
+		name: 'BG music C (Šport)',
+		lifespan: PieceLifespan.OutOnRundownEnd,
+		sourceLayerId: SourceLayer.AudioBed,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		content: {
+			fileName: BG_MUSIC_C_FILE,
+			timelineObjects: createDualChannelAudioBedTimelineObjects(BG_MUSIC_C_FILE, {
+				volume: KOLISKA_HIT_VOLUME,
+				priority: 1,
+				keyframes: koliskaMixerKeyframes(),
+			}),
+		},
+		expectedPackages: [
+			createMediaFileExpectedPackage(
+				context,
+				BG_MUSIC_C_FILE,
+				[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
+				{
+					includeSideEffects: true,
+				}
+			),
+		],
+		prerollDuration: config.casparcgLatency,
+	})
 }
 
 export function isSportSegmentName(name: string): boolean {
@@ -147,4 +126,26 @@ export function getPlaybackForceMuteChannels(
 		index,
 		isOn: false as const,
 	}))
+}
+
+/** Host mics — muted under SYN and during wipe SFX (mic becomes an input). */
+export function getHostForceMuteChannels(
+	config: StudioConfig
+): { type: AudioSourceType.Host; index: number; isOn: false }[] {
+	const hostSources = Object.values<SiyfosSourceConfig>(config.sisyfosSources).filter(
+		(source) => source.type === AudioSourceType.Host
+	)
+
+	return hostSources.map((_source, index) => ({
+		type: AudioSourceType.Host,
+		index,
+		isOn: false as const,
+	}))
+}
+
+/** Playback + Host — mute set while wipe SFX is audible (Guest stays untouched). */
+export function getWipeForceMuteChannels(
+	config: StudioConfig
+): { type: AudioSourceType; index: number; isOn: false }[] {
+	return [...getPlaybackForceMuteChannels(config), ...getHostForceMuteChannels(config)]
 }

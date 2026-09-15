@@ -195,13 +195,18 @@ function getTemplateAttributes(
 			}
 		}
 
-		// Malformed JSON, non-arrays, and [] all fall back to the template sample set.
-		const cityRows: unknown[] = Array.isArray(cities) && cities.length > 0 ? cities : [...DEFAULT_POCASIE_CITIES]
+		const hasFlatTemps = Object.keys(mapped).some((key) => /_(temp|temperature)$/i.test(key))
+		// Prefer cities JSON; if RE/Caspar already sent flat BA_temp… keys, keep them.
+		// Only fall back to sample defaults when neither is present.
+		const cityRows: unknown[] =
+			Array.isArray(cities) && cities.length > 0 ? cities : hasFlatTemps ? [] : [...DEFAULT_POCASIE_CITIES]
 
 		for (const row of cityRows) {
 			if (!row || typeof row !== 'object') continue
 			const entry = row as Record<string, unknown>
-			const region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
+			let region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
+			// gfx/pocasie cards use BB for Banská Bystrica (briefly mis-labeled MM — alias back).
+			if (region === 'MM') region = 'BB'
 			if (!region) continue
 			if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
 			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
@@ -209,6 +214,15 @@ function getTemplateAttributes(
 			const image =
 				entry.image !== undefined ? entry.image : typeof entry.condition === 'string' ? entry.condition : undefined
 			if (image !== undefined) mapped[`${region}_img`] = image
+		}
+
+		// Alias mistaken MM_* → BB_* so mid-flight payloads still light Banská Bystrica.
+		for (const suffix of ['_temp', '_name', '_delay', '_img', '_image', '_temperature'] as const) {
+			const legacy = mapped[`MM${suffix}`]
+			if (legacy !== undefined && mapped[`BB${suffix}`] === undefined) {
+				mapped[`BB${suffix}`] = legacy
+			}
+			delete mapped[`MM${suffix}`]
 		}
 
 		delete mapped.cities
@@ -322,6 +336,8 @@ function createHeadlineIluMediaTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			loop: false,
 			mixer: {
 				fill,
 				volume,
@@ -360,6 +376,8 @@ function createDoubleboxIluMediaTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			loop: false,
 			mixer: {
 				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },

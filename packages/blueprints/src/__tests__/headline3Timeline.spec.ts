@@ -62,6 +62,8 @@ describe('HEADLINES 1–3 timeline parity', () => {
 
 			expect(ilu, `${part.payload.name} missing LED ILU PLAY`).toBeTruthy()
 			expect((ilu?.content as { file: string }).file).toMatch(/clips\/HEADLINE\d/)
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			expect((ilu?.content as { loop?: boolean }).loop).toBe(false)
 			expect((ilu?.content as { mixer?: { fill?: { xScale: number } } }).mixer?.fill).toEqual({
 				x: 0,
 				y: 0,

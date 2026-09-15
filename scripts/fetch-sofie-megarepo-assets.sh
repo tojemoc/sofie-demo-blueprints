@@ -32,7 +32,10 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
-PINNED_SOFIE_ASSETS_REF="8c56de013e4cb5e42e9a8f4cd69dc6568d18d6cc" # SPRÁVY polish-2 (headline_sfx, ilu-zaver)
+# Stay on pre-619a6f7 smoke (part-hl-1 / part-tema-1-db / seg-tema-5) until blueprints
+# specs are rewritten for the 2026-09-14 RE export IDs. SJV/SPORT part-type defaults
+# live in megarepo tip and are consumed by unopus, not these blueprint smoke tests.
+PINNED_SOFIE_ASSETS_REF="15dd9742ff31958494247f538152d3a126a0d191" # show polish-2 smoke + piece types
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
