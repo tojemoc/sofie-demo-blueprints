@@ -777,7 +777,8 @@ function appendLookChannelClear(
 	const timelineObjects = clearLayers.map((layer) =>
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
-			enable: { start: startMs },
+			// Piece-relative: the piece already starts at `startMs`.
+			enable: { start: 0 },
 			layer,
 			priority: 2,
 			content: {

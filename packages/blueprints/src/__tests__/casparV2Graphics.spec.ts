@@ -517,6 +517,13 @@ describe('casparV2Graphics', () => {
 		)
 		expect(bg).toBeDefined()
 		expect(bg?.enable).toEqual({ start: L3D_OUT_MS })
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_look_channel_clear'))
+		expect(clearPiece?.enable).toEqual({ start: L3D_OUT_MS })
+		const emptyEnables = (clearPiece?.content.timelineObjects ?? [])
+			.filter((obj) => (obj.content as { file?: string }).file === 'EMPTY')
+			.map((obj) => obj.enable)
+		expect(emptyEnables.length).toBeGreaterThanOrEqual(2)
+		expect(emptyEnables.every((enable) => !Array.isArray(enable) && enable.start === 0)).toBe(true)
 		expect(
 			timeline.some(
 				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
