@@ -1,6 +1,6 @@
 import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { ObjectType } from '../common/definitions/objects.js'
+import { GraphicObjectAttributes, ObjectType } from '../common/definitions/objects.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
@@ -536,7 +536,7 @@ describe('casparV2Graphics', () => {
 		expect(caspar.data).toEqual({ BA_temp: 12, BA_name: 'Bratislava', BA_img: 'cloudy' })
 	})
 
-	it('passes through flat BA_temp…MM_temp without cities JSON and aliases BB→MM', () => {
+	it('passes through flat BA_temp…BB_temp without cities JSON and aliases MM→BB', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
 				id: 'wx-flat',
@@ -548,8 +548,8 @@ describe('casparV2Graphics', () => {
 				attributes: {
 					BA_temp: '8',
 					NR_temp: '7',
-					BB_temp: '3',
-				},
+					MM_temp: '3',
+				} as GraphicObjectAttributes,
 			},
 		])
 
@@ -562,23 +562,23 @@ describe('casparV2Graphics', () => {
 		expect(caspar.data).toMatchObject({
 			BA_temp: '8',
 			NR_temp: '7',
-			MM_temp: '3',
+			BB_temp: '3',
 		})
-		expect(caspar.data).not.toHaveProperty('BB_temp')
+		expect(caspar.data).not.toHaveProperty('MM_temp')
 		expect(caspar.data).not.toHaveProperty('cities')
 	})
 
-	it('maps cities.region BB to MM_temp for gfx/pocasie', () => {
+	it('maps cities.region MM to BB_temp for gfx/pocasie', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
-				id: 'wx-bb',
+				id: 'wx-mm',
 				objectType: ObjectType.Graphic,
 				clipName: 'gfx/pocasie',
 				objectTime: 0,
 				duration: 10000,
 				isAdlib: false,
 				attributes: {
-					cities: '[{"region":"BB","name":"B. BYSTRICA","temp":"5"}]',
+					cities: '[{"region":"MM","name":"B. BYSTRICA","temp":"5"}]',
 				},
 			},
 		])
@@ -589,7 +589,7 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)?.content as TSR.TimelineContentCCGTemplate
 
-		expect(caspar.data).toMatchObject({ MM_temp: '5', MM_name: 'B. BYSTRICA' })
+		expect(caspar.data).toMatchObject({ BB_temp: '5', BB_name: 'B. BYSTRICA' })
 	})
 
 	it('falls back to DEFAULT_POCASIE_CITIES for malformed cities JSON', () => {

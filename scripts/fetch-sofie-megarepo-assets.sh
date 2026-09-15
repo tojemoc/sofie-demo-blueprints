@@ -32,13 +32,16 @@ FILES=(
 )
 
 # Single pin — fail closed (no older REFS fallback). Bump SHA + checksums together.
-PINNED_SOFIE_ASSETS_REF="4355a27ecf6d91546fcba3edbfb22b834f5bc1d0" # SJV/SPORT CPS parts + volume defaults
+# Stay on pre-619a6f7 smoke (part-hl-1 / part-tema-1-db / seg-tema-5) until blueprints
+# specs are rewritten for the 2026-09-14 RE export IDs. SJV/SPORT part-type defaults
+# live in megarepo tip and are consumed by unopus, not these blueprint smoke tests.
+PINNED_SOFIE_ASSETS_REF="15dd9742ff31958494247f538152d3a126a0d191" # show polish-2 smoke + piece types
 
 # filename → expected sha256 (of the pinned commit's assets/)
 declare -A EXPECTED_SHA256=(
-	[spravy-v3-smoke-rundown.json]=0ba76d11e3bc063100d2a62b8a7706fb6854f05181139954d8415d20550e0eab
-	[sofie-rundown-editor-piece-types.json]=160d1d560a7445e2ae19e9cefff75d9a696368944f4a7fb4a50481bc37dd7edf
-	[sofie-rundown-editor-part-types.json]=cf6db787f851b8f9d74442252f4acd4b8e4ed44841161d39d2dec734f3de98ef
+	[spravy-v3-smoke-rundown.json]=953ef26d858047efbe1621672633e12e033ca60a6507ce5441678ed431d7928a
+	[sofie-rundown-editor-piece-types.json]=e8bfa1aa062965c98981982f02a4eb2d1233f63e0254f84c46ed7676e618b001
+	[sofie-rundown-editor-part-types.json]=2bd2c0c6f29e4f84575ba86e47ee20861cd4ffe75a2421d7a6b833d6dc5c991b
 	[sofie-rundown-editor-segment-types.json]=56f68da340a1029f4c31a1f69b6594e5d440f1e7223528cd2ce9dbaa8c1aaf7b
 )
 

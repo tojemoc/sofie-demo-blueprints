@@ -209,8 +209,8 @@ function getTemplateAttributes(
 			if (!row || typeof row !== 'object') continue
 			const entry = row as Record<string, unknown>
 			let region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
-			// gfx/pocasie cards use MM for Banská Bystrica (legacy BB still accepted).
-			if (region === 'BB') region = 'MM'
+			// gfx/pocasie cards use BB for Banská Bystrica (briefly mis-labeled MM — alias back).
+			if (region === 'MM') region = 'BB'
 			if (!region) continue
 			if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
 			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
@@ -220,13 +220,13 @@ function getTemplateAttributes(
 			if (image !== undefined) mapped[`${region}_img`] = image
 		}
 
-		// Alias legacy BB_* → MM_* so older payloads still light the Banská Bystrica card.
+		// Alias mistaken MM_* → BB_* so mid-flight payloads still light Banská Bystrica.
 		for (const suffix of ['_temp', '_name', '_delay', '_img', '_image', '_temperature'] as const) {
-			const legacy = mapped[`BB${suffix}`]
-			if (legacy !== undefined && mapped[`MM${suffix}`] === undefined) {
-				mapped[`MM${suffix}`] = legacy
+			const legacy = mapped[`MM${suffix}`]
+			if (legacy !== undefined && mapped[`BB${suffix}`] === undefined) {
+				mapped[`BB${suffix}`] = legacy
 			}
-			delete mapped[`BB${suffix}`]
+			delete mapped[`MM${suffix}`]
 		}
 
 		delete mapped.cities
@@ -305,7 +305,7 @@ export const DEFAULT_POCASIE_CITIES = [
 	{ region: 'NR', name: 'NITRA', temp: '2', delay: 600 },
 	{ region: 'TN', name: 'TRENČÍN', temp: '1', delay: 800 },
 	{ region: 'ZA', name: 'ŽILINA', temp: '-1', delay: 1000 },
-	{ region: 'MM', name: 'B. BYSTRICA', temp: '0', delay: 1200 },
+	{ region: 'BB', name: 'B. BYSTRICA', temp: '0', delay: 1200 },
 	{ region: 'KE', name: 'KOŠICE', temp: '2', delay: 1400 },
 	{ region: 'PO', name: 'PREŠOV', temp: '1', delay: 1600 },
 ] as const

@@ -52,7 +52,7 @@ export function generateVOPart(
 		}),
 	]
 
-	// Mic is an input under SYN — keep Host/Guest ForceMuted for the Take.
+	// Mic is an input under SYN — keep Host ForceMuted for the Take (Guest stays open).
 	const hostMutes = getHostForceMuteChannels(config)
 	if (hostMutes.length > 0) {
 		timelineObjects.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, hostMutes))

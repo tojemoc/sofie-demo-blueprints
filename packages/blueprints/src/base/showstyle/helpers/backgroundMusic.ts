@@ -128,24 +128,22 @@ export function getPlaybackForceMuteChannels(
 	}))
 }
 
-/** Host / Guest mics — muted under SYN and during wipe SFX (mic becomes an input). */
+/** Host mics — muted under SYN and during wipe SFX (mic becomes an input). */
 export function getHostForceMuteChannels(
 	config: StudioConfig
-): { type: AudioSourceType.Host | AudioSourceType.Guest; index: number; isOn: false }[] {
-	const channels: { type: AudioSourceType.Host | AudioSourceType.Guest; index: number; isOn: false }[] = []
-	const byType = (type: AudioSourceType.Host | AudioSourceType.Guest) =>
-		Object.values<SiyfosSourceConfig>(config.sisyfosSources).filter((source) => source.type === type)
+): { type: AudioSourceType.Host; index: number; isOn: false }[] {
+	const hostSources = Object.values<SiyfosSourceConfig>(config.sisyfosSources).filter(
+		(source) => source.type === AudioSourceType.Host
+	)
 
-	byType(AudioSourceType.Host).forEach((_source, index) => {
-		channels.push({ type: AudioSourceType.Host, index, isOn: false })
-	})
-	byType(AudioSourceType.Guest).forEach((_source, index) => {
-		channels.push({ type: AudioSourceType.Guest, index, isOn: false })
-	})
-	return channels
+	return hostSources.map((_source, index) => ({
+		type: AudioSourceType.Host,
+		index,
+		isOn: false as const,
+	}))
 }
 
-/** Playback + Host/Guest — full mute set while wipe SFX is audible. */
+/** Playback + Host — mute set while wipe SFX is audible (Guest stays untouched). */
 export function getWipeForceMuteChannels(
 	config: StudioConfig
 ): { type: AudioSourceType; index: number; isOn: false }[] {

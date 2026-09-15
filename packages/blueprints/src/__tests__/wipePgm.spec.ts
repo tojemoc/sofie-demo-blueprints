@@ -238,6 +238,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 				playback0: { source: 10, type: AudioSourceType.Playback },
 				playback1: { source: 11, type: AudioSourceType.Playback },
 				host0: { source: 1, type: AudioSourceType.Host },
+				guest0: { source: 2, type: AudioSourceType.Guest },
 			},
 		}
 
@@ -265,6 +266,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			{ mappedLayer: 'sisyfos_source_playback1', isPgm: 0 },
 			{ mappedLayer: 'sisyfos_source_host0', isPgm: 0 },
 		])
+		expect(muteContent.channels.some((ch) => ch.mappedLayer.includes('guest'))).toBe(false)
 
 		// SYN/ILU Caspar mixer volume ducks for the wipe window (route:// audio).
 		const synClip = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
