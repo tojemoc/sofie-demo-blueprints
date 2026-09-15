@@ -241,6 +241,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		const countupTl = countupReveal?.content.timelineObjects?.[0]
 		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
+		expect(countupTl?.content).toMatchObject({
+			mixer: { opacity: 1, volume: 0 },
+		})
 		expect(countupTl?.keyframes?.[0]?.content).toMatchObject({
 			mixer: { opacity: 1, volume: 1 },
 		})

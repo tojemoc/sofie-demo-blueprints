@@ -41,6 +41,7 @@ import {
 	CountupRevealClaim,
 	appendCountupSustainIfRevealed,
 	getCountupRevealClaimForGeneration,
+	partShouldMuteCountup,
 } from '../helpers/countupReveal.js'
 import {
 	LookSlot,
@@ -180,7 +181,8 @@ export function generateParts(
 			studioConfig,
 			rawPart.payload.externalId,
 			newPart.pieces,
-			countupRevealClaim
+			countupRevealClaim,
+			{ mute: partShouldMuteCountup(rawPart.rawType, rawPart.objects) }
 		)
 		if (
 			studioConfig.casparcg.hypercomposed &&
