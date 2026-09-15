@@ -6,9 +6,13 @@ import { CasparCGLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
+import { generateParts } from '../base/showstyle/part-adapters/index.js'
+import { L3D_OUT_MS } from '../base/showstyle/helpers/pgmLook.js'
+import { DEFAULT_WIPE_DURATION_MS } from '../base/showstyle/helpers/clips.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { PartContext } from '../common/context.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import {
 	loadSmokeRundownExport,
 	mockIngestContext,
@@ -275,7 +279,7 @@ describe('casparV2Graphics', () => {
 		expect(template?.layer).toBe(CasparCGLayers.CasparCGClipPlayer2)
 		const caspar = template?.content as TSR.TimelineContentCCGTemplate
 		expect(caspar?.name).toBe('gfx/fullscreen')
-		expect(caspar?.useStopCommand).toBe(false)
+		expect(caspar?.useStopCommand).toBe(true)
 		expect(piece?.content.timelineObjects?.some((obj) => obj.content.deviceType === TSR.DeviceType.ATEM)).toBe(true)
 	})
 
@@ -434,6 +438,7 @@ describe('casparV2Graphics', () => {
 		const caspar = piece?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGTemplate
 
 		expect(caspar.data).toEqual({ headline: 'Test headline' })
+		expect(caspar.useStopCommand).toBe(true)
 		expect(piece?.content).toMatchObject({
 			templateData: { headline: 'Test headline' },
 		})
@@ -489,6 +494,7 @@ describe('casparV2Graphics', () => {
 		expect((bg?.content as TSR.TimelineContentCCGMedia).file).toBe('assets/bg_pocasie')
 		expect((bg?.content as TSR.TimelineContentCCGMedia).loop).toBe(true)
 		expect((html?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/pocasie')
+		expect((html?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 	})
 
 	it('smoke weather part keeps bg_pocasie on Full look ILU and clears CAM', () => {
@@ -510,11 +516,60 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
 		)
 		expect(bg).toBeDefined()
+		expect(bg?.enable).toEqual({ start: L3D_OUT_MS })
 		expect(
 			timeline.some(
 				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(true)
+		expect(
+			timeline.some(
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGClipPlayer2B && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
+		const weatherL3d = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(L3D_OUT_MS + DEFAULT_WIPE_DURATION_MS)
+		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
+	})
+
+	it('mutes kolíska beds while the outro overlay plays', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const outroPart = segment.parts.find((part) =>
+			part.objects.some((obj) => {
+				const clip = String((obj as { clipName?: string }).clipName || '').toLowerCase()
+				const file =
+					typeof (obj as { attributes?: { fileName?: string } }).attributes?.fileName === 'string'
+						? (obj as { attributes: { fileName: string } }).attributes.fileName.toLowerCase()
+						: ''
+				return clip.includes('outro') || file.includes('outro')
+			})
+		)
+		expect(outroPart).toBeDefined()
+		if (!outroPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), outroPart.payload.externalId)
+		const result = generateGfxPart(partContext, outroPart as never, 'B')
+		expect(result.pieces.some((piece) => piece.name === 'BG music mute (Outro)')).toBe(true)
+		expect(result.pieces.some((piece) => piece.name.startsWith('Outro |'))).toBe(true)
+		expect(
+			result.pieces
+				.flatMap((piece) => piece.content.timelineObjects ?? [])
+				.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		).toBe(false)
+
+		const claim = createCountupRevealClaim()
+		claim.claim('spravy-v3-smoke')
+		const generated = generateParts(mockSegmentContext(), segment, claim)
+		const generatedOutro = generated.parts.find((part) => part.part.externalId === outroPart.payload.externalId)
+		expect(generatedOutro?.pieces.some((piece) => piece.name === 'BG music mute (Outro)')).toBe(true)
+		expect(generatedOutro?.pieces.some((piece) => piece.externalId?.endsWith('_countup_mute'))).toBe(true)
 	})
 
 	it('decodes legacy cities JSON for gfx/pocasie template data', () => {

@@ -44,10 +44,14 @@ export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TS
 	})
 }
 
-/** Mute the baseline A-bed during Intro (overlay carries its own audio). */
-export function createIntroBackgroundMusicMutePiece(
+/**
+ * Mute LED+PGM kolíska beds (A and C) while an overlay owns the soundtrack.
+ * Priority 2 beats the C-bed (priority 1) and baseline A-bed.
+ */
+export function createBackgroundMusicMutePiece(
 	config: StudioConfig,
 	partExternalId: string,
+	label: 'Intro' | 'Outro',
 	durationMs?: number
 ): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
@@ -56,7 +60,7 @@ export function createIntroBackgroundMusicMutePiece(
 			...(durationMs !== undefined ? { duration: durationMs } : {}),
 		},
 		externalId: `${partExternalId}_bg_music_mute`,
-		name: 'BG music mute (Intro)',
+		name: `BG music mute (${label})`,
 		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: SourceLayer.AudioBed,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
@@ -71,6 +75,24 @@ export function createIntroBackgroundMusicMutePiece(
 		expectedPackages: [],
 		prerollDuration: config.casparcgLatency,
 	})
+}
+
+/** Mute the baseline A-bed during Intro (overlay carries its own audio). */
+export function createIntroBackgroundMusicMutePiece(
+	config: StudioConfig,
+	partExternalId: string,
+	durationMs?: number
+): IBlueprintPiece {
+	return createBackgroundMusicMutePiece(config, partExternalId, 'Intro', durationMs)
+}
+
+/** Mute A/C beds and any kolíska while Outro.mov plays (overlay owns the soundtrack). */
+export function createOutroBackgroundMusicMutePiece(
+	config: StudioConfig,
+	partExternalId: string,
+	durationMs?: number
+): IBlueprintPiece {
+	return createBackgroundMusicMutePiece(config, partExternalId, 'Outro', durationMs)
 }
 
 /** Swap to C-bed from the first Take in Šport onward (same koliska hit → duck envelope). */

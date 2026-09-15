@@ -1,12 +1,13 @@
 import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { GfxProps, PartProps } from '../definitions/index.js'
-import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { parseClipsFromObjects, parseLayeredVideosFromObjects, partHasOutroOverlay } from '../helpers/clips.js'
 import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
+import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 
 export function generateGfxPart(
 	context: PartContext,
@@ -29,6 +30,16 @@ export function generateGfxPart(
 
 	if (partHasHeadlineIlu(part.objects)) {
 		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId))
+	}
+
+	if (partHasOutroOverlay(part.objects)) {
+		pieces.push(
+			createOutroBackgroundMusicMutePiece(
+				config,
+				part.payload.externalId,
+				part.payload.duration > 0 ? part.payload.duration : undefined
+			)
+		)
 	}
 
 	const clips = parseClipsFromObjects(context, config, part.objects)

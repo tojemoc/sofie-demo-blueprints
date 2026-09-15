@@ -275,6 +275,10 @@ describe('casparcgMappings', () => {
 		expect(mappings[CasparCGLayers.CasparCGPgmCameraIngest]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsLogo]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayer).layer).toBe(PgmChannelLayers.EffectsPlayer)
+		expect(PgmChannelLayers.EffectsPlayer).toBe(205)
 	})
 
 	it('routes 360° sekúnd logo-bug to PGM (not LED, not BG look)', () => {

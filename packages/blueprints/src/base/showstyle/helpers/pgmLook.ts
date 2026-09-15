@@ -19,6 +19,8 @@ import {
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
 	resolveWipeDurationMs,
+	isWipePocasieFile,
+	partHasOutroOverlay,
 } from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { getWipeForceMuteChannels } from './backgroundMusic.js'
@@ -36,6 +38,16 @@ export const WIPE_STING_FRAME_RATE = 50
 
 /** Default wait so CEF + clips can cue on the idle BG channel before a wiped Take. */
 export const DEFAULT_LOOK_PREROLL_MS = 1500
+
+/**
+ * Time for the outgoing L3D `CG STOP` out-animation to play on the current look
+ * before the picture cuts or the wipe overlay starts. Incoming L3Ds ADD only after
+ * the cut/wipe so the in-animation is not covered.
+ */
+export const L3D_OUT_MS = 500
+
+/** Keep outgoing look MEDIA on the timeline through L3D out + wipe cover-frame. */
+export const LOOK_MEDIA_POSTROLL_MS = L3D_OUT_MS + WIPE_CUT_POINT_MS
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -298,19 +310,21 @@ export function createPgmRouteTimelineObject(
 
 function createPgmWipeOverlayTimelineObject(
 	wipeFile: string,
-	wipeDurationMs: number
+	wipeDurationMs: number,
+	startMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
-		enable: { start: 0, duration: wipeDurationMs },
+		enable: { start: startMs, duration: wipeDurationMs },
 		layer: CasparCGLayers.CasparCGPgmEffectsPlayer,
 		priority: 1,
 		content: {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Alpha-only composite: never KEYER/CHROMA (those luma-key RGB). Soft edges
-			// after remastering wipe.mov are encode (straight vs premultiplied), not mixer.
+			// Alpha-only composite: never KEYER/CHROMA (those luma-key RGB). Play on a
+			// fresh PGM layer (205) so leftover MIXER KEYER on old 200 cannot stick.
+			// Explicit FILL+opacity forces a MIXER write even when keyer:false is default.
 			mixer: {
 				keyer: false,
 				blend: TSR.BlendMode.NORMAL,
@@ -320,6 +334,8 @@ function createPgmWipeOverlayTimelineObject(
 					softness: 0,
 					spill: 0,
 				},
+				opacity: 1,
+				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 				volume: 1,
 			},
 		},
@@ -327,7 +343,7 @@ function createPgmWipeOverlayTimelineObject(
 }
 
 /**
- * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 200) and
+ * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 205) and
  * hard-cut MEDIA `route://N` at {@link WIPE_CUT_POINT_MS} under the cover.
  *
  * DoubleBox previously used Caspar STING on the route, but casparcg-state coerces
@@ -350,6 +366,7 @@ function createPgmRoutePiece(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
+	const overlayStartMs = L3D_OUT_MS
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -357,17 +374,18 @@ function createPgmRoutePiece(
 
 	const timelineObjects: TimelineBlueprintExt[] = []
 	if (overlayWipe && wipeFile) {
-		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs))
+		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, overlayStartMs))
 		timelineObjects.push(
 			createPgmRouteTimelineObject(config, slot, wipeFile, {
 				sting: false,
-				routeStartMs: WIPE_CUT_POINT_MS,
+				routeStartMs: overlayStartMs + WIPE_CUT_POINT_MS,
 			})
 		)
 	} else {
 		timelineObjects.push(
 			createPgmRouteTimelineObject(config, slot, wipeFile, {
 				sting: hasWipe,
+				routeStartMs: overlayStartMs,
 			})
 		)
 	}
@@ -378,7 +396,7 @@ function createPgmRoutePiece(
 			timelineObjects.push({
 				...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes),
 				enable: {
-					start: 0,
+					start: overlayStartMs,
 					duration: wipeDurationMs,
 				},
 			})
@@ -438,19 +456,20 @@ function attachRouteToWipePiece(
 	)
 	// Keep ForceMute aligned with the wipe SFX / overlay window (not an open-ended mute).
 	for (const mute of mutes) {
-		mute.enable = { start: 0, duration: wipeDurationMs }
+		mute.enable = { start: L3D_OUT_MS, duration: wipeDurationMs }
 	}
 	const overlayWipe = wipeUsesPgmOverlay(slot)
+	const overlayStartMs = L3D_OUT_MS
 	wipePiece.content.timelineObjects = overlayWipe
 		? [
-				createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs),
+				createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, overlayStartMs),
 				createPgmRouteTimelineObject(config, slot, wipeFile, {
 					sting: false,
-					routeStartMs: WIPE_CUT_POINT_MS,
+					routeStartMs: overlayStartMs + WIPE_CUT_POINT_MS,
 				}),
 				...mutes,
 			]
-		: [createPgmRouteTimelineObject(config, slot, wipeFile, { sting: true }), ...mutes]
+		: [createPgmRouteTimelineObject(config, slot, wipeFile, { sting: true, routeStartMs: overlayStartMs }), ...mutes]
 	wipePiece.enable = { start: 0 }
 	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 	wipePiece.content.ignoreAudioFormat = true
@@ -530,15 +549,29 @@ export function finalizeHypercomposedPart(
 					DEFAULT_WIPE_FILE
 			)
 		: undefined
+	const hasWipe = Boolean(wipe && wipeFile)
+	const takeHoldMs = L3D_OUT_MS + (hasWipe ? wipeDurationMs : 0)
 
-	if (wipe) {
+	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		part.inTransition = {
-			blockTakeDuration: wipeDurationMs,
-			previousPartKeepaliveDuration: wipeDurationMs,
+			blockTakeDuration: takeHoldMs,
+			previousPartKeepaliveDuration: 0,
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
+	} else {
+		part.inTransition = {
+			blockTakeDuration: L3D_OUT_MS,
+			previousPartKeepaliveDuration: 0,
+			partContentDelayDuration: 0,
+		}
+	}
+
+	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0)
+
+	if (wipeFile && isWipePocasieFile(wipeFile)) {
+		appendLookChannelClear(pieces, partExternalId, lookSlot, L3D_OUT_MS)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
@@ -546,15 +579,22 @@ export function finalizeHypercomposedPart(
 			(obj) => String(obj.layer) === (CasparCGLayers.CasparCGPgmRoute as string)
 		)
 	)
-	if (alreadyRouted) return
-
-	const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
-	if (wipePiece && wipeFile) {
-		attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile, wipeDurationMs)
-		return
+	if (!alreadyRouted) {
+		const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
+		if (wipePiece && wipeFile) {
+			attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile, wipeDurationMs)
+		} else {
+			pieces.push(createPgmRoutePiece(context, config, partExternalId, lookSlot, wipe, wipe ? wipeFile : undefined))
+		}
 	}
 
-	pieces.push(createPgmRoutePiece(context, config, partExternalId, lookSlot, wipe, wipe ? wipeFile : undefined))
+	if (partHasOutroOverlay(objects)) {
+		// Outro.mov owns the soundtrack — duck look-clip audio and wipe SFX that would ride PGM.
+		muteLookClipAudioForRestOfPart(pieces)
+		mutePgmWipeOverlayAudio(pieces)
+	}
+
+	applyLookMediaPostroll(pieces)
 }
 
 /** True when Full-look CAM on 115 would cover SYN/VT (110) or weather underlay (116). */
@@ -585,6 +625,35 @@ const EDITORIAL_AUDIO_LOOK_LAYERS = new Set<string>([
 	CasparCGLayers.CasparCGPgmIluPlayerB,
 	CasparCGLayers.CasparCGIluPlayer,
 ])
+
+function setLookClipMixerVolume(obj: TimelineBlueprintExt, volume: number): void {
+	const content = obj.content as TSR.TimelineContentCCGMedia
+	content.mixer = { ...(content.mixer ?? {}), volume }
+}
+
+/** Hold look-clip Caspar mixer at 0 for the rest of the part (outro jingle). */
+function muteLookClipAudioForRestOfPart(pieces: IBlueprintPiece[]): void {
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			if (!EDITORIAL_AUDIO_LOOK_LAYERS.has(String(obj.layer))) continue
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
+			setLookClipMixerVolume(obj as TimelineBlueprintExt, 0)
+		}
+	}
+}
+
+/** Wipe overlay SFX must not mix under `outro.mov` (PGM 210 owns the sting). */
+function mutePgmWipeOverlayAudio(pieces: IBlueprintPiece[]): void {
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			if (String(obj.layer) !== (CasparCGLayers.CasparCGPgmEffectsPlayer as string)) continue
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
+			content.mixer = { ...(content.mixer ?? {}), volume: 0 }
+		}
+	}
+}
 
 function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDurationMs: number): void {
 	for (const piece of pieces) {
@@ -623,4 +692,111 @@ function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDuratio
 			]
 		}
 	}
+}
+
+const L3D_TEMPLATE_LAYERS = new Set<string>([
+	CasparCGLayers.CasparCGGraphicsPgmLowerThird,
+	CasparCGLayers.CasparCGGraphicsPgmLowerThirdB,
+])
+
+function isCasparTemplate(content: { type?: string }): boolean {
+	return content?.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+}
+
+function isCasparMedia(content: { type?: string }): boolean {
+	return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA
+}
+
+function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): void {
+	if (delayMs <= 0) return
+	const enable = obj.enable as { start?: number | string | null } | Array<unknown> | undefined
+	if (!enable || Array.isArray(enable)) return
+	if (typeof enable.start === 'number' && enable.start === 0) {
+		enable.start = delayMs
+	}
+}
+
+/**
+ * On Take: outgoing L3Ds STOP immediately (no keepalive / no postroll on templates).
+ * Incoming look MEDIA waits {@link L3D_OUT_MS} so the out-animation is visible,
+ * then the cut/wipe happens. Incoming L3Ds wait until after the cut/wipe so the
+ * in-animation is not covered.
+ */
+function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number): void {
+	const lookMediaDelay = L3D_OUT_MS
+	const l3dInDelay = L3D_OUT_MS + Math.max(0, wipeDurationMs)
+
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const layer = String(obj.layer)
+			const content = obj.content as { type?: string }
+
+			if (L3D_TEMPLATE_LAYERS.has(layer) && isCasparTemplate(content)) {
+				shiftEnableStartIfAtTake(obj, l3dInDelay)
+				continue
+			}
+
+			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
+			if (!isCasparMedia(content)) continue
+			shiftEnableStartIfAtTake(obj, lookMediaDelay)
+		}
+	}
+}
+
+/** Outgoing look VIDEO stays up through L3D out + wipe cover; L3D templates must not. */
+function applyLookMediaPostroll(pieces: IBlueprintPiece[]): void {
+	for (const piece of pieces) {
+		const objects = piece.content.timelineObjects ?? []
+		const keepPicture = objects.some((obj) => {
+			const layer = String(obj.layer)
+			const content = obj.content as { type?: string; file?: string }
+			if (layer === (CasparCGLayers.CasparCGPgmRoute as string) && isCasparMedia(content)) return true
+			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) return false
+			if (!isCasparMedia(content)) return false
+			if (content.file === 'EMPTY') return false
+			return true
+		})
+		if (!keepPicture) continue
+		piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, LOOK_MEDIA_POSTROLL_MS)
+	}
+}
+
+/**
+ * Full logical CLEAR of the Full look (ch4): EMPTY leftover SYN/CAM/`db_loop` so
+ * `wipe_pocasie` cannot keep the last sport VID playing under weather HTML.
+ * Weather keeps ILU (`bg_pocasie`) + L3D; those layers are not EMPTYed for the part.
+ */
+function appendLookChannelClear(
+	pieces: IBlueprintPiece[],
+	partExternalId: string,
+	lookSlot: LookSlot,
+	startMs: number
+): void {
+	const layers = getLookLayers(lookSlot)
+	const clearLayers = [layers.clip, layers.camera, layers.doubleBoxLoop]
+	const timelineObjects = clearLayers.map((layer) =>
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: startMs },
+			layer,
+			priority: 2,
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: 'EMPTY',
+			},
+		})
+	)
+
+	pieces.push(
+		literal<IBlueprintPiece>({
+			enable: { start: startMs },
+			externalId: `${partExternalId}_look_channel_clear`,
+			name: 'Look CLEAR (ch4 SYN/CAM/db_loop)',
+			lifespan: PieceLifespan.WithinPart,
+			sourceLayerId: SourceLayer.GFX,
+			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.GFX),
+			content: { timelineObjects },
+		})
+	)
 }

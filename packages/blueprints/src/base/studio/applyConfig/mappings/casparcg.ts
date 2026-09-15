@@ -85,10 +85,12 @@ function lookStackMappings(
 			BgChannelLayers.DoubleBoxLoop,
 			LookaheadMode.PRELOAD
 		),
+		// NONE: PRELOAD of the next L3D on the same CEF layer becomes CG UPDATE
+		// (text swap, no in/out animation). Takes must STOP then ADD instead.
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: casparLayerMapping(
 			channel,
 			BgChannelLayers.GraphicsLowerThird,
-			LookaheadMode.PRELOAD
+			LookaheadMode.NONE
 		),
 	}
 }
@@ -123,7 +125,7 @@ function lookStackMappingsB(
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]: casparLayerMapping(
 			channel,
 			BgChannelLayers.GraphicsLowerThird,
-			LookaheadMode.PRELOAD
+			LookaheadMode.NONE
 		),
 	}
 }

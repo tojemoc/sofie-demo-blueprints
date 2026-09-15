@@ -63,9 +63,14 @@ export const PgmChannelLayers = {
 	DoubleBoxLoop: BgChannelLayers.DoubleBoxLoop,
 	GraphicsLowerThird: BgChannelLayers.GraphicsLowerThird,
 	GraphicsLogo: 123,
-	/** Full-section / themed wipes (SJV / ŠPORT / …) — PGM-direct overlay. */
-	EffectsPlayer: 200,
-	/** Intro / znelka — above the routed look; PGM only (never LED). */
+	/**
+	 * Story-block wipe overlay. Layer **205** (not 200): older bundles left
+	 * `MIXER 2-200 KEYER 1` sticky on 200, so remastered `wipe.mov` still looked
+	 * luma-keyed while `outro.mov` on 210 (never keyed) was fine. A fresh layer
+	 * plus alpha-only mixer avoids inheriting that channel mixer state.
+	 */
+	EffectsPlayer: 205,
+	/** Intro / znelka / outro — above the routed look; PGM only (never LED). */
 	IntroOverlay: 210,
 	/** Debug channel name burn-in (top-right). */
 	DebugLabel: 990,
