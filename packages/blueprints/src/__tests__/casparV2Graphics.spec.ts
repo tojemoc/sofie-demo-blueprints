@@ -512,8 +512,7 @@ describe('casparV2Graphics', () => {
 		expect(bg).toBeDefined()
 		expect(
 			timeline.some(
-				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
+				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(true)
 	})
@@ -753,6 +752,90 @@ describe('casparV2Graphics', () => {
 		expect(objects[0]?.attributes).toMatchObject({ headline: 'Test headline' })
 		expect(objects[1]?.clipName).toBe('gfx/l3d-mod')
 		expect(objects[1]?.attributes).toMatchObject({ name: 'Anchor' })
+	})
+
+	it('coerces opening-segment l3d-predstavovak to gfx/l3d-mod (presenter MOD)', () => {
+		const segment = convertIngestData(
+			{
+				logError: () => undefined,
+				logWarning: () => undefined,
+			} as never,
+			{
+				externalId: 'seg-intro',
+				name: 'Intro',
+				payload: { type: 'opening', name: 'Intro' },
+				parts: [
+					{
+						externalId: 'part-intro-mod',
+						name: 'Gabriela Kajtárová',
+						payload: {
+							segmentId: 'seg-intro',
+							externalId: 'part-intro-mod',
+							rank: 0,
+							name: 'Gabriela Kajtárová',
+							type: 'Cam',
+							float: false,
+							script: '',
+							pieces: [
+								{
+									id: 'piece-mod-stale',
+									objectType: 'l3d-predstavovak',
+									objectTime: 0,
+									duration: 5,
+									clipName: '',
+									attributes: { name: 'Gabriela Kajtárová', title: 'moderátorka' },
+								},
+							],
+						},
+					},
+				],
+			} as never
+		)
+
+		const object = segment.parts[0]?.objects[0]
+		expect(object?.clipName).toBe('gfx/l3d-mod')
+		expect(object?.attributes).toMatchObject({ name: 'Gabriela Kajtárová', title: 'moderátorka' })
+	})
+
+	it('keeps story-segment l3d-predstavovak as guest/topic nameplate', () => {
+		const segment = convertIngestData(
+			{
+				logError: () => undefined,
+				logWarning: () => undefined,
+			} as never,
+			{
+				externalId: 'seg-tema-1',
+				name: 'Tema 1',
+				payload: { type: 'story', name: 'Tema 1' },
+				parts: [
+					{
+						externalId: 'part-db',
+						name: 'DoubleBox',
+						payload: {
+							segmentId: 'seg-tema-1',
+							externalId: 'part-db',
+							rank: 0,
+							name: 'DoubleBox',
+							type: 'DoubleBox',
+							float: false,
+							script: '',
+							pieces: [
+								{
+									id: 'piece-guest',
+									objectType: 'l3d-predstavovak',
+									objectTime: 0,
+									duration: 5,
+									clipName: '',
+									attributes: { name: 'Peter Pellegrini', title: 'Prezident SR' },
+								},
+							],
+						},
+					},
+				],
+			} as never
+		)
+
+		expect(segment.parts[0]?.objects[0]?.clipName).toBe('gfx/l3d-predstavovak')
 	})
 
 	it('normalizes generic graphic template names without gfx/ prefixes', () => {
