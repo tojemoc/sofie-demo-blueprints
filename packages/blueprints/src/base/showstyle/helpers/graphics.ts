@@ -199,11 +199,7 @@ function getTemplateAttributes(
 		// Prefer cities JSON; if RE/Caspar already sent flat BA_temp… keys, keep them.
 		// Only fall back to sample defaults when neither is present.
 		const cityRows: unknown[] =
-			Array.isArray(cities) && cities.length > 0
-				? cities
-				: hasFlatTemps
-					? []
-					: [...DEFAULT_POCASIE_CITIES]
+			Array.isArray(cities) && cities.length > 0 ? cities : hasFlatTemps ? [] : [...DEFAULT_POCASIE_CITIES]
 
 		for (const row of cityRows) {
 			if (!row || typeof row !== 'object') continue

@@ -273,9 +273,9 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const mediaObj = synClip?.content.timelineObjects?.find(
 			(obj) => (obj.content as TSR.TimelineContentCCGMedia)?.type === TSR.TimelineContentTypeCasparCg.MEDIA
 		)
-		expect(mediaObj?.keyframes?.some((kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0)).toBe(
-			true
-		)
+		expect(
+			mediaObj?.keyframes?.some((kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0)
+		).toBe(true)
 	})
 
 	it('hard-cut PGM route pieces use only casparcgLatency (no look/wipe preroll)', () => {

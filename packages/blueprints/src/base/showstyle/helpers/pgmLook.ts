@@ -539,9 +539,7 @@ function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDuratio
 			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
 
 			const baseVolume =
-				typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume)
-					? content.mixer.volume
-					: 1
+				typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
 
 			const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
 				TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
