@@ -12,8 +12,17 @@ export const HEADLINE_SFX_FILE = 'assets/headline_sfx'
 const HEADLINE_SFX_PACKAGE_FILE = 'assets/headline_sfx.wav'
 
 /**
+ * How long the sting occupies the audio-bed layers.
+ * Must end so baseline `loops/bg_music_*` can resume — a WithinPart object with
+ * `loop:false` and no duration keeps the layer silent after the wav ends and
+ * blocks the kolíska bed until the next Take.
+ */
+export const HEADLINE_SFX_DURATION_MS = 2500
+
+/**
  * One-shot SFX under each headline Take (PGM + LED audio beds).
  * WithinPart so each of the three HEADLINE parts fires a fresh PLAY.
+ * Timeline enable is short so the bed layers fall back to baseline after the sting.
  */
 export function createHeadlineSfxPiece(
 	context: ICommonContext,
@@ -27,7 +36,7 @@ export function createHeadlineSfxPiece(
 	].map((layer) =>
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
-			enable: { start: 0 },
+			enable: { start: 0, duration: HEADLINE_SFX_DURATION_MS },
 			layer,
 			priority: 2,
 			content: {
@@ -40,7 +49,7 @@ export function createHeadlineSfxPiece(
 	)
 
 	return literal<IBlueprintPiece>({
-		enable: { start: 0 },
+		enable: { start: 0, duration: HEADLINE_SFX_DURATION_MS },
 		externalId: `${partExternalId}_headline_sfx`,
 		name: 'Headline SFX',
 		lifespan: PieceLifespan.WithinPart,
