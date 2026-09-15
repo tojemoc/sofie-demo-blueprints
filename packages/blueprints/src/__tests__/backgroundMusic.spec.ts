@@ -49,13 +49,19 @@ describe('koliska bed envelope', () => {
 		}
 	})
 
-	it('does not apply koliska keyframes to sport background music', () => {
+	it('does apply koliska keyframes to sport background music', () => {
 		const piece = createSportBackgroundMusicPiece(mockContext, hybridCasparConfig, 'seg-sport')
 		expect(piece.content, 'sport background music piece content missing').toBeDefined()
 		const timelines = piece.content?.timelineObjects ?? []
 		expect(timelines).toHaveLength(2)
 		for (const timeline of timelines) {
-			expect((timeline as { keyframes?: unknown[] }).keyframes).toBeUndefined()
+			expect((timeline as { keyframes?: unknown[] }).keyframes?.[0]).toMatchObject({
+				enable: { start: KOLISKA_HIT_DURATION_MS },
+			})
 		}
+	})
+
+	it('uses a 2s koliska hit window', () => {
+		expect(KOLISKA_HIT_DURATION_MS).toBe(2000)
 	})
 })

@@ -195,13 +195,22 @@ function getTemplateAttributes(
 			}
 		}
 
-		// Malformed JSON, non-arrays, and [] all fall back to the template sample set.
-		const cityRows: unknown[] = Array.isArray(cities) && cities.length > 0 ? cities : [...DEFAULT_POCASIE_CITIES]
+		const hasFlatTemps = Object.keys(mapped).some((key) => /_(temp|temperature)$/i.test(key))
+		// Prefer cities JSON; if RE/Caspar already sent flat BA_temp… keys, keep them.
+		// Only fall back to sample defaults when neither is present.
+		const cityRows: unknown[] =
+			Array.isArray(cities) && cities.length > 0
+				? cities
+				: hasFlatTemps
+					? []
+					: [...DEFAULT_POCASIE_CITIES]
 
 		for (const row of cityRows) {
 			if (!row || typeof row !== 'object') continue
 			const entry = row as Record<string, unknown>
-			const region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
+			let region = typeof entry.region === 'string' ? entry.region.trim().toUpperCase() : ''
+			// gfx/pocasie cards use MM for Banská Bystrica (legacy BB still accepted).
+			if (region === 'BB') region = 'MM'
 			if (!region) continue
 			if (entry.temp !== undefined) mapped[`${region}_temp`] = entry.temp
 			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
@@ -209,6 +218,15 @@ function getTemplateAttributes(
 			const image =
 				entry.image !== undefined ? entry.image : typeof entry.condition === 'string' ? entry.condition : undefined
 			if (image !== undefined) mapped[`${region}_img`] = image
+		}
+
+		// Alias legacy BB_* → MM_* so older payloads still light the Banská Bystrica card.
+		for (const suffix of ['_temp', '_name', '_delay', '_img', '_image', '_temperature'] as const) {
+			const legacy = mapped[`BB${suffix}`]
+			if (legacy !== undefined && mapped[`MM${suffix}`] === undefined) {
+				mapped[`MM${suffix}`] = legacy
+			}
+			delete mapped[`BB${suffix}`]
 		}
 
 		delete mapped.cities
@@ -287,7 +305,7 @@ export const DEFAULT_POCASIE_CITIES = [
 	{ region: 'NR', name: 'NITRA', temp: '2', delay: 600 },
 	{ region: 'TN', name: 'TRENČÍN', temp: '1', delay: 800 },
 	{ region: 'ZA', name: 'ŽILINA', temp: '-1', delay: 1000 },
-	{ region: 'BB', name: 'B. BYSTRICA', temp: '0', delay: 1200 },
+	{ region: 'MM', name: 'B. BYSTRICA', temp: '0', delay: 1200 },
 	{ region: 'KE', name: 'KOŠICE', temp: '2', delay: 1400 },
 	{ region: 'PO', name: 'PREŠOV', temp: '1', delay: 1600 },
 ] as const
@@ -322,6 +340,8 @@ function createHeadlineIluMediaTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			loop: false,
 			mixer: {
 				fill,
 				volume,
@@ -360,6 +380,8 @@ function createDoubleboxIluMediaTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
+			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
+			loop: false,
 			mixer: {
 				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },

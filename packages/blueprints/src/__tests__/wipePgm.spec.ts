@@ -82,8 +82,14 @@ describe('wipe piece type → PGM route / overlay', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
+			mixer: {
+				keyer: false,
+				blend: TSR.BlendMode.NORMAL,
+				chroma: { keyer: TSR.Chroma.NONE },
+				volume: 1,
+			},
 		})
-		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer).toBeUndefined()
+		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
 		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
@@ -225,12 +231,13 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect((route?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 
-	it('generates ForceMute timeline for playback channels during wipe', () => {
+	it('generates ForceMute timeline for playback + host channels during wipe', () => {
 		const configWithPlayback = {
 			...hybridCasparConfig,
 			sisyfosSources: {
 				playback0: { source: 10, type: AudioSourceType.Playback },
 				playback1: { source: 11, type: AudioSourceType.Playback },
+				host0: { source: 1, type: AudioSourceType.Host },
 			},
 		}
 
@@ -253,13 +260,20 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(muteObj?.enable).toEqual({ start: 0, duration: 2500 })
 		const muteContent = muteObj?.content as TSR.TimelineContentSisyfosChannels
 		expect(muteContent.type).toBe(TSR.TimelineContentTypeSisyfos.CHANNELS)
-		expect(muteContent.channels).toHaveLength(2)
-		// isPgm: 0 is the timeline mute (helper supplies isOn: false for each Playback channel).
-		// mappedLayer identities correspond to configured playback0/playback1 (sources 10 and 11).
 		expect(muteContent.channels).toEqual([
 			{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
 			{ mappedLayer: 'sisyfos_source_playback1', isPgm: 0 },
+			{ mappedLayer: 'sisyfos_source_host0', isPgm: 0 },
 		])
+
+		// SYN/ILU Caspar mixer volume ducks for the wipe window (route:// audio).
+		const synClip = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		const mediaObj = synClip?.content.timelineObjects?.find(
+			(obj) => (obj.content as TSR.TimelineContentCCGMedia)?.type === TSR.TimelineContentTypeCasparCg.MEDIA
+		)
+		expect(mediaObj?.keyframes?.some((kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0)).toBe(
+			true
+		)
 	})
 
 	it('hard-cut PGM route pieces use only casparcgLatency (no look/wipe preroll)', () => {

@@ -536,6 +536,62 @@ describe('casparV2Graphics', () => {
 		expect(caspar.data).toEqual({ BA_temp: 12, BA_name: 'Bratislava', BA_img: 'cloudy' })
 	})
 
+	it('passes through flat BA_temp…MM_temp without cities JSON and aliases BB→MM', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-flat',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					BA_temp: '8',
+					NR_temp: '7',
+					BB_temp: '3',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toMatchObject({
+			BA_temp: '8',
+			NR_temp: '7',
+			MM_temp: '3',
+		})
+		expect(caspar.data).not.toHaveProperty('BB_temp')
+		expect(caspar.data).not.toHaveProperty('cities')
+	})
+
+	it('maps cities.region BB to MM_temp for gfx/pocasie', () => {
+		const result = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'wx-bb',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/pocasie',
+				objectTime: 0,
+				duration: 10000,
+				isAdlib: false,
+				attributes: {
+					cities: '[{"region":"BB","name":"B. BYSTRICA","temp":"5"}]',
+				},
+			},
+		])
+
+		const caspar = result.pieces[0]?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)?.content as TSR.TimelineContentCCGTemplate
+
+		expect(caspar.data).toMatchObject({ MM_temp: '5', MM_name: 'B. BYSTRICA' })
+	})
+
 	it('falls back to DEFAULT_POCASIE_CITIES for malformed cities JSON', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{
