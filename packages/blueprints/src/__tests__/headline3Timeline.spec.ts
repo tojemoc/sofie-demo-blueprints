@@ -76,9 +76,13 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			const sfx = result.pieces.find((p) => p.externalId === `${part.payload.externalId}_headline_sfx`)
 			expect(sfx, `${part.payload.name} missing headline SFX`).toBeTruthy()
 			expect(sfx?.sourceLayerId).toBe(String(SourceLayer.AudioBed))
+			expect(sfx?.enable).toEqual({ start: 0, duration: 2500 })
 			expect((sfx?.content as { fileName?: string }).fileName).toBe('assets/headline_sfx')
 			const sfxFiles = (sfx?.content.timelineObjects ?? []).map((obj) => (obj.content as { file?: string }).file)
 			expect(sfxFiles).toEqual(['assets/headline_sfx', 'assets/headline_sfx'])
+			expect(sfx?.content.timelineObjects?.[0]?.enable).toEqual({ start: 0, duration: 2500 })
+
+			expect(iluPiece?.enable?.duration).toBeUndefined()
 		}
 	})
 })

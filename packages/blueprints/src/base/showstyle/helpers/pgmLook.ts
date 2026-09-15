@@ -14,15 +14,16 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import {
-	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
+	resolveWipeDurationMs,
 } from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { getWipeForceMuteChannels } from './backgroundMusic.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
+import { createLookCameraClearTimelineObject } from './pgmCamera.js'
 
 export type LookSlot = 'A' | 'B'
 
@@ -295,10 +296,13 @@ export function createPgmRouteTimelineObject(
 	})
 }
 
-function createPgmWipeOverlayTimelineObject(wipeFile: string): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+function createPgmWipeOverlayTimelineObject(
+	wipeFile: string,
+	wipeDurationMs: number
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
-		enable: { start: 0, duration: DEFAULT_WIPE_DURATION_MS },
+		enable: { start: 0, duration: wipeDurationMs },
 		layer: CasparCGLayers.CasparCGPgmEffectsPlayer,
 		priority: 1,
 		content: {
@@ -345,6 +349,7 @@ function createPgmRoutePiece(
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
+	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -352,7 +357,7 @@ function createPgmRoutePiece(
 
 	const timelineObjects: TimelineBlueprintExt[] = []
 	if (overlayWipe && wipeFile) {
-		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile))
+		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs))
 		timelineObjects.push(
 			createPgmRouteTimelineObject(config, slot, wipeFile, {
 				sting: false,
@@ -374,7 +379,7 @@ function createPgmRoutePiece(
 				...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes),
 				enable: {
 					start: 0,
-					duration: DEFAULT_WIPE_DURATION_MS,
+					duration: wipeDurationMs,
 				},
 			})
 		}
@@ -425,15 +430,20 @@ function attachRouteToWipePiece(
 	config: StudioConfig,
 	wipePiece: IBlueprintPiece,
 	slot: LookSlot,
-	wipeFile: string
+	wipeFile: string,
+	wipeDurationMs: number
 ): void {
 	const mutes = (wipePiece.content.timelineObjects ?? []).filter(
 		(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
 	)
+	// Keep ForceMute aligned with the wipe SFX / overlay window (not an open-ended mute).
+	for (const mute of mutes) {
+		mute.enable = { start: 0, duration: wipeDurationMs }
+	}
 	const overlayWipe = wipeUsesPgmOverlay(slot)
 	wipePiece.content.timelineObjects = overlayWipe
 		? [
-				createPgmWipeOverlayTimelineObject(wipeFile),
+				createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs),
 				createPgmRouteTimelineObject(config, slot, wipeFile, {
 					sting: false,
 					routeStartMs: WIPE_CUT_POINT_MS,
@@ -483,9 +493,35 @@ export function finalizeHypercomposedPart(
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
+	if (shouldClearLookCamera(pieces)) {
+		const clearObj = createLookCameraClearTimelineObject()
+		const hostPiece = pieces.find(
+			(piece) =>
+				piece.sourceLayerId === (SourceLayer.VO as string) ||
+				piece.sourceLayerId === (SourceLayer.VT as string) ||
+				piece.sourceLayerId === (SourceLayer.GFX as string)
+		)
+		if (hostPiece) {
+			hostPiece.content.timelineObjects = [...(hostPiece.content.timelineObjects ?? []), clearObj]
+		} else {
+			pieces.push(
+				literal<IBlueprintPiece>({
+					enable: { start: 0 },
+					externalId: `${partExternalId}_look_cam_clear`,
+					name: 'Look CAM clear',
+					lifespan: PieceLifespan.WithinPart,
+					sourceLayerId: SourceLayer.Camera,
+					outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Camera),
+					content: { timelineObjects: [clearObj] },
+				})
+			)
+		}
+	}
+
 	remapLookLayers(pieces, lookSlot)
 
 	const wipe = findWipeVideoObject(objects)
+	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
 	const wipeFile = wipe
 		? normalizeLayeredVideoFileName(
 				'wipe',
@@ -498,11 +534,11 @@ export function finalizeHypercomposedPart(
 	if (wipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		part.inTransition = {
-			blockTakeDuration: DEFAULT_WIPE_DURATION_MS,
-			previousPartKeepaliveDuration: DEFAULT_WIPE_DURATION_MS,
+			blockTakeDuration: wipeDurationMs,
+			previousPartKeepaliveDuration: wipeDurationMs,
 			partContentDelayDuration: 0,
 		}
-		muteEditorialClipAudioDuringWipe(pieces, DEFAULT_WIPE_DURATION_MS)
+		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
@@ -514,11 +550,31 @@ export function finalizeHypercomposedPart(
 
 	const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 	if (wipePiece && wipeFile) {
-		attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile)
+		attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile, wipeDurationMs)
 		return
 	}
 
 	pieces.push(createPgmRoutePiece(context, config, partExternalId, lookSlot, wipe, wipe ? wipeFile : undefined))
+}
+
+/** True when Full-look CAM on 115 would cover SYN/VT (110) or weather underlay (116). */
+function shouldClearLookCamera(pieces: IBlueprintPiece[]): boolean {
+	for (const piece of pieces) {
+		if (piece.sourceLayerId === (SourceLayer.VO as string) || piece.sourceLayerId === (SourceLayer.VT as string)) {
+			return true
+		}
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const content = obj.content as { type?: string; file?: string }
+			if (
+				content?.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+				typeof content.file === 'string' &&
+				/bg_pocasie/i.test(content.file)
+			) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 /** Layers whose Caspar MEDIA audio rides the PGM route and must duck under wipe SFX. */

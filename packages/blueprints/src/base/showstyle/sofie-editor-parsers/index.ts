@@ -10,7 +10,7 @@ import { DEFAULT_BG_LOOP_FILE, isLayeredVideoObject, normalizeLayeredVideoFileNa
 import { VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
 import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
-import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
+import { AllProps, PartProps, SegmentProps, SegmentType } from '../definitions/index.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { getDemoClipPath } from '../helpers/mediaPackages.js'
 import { DEFAULT_OUTRO_FILE } from '../helpers/graphics.js'
@@ -201,6 +201,11 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 						graphicPieceType = 'doublebox-ilu'
 						delete piece.attributes.iluPrerendered
 						delete piece.attributes.bypass
+					}
+					// Opening/intro presenter L3D must be `l3d-mod` (not guest/topic `l3d-predstavovak`).
+					// Older smoke / RE exports still tag the MOD nameplate as predstavovak.
+					if (graphicPieceType === 'l3d-predstavovak' && type === SegmentType.OPENING) {
+						graphicPieceType = 'l3d-mod'
 					}
 					piece.clipName = graphicPieceType === 'weather' ? 'gfx/pocasie' : 'gfx/' + graphicPieceType
 					piece.objectType = ObjectType.Graphic

@@ -5,8 +5,16 @@ import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/help
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
+import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
+import { PartContext } from '../common/context.js'
+import {
+	loadSmokeRundownExport,
+	mockIngestContext,
+	mockSegmentContext,
+	smokeExportToIngestSegment,
+} from './helpers/smokeRundownIngest.js'
 
 const hybridCasparConfig: StudioConfig = {
 	previewRenderer: '',
@@ -344,7 +352,7 @@ describe('casparV2Graphics', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'assets/countup',
 			loop: true,
-			mixer: { opacity: 1, volume: 1 },
+			mixer: { opacity: 1, volume: 0 },
 		})
 	})
 
@@ -481,6 +489,32 @@ describe('casparV2Graphics', () => {
 		expect((bg?.content as TSR.TimelineContentCCGMedia).file).toBe('assets/bg_pocasie')
 		expect((bg?.content as TSR.TimelineContentCCGMedia).loop).toBe(true)
 		expect((html?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/pocasie')
+	})
+
+	it('smoke weather part keeps bg_pocasie on Full look ILU and clears CAM', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-weather')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const weatherPart = segment.parts[0]
+		expect(weatherPart).toBeDefined()
+		if (!weatherPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), weatherPart.payload.externalId)
+		const result = generateGfxPart(partContext, weatherPart as never, 'B')
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+
+		const bg = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB &&
+				(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
+		)
+		expect(bg).toBeDefined()
+		expect(
+			timeline.some(
+				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
 	})
 
 	it('decodes legacy cities JSON for gfx/pocasie template data', () => {
@@ -718,6 +752,90 @@ describe('casparV2Graphics', () => {
 		expect(objects[0]?.attributes).toMatchObject({ headline: 'Test headline' })
 		expect(objects[1]?.clipName).toBe('gfx/l3d-mod')
 		expect(objects[1]?.attributes).toMatchObject({ name: 'Anchor' })
+	})
+
+	it('coerces opening-segment l3d-predstavovak to gfx/l3d-mod (presenter MOD)', () => {
+		const segment = convertIngestData(
+			{
+				logError: () => undefined,
+				logWarning: () => undefined,
+			} as never,
+			{
+				externalId: 'seg-intro',
+				name: 'Intro',
+				payload: { type: 'opening', name: 'Intro' },
+				parts: [
+					{
+						externalId: 'part-intro-mod',
+						name: 'Gabriela Kajtárová',
+						payload: {
+							segmentId: 'seg-intro',
+							externalId: 'part-intro-mod',
+							rank: 0,
+							name: 'Gabriela Kajtárová',
+							type: 'Cam',
+							float: false,
+							script: '',
+							pieces: [
+								{
+									id: 'piece-mod-stale',
+									objectType: 'l3d-predstavovak',
+									objectTime: 0,
+									duration: 5,
+									clipName: '',
+									attributes: { name: 'Gabriela Kajtárová', title: 'moderátorka' },
+								},
+							],
+						},
+					},
+				],
+			} as never
+		)
+
+		const object = segment.parts[0]?.objects[0]
+		expect(object?.clipName).toBe('gfx/l3d-mod')
+		expect(object?.attributes).toMatchObject({ name: 'Gabriela Kajtárová', title: 'moderátorka' })
+	})
+
+	it('keeps story-segment l3d-predstavovak as guest/topic nameplate', () => {
+		const segment = convertIngestData(
+			{
+				logError: () => undefined,
+				logWarning: () => undefined,
+			} as never,
+			{
+				externalId: 'seg-tema-1',
+				name: 'Tema 1',
+				payload: { type: 'story', name: 'Tema 1' },
+				parts: [
+					{
+						externalId: 'part-db',
+						name: 'DoubleBox',
+						payload: {
+							segmentId: 'seg-tema-1',
+							externalId: 'part-db',
+							rank: 0,
+							name: 'DoubleBox',
+							type: 'DoubleBox',
+							float: false,
+							script: '',
+							pieces: [
+								{
+									id: 'piece-guest',
+									objectType: 'l3d-predstavovak',
+									objectTime: 0,
+									duration: 5,
+									clipName: '',
+									attributes: { name: 'Peter Pellegrini', title: 'Prezident SR' },
+								},
+							],
+						},
+					},
+				],
+			} as never
+		)
+
+		expect(segment.parts[0]?.objects[0]?.clipName).toBe('gfx/l3d-predstavovak')
 	})
 
 	it('normalizes generic graphic template names without gfx/ prefixes', () => {
