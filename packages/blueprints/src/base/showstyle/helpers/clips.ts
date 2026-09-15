@@ -55,7 +55,11 @@ export const DEFAULT_WIPE_PREROLL_MS = 3000
  * Defaults to the visual wipe length; override via RE wipe piece duration when set.
  */
 export function resolveWipeDurationMs(wipeDurationFromIngest?: number): number {
-	if (typeof wipeDurationFromIngest === 'number' && Number.isFinite(wipeDurationFromIngest) && wipeDurationFromIngest > 0) {
+	if (
+		typeof wipeDurationFromIngest === 'number' &&
+		Number.isFinite(wipeDurationFromIngest) &&
+		wipeDurationFromIngest > 0
+	) {
 		return Math.floor(wipeDurationFromIngest)
 	}
 	return DEFAULT_WIPE_DURATION_MS
@@ -303,11 +307,7 @@ export function parseLayeredVideosFromObjects(
 
 		// Wipes are short PGM transitions: never leave an open-ended piece covering layer 200.
 		const enableDuration =
-			object.duration > 0
-				? object.duration
-				: playLayer === 'wipe'
-					? resolveWipeDurationMs()
-					: undefined
+			object.duration > 0 ? object.duration : playLayer === 'wipe' ? resolveWipeDurationMs() : undefined
 
 		const skipWipeOverlay = playLayer === 'wipe' && Boolean(config.casparcg.hypercomposed)
 

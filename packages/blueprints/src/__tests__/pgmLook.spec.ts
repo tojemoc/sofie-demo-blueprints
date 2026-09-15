@@ -221,9 +221,7 @@ describe('pgmLook look-kind channels + route', () => {
 
 		expect(timeline.some((obj) => obj.layer === LOOK_B_LAYERS.clip)).toBe(true)
 		expect(
-			timeline.some(
-				(obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
-			)
+			timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
 		).toBe(true)
 	})
 
