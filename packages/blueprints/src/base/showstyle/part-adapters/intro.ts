@@ -6,6 +6,7 @@ import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { createCountupMutePiece } from '../helpers/countupReveal.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
 /**
@@ -42,6 +43,8 @@ export function generateIntroPart(
 				? part.payload.clipProps.duration
 				: undefined
 	pieces.push(createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs))
+	// Belt-and-braces: keep countup SFX off while Intro overlay owns the soundtrack.
+	pieces.push(createCountupMutePiece(context, config, part.payload.externalId))
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

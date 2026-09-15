@@ -22,8 +22,8 @@ export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
 /**
  * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
- * {@link createCountupRevealPiece} starts playback on the first DoubleBox after
- * the intro wipe (not at rundown take — Caspar may ignore opacity:0 on MEDIA).
+ * Baseline keeps it visible but silent (`volume: 0`); {@link createCountupRevealPiece}
+ * fades audio in on the first DoubleBox after Intro so SFX does not ride Intro/outro.
  * Disk: `assets/countup.mov`.
  */
 export const PGM_COUNTUP_FILE = 'assets/countup'
@@ -84,7 +84,8 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 						].filter(
 							(obj): obj is NonNullable<ReturnType<typeof createCameraIngestBaselineTimeline>> => obj !== undefined
 						) as TimelineBlueprintExt[]),
-						// Logo + seconds visible from Rehearsal start (not delayed to first DoubleBox).
+						// Logo + seconds visible from Rehearsal (silent until first DoubleBox reveal).
+						// volume:0 so countup SFX does not ride Intro / pre-reveal parts.
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',
 							enable: { while: 1 },
@@ -96,7 +97,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 								file: PGM_COUNTUP_FILE,
 								loop: true,
 								noStarttime: true,
-								mixer: { opacity: 1, volume: 1 },
+								mixer: { opacity: 1, volume: 0 },
 							},
 						}),
 					]
