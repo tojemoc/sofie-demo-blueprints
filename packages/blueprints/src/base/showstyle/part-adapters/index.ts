@@ -35,7 +35,11 @@ import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
 import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
-import { createSportBackgroundMusicPiece, duckAudioBedPieceDuringWipe, isSportSegmentName } from '../helpers/backgroundMusic.js'
+import {
+	createSportBackgroundMusicPiece,
+	duckAudioBedPieceDuringWipe,
+	isSportSegmentName,
+} from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
 import {
 	CountupRevealClaim,
@@ -55,6 +59,7 @@ import {
 import { resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import { createLedPodHeadlinePiece, segmentUsesLedPodHeadline } from '../helpers/ledPodHeadline.js'
+import { SourceLayer } from '../applyconfig/layers.js'
 
 /** Part types that compose a story look on BG A/B. */
 function isLookBearingPartType(type: PartType | null): boolean {
@@ -298,22 +303,31 @@ export function generateParts(
 	})
 
 	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
+		// Prefer the wipe-entrance Take (first VO / wipe host), not a skipped open GFX shell.
+		const sportEntranceIdx = Math.max(
+			0,
+			parts.findIndex((part) =>
+				part.pieces.some(
+					(piece) =>
+						piece.sourceLayerId === (SourceLayer.VO as string) ||
+						piece.sourceLayerId === (SourceLayer.PgmWipe as string) ||
+						piece.name === 'BG music mute (Wipe)'
+				)
+			)
+		)
+		const entrancePart = parts[sportEntranceIdx] ?? parts[0]
+		const entranceRaw = intermediateSegment.parts[sportEntranceIdx] ?? intermediateSegment.parts[0]
 		const sportMusic = createSportBackgroundMusicPiece(
 			context,
 			studioConfig,
-			intermediateSegment.parts[0]?.payload.externalId ?? 'sport'
+			entranceRaw?.payload.externalId ?? 'sport'
 		)
-		// Sport C is appended after finalize — duck it for wipe_sport on the first Take.
-		const firstPartObjects = intermediateSegment.parts[0]?.objects ?? []
-		const wipe = findWipeVideoObject(firstPartObjects)
+		// Sport C is appended after finalize — duck it for wipe_sport on the entrance Take.
+		const wipe = findWipeVideoObject(entranceRaw?.objects ?? [])
 		if (wipe) {
-			duckAudioBedPieceDuringWipe(
-				sportMusic,
-				resolveWipeDurationMs(wipe.duration),
-				studioConfig.casparcgLatency
-			)
+			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration), studioConfig.casparcgLatency)
 		}
-		parts[0].pieces.push(sportMusic)
+		entrancePart.pieces.push(sportMusic)
 	}
 
 	return {

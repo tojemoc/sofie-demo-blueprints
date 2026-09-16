@@ -272,9 +272,12 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(weatherWipe?.clipName).toBe('wipes/wipe_pocasie')
 		expect((weatherWipe?.attributes as { transition?: string }).transition).toBe('Pocasie')
 
+		const weatherPart = weather.parts[0]
+		expect(weatherPart).toBeDefined()
+		if (!weatherPart) return
 		const weatherResult = generateGfxPart(
-			new PartContext(mockSegmentContext(), weather.parts[0]!.payload.externalId),
-			weather.parts[0] as PartProps<GfxProps>,
+			new PartContext(mockSegmentContext(), weatherPart.payload.externalId),
+			weatherPart as PartProps<GfxProps>,
 			'B'
 		)
 		expect(weatherResult.part.autoNext).toBe(true)

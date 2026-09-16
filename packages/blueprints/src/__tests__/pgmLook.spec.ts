@@ -665,9 +665,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-sport')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
-		const sportFirst = generated.parts.find((part) =>
-			part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
-		)
+		const sportFirst = generated.parts.find((part) => part.pieces.some((piece) => piece.name === 'BG music C (Šport)'))
 		expect(sportFirst).toBeDefined()
 		if (!sportFirst) return
 
@@ -675,6 +673,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
 
 		const voPiece = sportFirst.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		expect(voPiece).toBeDefined()
 		// Hold last frame: no piece.enable.duration (loop:false alone is not enough).
 		expect(voPiece?.enable).toEqual({ start: 0 })
 		expect(
@@ -697,9 +696,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const preroll = Math.max(0, l3d.piece.prerollDuration ?? 0)
 		const wipeDurationMs = 2500
 		// start:1s falls under sting → object delay lands ADD at wipe end.
-		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(
-			preroll + wipeDurationMs - objectTimeMs
-		)
+		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(preroll + wipeDurationMs - objectTimeMs)
 
 		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
@@ -711,9 +708,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sportMusic).toBeDefined()
 		expect(
 			(sportMusic?.content.timelineObjects ?? []).every((obj) =>
-				(obj.keyframes ?? []).some(
-					(kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0
-				)
+				(obj.keyframes ?? []).some((kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0)
 			)
 		).toBe(true)
 	})

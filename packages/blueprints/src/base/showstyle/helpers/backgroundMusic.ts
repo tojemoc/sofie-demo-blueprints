@@ -68,11 +68,7 @@ export function createBackgroundMusicMutePiece(
 			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }
 			: undefined
 	const pieceDurationMs =
-		durationMs !== undefined && !persistAfterPart
-			? label === 'Wipe'
-				? prerollMs + durationMs
-				: durationMs
-			: undefined
+		durationMs !== undefined && !persistAfterPart ? (label === 'Wipe' ? prerollMs + durationMs : durationMs) : undefined
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
@@ -167,6 +163,7 @@ export function createSportBackgroundMusicPiece(
 export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDurationMs: number, prerollMs: number): void {
 	if (wipeDurationMs <= 0) return
 	const muteFrom = Math.max(0, prerollMs)
+	const restoreAt = muteFrom + wipeDurationMs
 	for (const obj of piece.content.timelineObjects ?? []) {
 		const layer = String(obj.layer)
 		if (
@@ -182,6 +179,8 @@ export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDuration
 		const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
 			TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
 		>
+		const restoreVolume = mixerVolumeAtOrBefore(existing, baseVolume, restoreAt)
+		const laterKeyframes = existing.filter((kf) => keyframeStartMs(kf) > restoreAt)
 		;(obj as TimelineBlueprintExt).keyframes = [
 			{
 				id: '',
@@ -194,16 +193,40 @@ export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDuration
 			},
 			{
 				id: '',
-				enable: { start: muteFrom + wipeDurationMs },
+				enable: { start: restoreAt },
 				content: {
 					deviceType: TSR.DeviceType.CASPARCG,
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
-					mixer: { volume: baseVolume },
+					mixer: { volume: restoreVolume },
 				},
 			},
-			...existing,
+			...laterKeyframes,
 		]
 	}
+}
+
+function keyframeStartMs(kf: { enable?: unknown }): number {
+	const enable = kf.enable as { start?: number } | Array<unknown> | undefined
+	if (!enable || Array.isArray(enable)) return Number.POSITIVE_INFINITY
+	return typeof enable.start === 'number' && Number.isFinite(enable.start) ? enable.start : Number.POSITIVE_INFINITY
+}
+
+/** Latest mixer volume from keyframes at or before `timeMs`, else `baseVolume`. */
+function mixerVolumeAtOrBefore(
+	keyframes: NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']>,
+	baseVolume: number,
+	timeMs: number
+): number {
+	let volume = baseVolume
+	for (const kf of keyframes) {
+		const start = keyframeStartMs(kf)
+		if (start > timeMs) continue
+		const mixerVol = (kf.content as { mixer?: { volume?: number } } | undefined)?.mixer?.volume
+		if (typeof mixerVol === 'number' && Number.isFinite(mixerVol)) {
+			volume = mixerVol
+		}
+	}
+	return volume
 }
 
 export function isSportSegmentName(name: string): boolean {
