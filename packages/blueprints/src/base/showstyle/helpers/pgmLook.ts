@@ -313,11 +313,49 @@ export function createPgmRouteTimelineObject(
 	})
 }
 
+/**
+ * Alpha-only wipe overlay mixer for PGM 205.
+ *
+ * Do **not** set `chroma` — even `Chroma.NONE` makes playout emit
+ * `MIXER … CHROMA 0 undefined …` (broken AMCP). Rely on `keyer: false` +
+ * `straightAlpha: true` instead. Live AMCP (2026-09-16) never emitted
+ * `STRAIGHT_ALPHA` despite this flag — that is a playout/casparcg-state gap;
+ * blueprints still set it so a fixed gateway can pick it up.
+ *
+ * Re-asserted at {@link WIPE_CUT_POINT_MS} via keyframe: cut hard-cuts
+ * `route://` on the same wipe piece and Softie re-diffs siblings; no MIXER
+ * on 205 was observed at cut in live logs, so the keyframe forces a rewrite.
+ */
+export const PGM_WIPE_OVERLAY_MIXER: NonNullable<TSR.TimelineContentCCGMedia['mixer']> = {
+	keyer: false,
+	straightAlpha: true,
+	blend: TSR.BlendMode.NORMAL,
+	opacity: 1,
+	fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
+	volume: 1,
+}
+
 function createPgmWipeOverlayTimelineObject(
 	wipeFile: string,
 	wipeDurationMs: number,
 	startMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	const cutKeyframeMs = WIPE_CUT_POINT_MS
+	const keyframes =
+		wipeDurationMs > cutKeyframeMs
+			? [
+					literal<NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']>[number]>({
+						id: '',
+						enable: { start: cutKeyframeMs },
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							mixer: { ...PGM_WIPE_OVERLAY_MIXER },
+						},
+					}),
+				]
+			: undefined
+
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { start: startMs, duration: wipeDurationMs },
@@ -327,27 +365,10 @@ function createPgmWipeOverlayTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Alpha-only composite: never KEYER/CHROMA (those luma-key RGB). Play on a
-			// fresh PGM layer (205) so leftover MIXER KEYER on old 200 cannot stick.
-			// Explicit FILL+opacity forces a MIXER write even when keyer:false is default.
-			mixer: {
-				// Alpha .mov composite — never MIXER KEYER / CHROMA (those luma-key RGB).
-				// straightAlpha: remastered wipe.mov is straight (non-premultiplied) alpha;
-				// without this Caspar treats it as premul and the sting looks "keyed".
-				keyer: false,
-				straightAlpha: true,
-				blend: TSR.BlendMode.NORMAL,
-				chroma: {
-					keyer: TSR.Chroma.NONE,
-					threshold: 0,
-					softness: 0,
-					spill: 0,
-				},
-				opacity: 1,
-				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
-				volume: 1,
-			},
+			// Alpha-only composite on a fresh PGM layer (205) — see PGM_WIPE_OVERLAY_MIXER.
+			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
+		...(keyframes ? { keyframes } : {}),
 	})
 }
 

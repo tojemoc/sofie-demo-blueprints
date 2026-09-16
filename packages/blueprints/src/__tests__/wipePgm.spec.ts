@@ -96,15 +96,30 @@ describe('wipe piece type → PGM route / overlay', () => {
 				keyer: false,
 				straightAlpha: true,
 				blend: TSR.BlendMode.NORMAL,
-				chroma: { keyer: TSR.Chroma.NONE },
 				opacity: 1,
 				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 				volume: 1,
 			},
 		})
+		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.chroma).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBe(true)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
+		// Re-assert alpha mixer at cut so Softie re-diff / missing STRAIGHT_ALPHA gets a second write.
+		expect(overlay?.keyframes).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					enable: { start: WIPE_CUT_POINT_MS },
+					content: expect.objectContaining({
+						mixer: expect.objectContaining({
+							keyer: false,
+							straightAlpha: true,
+							opacity: 1,
+						}),
+					}),
+				}),
+			])
+		)
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
 		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
