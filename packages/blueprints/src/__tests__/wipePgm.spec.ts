@@ -252,8 +252,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(l3dClear).toBeDefined()
 		expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
 		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
-			(obj) =>
-				obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		// No incoming L3D: EMPTY must not expire at WIPE_CUT_POINT_MS (keepalive continues).
 		expect(l3dEmpty?.enable).toEqual({ start: 0 })

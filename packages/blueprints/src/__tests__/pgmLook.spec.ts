@@ -475,7 +475,10 @@ describe('pgmLook look-kind channels + route', () => {
 				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmLowerThird as string)) &&
 				part.pieces.some((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		)
-		expect(synWithL3d, `expected a tema-1 SYN with VO+L3D+CLEAR; got ${generated.parts.map((p) => p.part.externalId).join(',')}`).toBeDefined()
+		expect(
+			synWithL3d,
+			`expected a tema-1 SYN with VO+L3D+CLEAR; got ${generated.parts.map((p) => p.part.externalId).join(',')}`
+		).toBeDefined()
 		if (!synWithL3d) return
 
 		const vo = synWithL3d.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
