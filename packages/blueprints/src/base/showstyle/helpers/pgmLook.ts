@@ -1,6 +1,7 @@
 import {
 	IBlueprintPart,
 	IBlueprintPiece,
+	IBlueprintPieceType,
 	ICommonContext,
 	PieceLifespan,
 	TSR,
@@ -108,11 +109,14 @@ export function lookSlotForKind(kind: 'doublebox' | 'full'): LookSlot {
 /** True when this part should compose on the DoubleBox channel (BG A / ch3). */
 export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/doublebox|double-box/i.test(rawType || '')) return true
-	return objects.some(
-		(obj) =>
-			obj.objectType === ObjectType.Graphic &&
-			String((obj as GraphicObject).clipName || '').toLowerCase() === 'gfx/doublebox-ilu'
-	)
+	// ZAVER / závěr uses LED `ilu-zaver` but still needs the DB cam window on ch3
+	// (`route://5` on look A). Without this, look B Full CLEAR EMPTYs 4-115 and cam dies.
+	if (/zaver|závěr/i.test(rawType || '')) return true
+	return objects.some((obj) => {
+		if (obj.objectType !== ObjectType.Graphic) return false
+		const clip = String((obj as GraphicObject).clipName || '').toLowerCase()
+		return clip === 'gfx/doublebox-ilu' || clip === 'gfx/ilu-zaver'
+	})
 }
 
 /**
@@ -487,6 +491,7 @@ function createPgmRoutePiece(
 		lifespan: PieceLifespan.WithinPart,
 		sourceLayerId: hasWipe ? SourceLayer.PgmWipe : SourceLayer.PgmRoute,
 		outputLayerId: getOutputLayerForSourceLayer(hasWipe ? SourceLayer.PgmWipe : SourceLayer.PgmRoute),
+		...(hasWipe ? { pieceType: IBlueprintPieceType.InTransition } : {}),
 		content: {
 			fileName: wipeFile,
 			ignoreAudioFormat: true,
@@ -507,9 +512,8 @@ function createPgmRoutePiece(
 					),
 				]
 			: undefined,
-		// Wipe overlay needs a long LOADBG window. Hard-cut route pieces must use only
-		// casparcgLatency — lookPrerollMs / wipe preroll on every route delayed every Take
-		// by ~1.5–3s (UI advanced, AMCP held). BG cueing for hard cuts is lookahead's job.
+		// Wipe overlay needs a long LOADBG window. Softie excludes InTransition preroll
+		// from toPartDelay — do not put this preroll on Normal look pieces.
 		prerollDuration: hasWipe
 			? Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 			: config.casparcgLatency,
@@ -552,6 +556,7 @@ function attachRouteToWipePiece(
 				...mutes,
 			]
 	wipePiece.enable = { start: 0 }
+	wipePiece.pieceType = IBlueprintPieceType.InTransition
 	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 	wipePiece.content.ignoreAudioFormat = true
 	wipePiece.content.ignoreMediaObjectStatus = true
@@ -681,17 +686,27 @@ export function finalizeHypercomposedPart(
 	// when EMPTY expired at cut while bg_loop raced same priority. Other Full wipes:
 	// EMPTY through cover cut only (mute under sting; new SYN wins at cut).
 	// DoubleBox Takes compose on look A — never EMPTY ch3 (never-empty DB window).
+	// Never EMPTY the look camera when this part owns cam (ZAVER / fullscreen cam) —
+	// CLEAR prio 2 was killing `route://5` on 4-115 after Activate had DeckLink live.
 	if (hasWipe && lookSlot === 'B') {
 		const clipClearMs = wipePocasie ? wipeDurationMs : wipeCutPointMs
-		clearObjects.push(...buildLookChannelClearObjects(lookSlot, clipClearMs))
+		clearObjects.push(
+			...buildLookChannelClearObjects(lookSlot, clipClearMs, {
+				clearCamera: !partHasLookCameraMedia(pieces, lookSlot),
+			})
+		)
 	}
 	// Leaving Počasie: clear bg_pocasie from Take through wipe end (while covered).
 	// Starting only at the cut left ~20–39f of map after wipe CLEAR when postroll /
 	// keepalive raced the delayed EMPTY. Finite duration — open-ended EMPTY rides
 	// keepalive into the *next* Take and suppresses incoming weather `bg_pocasie`.
+	// ZAVER is DoubleBox (look A): also EMPTY Full-look ILU so ch4 weather map dies.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
 		if (hasWipe) {
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, wipeDurationMs, 0))
+			if (lookSlot === 'A') {
+				clearObjects.push(...buildLookIluClearObjects('B', wipeDurationMs, 0))
+			}
 		} else {
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_MEDIA_POSTROLL_MS))
 		}
@@ -869,13 +884,14 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * then `playing: true` at the cover cut — never empties the window; cut drift reads as
  * freeze→motion, not vanish/reappear. `db_loop` stays at enable 0 (OutOnRundownEnd fill).
  *
- * Object `enable.start` is **Take-relative** (same as the wipe route cut).
- * `piece.prerollDuration` only cues media lookahead — it does **not** shift the
- * piece’s timeline origin. Adding preroll into these delays made look MEDIA / L3D
- * land ~preroll after wipe CLEAR (blank after `wipe_sjv`, leftover SYN after
- * `wipe_sport` / `wipe_pocasie`). Live AMCP 2026-09-16: route cut at Take+cut,
- * SYN PLAY at Take+~cut+preroll with the old formula. L3D template pieces also must not
- * inherit look preroll (see {@link applyLookPreroll}) or Softie holds the CG late.
+ * Object `enable.start` is **Take-relative** once Softie `toPartDelay` is correct.
+ * Wipe pieces use {@link IBlueprintPieceType.InTransition} so their large
+ * `DEFAULT_WIPE_PREROLL_MS` does **not** inflate `toPartDelay` (live AMCP showed
+ * ILU/weather LOAD ~500ms after wipe CLEAR ≈ Take+3s when wipe was Normal).
+ * `piece.prerollDuration` on Normal pieces still shifts the child group to
+ * `control.start − preroll` (LOADBG ahead of control) — do not bake preroll into
+ * these enable delays. L3D template pieces also must not inherit look preroll
+ * (see {@link applyLookPreroll}) or Softie holds the CG late.
  *
  * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after CLEAR.
  */
@@ -999,6 +1015,20 @@ function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boo
 	)
 }
 
+/** True when this part plays look CAM (live `route://5` / DeckLink) — do not EMPTY it. */
+function partHasLookCameraMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
+	const cameraLayer = getLookLayers(lookSlot).camera
+	return pieces.some((piece) =>
+		(piece.content.timelineObjects ?? []).some((obj) => {
+			if (String(obj.layer) !== (cameraLayer as string)) return false
+			const content = obj.content as { type?: string; file?: string; inputType?: string }
+			if (content?.type === TSR.TimelineContentTypeCasparCg.INPUT) return true
+			if (!isCasparMedia(content) || content.file === 'EMPTY') return false
+			return true
+		})
+	)
+}
+
 function emptyLookMediaObject(
 	layer: CasparCGLayers,
 	clearDurationMs?: number,
@@ -1038,15 +1068,18 @@ function buildL3dLayerClearObjects(
  * Weather keeps ILU (`bg_pocasie`) + L3D; those layers are not EMPTYed for the part.
  * When `clipClearMs` is set, clip EMPTY is finite so {@link createFullBgLoopPiece} can
  * restore `loops/bg_loop` under the weather stack after the cover cut.
+ * Skip camera EMPTY when the incoming part owns look CAM (ZAVER / cam Takes).
  */
 function buildLookChannelClearObjects(
 	lookSlot: LookSlot,
-	clipClearMs?: number
+	clipClearMs?: number,
+	options?: { clearCamera?: boolean }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
+	const clearCamera = options?.clearCamera !== false
 	return [
 		emptyLookMediaObject(layers.clip, clipClearMs),
-		emptyLookMediaObject(layers.camera),
+		...(clearCamera ? [emptyLookMediaObject(layers.camera)] : []),
 		emptyLookMediaObject(layers.doubleBoxLoop),
 	]
 }

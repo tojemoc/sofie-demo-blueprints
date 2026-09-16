@@ -1,6 +1,7 @@
 import {
 	IBlueprintAdLibPiece,
 	IBlueprintPiece,
+	IBlueprintPieceType,
 	ICommonContext,
 	PieceLifespan,
 	TSR,
@@ -45,8 +46,10 @@ export const WIPE_CUT_POINT_MS = 380
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
- * Without this the overlay cues ~3s late and the route cut at {@link WIPE_CUT_POINT_MS}
- * happens before the wipe covers.
+ * Wipe pieces must be {@link IBlueprintPieceType.InTransition} so this value is
+ * **excluded** from Softie `calculatePartPreroll` / `toPartDelay` — otherwise every
+ * normal look piece (ILU, SYN, bed C) lands ~3s late (after wipe CLEAR). The wipe
+ * child-group still starts at `control.start − preroll` for LOADBG ahead of Take.
  */
 export const DEFAULT_WIPE_PREROLL_MS = 3000
 
@@ -410,6 +413,10 @@ export function parseLayeredVideosFromObjects(
 				lifespan: layeredVideoLifespan(playLayer, fileName),
 				sourceLayerId: sourceLayer,
 				outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
+				// InTransition: Softie ignores this piece's preroll when computing part
+				// toPartDelay, so look MEDIA / bed C stay Take-relative while wipe still
+				// LOADBGs via childGroup = control − preroll.
+				...(playLayer === 'wipe' ? { pieceType: IBlueprintPieceType.InTransition } : {}),
 				content: {
 					fileName,
 					ignoreAudioFormat: playLayer === 'effects' || playLayer === 'wipe',

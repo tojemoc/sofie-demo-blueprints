@@ -518,7 +518,7 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 	})
 
-	it('ZAVER + AVIZO EMPTYs Full-look ILU so bg_pocasie cannot linger', () => {
+	it('ZAVER + AVIZO compose on DB look A with cam; EMPTYs Full-look ILU so bg_pocasie dies', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -541,13 +541,26 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaver).toBeDefined()
 		if (!zaver) return
 
+		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+		// DB compose: PGM routes to ch3; look A cam keeps route://5 (never EMPTY).
+		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(route?.content).toMatchObject({ file: 'route://3' })
+		const lookACam = timeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
+		expect(lookACam?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://5',
+		})
+		expect(
+			timeline.some((obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
+		).toBe(false)
+
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
 		const iluEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Leave-weather: ILU EMPTY from Take through wipe end (finite) — kills map under sting.
+		// Leave-weather: Full-look ILU EMPTY from Take through wipe end.
 		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(0)
 		const zaverIluClearMs =
 			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0

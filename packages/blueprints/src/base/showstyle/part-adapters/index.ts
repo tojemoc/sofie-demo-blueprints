@@ -323,9 +323,10 @@ export function generateParts(
 			entranceRaw?.payload.externalId ?? 'sport'
 		)
 		// Sport C is appended after finalize — duck it for wipe_sport on the entrance Take.
+		// muteFrom 0: bed must be at intended level the moment wipe CLEAR (not latency-shifted).
 		const wipe = findWipeVideoObject(entranceRaw?.objects ?? [])
 		if (wipe) {
-			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration), studioConfig.casparcgLatency)
+			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration), 0)
 		}
 		entrancePart.pieces.push(sportMusic)
 	}

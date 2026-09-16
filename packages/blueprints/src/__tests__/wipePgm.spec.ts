@@ -1,4 +1,4 @@
-import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPieceType, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { PartType, VOProps, VTProps, PartProps } from '../base/showstyle/definitions/index.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
@@ -119,6 +119,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
 		// Preroll so Caspar LOADBGs the alpha wipe before Take (~3s cue otherwise).
 		expect(wipePiece?.prerollDuration).toBeGreaterThanOrEqual(3000)
+		// InTransition: Softie must not fold wipe preroll into toPartDelay (look MEDIA late).
+		expect(wipePiece?.pieceType).toBe(IBlueprintPieceType.InTransition)
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
 		expect(result.pieces[0]?.name).not.toContain('wipe')
