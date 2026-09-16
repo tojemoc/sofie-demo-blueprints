@@ -35,7 +35,7 @@ import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
 import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
-import { createSportBackgroundMusicPiece, isSportSegmentName } from '../helpers/backgroundMusic.js'
+import { createSportBackgroundMusicPiece, duckAudioBedPieceDuringWipe, isSportSegmentName } from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
 import {
 	CountupRevealClaim,
@@ -47,10 +47,12 @@ import {
 import {
 	LookSlot,
 	LookSlotSequence,
+	findWipeVideoObject,
 	getLookSlotSequenceForGeneration,
 	isDoubleBoxLook,
 	lookSlotForKind,
 } from '../helpers/pgmLook.js'
+import { resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import { createLedPodHeadlinePiece, segmentUsesLedPodHeadline } from '../helpers/ledPodHeadline.js'
 
@@ -296,13 +298,22 @@ export function generateParts(
 	})
 
 	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
-		parts[0].pieces.push(
-			createSportBackgroundMusicPiece(
-				context,
-				studioConfig,
-				intermediateSegment.parts[0]?.payload.externalId ?? 'sport'
-			)
+		const sportMusic = createSportBackgroundMusicPiece(
+			context,
+			studioConfig,
+			intermediateSegment.parts[0]?.payload.externalId ?? 'sport'
 		)
+		// Sport C is appended after finalize — duck it for wipe_sport on the first Take.
+		const firstPartObjects = intermediateSegment.parts[0]?.objects ?? []
+		const wipe = findWipeVideoObject(firstPartObjects)
+		if (wipe) {
+			duckAudioBedPieceDuringWipe(
+				sportMusic,
+				resolveWipeDurationMs(wipe.duration),
+				studioConfig.casparcgLatency
+			)
+		}
+		parts[0].pieces.push(sportMusic)
 	}
 
 	return {

@@ -59,9 +59,10 @@ export function generateVOPart(
 	}
 
 	const cameraPiece: IBlueprintPiece = {
+		// No piece.enable.duration — ending the piece CLEARs Caspar even with loop:false.
+		// Hold last frame through the part (ILU-style); sourceDuration stays on content for UI.
 		enable: {
 			start: 0,
-			...(playback.durationMs !== undefined ? { duration: playback.durationMs } : {}),
 		},
 		externalId: part.payload.externalId,
 		name: part.payload.clipProps.fileName,
@@ -99,6 +100,8 @@ export function generateVOPart(
 			title: part.payload.name,
 
 			expectedDuration: part.payload.duration > 0 ? part.payload.duration : playback.durationMs,
+			// SYN / SJV / ŠPORT: never AUTO — only weather GFX auto-Takes.
+			autoNext: false,
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces],
