@@ -317,45 +317,33 @@ export function createPgmRouteTimelineObject(
  * Alpha-only wipe overlay mixer for PGM 205.
  *
  * Do **not** set `chroma` — even `Chroma.NONE` makes playout emit
- * `MIXER … CHROMA 0 undefined …` (broken AMCP). Rely on `keyer: false` +
- * `straightAlpha: true` instead. Live AMCP (2026-09-16) never emitted
- * `STRAIGHT_ALPHA` despite this flag — that is a playout/casparcg-state gap;
- * blueprints still set it so a fixed gateway can pick it up.
- *
- * Re-asserted at {@link WIPE_CUT_POINT_MS} via keyframe: cut hard-cuts
- * `route://` on the same wipe piece and Softie re-diffs siblings; no MIXER
- * on 205 was observed at cut in live logs, so the keyframe forces a rewrite.
+ * `MIXER … CHROMA 0 undefined …` (broken AMCP). Do **not** set
+ * `straightAlpha` on a layer: casparcg-state only emits it when
+ * `layerNo === -1` as channel `MIXER STRAIGHT_ALPHA_OUTPUT` (DeckLink
+ * key/fill output), never as a per-layer “treat clip as straight alpha”
+ * switch. Caspar’s compositor always expects **premultiplied** content.
  */
 export const PGM_WIPE_OVERLAY_MIXER: NonNullable<TSR.TimelineContentCCGMedia['mixer']> = {
 	keyer: false,
-	straightAlpha: true,
 	blend: TSR.BlendMode.NORMAL,
 	opacity: 1,
 	fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
 	volume: 1,
 }
 
+/**
+ * Remastered `wipes/wipe*.mov` are straight (non-premul) alpha. Without this
+ * FILTER, opaque wipe graphics look semi-translucent wherever alpha is soft —
+ * Caspar composites as if RGB were already ×α.
+ * Maps to AMCP `PLAY … FILTER premultiply=inplace=1`.
+ */
+export const PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER = 'premultiply=inplace=1'
+
 function createPgmWipeOverlayTimelineObject(
 	wipeFile: string,
 	wipeDurationMs: number,
 	startMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
-	const cutKeyframeMs = WIPE_CUT_POINT_MS
-	const keyframes =
-		wipeDurationMs > cutKeyframeMs
-			? [
-					literal<NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']>[number]>({
-						id: '',
-						enable: { start: cutKeyframeMs },
-						content: {
-							deviceType: TSR.DeviceType.CASPARCG,
-							type: TSR.TimelineContentTypeCasparCg.MEDIA,
-							mixer: { ...PGM_WIPE_OVERLAY_MIXER },
-						},
-					}),
-				]
-			: undefined
-
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { start: startMs, duration: wipeDurationMs },
@@ -365,10 +353,9 @@ function createPgmWipeOverlayTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Alpha-only composite on a fresh PGM layer (205) — see PGM_WIPE_OVERLAY_MIXER.
+			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
-		...(keyframes ? { keyframes } : {}),
 	})
 }
 
