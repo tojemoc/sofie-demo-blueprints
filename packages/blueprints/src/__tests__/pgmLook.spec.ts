@@ -81,6 +81,8 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(lookSlotForKind('full')).toBe('B')
 		expect(isDoubleBoxLook('DoubleBox', [])).toBe(true)
 		expect(isDoubleBoxLook('Cam', [])).toBe(false)
+		expect(isDoubleBoxLook('ILU-ZAVER', [])).toBe(false)
+		expect(isDoubleBoxLook('Záver', [])).toBe(false)
 		expect(
 			isDoubleBoxLook('Cam', [
 				{
@@ -93,6 +95,18 @@ describe('pgmLook look-kind channels + route', () => {
 				} as never,
 			])
 		).toBe(true)
+		expect(
+			isDoubleBoxLook('Cam', [
+				{
+					id: 'zaver',
+					objectType: 'graphic',
+					objectTime: 0,
+					duration: 0,
+					clipName: 'gfx/ilu-zaver',
+					attributes: {},
+				} as never,
+			])
+		).toBe(false)
 	})
 
 	it('LookSlotSequence claim/peek remembers last look; defaults to Full', () => {
@@ -518,7 +532,7 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 	})
 
-	it('ZAVER + AVIZO compose on DB look A with cam; EMPTYs Full-look ILU so bg_pocasie dies', () => {
+	it('ZAVER + AVIZO compose on Full look B with cam; no db_loop; EMPTYs Full ILU so bg_pocasie dies', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -541,17 +555,34 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaver).toBeDefined()
 		if (!zaver) return
 
+		const zaverIngest = intermediate.parts.find((part) => part.payload.externalId === zaver.part.externalId)
+		expect(zaverIngest).toBeDefined()
+		if (zaverIngest) {
+			expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
+		}
+
 		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
-		// DB compose: PGM routes to ch3; look A cam keeps route://5 (never EMPTY).
+		// Full compose: PGM routes to ch4; look B cam keeps route://5 (never EMPTY / no live db_loop).
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.content).toMatchObject({ file: 'route://3' })
-		const lookACam = timeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
-		expect(lookACam?.content).toMatchObject({
+		expect(route?.content).toMatchObject({ file: 'route://4' })
+		expect(pgmRouteChannel(zaver.pieces)).toBe(4)
+		const liveDbLoop = (layer: CasparCGLayers) =>
+			timeline.some(
+				(obj) =>
+					obj.layer === layer &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY' &&
+					String((obj.content as { file?: string }).file || '').length > 0
+			)
+		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(false)
+		expect(liveDbLoop(LOOK_B_LAYERS.doubleBoxLoop)).toBe(false)
+		const lookBCam = timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
+		expect(lookBCam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
 		})
 		expect(
-			timeline.some((obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
+			timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
 		).toBe(false)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))

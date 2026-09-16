@@ -253,8 +253,9 @@ function getTemplateAttributes(
  * - explicit false → cropped slot FILL (HEADLINE_ILU_SLOT_*)
  * - flag absent + iluFile → fullscreen (legacy production headlines)
  *
- * Závěr / DoubleBox avízo must use piece type `doublebox-ilu` (PGM window FILL),
+ * Thematic DoubleBox avízo must use piece type `doublebox-ilu` (PGM window FILL),
  * not headline+bypass — bypass alone never yields the DoubleBox left window.
+ * Závěr / odporúčanie uses `ilu-zaver` on LED + Full-look CAM (not DoubleBox).
  */
 function useHeadlineIluPrerendered(object: GraphicObjectBase): boolean {
 	if (!hasHeadlineIluFile(object)) return false

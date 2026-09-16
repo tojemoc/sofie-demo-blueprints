@@ -12,6 +12,7 @@ import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_DOUBLEBOX_ILU_CROP,
 	PGM_DOUBLEBOX_ILU_FILL,
+	PGM_FULLSCREEN_CAMERA_FILL,
 	PgmChannelLayers,
 	coverCropForFill,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
@@ -405,16 +406,16 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 	})
 
-	it('ZAVER uses DoubleBox look A: LED ilu-zaver + cam route://5 + db_loop; PGM route://3', () => {
+	it('ZAVER uses Full look B: LED ilu-zaver + fullscreen cam route://5; no db_loop; PGM route://4', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		const zaver = segment.parts.find((p) => p.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver'))
 		expect(zaver).toBeDefined()
 		if (!zaver) return
 		expect(zaver.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')).toBe(true)
-		expect(isDoubleBoxLook(zaver.rawType, zaver.objects)).toBe(true)
+		expect(isDoubleBoxLook(zaver.rawType, zaver.objects)).toBe(false)
 
 		const partContext = new PartContext(mockSegmentContext(), zaver.payload.externalId)
-		const result = generateCameraPart(partContext, zaver as PartProps<CameraProps>, createCountupRevealClaim(), 'A')
+		const result = generateCameraPart(partContext, zaver as PartProps<CameraProps>, createCountupRevealClaim(), 'B')
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
 		const ledIlu = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
@@ -431,25 +432,35 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer && (obj.content as { file?: string }).file !== 'EMPTY'
 			)
 		).toBe(false)
-		expect(timeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(true)
-		const cam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
+		const liveDbLoop = (layer: CasparCGLayers) =>
+			timeline.some(
+				(obj) =>
+					obj.layer === layer &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY' &&
+					String((obj.content as { file?: string }).file || '').length > 0
+			)
+		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(false)
+		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoopB)).toBe(false)
+		const cam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)
 		expect(cam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
+			mixer: { fill: { ...PGM_FULLSCREEN_CAMERA_FILL } },
 		})
 		expect(
 			timeline.some(
-				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera && (obj.content as { file?: string }).file === 'EMPTY'
+				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(false)
 		expect(
 			timeline.some(
 				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+					obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
 					(obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/l3d-odporucanie'
 			)
 		).toBe(true)
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.content).toMatchObject({ file: 'route://3' })
+		expect(route?.content).toMatchObject({ file: 'route://4' })
 	})
 })
