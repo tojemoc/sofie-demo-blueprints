@@ -267,7 +267,11 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 		if (
 			sourceId === (SourceLayer.VO as string) ||
 			sourceId === (SourceLayer.VT as string) ||
-			sourceId === (SourceLayer.GFX as string)
+			sourceId === (SourceLayer.GFX as string) ||
+			// DoubleBox frame + Full companion loop: Softie hold opened a black hole after
+			// keepalive ended at cut while incoming db_loop waited Take+preroll.
+			sourceId === (SourceLayer.PgmDoubleBoxLoop as string) ||
+			sourceId === (SourceLayer.FullBgLoop as string)
 		) {
 			continue
 		}
@@ -284,6 +288,14 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 			)
 		})
 		if (hasEditorialLookMedia) continue
+		// Look CAM is MEDIA route://5 — same Softie hold risk on wiped DB Takes.
+		const hasLookRouteCamera = objs.some((obj) => {
+			const layer = String(obj.layer)
+			if (layer !== (LOOK_A_LAYERS.camera as string) && layer !== (LOOK_B_LAYERS.camera as string)) return false
+			const content = obj.content as { type?: string; file?: string }
+			return isCasparMedia(content) && typeof content.file === 'string' && content.file.startsWith('route://')
+		})
+		if (hasLookRouteCamera) continue
 		// Native DeckLink/dshow must not LOADBG on look layers (ingest helper owns the device).
 		// Look CAM is normally MEDIA route://5 — safe to preroll; skip only if a piece still has INPUT.
 		if (pieceUsesLiveCameraProducer(piece)) continue
@@ -664,12 +676,14 @@ export function finalizeHypercomposedPart(
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearDurationMs))
 	}
 	// Full→Full wipes (SJV→ŠPORT, ŠPORT→Počasie, …): EMPTY leftover SYN on the clip
-	// layer from Take through the cover cut so previous editorial audio/video cannot
-	// ride under wipe_sport / wipe_pocasie. Finite duration lets bg_loop / new SYN win
-	// at the cut. DoubleBox Takes compose on look A — outgoing Full stays on B until
-	// keepalive ends (route cut); ForceMute covers Host/Playback there.
+	// layer so previous editorial audio/video cannot ride under wipe_sport / wipe_pocasie.
+	// wipe_pocasie: EMPTY through the full sting so sport cannot flash after wipe CLEAR
+	// when EMPTY expired at cut while bg_loop raced same priority. Other Full wipes:
+	// EMPTY through cover cut only (mute under sting; new SYN wins at cut).
+	// DoubleBox Takes compose on look A — never EMPTY ch3 (never-empty DB window).
 	if (hasWipe && lookSlot === 'B') {
-		clearObjects.push(...buildLookChannelClearObjects(lookSlot, wipeCutPointMs))
+		const clipClearMs = wipePocasie ? wipeDurationMs : wipeCutPointMs
+		clearObjects.push(...buildLookChannelClearObjects(lookSlot, clipClearMs))
 	}
 	// Leaving Počasie: clear bg_pocasie from Take through wipe end (while covered).
 	// Starting only at the cut left ~20–39f of map after wipe CLEAR when postroll /
@@ -687,10 +701,12 @@ export function finalizeHypercomposedPart(
 	}
 
 	if (wipePocasie) {
-		// Priority 1 WithinPart bg_loop under weather map — baseline prio-0 alone loses to
-		// open-ended CLEAR; finite clip EMPTY above lets this take the clip layer at cut.
-		// Push after remapLookLayers, so remap this piece onto Full (B) explicitly.
+		// Priority 3 WithinPart bg_loop — must beat clip EMPTY (prio 2) that now lasts
+		// through the sting, so weather underlay wins at the cover cut.
 		const bgLoop = createFullBgLoopPiece(context, config, partExternalId)
+		for (const obj of bgLoop.content.timelineObjects ?? []) {
+			obj.priority = Math.max(obj.priority ?? 0, 3)
+		}
 		remapLookLayers([bgLoop], lookSlot)
 		pieces.push(bgLoop)
 	}
@@ -843,11 +859,15 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * On Take: previous L3D is EMPTYed (see {@link appendL3dLayerClear}) so keepalive
  * cannot stack two templates. Incoming L3Ds ADD after a gap — never CG UPDATE.
  *
- * Wiped Takes: wipe overlay covers from 0. Look MEDIA (clips / CAM / ILU / db_loop /
+ * Wiped Takes: wipe overlay covers from 0. Look MEDIA (clips / CAM / Full ILU /
  * weather map / bg_loop) hard-cuts at the cover frame so same-channel rebuilds are not
  * visible under a still-open route. Incoming L3Ds ADD after the sting ends so the
  * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX lands
  * with `bg_pocasie` at the cover cut.
+ *
+ * DoubleBox ILU under wipe: PLAY from Take frozen on frame 0 (`playing: false`, `seek: 0`),
+ * then `playing: true` at the cover cut — never empties the window; cut drift reads as
+ * freeze→motion, not vanish/reappear. `db_loop` stays at enable 0 (OutOnRundownEnd fill).
  *
  * Object `enable.start` is **Take-relative** (same as the wipe route cut).
  * `piece.prerollDuration` only cues media lookahead — it does **not** shift the
@@ -876,7 +896,7 @@ function applyL3dTakeOffsets(
 
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
-			const content = obj.content as { type?: string }
+			const content = obj.content as { type?: string; file?: string; seek?: number; playing?: boolean }
 
 			if (L3D_TEMPLATE_LAYERS.has(layer) && isCasparTemplate(content)) {
 				let l3dInDelay = L3D_OUT_MS
@@ -903,7 +923,36 @@ function applyL3dTakeOffsets(
 			if (!isCasparMedia(content)) continue
 			// Look / L3D CLEAR EMPTYs must stay at Take (sport SYN + previous L3D),
 			// except leave-weather ILU EMPTY which is scheduled at the cutpoint below.
-			if ((content as { file?: string }).file === 'EMPTY') continue
+			if (content.file === 'EMPTY') continue
+
+			// DB→DB: never delay/empty the DoubleBox window. Freeze incoming ILU on
+			// frame 0 under the wipe; start motion at the cover cut.
+			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string)) {
+				content.seek = 0
+				content.playing = false
+				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
+					TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+				>
+				;(obj as TimelineBlueprintExt).keyframes = [
+					...existing,
+					{
+						id: '',
+						enable: { start: wipeCutPointMs },
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							playing: true,
+						},
+					},
+				]
+				continue
+			}
+			// Continuous db_loop OutOnRundownEnd — keep enable 0 so the frame never
+			// blanks between keepalive end and a delayed incoming PLAY.
+			if (hasWipe && layer === (LOOK_A_LAYERS.doubleBoxLoop as string)) {
+				continue
+			}
+
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
 		}
 	}
