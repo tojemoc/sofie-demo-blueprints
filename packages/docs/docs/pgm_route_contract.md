@@ -29,7 +29,7 @@ return to fullscreen. Headlines also PLAY `assets/pod_headline` on LED layer **1
 keepalive cannot stack two templates and same-name SJV/ŠPORT Takes do not CG UPDATE.
 Retired `l3d-predstavovak` → `l3d-syn` (opening → `l3d-mod`).
 
-**Wipe overlay:** PGM 205 mixer `keyer:false` + `straightAlpha:true` (straight-alpha `wipe.mov`).
+**Wipe overlay:** PGM 205 mixer `keyer:false` (no chroma / no layer `straightAlpha`). Straight-alpha `wipe.mov` uses MEDIA `videoFilter: premultiply=inplace=1` so Caspar’s premul compositor is correct.
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
