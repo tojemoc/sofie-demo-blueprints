@@ -10,6 +10,7 @@ import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { normalizeLayeredVideoFileName, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { LOOK_B_LAYERS } from '../base/showstyle/helpers/pgmLook.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
 	loadSmokeRundownExport,
@@ -247,7 +248,15 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const result = generateLayeredVideoPart(partContext, wipeOnly, 'B')
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		expect(wipePiece).toBeDefined()
-		expect(result.pieces.some((piece) => piece.externalId?.endsWith('_l3d_clear'))).toBe(true)
+		const l3dClear = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(l3dClear).toBeDefined()
+		expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		// No incoming L3D: EMPTY must not expire at WIPE_CUT_POINT_MS (keepalive continues).
+		expect(l3dEmpty?.enable).toEqual({ start: 0 })
 		const timeline = wipePiece?.content.timelineObjects ?? []
 		expect(timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,

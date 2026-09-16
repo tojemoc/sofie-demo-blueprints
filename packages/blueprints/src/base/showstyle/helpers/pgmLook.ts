@@ -581,7 +581,10 @@ export function finalizeHypercomposedPart(
 	// not pruned by exclusiveGroup `pgm`.
 	const clearObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = []
 	if (hasIncomingL3d || hasWipe) {
-		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dInDelay > 0 ? l3dInDelay : undefined))
+		// Duration only until the delayed CG ADD. Wiped Takes with no incoming L3D must
+		// hold EMPTY for the whole part — otherwise previous L3D returns after
+		// WIPE_CUT_POINT_MS while previousPartKeepaliveDuration still covers the sting.
+		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, hasIncomingL3d ? l3dInDelay : undefined))
 	}
 	if (wipePocasie) {
 		// EMPTY leftover sport SYN under wipe_pocasie from frame 0. Weather MEDIA/L3D
