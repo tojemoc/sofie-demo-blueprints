@@ -468,13 +468,19 @@ describe('pgmLook look-kind channels + route', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
-		const kolikova = generated.parts.find((part) => part.part.externalId.includes('kolikova'))
-		expect(kolikova).toBeDefined()
-		if (!kolikova) return
+		// Pinned smoke uses part-tema-1-syn-*; newer megarepo tip uses …-kolikova / …-taraba.
+		const synWithL3d = generated.parts.find(
+			(part) =>
+				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.VO as string)) &&
+				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmLowerThird as string)) &&
+				part.pieces.some((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		)
+		expect(synWithL3d, `expected a tema-1 SYN with VO+L3D+CLEAR; got ${generated.parts.map((p) => p.part.externalId).join(',')}`).toBeDefined()
+		if (!synWithL3d) return
 
-		const vo = kolikova.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
-		const l3dClear = kolikova.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
-		const l3d = kolikova.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmLowerThird as string))
+		const vo = synWithL3d.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		const l3dClear = synWithL3d.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const l3d = synWithL3d.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmLowerThird as string))
 		expect(vo).toBeDefined()
 		expect(l3d).toBeDefined()
 		expect(l3dClear).toBeDefined()
@@ -493,12 +499,16 @@ describe('pgmLook look-kind channels + route', () => {
 				undefined,
 				lookSlots
 			)
-			for (const part of generated.parts) {
-				const vo = part.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+			// Skip open GFX wipe shells (part-sjv-open / part-sport-open) — no VO clip.
+			const voParts = generated.parts.filter((part) =>
+				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+			)
+			expect(voParts.length, `${segmentId} should have ≥2 SYN VOs`).toBeGreaterThanOrEqual(2)
+			for (const part of voParts) {
 				const l3dClear = part.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
-				expect(vo, `${part.part.externalId} VO`).toBeDefined()
 				expect(l3dClear, `${part.part.externalId} L3D CLEAR`).toBeDefined()
 				expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+				expect(l3dClear?.sourceLayerId).not.toBe(SourceLayer.GFX)
 			}
 		}
 	})
