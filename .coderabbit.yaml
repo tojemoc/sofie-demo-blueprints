@@ -7,7 +7,7 @@ reviews:
   profile: chill
   auto_review:
     enabled: true
-    drafts: true
+    drafts: false
   tools:
     # CodeRabbit's Checkov runner fails with ModuleNotFoundError in this environment.
     checkov:

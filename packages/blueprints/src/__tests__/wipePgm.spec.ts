@@ -157,6 +157,11 @@ describe('wipe piece type → PGM route / overlay', () => {
 			)
 		expect(lookClip).toBeDefined()
 		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(1100)
+		// Look MEDIA postroll must match resolved cutPoint so Softie keepalive can hold picture.
+		const lookClipPiece = result.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => obj === lookClip)
+		)
+		expect(lookClipPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(1100)
 	})
 
 	it('keeps previous look through the wipe (no pre-sting hard cut)', () => {

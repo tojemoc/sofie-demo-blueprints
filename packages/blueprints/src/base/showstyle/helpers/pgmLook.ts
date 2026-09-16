@@ -733,7 +733,7 @@ export function finalizeHypercomposedPart(
 		mutePgmWipeOverlayAudio(pieces)
 	}
 
-	applyLookMediaPostroll(pieces)
+	applyLookMediaPostroll(pieces, hasWipe ? wipeCutPointMs : LOOK_MEDIA_POSTROLL_MS)
 }
 
 /** True when Full-look CAM on 115 would cover SYN/VT (110) or weather underlay (116). */
@@ -1083,8 +1083,14 @@ function appendPgmLayerClearPiece(
 	)
 }
 
-/** Outgoing look VIDEO stays up through L3D out + wipe cover; L3D templates must not. */
-function applyLookMediaPostroll(pieces: IBlueprintPiece[]): void {
+/**
+ * Outgoing look VIDEO stays up through the wipe cover / keepalive window.
+ * On wiped Takes pass the resolved wipe cut point so Softie postroll matches
+ * `previousPartKeepaliveDuration` (editorial cutPoint can exceed the 380 ms default).
+ * Hard cuts keep {@link LOOK_MEDIA_POSTROLL_MS}.
+ */
+function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
+	const minPostroll = Math.max(0, Math.floor(postrollMs))
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects ?? []
 		const keepPicture = objects.some((obj) => {
@@ -1097,6 +1103,6 @@ function applyLookMediaPostroll(pieces: IBlueprintPiece[]): void {
 			return true
 		})
 		if (!keepPicture) continue
-		piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, LOOK_MEDIA_POSTROLL_MS)
+		piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, minPostroll)
 	}
 }
