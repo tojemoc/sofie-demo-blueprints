@@ -83,18 +83,17 @@ describe('koliska bed envelope', () => {
 		}
 	})
 
-	it('ducks sport C during wipe then restores the koliska bed volume', () => {
+	it('ducks sport C during wipe then restores the koliska bed volume at wipe CLEAR', () => {
 		const piece = createSportBackgroundMusicPiece(mockContext, hybridCasparConfig, 'seg-sport')
-		const preroll = hybridCasparConfig.casparcgLatency
 		const wipeMs = 2500
-		duckAudioBedPieceDuringWipe(piece, wipeMs, preroll)
+		duckAudioBedPieceDuringWipe(piece, wipeMs, 0)
 		for (const tl of piece.content?.timelineObjects ?? []) {
 			const keyframes =
 				(tl as { keyframes?: Array<{ enable?: { start?: number }; content?: unknown }> }).keyframes ?? []
-			const muteKf = keyframes.find((kf) => kf.enable?.start === preroll)
-			const restoreKf = keyframes.find((kf) => kf.enable?.start === preroll + wipeMs)
+			const muteKf = keyframes.find((kf) => kf.enable?.start === 0)
+			const restoreKf = keyframes.find((kf) => kf.enable?.start === wipeMs)
 			expect((muteKf?.content as { mixer?: { volume?: number } })?.mixer?.volume).toBe(0)
-			// Koliska duck at 2s is before wipe end (~2.55s) — restore must not jump back to hit volume.
+			// Koliska duck at 2s is before wipe end — restore must not jump back to hit volume.
 			expect((restoreKf?.content as { mixer?: { volume?: number } })?.mixer?.volume).toBe(KOLISKA_BED_VOLUME)
 			expect(keyframes.some((kf) => kf.enable?.start === KOLISKA_HIT_DURATION_MS)).toBe(false)
 		}

@@ -159,6 +159,7 @@ export function createSportBackgroundMusicPiece(
  * Duck an AudioBed piece (e.g. sport C) for the wipe SFX window.
  * Sport music is often appended after {@link createWipeBackgroundMusicMutePiece}; mixer
  * keyframes guarantee `bg_music_c` stays at 0 even if the mute piece loses a priority race.
+ * Pass `prerollMs = 0` so unmute lands at wipe CLEAR (Take + wipeDuration), not delayed.
  */
 export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDurationMs: number, prerollMs: number): void {
 	if (wipeDurationMs <= 0) return
