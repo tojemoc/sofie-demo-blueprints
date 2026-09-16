@@ -23,7 +23,7 @@ import {
 	partHasOutroOverlay,
 } from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
-import { getWipeForceMuteChannels } from './backgroundMusic.js'
+import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { createLookCameraClearTimelineObject } from './pgmCamera.js'
 
@@ -570,6 +570,8 @@ export function finalizeHypercomposedPart(
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
+		// Kolíska beds ride Caspar audio layers — Sisyfos ForceMute does not duck them.
+		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
@@ -591,10 +593,13 @@ export function finalizeHypercomposedPart(
 		// wait until the cover cut (see applyL3dTakeOffsets).
 		clearObjects.push(...buildLookChannelClearObjects(lookSlot))
 	}
-	// Leaving Počasie (or any Full look with bg_pocasie): nuke look ILU so keepalive +
-	// postroll cannot keep the weather map under the next wipe (ZAVER + AVIZO).
+	// Leaving Počasie: pulse-clear look ILU so keepalive/postroll cannot keep bg_pocasie
+	// under the next wipe. Duration must be finite — an open-ended EMPTY rides
+	// previousPartKeepaliveDuration into the *next* Take and (priority 2) suppresses
+	// incoming weather `bg_pocasie` on Full→Full (sport→Počasie).
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
-		clearObjects.push(...buildLookIluClearObjects(lookSlot))
+		const iluClearMs = hasWipe ? wipeDurationMs : LOOK_MEDIA_POSTROLL_MS
+		clearObjects.push(...buildLookIluClearObjects(lookSlot, iluClearMs))
 	}
 	if (clearObjects.length > 0) {
 		appendPgmLayerClearPiece(pieces, partExternalId, clearObjects)
@@ -753,14 +758,22 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * `wipe_pocasie` also holds weather MEDIA until the cut so CLEAR can drop the last
  * sport SYN under the sting before bg_pocasie / weather GFX appear.
  *
+ * Look preroll starts pieces early for CEF/LOADBG on the idle BG channel. Object
+ * `enable.start` is relative to that early piece start — add `prerollDuration` so
+ * on-air time stays Take + delay. Without this, prerolled L3D ADDs ~preroll−cut
+ * before Take, CLEAR EMPTY (no preroll) kills them at Take, then they re-ADD when
+ * EMPTY ends → double CG on Full→Full (same Caspar channel).
+ *
  * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after CLEAR.
  */
 function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, wipePocasie = false): void {
 	const hasWipe = wipeDurationMs > 0
-	const lookMediaDelay = wipePocasie ? WIPE_CUT_POINT_MS : 0
-	const l3dInDelay = hasWipe ? WIPE_CUT_POINT_MS : L3D_OUT_MS
 
 	for (const piece of pieces) {
+		const prerollMs = hasWipe ? Math.max(0, piece.prerollDuration ?? 0) : 0
+		const lookMediaDelay = wipePocasie ? prerollMs + WIPE_CUT_POINT_MS : 0
+		const l3dInDelay = hasWipe ? prerollMs + WIPE_CUT_POINT_MS : L3D_OUT_MS
+
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
 			const content = obj.content as { type?: string }
@@ -845,8 +858,11 @@ function buildLookChannelClearObjects(lookSlot: LookSlot): TimelineBlueprintExt<
 }
 
 /** EMPTY look ILU so previous `bg_pocasie` cannot ride keepalive/postroll into ZAVER. */
-function buildLookIluClearObjects(lookSlot: LookSlot): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	return [emptyLookMediaObject(getLookLayers(lookSlot).ilu)]
+function buildLookIluClearObjects(
+	lookSlot: LookSlot,
+	clearDurationMs?: number
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	return [emptyLookMediaObject(getLookLayers(lookSlot).ilu, clearDurationMs)]
 }
 
 /**

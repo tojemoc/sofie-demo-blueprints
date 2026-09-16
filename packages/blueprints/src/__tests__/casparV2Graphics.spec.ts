@@ -515,10 +515,18 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
 		)
 		expect(bg).toBeDefined()
-		expect(bg?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		// Look preroll + wipe cut → Take-relative on-air (not piece-start-relative alone).
+		const bgPiece = result.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => obj.id === bg?.id || obj === bg)
+		)
+		const weatherPreroll = Math.max(0, bgPiece?.prerollDuration ?? 0)
+		expect(weatherPreroll).toBeGreaterThan(0)
+		expect(bg?.enable).toEqual({ start: weatherPreroll + WIPE_CUT_POINT_MS })
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.enable).toEqual({ start: 0 })
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		// CLEAR must not inherit look preroll — EMPTY stays Take-relative.
+		expect(clearPiece?.prerollDuration ?? 0).toBe(0)
 		const emptyObjs = (clearPiece?.content.timelineObjects ?? []).filter(
 			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
 		)
@@ -544,7 +552,11 @@ describe('casparV2Graphics', () => {
 				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_CUT_POINT_MS)
+		const l3dPiece = result.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
+		)
+		const l3dPreroll = Math.max(0, l3dPiece?.prerollDuration ?? 0)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(l3dPreroll + WIPE_CUT_POINT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
 		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
