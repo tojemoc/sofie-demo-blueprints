@@ -5,6 +5,8 @@ import {
 	parseClipProps,
 	resolveClipPlayback,
 	getVideoPlayLayer,
+	resolveWipeCutPointMs,
+	WIPE_CUT_POINT_MS,
 } from '../base/showstyle/helpers/clips.js'
 
 function makeVideo(overrides: Partial<VideoObject> & { attributes?: VideoObject['attributes'] }): VideoObject {
@@ -126,5 +128,20 @@ describe('getVideoPlayLayer', () => {
 		expect(getVideoPlayLayer(makeVideo({ attributes: { playLayer: 'WIPE' } }))).toBe('wipe')
 		expect(getVideoPlayLayer(makeVideo({ attributes: { playLayer: 'Effects' } }))).toBe('effects')
 		expect(getVideoPlayLayer(makeVideo({ attributes: { playLayer: 'unknown' } }))).toBeUndefined()
+	})
+})
+
+describe('resolveWipeCutPointMs', () => {
+	it('defaults to WIPE_CUT_POINT_MS when cutPoint is unset', () => {
+		expect(resolveWipeCutPointMs(undefined)).toBe(WIPE_CUT_POINT_MS)
+		expect(resolveWipeCutPointMs({})).toBe(WIPE_CUT_POINT_MS)
+		expect(resolveWipeCutPointMs({ cutPoint: -1 })).toBe(WIPE_CUT_POINT_MS)
+	})
+
+	it('reads editorial cutPoint ms and clamps to wipe duration', () => {
+		expect(resolveWipeCutPointMs({ cutPoint: 900 })).toBe(900)
+		expect(resolveWipeCutPointMs({ cutPoint: '1100' }, 2500)).toBe(1100)
+		expect(resolveWipeCutPointMs({ cutPoint: 4000 }, 2500)).toBe(2500)
+		expect(resolveWipeCutPointMs({ cutPoint: 0 }, 2500)).toBe(0)
 	})
 })

@@ -60,6 +60,11 @@ export type VideoObjectAttributes = {
 	loop?: boolean | string
 	/** Operator-facing wipe direction label (does not change the media file). */
 	transition?: string
+	/**
+	 * Wipe cover-frame cut point in milliseconds (RE payload `cutPoint`).
+	 * When unset, blueprints use the default 760 ms cover frame.
+	 */
+	cutPoint?: number
 }
 export interface GraphicObjectBase extends Omit<BaseObject, 'attributes'> {
 	objectType: ObjectType.Graphic | ObjectType.SteppedGraphic

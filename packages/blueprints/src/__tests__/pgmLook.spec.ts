@@ -601,7 +601,9 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		expect(l3d).toBeDefined()
 		if (!l3d) return
-		expect(Math.max(0, l3d.piece.prerollDuration ?? 0)).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		// L3D templates must not inherit look preroll — Softie held ADD until Take+preroll+enable.
+		// casparcgLatency (~50) on the piece is fine; look preroll (~1500) is not.
+		expect(l3d.piece.prerollDuration ?? 0).toBeLessThan(DEFAULT_LOOK_PREROLL_MS)
 		const wipeDurationMs = 2500
 		// Earliest L3D on this Take (multi-name SYN parts have later timed L3Ds).
 		const earliestObjectTimeMs = result.pieces

@@ -124,6 +124,42 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(result.pieces[0]?.name).not.toContain('wipe')
 	})
 
+	it('honours editorial wipe cutPoint from RE payload for route + keepalive', () => {
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const wipe = synPart.objects.find(
+			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+		)
+		expect(wipe).toBeDefined()
+		if (!wipe) return
+		wipe.attributes.cutPoint = 1100
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(1100)
+
+		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
+		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		expect(routeObj?.enable).toEqual({ start: 1100 })
+
+		const lookClip = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					(obj.layer === LOOK_B_LAYERS.clip || obj.layer === LOOK_B_LAYERS.camera) &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY' &&
+					!(obj.content as { file?: string }).file?.startsWith('route://')
+			)
+		if (lookClip && !Array.isArray(lookClip.enable) && typeof lookClip.enable?.start === 'number') {
+			expect(lookClip.enable.start).toBe(1100)
+		}
+	})
+
 	it('keeps previous look through the wipe (no pre-sting hard cut)', () => {
 		const { ingest, synExternalId } = withWipeOnSyn(exportData)
 		const segment = convertIngestData(mockIngestContext, ingest)
