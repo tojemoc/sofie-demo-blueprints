@@ -793,11 +793,12 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX lands
  * with `bg_pocasie` at the cover cut.
  *
- * Look preroll starts pieces early for CEF/LOADBG on the idle BG channel. Object
- * `enable.start` is relative to that early piece start — add `prerollDuration` so
- * on-air time stays Take + delay. Without this, prerolled L3D ADDs ~preroll−cut
- * before Take, CLEAR EMPTY (no preroll) kills them at Take, then they re-ADD when
- * EMPTY ends → double CG on Full→Full (same Caspar channel).
+ * Object `enable.start` is **Take-relative** (same as the wipe route’s
+ * {@link WIPE_CUT_POINT_MS}). `piece.prerollDuration` only cues media lookahead —
+ * it does **not** shift the piece’s timeline origin. Adding preroll into these
+ * delays made look MEDIA / L3D land ~preroll after wipe CLEAR (blank after
+ * `wipe_sjv`, leftover SYN after `wipe_sport` / `wipe_pocasie`). Live AMCP
+ * 2026-09-16: route cut at Take+760, SYN PLAY at Take+~3760 with the old formula.
  *
  * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after CLEAR.
  */
@@ -805,8 +806,7 @@ function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, 
 	const hasWipe = wipeDurationMs > 0
 
 	for (const piece of pieces) {
-		const prerollMs = hasWipe ? Math.max(0, piece.prerollDuration ?? 0) : 0
-		const lookMediaDelay = hasWipe ? prerollMs + WIPE_CUT_POINT_MS : 0
+		const lookMediaDelay = hasWipe ? WIPE_CUT_POINT_MS : 0
 		const pieceStartMs =
 			typeof piece.enable?.start === 'number' && Number.isFinite(piece.enable.start)
 				? Math.max(0, Math.floor(piece.enable.start))
@@ -821,14 +821,13 @@ function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, 
 				if (hasWipe) {
 					if (wipePocasie) {
 						// Weather GFX with bg_pocasie at the cover cut.
-						l3dInDelay = prerollMs + WIPE_CUT_POINT_MS
+						l3dInDelay = WIPE_CUT_POINT_MS
 					} else if (pieceStartMs === 0) {
 						// After the sting ends.
-						l3dInDelay = prerollMs + wipeDurationMs
+						l3dInDelay = wipeDurationMs
 					} else if (pieceStartMs < wipeDurationMs) {
 						// Editorial start falls under the sting — land at wipe end.
-						// absolute = Take + pieceStart - preroll + delay = Take + wipeEnd
-						l3dInDelay = prerollMs + wipeDurationMs - pieceStartMs
+						l3dInDelay = wipeDurationMs - pieceStartMs
 					} else {
 						// Already after the sting — piece.enable.start is enough.
 						l3dInDelay = 0

@@ -516,13 +516,12 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
 		)
 		expect(bg).toBeDefined()
-		// Look preroll + wipe cut → Take-relative on-air (not piece-start-relative alone).
+		// Take-relative cover cut (prerollDuration is lookahead only — do not bake it into enable).
 		const bgPiece = result.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj.id === bg?.id || obj === bg)
 		)
-		const weatherPreroll = Math.max(0, bgPiece?.prerollDuration ?? 0)
-		expect(weatherPreroll).toBeGreaterThan(0)
-		expect(bg?.enable).toEqual({ start: weatherPreroll + WIPE_CUT_POINT_MS })
+		expect(Math.max(0, bgPiece?.prerollDuration ?? 0)).toBeGreaterThan(0)
+		expect(bg?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.enable).toEqual({ start: 0 })
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
@@ -545,9 +544,7 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/bg_loop'
 		)
 		expect(bgLoop).toBeDefined()
-		const bgLoopPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_full_bg_loop'))
-		const bgLoopPreroll = Math.max(0, bgLoopPiece?.prerollDuration ?? 0)
-		expect(bgLoop?.enable).toEqual({ start: bgLoopPreroll + WIPE_CUT_POINT_MS })
+		expect(bgLoop?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		expect(
 			timeline.some(
 				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
@@ -561,9 +558,8 @@ describe('casparV2Graphics', () => {
 		const l3dPiece = result.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
 		)
-		const l3dPreroll = Math.max(0, l3dPiece?.prerollDuration ?? 0)
 		// wipe_pocasie: weather GFX lands with bg_pocasie at the cover cut.
-		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(l3dPreroll + WIPE_CUT_POINT_MS)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_CUT_POINT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
 		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0

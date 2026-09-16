@@ -554,7 +554,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaverIluClearMs).toBe(2500 - WIPE_CUT_POINT_MS)
 	})
 
-	it('wiped L3D enable is Take-relative (preroll + wipe end); CLEAR EMPTY has no preroll', () => {
+	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const syn = ingest.parts.find((part) => {
@@ -601,8 +601,7 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		expect(l3d).toBeDefined()
 		if (!l3d) return
-		const preroll = Math.max(0, l3d.piece.prerollDuration ?? 0)
-		expect(preroll).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		expect(Math.max(0, l3d.piece.prerollDuration ?? 0)).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
 		const wipeDurationMs = 2500
 		// Earliest L3D on this Take (multi-name SYN parts have later timed L3Ds).
 		const earliestObjectTimeMs = result.pieces
@@ -621,12 +620,18 @@ describe('pgmLook look-kind channels + route', () => {
 		const objectTimeMs = typeof l3d.piece.enable?.start === 'number' ? l3d.piece.enable.start : 0
 		// start:0 → after wipe; start under sting → land at wipe end (object delay shrinks).
 		const expectedObjStart =
-			objectTimeMs === 0
-				? preroll + wipeDurationMs
-				: objectTimeMs < wipeDurationMs
-					? preroll + wipeDurationMs - objectTimeMs
-					: 0
+			objectTimeMs === 0 ? wipeDurationMs : objectTimeMs < wipeDurationMs ? wipeDurationMs - objectTimeMs : 0
 		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(expectedObjStart)
+
+		const lookMedia = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					obj.layer === LOOK_B_LAYERS.clip &&
+					(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
+			)
+		expect(!Array.isArray(lookMedia?.enable) && lookMedia?.enable.start).toBe(WIPE_CUT_POINT_MS)
 
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.prerollDuration ?? 0).toBe(0)
@@ -693,10 +698,9 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!l3d) return
 		const objectTimeMs = typeof l3d.piece.enable?.start === 'number' ? l3d.piece.enable.start : 0
 		expect(objectTimeMs).toBeGreaterThanOrEqual(1000)
-		const preroll = Math.max(0, l3d.piece.prerollDuration ?? 0)
 		const wipeDurationMs = 2500
-		// start:1s falls under sting → object delay lands ADD at wipe end.
-		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(preroll + wipeDurationMs - objectTimeMs)
+		// start:1s falls under sting → object delay lands ADD at wipe end (Take-relative).
+		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(wipeDurationMs - objectTimeMs)
 
 		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
