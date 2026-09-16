@@ -100,8 +100,9 @@ export function generateVOPart(
 			title: part.payload.name,
 
 			expectedDuration: part.payload.duration > 0 ? part.payload.duration : playback.durationMs,
-			// SYN / SJV / ŠPORT: never AUTO — only weather GFX auto-Takes.
-			autoNext: false,
+			// Timed SYN / SJV / ŠPORT AUTO when expectedDuration is set (RE timed+auto).
+			// Weather GFX remains auto via generateGfxPart; untimed VO stays manual.
+			autoNext: part.payload.duration > 0,
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces],

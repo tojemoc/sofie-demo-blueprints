@@ -132,8 +132,9 @@ describe('getVideoPlayLayer', () => {
 })
 
 describe('resolveWipeCutPointMs', () => {
-	it('defaults to WIPE_CUT_POINT_MS when cutPoint is unset', () => {
-		expect(resolveWipeCutPointMs(undefined)).toBe(WIPE_CUT_POINT_MS)
+	it('defaults to frame-19 cover (380 ms @ 50fps)', () => {
+		expect(WIPE_CUT_POINT_MS).toBe(380)
+		expect(resolveWipeCutPointMs(undefined)).toBe(380)
 		expect(resolveWipeCutPointMs({})).toBe(WIPE_CUT_POINT_MS)
 		expect(resolveWipeCutPointMs({ cutPoint: -1 })).toBe(WIPE_CUT_POINT_MS)
 	})
@@ -143,5 +144,6 @@ describe('resolveWipeCutPointMs', () => {
 		expect(resolveWipeCutPointMs({ cutPoint: '1100' }, 2500)).toBe(1100)
 		expect(resolveWipeCutPointMs({ cutPoint: 4000 }, 2500)).toBe(2500)
 		expect(resolveWipeCutPointMs({ cutPoint: 0 }, 2500)).toBe(0)
+		expect(resolveWipeCutPointMs({ cutPoint: 380 }, 2500)).toBe(380)
 	})
 })

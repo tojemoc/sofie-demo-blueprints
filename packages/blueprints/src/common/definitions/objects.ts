@@ -62,7 +62,7 @@ export type VideoObjectAttributes = {
 	transition?: string
 	/**
 	 * Wipe cover-frame cut point in milliseconds (RE payload `cutPoint`).
-	 * When unset, blueprints use the default 760 ms cover frame.
+	 * When unset, blueprints use the default 380 ms cover frame (frame 19 @ 50fps).
 	 */
 	cutPoint?: number
 }

@@ -89,6 +89,9 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 function countupTimelineObject(mode: 'reveal' | 'sustain' | 'mute'): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const fadeIn = mode === 'reveal'
 	const muted = mode === 'mute' || mode === 'reveal'
+	// Reveal starts PLAY on first DoubleBox Take (not Activate) at opacity/volume 0,
+	// then fades up — hidden through headlines / L3D-mod / first wipe.
+	const hiddenUntilFade = mode === 'reveal'
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { while: 1 },
@@ -100,9 +103,8 @@ function countupTimelineObject(mode: 'reveal' | 'sustain' | 'mute'): TimelineBlu
 			file: PGM_COUNTUP_FILE,
 			loop: true,
 			noStarttime: true,
-			// Visible from baseline; only audio fades in on reveal (SFX must not ride Intro).
 			mixer: {
-				opacity: 1,
+				opacity: hiddenUntilFade ? 0 : 1,
 				volume: muted ? 0 : 1,
 			},
 		},
@@ -143,8 +145,9 @@ function createCountupPiece(
 }
 
 /**
- * Fade countup audio in on first DoubleBox Take. Visual already runs from baseline
- * (silent); this only brings up volume so Intro never hears countup SFX.
+ * Fade countup in on first DoubleBox Take (after L3D-mod + wipe into first tema).
+ * Starts Caspar PLAY here (opacity/volume 0 → fade) — not on rundown Activate —
+ * so headlines never show countup.
  */
 export function createCountupRevealPiece(
 	context: ICommonContext,
@@ -156,7 +159,7 @@ export function createCountupRevealPiece(
 
 /**
  * Re-assert audible countup on later parts so OutOnRundownEnd survives takes past
- * the originating DoubleBox (baseline stays muted underneath).
+ * the originating DoubleBox.
  */
 export function createCountupSustainPiece(
 	context: ICommonContext,

@@ -50,10 +50,10 @@ export const L3D_OUT_MS = 200
 
 /**
  * Keep outgoing look MEDIA on the timeline through the wipe cover-frame.
- * 760 is {@link WIPE_CUT_POINT_MS}; inlined so this const does not read clips.ts
+ * 380 is {@link WIPE_CUT_POINT_MS}; inlined so this const does not read clips.ts
  * during module init (webpack CJS: clips → baseline → pgmLook cycle).
  */
-export const LOOK_MEDIA_POSTROLL_MS = 760
+export const LOOK_MEDIA_POSTROLL_MS = 380
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -259,6 +259,31 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 			return isCasparTemplate(obj.content as { type?: string })
 		})
 		if (hasL3dTemplate) continue
+		// Editorial look MEDIA (VO/VT clips, ILU, weather map): same Softie hold —
+		// piece.prerollDuration delayed audible/visible start ~1.2–1.5s after wipe end
+		// (SJV ILU audio, sport leak under wipe_pocasie). Wipe piece already has
+		// DEFAULT_WIPE_PREROLL_MS for LOADBG on the sting.
+		const sourceId = String(piece.sourceLayerId)
+		if (
+			sourceId === (SourceLayer.VO as string) ||
+			sourceId === (SourceLayer.VT as string) ||
+			sourceId === (SourceLayer.GFX as string)
+		) {
+			continue
+		}
+		const hasEditorialLookMedia = objs.some((obj) => {
+			const layer = String(obj.layer)
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content) || content.file === 'EMPTY') return false
+			return (
+				layer === (LOOK_A_LAYERS.clip as string) ||
+				layer === (LOOK_B_LAYERS.clip as string) ||
+				layer === (LOOK_A_LAYERS.ilu as string) ||
+				layer === (LOOK_B_LAYERS.ilu as string) ||
+				layer === (CasparCGLayers.CasparCGIluPlayer as string)
+			)
+		})
+		if (hasEditorialLookMedia) continue
 		// Native DeckLink/dshow must not LOADBG on look layers (ingest helper owns the device).
 		// Look CAM is normally MEDIA route://5 — safe to preroll; skip only if a piece still has INPUT.
 		if (pieceUsesLiveCameraProducer(piece)) continue
@@ -638,19 +663,21 @@ export function finalizeHypercomposedPart(
 		// the clear window while the sting/keepalive still covers.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearDurationMs))
 	}
-	if (wipePocasie) {
-		// EMPTY leftover sport SYN under wipe_pocasie until the cover cut, then
-		// restore loops/bg_loop on the clip layer (weather stack: bg_loop + bg_pocasie + GFX).
+	// Full→Full wipes (SJV→ŠPORT, ŠPORT→Počasie, …): EMPTY leftover SYN on the clip
+	// layer from Take through the cover cut so previous editorial audio/video cannot
+	// ride under wipe_sport / wipe_pocasie. Finite duration lets bg_loop / new SYN win
+	// at the cut. DoubleBox Takes compose on look A — outgoing Full stays on B until
+	// keepalive ends (route cut); ForceMute covers Host/Playback there.
+	if (hasWipe && lookSlot === 'B') {
 		clearObjects.push(...buildLookChannelClearObjects(lookSlot, wipeCutPointMs))
 	}
-	// Leaving Počasie: clear bg_pocasie at the wipe cutpoint (while covered), not from
-	// Take. Duration must be finite — an open-ended EMPTY rides keepalive into the
-	// *next* Take and (priority 2) suppresses incoming weather `bg_pocasie`.
+	// Leaving Počasie: clear bg_pocasie from Take through wipe end (while covered).
+	// Starting only at the cut left ~20–39f of map after wipe CLEAR when postroll /
+	// keepalive raced the delayed EMPTY. Finite duration — open-ended EMPTY rides
+	// keepalive into the *next* Take and suppresses incoming weather `bg_pocasie`.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
 		if (hasWipe) {
-			clearObjects.push(
-				...buildLookIluClearObjects(lookSlot, Math.max(0, wipeDurationMs - wipeCutPointMs), wipeCutPointMs)
-			)
+			clearObjects.push(...buildLookIluClearObjects(lookSlot, wipeDurationMs, 0))
 		} else {
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_MEDIA_POSTROLL_MS))
 		}
@@ -826,8 +853,8 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * `piece.prerollDuration` only cues media lookahead — it does **not** shift the
  * piece’s timeline origin. Adding preroll into these delays made look MEDIA / L3D
  * land ~preroll after wipe CLEAR (blank after `wipe_sjv`, leftover SYN after
- * `wipe_sport` / `wipe_pocasie`). Live AMCP 2026-09-16: route cut at Take+760,
- * SYN PLAY at Take+~3760 with the old formula. L3D template pieces also must not
+ * `wipe_sport` / `wipe_pocasie`). Live AMCP 2026-09-16: route cut at Take+cut,
+ * SYN PLAY at Take+~cut+preroll with the old formula. L3D template pieces also must not
  * inherit look preroll (see {@link applyLookPreroll}) or Softie holds the CG late.
  *
  * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after CLEAR.

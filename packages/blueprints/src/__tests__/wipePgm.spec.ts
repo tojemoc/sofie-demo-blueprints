@@ -136,7 +136,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		)
 		expect(wipe).toBeDefined()
 		if (!wipe) return
-		wipe.attributes.cutPoint = 1100
+		;(wipe.attributes as { cutPoint?: number }).cutPoint = 1100
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
@@ -155,9 +155,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 					(obj.content as { file?: string }).file !== 'EMPTY' &&
 					!(obj.content as { file?: string }).file?.startsWith('route://')
 			)
-		if (lookClip && !Array.isArray(lookClip.enable) && typeof lookClip.enable?.start === 'number') {
-			expect(lookClip.enable.start).toBe(1100)
-		}
+		expect(lookClip).toBeDefined()
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(1100)
 	})
 
 	it('keeps previous look through the wipe (no pre-sting hard cut)', () => {
@@ -175,6 +174,26 @@ describe('wipe piece type → PGM route / overlay', () => {
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
+	})
+
+	it('Full wiped Takes EMPTY clip through cut so previous SYN audio dies under wipe_sport', () => {
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		expect(result.part.autoNext).toBe(true)
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const clipEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
+		const voPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		// Softie must not hold editorial MEDIA until Take+lookPreroll.
+		expect(voPiece?.prerollDuration ?? 0).toBeLessThan(1500)
 	})
 
 	it('prefixes bare wipe basenames with wipes/', () => {

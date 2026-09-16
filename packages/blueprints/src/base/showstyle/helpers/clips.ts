@@ -38,10 +38,10 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
 
 /**
  * Default cut point within the wipe stinger — when the screen is fully covered and content switches.
- * Tuned for `wipes/wipe*.mov` cover frame (~0.76s into the 2.5s stinger).
+ * Frame 19 @ 50fps = 380 ms into `wipes/wipe*.mov` (not frame 51 / ~1020 ms).
  * Override per wipe via RE payload / ingest `attributes.cutPoint` (ms).
  */
-export const WIPE_CUT_POINT_MS = 760
+export const WIPE_CUT_POINT_MS = 380
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
