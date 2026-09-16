@@ -24,6 +24,7 @@ import {
 	LOOK_B_LAYERS,
 	L3D_OUT_MS,
 	LOOK_MEDIA_POSTROLL_MS,
+	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
 	getLookCasparChannel,
@@ -541,11 +542,101 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
-		expect(
-			clearPiece?.content.timelineObjects?.some(
-				(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+		const iluEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(iluEmpty).toBeDefined()
+		// Finite duration — open-ended ILU EMPTY keepalive-suppresses next weather bg.
+		const zaverIluClearMs =
+			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
+		expect(zaverIluClearMs).toBeGreaterThan(0)
+	})
+
+	it('wiped L3D enable is Take-relative (preroll + wipe cut); CLEAR EMPTY has no preroll', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const syn = ingest.parts.find((part) => {
+			const payload = part.payload as { type?: string; pieces?: Array<{ objectType: string }> }
+			return payload.type === 'VO' || (payload.pieces ?? []).some((piece) => piece.objectType.toLowerCase() === 'video')
+		})
+		expect(syn, 'tema-1 should have a SYN/VO part').toBeDefined()
+		if (!syn) return
+		const payload = syn.payload as {
+			pieces: Array<{
+				id: string
+				objectType: string
+				objectTime?: number
+				duration?: number
+				clipName?: string
+				attributes: Record<string, unknown>
+			}>
+		}
+		if (!payload.pieces.some((piece) => piece.objectType.toLowerCase() === 'wipe')) {
+			payload.pieces.push({
+				id: `${syn.externalId}-wipe`,
+				objectType: 'wipe',
+				objectTime: 0,
+				duration: 0,
+				clipName: '',
+				attributes: { fileName: 'wipes/wipe', transition: 'test' },
+			})
+		}
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === syn.externalId)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		const l3d = result.pieces
+			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
+			.find(
+				({ obj }) =>
+					obj.layer === LOOK_B_LAYERS.lowerThird &&
+					(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 			)
-		).toBe(true)
+		expect(l3d).toBeDefined()
+		if (!l3d) return
+		const preroll = Math.max(0, l3d.piece.prerollDuration ?? 0)
+		expect(preroll).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(preroll + WIPE_CUT_POINT_MS)
+
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(clearPiece?.prerollDuration ?? 0).toBe(0)
+		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
+
+		// Absolute on-air: EMPTY ends at Take+cut; template starts at Take+cut (one ADD).
+		const emptyEnd =
+			!Array.isArray(l3dEmpty?.enable) && typeof l3dEmpty?.enable.duration === 'number' ? l3dEmpty.enable.duration : -1
+		const templateAbs =
+			!Array.isArray(l3d.obj.enable) && typeof l3d.obj.enable.start === 'number' ? l3d.obj.enable.start - preroll : -2
+		expect(templateAbs).toBe(emptyEnd)
+	})
+
+	it('non-weather Full parts pulse-clear ILU (finite) so keepalive cannot kill next bg_pocasie', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-sport')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
+		const sportVo = generated.parts.find((part) =>
+			part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		)
+		expect(sportVo).toBeDefined()
+		if (!sportVo) return
+
+		const clearPiece = sportVo.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const iluEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(iluEmpty).toBeDefined()
+		const sportIluClearMs =
+			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number'
+				? iluEmpty.enable.duration
+				: Number.POSITIVE_INFINITY
+		expect(sportIluClearMs).toBeLessThan(60_000)
 	})
 
 	it('smoke CSV contract: headlines/privítanie→4, tema ILU↔SYN→3/4, SJV wipe overlay on Full', () => {

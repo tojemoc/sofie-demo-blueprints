@@ -21,11 +21,19 @@ import {
 } from './helpers/smokeRundownIngest.js'
 
 /** Smoke SYN parts are hard cuts — inject a wipe for wipe-routing unit tests. */
-function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, synExternalId = 'part-tema-1-syn-1') {
+function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, synExternalId?: string) {
 	const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-	const syn = ingest.parts.find((part) => part.externalId === synExternalId)
-	expect(syn).toBeDefined()
-	if (!syn) throw new Error(`missing ${synExternalId}`)
+	const syn =
+		(synExternalId ? ingest.parts.find((part) => part.externalId === synExternalId) : undefined) ??
+		ingest.parts.find((part) => {
+			const payload = part.payload as { type?: string; pieces?: Array<{ objectType: string }> }
+			return (
+				/^(vo|syn)$/i.test(payload.type || '') ||
+				(payload.pieces ?? []).some((piece) => /^(video|vo)$/i.test(piece.objectType))
+			)
+		})
+	expect(syn, 'tema-1 should have a SYN/VO part').toBeDefined()
+	if (!syn) throw new Error(`missing SYN in seg-tema-1`)
 
 	const payload = syn.payload as {
 		type: string
@@ -40,7 +48,7 @@ function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, sy
 	}
 	if (!payload.pieces.some((p) => p.objectType.toLowerCase() === 'wipe')) {
 		payload.pieces.push({
-			id: `${synExternalId}-wipe`,
+			id: `${syn.externalId}-wipe`,
 			objectType: 'wipe',
 			objectTime: 0,
 			duration: 0,
@@ -48,7 +56,8 @@ function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, sy
 			attributes: { fileName: 'wipes/wipe', transition: 'ILU TO SYN CLUSTER' },
 		})
 	}
-	return { ingest, synExternalId }
+
+	return { ingest, synExternalId: syn.externalId }
 }
 
 describe('wipe piece type → PGM route / overlay', () => {
@@ -315,17 +324,38 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(
 			mediaObj?.keyframes?.some((kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0)
 		).toBe(true)
+
+		// Kolíska beds must mute for the sting (bg_music_c under wipe_sport).
+		const bgMute = result.pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
+		expect(bgMute).toBeDefined()
+		expect(bgMute?.enable).toEqual({ start: 0, duration: 2500 })
+		expect(bgMute?.prerollDuration).toBe(configWithPlayback.casparcgLatency)
+		expect(
+			(bgMute?.content.timelineObjects ?? []).every(
+				(obj) =>
+					!Array.isArray(obj.enable) &&
+					obj.enable.start === configWithPlayback.casparcgLatency &&
+					obj.enable.duration === 2500 &&
+					(obj.content as TSR.TimelineContentCCGMedia).mixer?.volume === 0
+			)
+		).toBe(true)
 	})
 
 	it('hard-cut PGM route pieces use only casparcgLatency (no look/wipe preroll)', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const syn = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
+		const syn = ingest.parts.find((part) => {
+			const payload = part.payload as { type?: string; pieces?: Array<{ objectType: string }> }
+			return (
+				/^(vo|syn)$/i.test(payload.type || '') ||
+				(payload.pieces ?? []).some((piece) => /^(video|vo)$/i.test(piece.objectType))
+			)
+		})
 		expect(syn).toBeDefined()
 		if (!syn) return
 		const payload = syn.payload as { pieces: Array<{ objectType: string }> }
 		payload.pieces = payload.pieces.filter((piece) => piece.objectType.toLowerCase() !== 'wipe')
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const synPart = segment.parts.find((part) => part.payload.externalId === 'part-tema-1-syn-1')
+		const synPart = segment.parts.find((part) => part.payload.externalId === syn.externalId)
 		expect(synPart).toBeDefined()
 		if (!synPart) return
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)

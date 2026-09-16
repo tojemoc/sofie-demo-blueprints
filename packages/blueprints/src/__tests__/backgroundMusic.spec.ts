@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { TSR } from '@sofie-automation/blueprints-integration'
+import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import {
 	createBackgroundMusicBaselineTimeline,
 	createSportBackgroundMusicPiece,
+	createWipeBackgroundMusicMutePiece,
 	isSportSegmentName,
 	KOLISKA_BED_VOLUME,
 	KOLISKA_HIT_DURATION_MS,
@@ -63,5 +64,19 @@ describe('koliska bed envelope', () => {
 
 	it('uses a 2s koliska hit window', () => {
 		expect(KOLISKA_HIT_DURATION_MS).toBe(2000)
+	})
+
+	it('mutes LED+PGM beds for the wipe SFX window', () => {
+		const piece = createWipeBackgroundMusicMutePiece(hybridCasparConfig, 'part-sport-1', 2500)
+		expect(piece.name).toBe('BG music mute (Wipe)')
+		expect(piece.enable).toEqual({ start: 0, duration: 2500 })
+		expect(piece.lifespan).toBe(PieceLifespan.WithinPart)
+		expect(piece.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
+		for (const tl of piece.content?.timelineObjects ?? []) {
+			// Take-relative: object start offsets piece preroll so mute covers the full sting.
+			expect(tl.enable).toEqual({ start: hybridCasparConfig.casparcgLatency, duration: 2500 })
+			expect((tl.content as TSR.TimelineContentCCGMedia).mixer?.volume).toBe(0)
+			expect(tl.priority).toBe(2)
+		}
 	})
 })

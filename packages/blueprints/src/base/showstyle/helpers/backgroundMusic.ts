@@ -50,14 +50,22 @@ export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TS
  *
  * Outro mute is OutOnRundownEnd so beds stay quiet after the jingle (no restart).
  * Intro mute is WithinPart so the first DoubleBox reveal can bring audio back.
+ * Wipe mute is WithinPart for the sting window so `bg_music_c` does not fight wipe SFX.
  */
 export function createBackgroundMusicMutePiece(
 	config: StudioConfig,
 	partExternalId: string,
-	label: 'Intro' | 'Outro',
+	label: 'Intro' | 'Outro' | 'Wipe',
 	durationMs?: number
 ): IBlueprintPiece {
 	const persistAfterPart = label === 'Outro'
+	const prerollMs = config.casparcgLatency
+	// Wipe mute piece prerolls for LOADBG; object enable must stay Take-relative through
+	// the sting tail (start 0 would end prerollMs early and let bg_music_c bleed under SFX).
+	const timelineEnable =
+		durationMs !== undefined && !persistAfterPart
+			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }
+			: undefined
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
@@ -74,10 +82,11 @@ export function createBackgroundMusicMutePiece(
 			timelineObjects: createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
 				volume: 0,
 				priority: 2,
+				...(timelineEnable ? { enable: timelineEnable } : {}),
 			}),
 		},
 		expectedPackages: [],
-		prerollDuration: config.casparcgLatency,
+		prerollDuration: prerollMs,
 	})
 }
 
@@ -97,6 +106,15 @@ export function createOutroBackgroundMusicMutePiece(
 	durationMs?: number
 ): IBlueprintPiece {
 	return createBackgroundMusicMutePiece(config, partExternalId, 'Outro', durationMs)
+}
+
+/** Mute kolíska beds for the wipe SFX window (`wipe_sport` / themed stings). */
+export function createWipeBackgroundMusicMutePiece(
+	config: StudioConfig,
+	partExternalId: string,
+	wipeDurationMs: number
+): IBlueprintPiece {
+	return createBackgroundMusicMutePiece(config, partExternalId, 'Wipe', wipeDurationMs)
 }
 
 /** Swap to C-bed from the first Take in Šport onward (same koliska hit → duck envelope). */
