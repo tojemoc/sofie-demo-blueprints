@@ -131,7 +131,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(2500)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
 		expect(result.part.inTransition?.blockTakeDuration).toBe(2500)
 		const overlay = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -328,13 +328,14 @@ describe('wipe piece type → PGM route / overlay', () => {
 		// Kolíska beds must mute for the sting (bg_music_c under wipe_sport).
 		const bgMute = result.pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
 		expect(bgMute).toBeDefined()
-		expect(bgMute?.enable).toEqual({ start: 0, duration: 2500 })
-		expect(bgMute?.prerollDuration).toBe(configWithPlayback.casparcgLatency)
+		const mutePreroll = configWithPlayback.casparcgLatency
+		expect(bgMute?.enable).toEqual({ start: 0, duration: mutePreroll + 2500 })
+		expect(bgMute?.prerollDuration).toBe(mutePreroll)
 		expect(
 			(bgMute?.content.timelineObjects ?? []).every(
 				(obj) =>
 					!Array.isArray(obj.enable) &&
-					obj.enable.start === configWithPlayback.casparcgLatency &&
+					obj.enable.start === mutePreroll &&
 					obj.enable.duration === 2500 &&
 					(obj.content as TSR.TimelineContentCCGMedia).mixer?.volume === 0
 			)

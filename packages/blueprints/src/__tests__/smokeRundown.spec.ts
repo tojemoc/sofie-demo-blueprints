@@ -98,8 +98,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 			expect(result.pieces.length).toBeGreaterThan(0)
 			expect(result.pieces.some((piece) => piece.content.timelineObjects?.length)).toBe(true)
-			// Non-ILU GFX (e.g. Mod / téma) keep Sofie AUTO.
-			expect(result.part.autoNext).toBe(true)
+			// Only Počasie/weather GFX auto-Takes — Mod / téma stay manual.
+			expect(result.part.autoNext).toBe(false)
 
 			const externalIds = result.pieces.map((piece) => piece.externalId)
 			expect(new Set(externalIds).size).toBe(externalIds.length)
@@ -271,6 +271,16 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		)
 		expect(weatherWipe?.clipName).toBe('wipes/wipe_pocasie')
 		expect((weatherWipe?.attributes as { transition?: string }).transition).toBe('Pocasie')
+
+		const weatherPart = weather.parts[0]
+		expect(weatherPart).toBeDefined()
+		if (!weatherPart) return
+		const weatherResult = generateGfxPart(
+			new PartContext(mockSegmentContext(), weatherPart.payload.externalId),
+			weatherPart as PartProps<GfxProps>,
+			'B'
+		)
+		expect(weatherResult.part.autoNext).toBe(true)
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		expect(

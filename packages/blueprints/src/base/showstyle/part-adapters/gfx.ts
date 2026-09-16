@@ -9,6 +9,21 @@ import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 
+function normalizeDiacritics(value: string): string {
+	return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+}
+
+/** True when this GFX part is Počasie / weather (AUTO-take allowed). */
+function partHasWeatherGraphic(part: PartProps<GfxProps>): boolean {
+	const name = normalizeDiacritics(part.payload.name ?? '')
+	const raw = normalizeDiacritics(part.rawType ?? '')
+	if (/pocasie|weather/.test(name) || /pocasie|weather/.test(raw)) return true
+	return part.objects.some((obj) => {
+		const clip = normalizeDiacritics(String((obj as { clipName?: string }).clipName ?? ''))
+		return clip === 'gfx/pocasie' || clip === 'gfx/weather'
+	})
+}
+
 export function generateGfxPart(
 	context: PartContext,
 	part: PartProps<GfxProps>,
@@ -45,8 +60,9 @@ export function generateGfxPart(
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
 	// ILU parts are timed for Take (expectedDuration) but must not AUTO — operators
-	// click Take to the next part/segment. Other GFX (e.g. téma) keep autoNext.
+	// click Take. Only Počasie/weather GFX auto-Takes (SYN never does).
 	const isIlu = /ilu/i.test(part.rawType ?? '')
+	const isWeather = partHasWeatherGraphic(part)
 
 	const result: BlueprintResultPart = {
 		part: {
@@ -54,7 +70,7 @@ export function generateGfxPart(
 			title: part.payload.name,
 
 			expectedDuration: part.payload.duration,
-			autoNext: !isIlu,
+			autoNext: isWeather && !isIlu,
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],

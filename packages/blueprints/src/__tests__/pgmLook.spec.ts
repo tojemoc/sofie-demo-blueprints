@@ -546,13 +546,15 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Finite duration — open-ended ILU EMPTY keepalive-suppresses next weather bg.
+		// Leave-weather: ILU EMPTY at wipe cutpoint (finite) — not from Take.
+		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(WIPE_CUT_POINT_MS)
 		const zaverIluClearMs =
 			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
 		expect(zaverIluClearMs).toBeGreaterThan(0)
+		expect(zaverIluClearMs).toBe(2500 - WIPE_CUT_POINT_MS)
 	})
 
-	it('wiped L3D enable is Take-relative (preroll + wipe cut); CLEAR EMPTY has no preroll', () => {
+	it('wiped L3D enable is Take-relative (preroll + wipe end); CLEAR EMPTY has no preroll', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const syn = ingest.parts.find((part) => {
@@ -588,6 +590,8 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+		expect(result.part.autoNext).toBe(false)
 		const l3d = result.pieces
 			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
 			.find(
@@ -599,21 +603,38 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!l3d) return
 		const preroll = Math.max(0, l3d.piece.prerollDuration ?? 0)
 		expect(preroll).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
-		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(preroll + WIPE_CUT_POINT_MS)
+		const wipeDurationMs = 2500
+		// Earliest L3D on this Take (multi-name SYN parts have later timed L3Ds).
+		const earliestObjectTimeMs = result.pieces
+			.filter((piece) =>
+				(piece.content.timelineObjects ?? []).some(
+					(obj) =>
+						obj.layer === LOOK_B_LAYERS.lowerThird &&
+						(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+				)
+			)
+			.reduce((min, piece) => {
+				const start = typeof piece.enable?.start === 'number' ? piece.enable.start : 0
+				return Math.min(min, start)
+			}, Number.POSITIVE_INFINITY)
+		expect(earliestObjectTimeMs).toBeLessThan(Number.POSITIVE_INFINITY)
+		const objectTimeMs = typeof l3d.piece.enable?.start === 'number' ? l3d.piece.enable.start : 0
+		// start:0 → after wipe; start under sting → land at wipe end (object delay shrinks).
+		const expectedObjStart =
+			objectTimeMs === 0
+				? preroll + wipeDurationMs
+				: objectTimeMs < wipeDurationMs
+					? preroll + wipeDurationMs - objectTimeMs
+					: 0
+		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(expectedObjStart)
 
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.prerollDuration ?? 0).toBe(0)
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
-
-		// Absolute on-air: EMPTY ends at Take+cut; template starts at Take+cut (one ADD).
-		const emptyEnd =
-			!Array.isArray(l3dEmpty?.enable) && typeof l3dEmpty?.enable.duration === 'number' ? l3dEmpty.enable.duration : -1
-		const templateAbs =
-			!Array.isArray(l3d.obj.enable) && typeof l3d.obj.enable.start === 'number' ? l3d.obj.enable.start - preroll : -2
-		expect(templateAbs).toBe(emptyEnd)
+		const clearUntil = Math.max(wipeDurationMs, earliestObjectTimeMs)
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: clearUntil })
 	})
 
 	it('non-weather Full parts pulse-clear ILU (finite) so keepalive cannot kill next bg_pocasie', () => {
@@ -637,6 +658,59 @@ describe('pgmLook look-kind channels + route', () => {
 				? iluEmpty.enable.duration
 				: Number.POSITIVE_INFINITY
 		expect(sportIluClearMs).toBeLessThan(60_000)
+	})
+
+	it('first sport L3D CLEAR covers objectTime so previous CG cannot gap-fill before ADD', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-sport')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
+		const sportFirst = generated.parts.find((part) => part.pieces.some((piece) => piece.name === 'BG music C (Šport)'))
+		expect(sportFirst).toBeDefined()
+		if (!sportFirst) return
+
+		expect(sportFirst.part.autoNext).toBe(false)
+		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+
+		const voPiece = sportFirst.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		expect(voPiece).toBeDefined()
+		// Hold last frame: no piece.enable.duration (loop:false alone is not enough).
+		expect(voPiece?.enable).toEqual({ start: 0 })
+		expect(
+			(voPiece?.content.timelineObjects ?? []).some(
+				(obj) => (obj.content as TSR.TimelineContentCCGMedia).loop === false
+			)
+		).toBe(true)
+
+		const l3d = sportFirst.pieces
+			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
+			.find(
+				({ obj }) =>
+					obj.layer === LOOK_B_LAYERS.lowerThird &&
+					(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+			)
+		expect(l3d).toBeDefined()
+		if (!l3d) return
+		const objectTimeMs = typeof l3d.piece.enable?.start === 'number' ? l3d.piece.enable.start : 0
+		expect(objectTimeMs).toBeGreaterThanOrEqual(1000)
+		const preroll = Math.max(0, l3d.piece.prerollDuration ?? 0)
+		const wipeDurationMs = 2500
+		// start:1s falls under sting → object delay lands ADD at wipe end.
+		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(preroll + wipeDurationMs - objectTimeMs)
+
+		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: Math.max(wipeDurationMs, objectTimeMs) })
+
+		const sportMusic = sportFirst.pieces.find((piece) => piece.name === 'BG music C (Šport)')
+		expect(sportMusic).toBeDefined()
+		expect(
+			(sportMusic?.content.timelineObjects ?? []).every((obj) =>
+				(obj.keyframes ?? []).some((kf) => (kf.content as { mixer?: { volume?: number } })?.mixer?.volume === 0)
+			)
+		).toBe(true)
 	})
 
 	it('smoke CSV contract: headlines/privítanie→4, tema ILU↔SYN→3/4, SJV wipe overlay on Full', () => {

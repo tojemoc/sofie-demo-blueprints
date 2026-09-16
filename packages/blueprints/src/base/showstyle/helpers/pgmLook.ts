@@ -26,6 +26,7 @@ import { getAudioObjectOnLayer } from './audio.js'
 import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { createLookCameraClearTimelineObject } from './pgmCamera.js'
+import { createFullBgLoopPiece } from './fullBgLoop.js'
 
 export type LookSlot = 'A' | 'B'
 
@@ -561,12 +562,13 @@ export function finalizeHypercomposedPart(
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
-		// Keepalive through the sting so Take never drops the previous look VIDEO
-		// before wipe cover (that showed as tearing / a glitch-cut then a late wipe).
+		// Keep previous look VIDEO only until the cover cut — not the full sting.
+		// Full-sting keepalive left DB→DB / Full→Full switches until wipe CLEAR
+		// (new look could not win while the previous part still occupied the channel).
 		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
 		part.inTransition = {
 			blockTakeDuration: wipeDurationMs,
-			previousPartKeepaliveDuration: wipeDurationMs,
+			previousPartKeepaliveDuration: WIPE_CUT_POINT_MS,
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
@@ -575,7 +577,18 @@ export function finalizeHypercomposedPart(
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
-	const l3dInDelay = hasWipe ? WIPE_CUT_POINT_MS : hasIncomingL3d ? L3D_OUT_MS : 0
+	const earliestL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces)
+	// CLEAR until the first incoming L3D is on-air. Wiped Takes: that is max(wipeEnd,
+	// earliest objectTime) so start:1s under wipe_sport cannot gap-fill previous CG.
+	// wipe_pocasie lands weather GFX at the cover cut with bg_pocasie.
+	const firstL3dOnAirMs = hasWipe
+		? wipePocasie
+			? WIPE_CUT_POINT_MS + earliestL3dObjectTimeMs
+			: Math.max(wipeDurationMs, earliestL3dObjectTimeMs)
+		: hasIncomingL3d
+			? L3D_OUT_MS + earliestL3dObjectTimeMs
+			: 0
+	const l3dClearDurationMs = hasIncomingL3d ? firstL3dOnAirMs : undefined
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
 	// (SJV→SJV, ŠPORT→ŠPORT) otherwise become CG UPDATE (text swap, no IN anim).
@@ -585,24 +598,37 @@ export function finalizeHypercomposedPart(
 	if (hasIncomingL3d || hasWipe) {
 		// Duration only until the delayed CG ADD. Wiped Takes with no incoming L3D must
 		// hold EMPTY for the whole part — otherwise previous L3D returns after
-		// WIPE_CUT_POINT_MS while previousPartKeepaliveDuration still covers the sting.
-		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, hasIncomingL3d ? l3dInDelay : undefined))
+		// the clear window while the sting/keepalive still covers.
+		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearDurationMs))
 	}
 	if (wipePocasie) {
-		// EMPTY leftover sport SYN under wipe_pocasie from frame 0. Weather MEDIA/L3D
-		// wait until the cover cut (see applyL3dTakeOffsets).
-		clearObjects.push(...buildLookChannelClearObjects(lookSlot))
+		// EMPTY leftover sport SYN under wipe_pocasie until the cover cut, then
+		// restore loops/bg_loop on the clip layer (weather stack: bg_loop + bg_pocasie + GFX).
+		clearObjects.push(...buildLookChannelClearObjects(lookSlot, WIPE_CUT_POINT_MS))
 	}
-	// Leaving Počasie: pulse-clear look ILU so keepalive/postroll cannot keep bg_pocasie
-	// under the next wipe. Duration must be finite — an open-ended EMPTY rides
-	// previousPartKeepaliveDuration into the *next* Take and (priority 2) suppresses
-	// incoming weather `bg_pocasie` on Full→Full (sport→Počasie).
+	// Leaving Počasie: clear bg_pocasie at the wipe cutpoint (while covered), not from
+	// Take. Duration must be finite — an open-ended EMPTY rides keepalive into the
+	// *next* Take and (priority 2) suppresses incoming weather `bg_pocasie`.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
-		const iluClearMs = hasWipe ? wipeDurationMs : LOOK_MEDIA_POSTROLL_MS
-		clearObjects.push(...buildLookIluClearObjects(lookSlot, iluClearMs))
+		if (hasWipe) {
+			clearObjects.push(
+				...buildLookIluClearObjects(lookSlot, Math.max(0, wipeDurationMs - WIPE_CUT_POINT_MS), WIPE_CUT_POINT_MS)
+			)
+		} else {
+			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_MEDIA_POSTROLL_MS))
+		}
 	}
 	if (clearObjects.length > 0) {
 		appendPgmLayerClearPiece(pieces, partExternalId, clearObjects)
+	}
+
+	if (wipePocasie) {
+		// Priority 1 WithinPart bg_loop under weather map — baseline prio-0 alone loses to
+		// open-ended CLEAR; finite clip EMPTY above lets this take the clip layer at cut.
+		// Push after remapLookLayers, so remap this piece onto Full (B) explicitly.
+		const bgLoop = createFullBgLoopPiece(context, config, partExternalId)
+		remapLookLayers([bgLoop], lookSlot)
+		pieces.push(bgLoop)
 	}
 
 	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie)
@@ -753,10 +779,11 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * On Take: previous L3D is EMPTYed (see {@link appendL3dLayerClear}) so keepalive
  * cannot stack two templates. Incoming L3Ds ADD after a gap — never CG UPDATE.
  *
- * Wiped Takes: wipe overlay covers from 0 — do not delay look MEDIA (that raced the
- * sting and tore). Incoming L3Ds ADD at the cover cut so the in-anim is visible.
- * `wipe_pocasie` also holds weather MEDIA until the cut so CLEAR can drop the last
- * sport SYN under the sting before bg_pocasie / weather GFX appear.
+ * Wiped Takes: wipe overlay covers from 0. Look MEDIA (clips / CAM / ILU / db_loop /
+ * weather map / bg_loop) hard-cuts at the cover frame so same-channel rebuilds are not
+ * visible under a still-open route. Incoming L3Ds ADD after the sting ends so the
+ * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX lands
+ * with `bg_pocasie` at the cover cut.
  *
  * Look preroll starts pieces early for CEF/LOADBG on the idle BG channel. Object
  * `enable.start` is relative to that early piece start — add `prerollDuration` so
@@ -771,21 +798,42 @@ function applyL3dTakeOffsets(pieces: IBlueprintPiece[], wipeDurationMs: number, 
 
 	for (const piece of pieces) {
 		const prerollMs = hasWipe ? Math.max(0, piece.prerollDuration ?? 0) : 0
-		const lookMediaDelay = wipePocasie ? prerollMs + WIPE_CUT_POINT_MS : 0
-		const l3dInDelay = hasWipe ? prerollMs + WIPE_CUT_POINT_MS : L3D_OUT_MS
+		const lookMediaDelay = hasWipe ? prerollMs + WIPE_CUT_POINT_MS : 0
+		const pieceStartMs =
+			typeof piece.enable?.start === 'number' && Number.isFinite(piece.enable.start)
+				? Math.max(0, Math.floor(piece.enable.start))
+				: 0
 
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
 			const content = obj.content as { type?: string }
 
 			if (L3D_TEMPLATE_LAYERS.has(layer) && isCasparTemplate(content)) {
+				let l3dInDelay = L3D_OUT_MS
+				if (hasWipe) {
+					if (wipePocasie) {
+						// Weather GFX with bg_pocasie at the cover cut.
+						l3dInDelay = prerollMs + WIPE_CUT_POINT_MS
+					} else if (pieceStartMs === 0) {
+						// After the sting ends.
+						l3dInDelay = prerollMs + wipeDurationMs
+					} else if (pieceStartMs < wipeDurationMs) {
+						// Editorial start falls under the sting — land at wipe end.
+						// absolute = Take + pieceStart - preroll + delay = Take + wipeEnd
+						l3dInDelay = prerollMs + wipeDurationMs - pieceStartMs
+					} else {
+						// Already after the sting — piece.enable.start is enough.
+						l3dInDelay = 0
+					}
+				}
 				shiftEnableStartIfAtTake(obj, l3dInDelay)
 				continue
 			}
 
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
 			if (!isCasparMedia(content)) continue
-			// Look / L3D CLEAR EMPTYs must stay at Take (sport SYN + previous L3D).
+			// Look / L3D CLEAR EMPTYs must stay at Take (sport SYN + previous L3D),
+			// except leave-weather ILU EMPTY which is scheduled at the cutpoint below.
 			if ((content as { file?: string }).file === 'EMPTY') continue
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
 		}
@@ -800,6 +848,24 @@ function partHasIncomingL3dTemplate(pieces: IBlueprintPiece[]): boolean {
 			return isCasparTemplate(obj.content as { type?: string })
 		})
 	)
+}
+
+/** Earliest piece.enable.start among pieces that carry an incoming look L3D template. */
+function minIncomingL3dPieceStartMs(pieces: IBlueprintPiece[]): number {
+	let minStart: number | undefined
+	for (const piece of pieces) {
+		const hasL3d = (piece.content.timelineObjects ?? []).some((obj) => {
+			const layer = String(obj.layer)
+			if (!L3D_TEMPLATE_LAYERS.has(layer)) return false
+			return isCasparTemplate(obj.content as { type?: string })
+		})
+		if (!hasL3d) continue
+		const start = piece.enable?.start
+		if (typeof start !== 'number' || !Number.isFinite(start) || start < 0) continue
+		const floored = Math.floor(start)
+		minStart = minStart === undefined ? floored : Math.min(minStart, floored)
+	}
+	return minStart ?? 0
 }
 
 /** True when this part already owns look ILU MEDIA (e.g. weather `bg_pocasie`). */
@@ -817,12 +883,13 @@ function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boo
 
 function emptyLookMediaObject(
 	layer: CasparCGLayers,
-	clearDurationMs?: number
+	clearDurationMs?: number,
+	clearStartMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: {
-			start: 0,
+			start: clearStartMs,
 			...(clearDurationMs !== undefined ? { duration: clearDurationMs } : {}),
 		},
 		layer,
@@ -851,18 +918,28 @@ function buildL3dLayerClearObjects(
  * Full logical CLEAR of the Full look (ch4): EMPTY leftover SYN/CAM/`db_loop` so
  * `wipe_pocasie` cannot keep the last sport VID playing under weather HTML.
  * Weather keeps ILU (`bg_pocasie`) + L3D; those layers are not EMPTYed for the part.
+ * When `clipClearMs` is set, clip EMPTY is finite so {@link createFullBgLoopPiece} can
+ * restore `loops/bg_loop` under the weather stack after the cover cut.
  */
-function buildLookChannelClearObjects(lookSlot: LookSlot): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+function buildLookChannelClearObjects(
+	lookSlot: LookSlot,
+	clipClearMs?: number
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
-	return [layers.clip, layers.camera, layers.doubleBoxLoop].map((layer) => emptyLookMediaObject(layer))
+	return [
+		emptyLookMediaObject(layers.clip, clipClearMs),
+		emptyLookMediaObject(layers.camera),
+		emptyLookMediaObject(layers.doubleBoxLoop),
+	]
 }
 
 /** EMPTY look ILU so previous `bg_pocasie` cannot ride keepalive/postroll into ZAVER. */
 function buildLookIluClearObjects(
 	lookSlot: LookSlot,
-	clearDurationMs?: number
+	clearDurationMs?: number,
+	clearStartMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	return [emptyLookMediaObject(getLookLayers(lookSlot).ilu, clearDurationMs)]
+	return [emptyLookMediaObject(getLookLayers(lookSlot).ilu, clearDurationMs, clearStartMs)]
 }
 
 /**

@@ -506,6 +506,7 @@ describe('casparV2Graphics', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), weatherPart.payload.externalId)
 		const result = generateGfxPart(partContext, weatherPart as never, 'B')
+		expect(result.part.autoNext).toBe(true)
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
 		const bg = timeline.find(
@@ -531,20 +532,25 @@ describe('casparV2Graphics', () => {
 			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(emptyObjs.length).toBeGreaterThanOrEqual(3)
-		expect(emptyObjs.every((obj) => !Array.isArray(obj.enable) && obj.enable.start === 0)).toBe(true)
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)).toBe(true)
-		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)).toBe(true)
+		const clipEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
+		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
 		// Weather owns look ILU — do not EMPTY bg_pocasie on the weather Take itself.
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB)).toBe(false)
+		// Weather stack restores loops/bg_loop under bg_pocasie + GFX.
+		expect(result.pieces.some((piece) => piece.externalId?.endsWith('_full_bg_loop'))).toBe(true)
+		const bgLoop = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGClipPlayer2B &&
+				(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/bg_loop'
+		)
+		expect(bgLoop).toBeDefined()
+		const bgLoopPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_full_bg_loop'))
+		const bgLoopPreroll = Math.max(0, bgLoopPiece?.prerollDuration ?? 0)
+		expect(bgLoop?.enable).toEqual({ start: bgLoopPreroll + WIPE_CUT_POINT_MS })
 		expect(
 			timeline.some(
 				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
-			)
-		).toBe(true)
-		expect(
-			timeline.some(
-				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGClipPlayer2B && (obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(true)
 		const weatherL3d = timeline.find(
@@ -556,10 +562,12 @@ describe('casparV2Graphics', () => {
 			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
 		)
 		const l3dPreroll = Math.max(0, l3dPiece?.prerollDuration ?? 0)
+		// wipe_pocasie: weather GFX lands with bg_pocasie at the cover cut.
 		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(l3dPreroll + WIPE_CUT_POINT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
-		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
+		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS + l3dObjectTime })
 	})
 
 	it('mutes kolíska beds while the outro overlay plays', () => {

@@ -62,14 +62,17 @@ export function createBackgroundMusicMutePiece(
 	const prerollMs = config.casparcgLatency
 	// Wipe mute piece prerolls for LOADBG; object enable must stay Take-relative through
 	// the sting tail (start 0 would end prerollMs early and let bg_music_c bleed under SFX).
+	// Piece enable.duration includes preroll so Softie does not truncate the offset object.
 	const timelineEnable =
 		durationMs !== undefined && !persistAfterPart
 			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }
 			: undefined
+	const pieceDurationMs =
+		durationMs !== undefined && !persistAfterPart ? (label === 'Wipe' ? prerollMs + durationMs : durationMs) : undefined
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
-			...(durationMs !== undefined && !persistAfterPart ? { duration: durationMs } : {}),
+			...(pieceDurationMs !== undefined ? { duration: pieceDurationMs } : {}),
 		},
 		externalId: `${partExternalId}_bg_music_mute`,
 		name: `BG music mute (${label})`,
@@ -150,6 +153,80 @@ export function createSportBackgroundMusicPiece(
 		],
 		prerollDuration: config.casparcgLatency,
 	})
+}
+
+/**
+ * Duck an AudioBed piece (e.g. sport C) for the wipe SFX window.
+ * Sport music is often appended after {@link createWipeBackgroundMusicMutePiece}; mixer
+ * keyframes guarantee `bg_music_c` stays at 0 even if the mute piece loses a priority race.
+ */
+export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDurationMs: number, prerollMs: number): void {
+	if (wipeDurationMs <= 0) return
+	const muteFrom = Math.max(0, prerollMs)
+	const restoreAt = muteFrom + wipeDurationMs
+	for (const obj of piece.content.timelineObjects ?? []) {
+		const layer = String(obj.layer)
+		if (
+			layer !== (CasparCGLayers.CasparCGAudioBed as string) &&
+			layer !== (CasparCGLayers.CasparCGAudioBedPgm as string)
+		) {
+			continue
+		}
+		const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+		if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
+		const baseVolume =
+			typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+		const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
+			TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+		>
+		const restoreVolume = mixerVolumeAtOrBefore(existing, baseVolume, restoreAt)
+		const laterKeyframes = existing.filter((kf) => keyframeStartMs(kf) > restoreAt)
+		;(obj as TimelineBlueprintExt).keyframes = [
+			{
+				id: '',
+				enable: { start: muteFrom, duration: wipeDurationMs },
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					mixer: { volume: 0 },
+				},
+			},
+			{
+				id: '',
+				enable: { start: restoreAt },
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					mixer: { volume: restoreVolume },
+				},
+			},
+			...laterKeyframes,
+		]
+	}
+}
+
+function keyframeStartMs(kf: { enable?: unknown }): number {
+	const enable = kf.enable as { start?: number } | Array<unknown> | undefined
+	if (!enable || Array.isArray(enable)) return Number.POSITIVE_INFINITY
+	return typeof enable.start === 'number' && Number.isFinite(enable.start) ? enable.start : Number.POSITIVE_INFINITY
+}
+
+/** Latest mixer volume from keyframes at or before `timeMs`, else `baseVolume`. */
+function mixerVolumeAtOrBefore(
+	keyframes: NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']>,
+	baseVolume: number,
+	timeMs: number
+): number {
+	let volume = baseVolume
+	for (const kf of keyframes) {
+		const start = keyframeStartMs(kf)
+		if (start > timeMs) continue
+		const mixerVol = (kf.content as { mixer?: { volume?: number } } | undefined)?.mixer?.volume
+		if (typeof mixerVol === 'number' && Number.isFinite(mixerVol)) {
+			volume = mixerVol
+		}
+	}
+	return volume
 }
 
 export function isSportSegmentName(name: string): boolean {
