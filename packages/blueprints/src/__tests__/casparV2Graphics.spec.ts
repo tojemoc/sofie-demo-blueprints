@@ -544,7 +544,8 @@ describe('casparV2Graphics', () => {
 		expect(emptyObjs.length).toBeGreaterThanOrEqual(3)
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)).toBe(true)
 		const clipEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
-		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
+		// EMPTY through full sting so sport cannot flash after wipe CLEAR; bg_loop (prio 3) wins at cut.
+		expect(clipEmpty?.enable).toEqual({ start: 0, duration: 2500 })
 		// Weather owns look ILU — do not EMPTY bg_pocasie on the weather Take itself.
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB)).toBe(false)
 		// Weather stack restores loops/bg_loop under bg_pocasie + GFX.
@@ -556,6 +557,7 @@ describe('casparV2Graphics', () => {
 		)
 		expect(bgLoop).toBeDefined()
 		expect(bgLoop?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(bgLoop?.priority).toBeGreaterThanOrEqual(3)
 		expect(
 			timeline.some(
 				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'

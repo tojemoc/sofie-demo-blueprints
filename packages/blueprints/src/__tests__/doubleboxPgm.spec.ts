@@ -222,6 +222,15 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
 			},
 		})
+		// DB→DB wipe: freeze ILU on frame 0 from Take; play at cover cut (never-empty).
+		expect(pgmIlu?.enable).toEqual({ start: 0 })
+		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).seek).toBe(0)
+		const unfreeze = pgmIlu?.keyframes?.find(
+			(kf) => (kf.content as { playing?: boolean } | undefined)?.playing === true
+		)
+		expect(unfreeze?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(unfreeze?.content).toMatchObject({ playing: true })
 
 		const tema = timeline.find(
 			(obj) =>
@@ -235,8 +244,20 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
+		expect(dbLoop?.enable).toEqual({ start: 0 })
 		const dbLoopPiece = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_db_loop')
 		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(dbLoopPiece?.prerollDuration ?? 0).toBeLessThan(1500)
+		// Never EMPTY look A clip/CAM/db_loop on wiped DoubleBox Takes.
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const lookAClears = (clearPiece?.content.timelineObjects ?? []).filter(
+			(obj) =>
+				(obj.content as { file?: string }).file === 'EMPTY' &&
+				(obj.layer === CasparCGLayers.CasparCGClipPlayer2 ||
+					obj.layer === CasparCGLayers.CasparCGPgmCamera ||
+					obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
+		)
+		expect(lookAClears).toHaveLength(0)
 
 		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
