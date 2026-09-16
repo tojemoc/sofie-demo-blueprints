@@ -54,6 +54,12 @@ export enum SourceLayer {
 	 * Caspar route layer so operators still see the wipe label.
 	 */
 	PgmRoute = 'pgm_route',
+	/**
+	 * Hidden Caspar EMPTY helper (L3D auto-hide, wipe_pocasie ch4 CLEAR, leave-weather ILU).
+	 * Must not use {@link SourceLayer.GFX}: GFX is in exclusiveGroup `pgm` and would prune SYN VO.
+	 * Must not share {@link SourceLayer.PgmLowerThird} with the incoming L3D (same-start prune).
+	 */
+	PgmLayerClear = 'pgm_layer_clear',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -81,6 +87,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.LedPodHeadline:
 		case SourceLayer.PgmWipe:
 		case SourceLayer.PgmRoute:
+		case SourceLayer.PgmLayerClear:
 		case SourceLayer.Strap:
 		case SourceLayer.Ticker:
 		case SourceLayer.Logo:
