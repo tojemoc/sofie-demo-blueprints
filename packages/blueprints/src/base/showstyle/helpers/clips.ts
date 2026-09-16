@@ -37,10 +37,11 @@ export const DEFAULT_BG_LOOP_FILE = 'loops/bg_loop'
 export const DEFAULT_WIPE_DURATION_MS = 2500
 
 /**
- * Cut point within the wipe stinger — when the screen is fully covered and content switches.
- * Tuned for `wipes/wipe*.mov` cover frame (~0.76s into the 2.5s stinger).
+ * Default cut point within the wipe stinger — when the screen is fully covered and content switches.
+ * Frame 19 @ 50fps = 380 ms into `wipes/wipe*.mov` (not frame 51 / ~1020 ms).
+ * Override per wipe via RE payload / ingest `attributes.cutPoint` (ms).
  */
-export const WIPE_CUT_POINT_MS = 760
+export const WIPE_CUT_POINT_MS = 380
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
@@ -63,6 +64,31 @@ export function resolveWipeDurationMs(wipeDurationFromIngest?: number): number {
 		return Math.floor(wipeDurationFromIngest)
 	}
 	return DEFAULT_WIPE_DURATION_MS
+}
+
+/**
+ * Editorial wipe cut point (ms) from RE `cutPoint`, else {@link WIPE_CUT_POINT_MS}.
+ * Clamped to `[0, wipeDurationMs]` so a mistyped value cannot land after the sting ends.
+ */
+export function resolveWipeCutPointMs(
+	attributes?: { cutPoint?: unknown } | null,
+	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS
+): number {
+	const raw = attributes?.cutPoint
+	let cut = WIPE_CUT_POINT_MS
+	if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+		cut = Math.floor(raw)
+	} else if (typeof raw === 'string' && raw.trim() !== '') {
+		const parsed = Number(raw)
+		if (Number.isFinite(parsed) && parsed >= 0) {
+			cut = Math.floor(parsed)
+		}
+	}
+	const max = Math.max(0, Math.floor(wipeDurationMs))
+	if (max > 0) {
+		cut = Math.min(cut, max)
+	}
+	return cut
 }
 
 function resolveVideoFileName(object: VideoObject): string | undefined {

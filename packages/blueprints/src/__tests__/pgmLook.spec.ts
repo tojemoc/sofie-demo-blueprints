@@ -110,8 +110,9 @@ describe('pgmLook look-kind channels + route', () => {
 	})
 
 	it('converts wipe cut-point ms to frames at 50fps (docs helper; casparcg-state wants ms)', () => {
-		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(38)
+		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(19)
 		expect(LOOK_MEDIA_POSTROLL_MS).toBe(WIPE_CUT_POINT_MS)
+		expect(WIPE_CUT_POINT_MS).toBe(380)
 	})
 
 	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {
@@ -546,12 +547,12 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Leave-weather: ILU EMPTY at wipe cutpoint (finite) — not from Take.
-		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(WIPE_CUT_POINT_MS)
+		// Leave-weather: ILU EMPTY from Take through wipe end (finite) — kills map under sting.
+		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(0)
 		const zaverIluClearMs =
 			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
 		expect(zaverIluClearMs).toBeGreaterThan(0)
-		expect(zaverIluClearMs).toBe(2500 - WIPE_CUT_POINT_MS)
+		expect(zaverIluClearMs).toBe(2500)
 	})
 
 	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {
@@ -591,7 +592,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
-		expect(result.part.autoNext).toBe(false)
+		expect(result.part.autoNext).toBe(true)
 		const l3d = result.pieces
 			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
 			.find(
@@ -601,7 +602,9 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		expect(l3d).toBeDefined()
 		if (!l3d) return
-		expect(Math.max(0, l3d.piece.prerollDuration ?? 0)).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		// L3D templates must not inherit look preroll — Softie held ADD until Take+preroll+enable.
+		// casparcgLatency (~50) on the piece is fine; look preroll (~1500) is not.
+		expect(l3d.piece.prerollDuration ?? 0).toBeLessThan(DEFAULT_LOOK_PREROLL_MS)
 		const wipeDurationMs = 2500
 		// Earliest L3D on this Take (multi-name SYN parts have later timed L3Ds).
 		const earliestObjectTimeMs = result.pieces
@@ -674,7 +677,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sportFirst).toBeDefined()
 		if (!sportFirst) return
 
-		expect(sportFirst.part.autoNext).toBe(false)
+		expect(sportFirst.part.autoNext).toBe(true)
 		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
 
 		const voPiece = sportFirst.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))

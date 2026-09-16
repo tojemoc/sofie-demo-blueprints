@@ -243,11 +243,12 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const countupTl = countupReveal?.content.timelineObjects?.[0]
 		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
 		expect(countupTl?.content).toMatchObject({
-			mixer: { opacity: 1, volume: 0 },
+			mixer: { opacity: 0, volume: 0 },
 		})
 		expect(countupTl?.keyframes?.[0]?.content).toMatchObject({
 			mixer: { opacity: 1, volume: 1 },
 		})
+		expect(result.pieces.some((piece) => piece.externalId.endsWith('_led_pod_headline_clear'))).toBe(true)
 
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()

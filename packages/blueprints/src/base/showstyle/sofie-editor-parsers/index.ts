@@ -157,7 +157,7 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 		ingestSegment.parts.forEach((part) => {
 			const partPayload = part.payload as EditorIngestPart
 
-			// Logo + countup: baseline `assets/countup` on PGM logo layer (not per-part gfx/logo-bug).
+			// Logo + countup: first DoubleBox Take PLAYs `assets/countup` (not baseline / not per-part gfx/logo-bug).
 			partPayload.pieces = partPayload.pieces.filter((piece) => piece.objectType.trim().toLowerCase() !== 'logo-bug')
 
 			partPayload.pieces.forEach((piece) => {

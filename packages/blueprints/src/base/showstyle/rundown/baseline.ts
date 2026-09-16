@@ -15,6 +15,7 @@ import {
 	createFullLookBaselineCameraTimeline,
 } from '../helpers/pgmCamera.js'
 import { createFullChannelRouteContent } from '../helpers/pgmLook.js'
+import { LED_POD_HEADLINE_FILE } from '../helpers/ledPodHeadline.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
@@ -22,9 +23,8 @@ export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
 /**
  * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
- * Baseline keeps it visible but silent (`volume: 0`); {@link createCountupRevealPiece}
- * fades audio in on the first DoubleBox after Intro so SFX does not ride Intro/outro.
- * Disk: `assets/countup.mov`.
+ * Not in baseline: PLAY starts on the first DoubleBox Take ({@link createCountupRevealPiece})
+ * so headlines / L3D-mod never show countup. Disk: `assets/countup.mov`.
  */
 export const PGM_COUNTUP_FILE = 'assets/countup'
 
@@ -84,20 +84,18 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 						].filter(
 							(obj): obj is NonNullable<ReturnType<typeof createCameraIngestBaselineTimeline>> => obj !== undefined
 						) as TimelineBlueprintExt[]),
-						// Logo + seconds visible from Rehearsal (silent until first DoubleBox reveal).
-						// volume:0 so countup SFX does not ride Intro / pre-reveal parts.
+						// LED pod underlay for opening headlines — visible from Activate/Rehearsal
+						// (not only after first Take). Cleared on first DoubleBox Take.
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',
 							enable: { while: 1 },
 							priority: 0,
-							layer: CasparCGLayers.CasparCGGraphicsLogo,
+							layer: CasparCGLayers.CasparCGLedPodHeadline,
 							content: {
 								deviceType: TSR.DeviceType.CASPARCG,
 								type: TSR.TimelineContentTypeCasparCg.MEDIA,
-								file: PGM_COUNTUP_FILE,
+								file: LED_POD_HEADLINE_FILE,
 								loop: true,
-								noStarttime: true,
-								mixer: { opacity: 1, volume: 0 },
 							},
 						}),
 					]

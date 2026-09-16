@@ -22,6 +22,7 @@ import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { createFullBgLoopPiece } from '../helpers/fullBgLoop.js'
 import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
+import { createLedPodHeadlineClearPiece } from '../helpers/ledPodHeadline.js'
 import {
 	createLookCameraTimelineContent,
 	getPgmCameraProducer,
@@ -108,6 +109,8 @@ export function generateCameraPart(
 		pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
 		if (countupRevealClaim.claim(context.rundownId)) {
 			pieces.push(createCountupRevealPiece(context, config, part.payload.externalId))
+			// Drop baseline LED pod — headlines are over; countup owns PGM chrome now.
+			pieces.push(createLedPodHeadlineClearPiece(part.payload.externalId))
 		}
 	} else if (config.casparcg.hypercomposed) {
 		pieces.push(createFullBgLoopPiece(context, config, part.payload.externalId))

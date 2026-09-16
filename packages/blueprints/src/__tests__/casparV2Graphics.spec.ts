@@ -339,23 +339,34 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
-	it('starts assets/countup on PGM logo layer from Rehearsal (baseline)', () => {
+	it('does not PLAY assets/countup from baseline (starts on first DoubleBox Take)', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const countup = baseline.timelineObjects?.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGGraphicsLogo &&
 				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
 				'type' in obj.content &&
+				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+				(obj.content as { file?: string }).file === 'assets/countup'
+		)
+		expect(countup).toBeUndefined()
+	})
+
+	it('plays assets/pod_headline on LED from Activate (baseline)', () => {
+		const baseline = getBaseline(mockRundownContext())
+		const pod = baseline.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGLedPodHeadline &&
+				obj.content.deviceType === TSR.DeviceType.CASPARCG &&
+				'type' in obj.content &&
 				obj.content.type === TSR.TimelineContentTypeCasparCg.MEDIA
 		)
-
-		expect(countup?.enable).toEqual({ while: 1 })
-		expect(countup?.content).toMatchObject({
+		expect(pod?.enable).toEqual({ while: 1 })
+		expect(pod?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'assets/countup',
+			file: 'assets/pod_headline',
 			loop: true,
-			mixer: { opacity: 1, volume: 0 },
 		})
 	})
 
