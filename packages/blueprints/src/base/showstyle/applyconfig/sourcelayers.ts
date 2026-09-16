@@ -151,6 +151,15 @@ export function getSourceLayer(): ISourceLayer[] {
 			// Hard-cut look routing; wiped Takes use PgmWipe instead.
 		},
 		{
+			_id: SourceLayer.PgmLayerClear,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 211,
+			name: 'PGM look CLEAR',
+			abbreviation: 'Clr',
+			isHidden: true,
+			// No exclusiveGroup — L3D CLEAR must coexist with VO/VT/Camera on the same Take.
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

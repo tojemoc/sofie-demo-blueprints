@@ -516,13 +516,18 @@ describe('casparV2Graphics', () => {
 		)
 		expect(bg).toBeDefined()
 		expect(bg?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
-		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_look_channel_clear'))
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.enable).toEqual({ start: 0 })
-		const emptyEnables = (clearPiece?.content.timelineObjects ?? [])
-			.filter((obj) => (obj.content as { file?: string }).file === 'EMPTY')
-			.map((obj) => obj.enable)
-		expect(emptyEnables.length).toBeGreaterThanOrEqual(2)
-		expect(emptyEnables.every((enable) => !Array.isArray(enable) && enable.start === 0)).toBe(true)
+		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		const emptyObjs = (clearPiece?.content.timelineObjects ?? []).filter(
+			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(emptyObjs.length).toBeGreaterThanOrEqual(3)
+		expect(emptyObjs.every((obj) => !Array.isArray(obj.enable) && obj.enable.start === 0)).toBe(true)
+		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)).toBe(true)
+		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)).toBe(true)
+		// Weather owns look ILU — do not EMPTY bg_pocasie on the weather Take itself.
+		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB)).toBe(false)
 		expect(
 			timeline.some(
 				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
@@ -541,12 +546,7 @@ describe('casparV2Graphics', () => {
 		)
 		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_CUT_POINT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
-		const l3dClear = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
-		expect(l3dClear).toBeDefined()
-		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
-			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
-		)
-		expect(l3dEmpty?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
+		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
 		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
 	})
 

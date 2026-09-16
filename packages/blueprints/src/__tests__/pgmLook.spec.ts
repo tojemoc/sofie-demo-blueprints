@@ -158,11 +158,18 @@ describe('pgmLook look-kind channels + route', () => {
 		expect((hl2L3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 		const l3dClear = generated.parts[1].pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(l3dClear).toBeDefined()
+		expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
 		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(l3dEmpty?.layer).toBe(LOOK_B_LAYERS.lowerThird)
 		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
+		// Look ILU CLEAR rides the same piece when the part has no bg_pocasie.
+		expect(
+			l3dClear?.content.timelineObjects?.some(
+				(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
 
 		const liveCam = hl2Timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
 		expect(liveCam?.content).toMatchObject({
@@ -454,6 +461,91 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(pgmRouteChannel(result.pieces)).toBe(4)
 		expect(pgmRouteFile(result.pieces)).toBe('route://4')
 		expect(result.pieces.some((piece) => piece.name.startsWith('Intro |'))).toBe(true)
+	})
+
+	it('SYN L3D CLEAR uses pgm_layer_clear so VO is not exclusive-group pruned', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
+		// Pinned smoke uses part-tema-1-syn-*; newer megarepo tip uses …-kolikova / …-taraba.
+		const synWithL3d = generated.parts.find(
+			(part) =>
+				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.VO as string)) &&
+				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmLowerThird as string)) &&
+				part.pieces.some((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		)
+		expect(
+			synWithL3d,
+			`expected a tema-1 SYN with VO+L3D+CLEAR; got ${generated.parts.map((p) => p.part.externalId).join(',')}`
+		).toBeDefined()
+		if (!synWithL3d) return
+
+		const vo = synWithL3d.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+		const l3dClear = synWithL3d.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const l3d = synWithL3d.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmLowerThird as string))
+		expect(vo).toBeDefined()
+		expect(l3d).toBeDefined()
+		expect(l3dClear).toBeDefined()
+		expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		expect(l3dClear?.sourceLayerId).not.toBe(SourceLayer.GFX)
+		expect(l3dClear?.sourceLayerId).not.toBe(SourceLayer.PgmLowerThird)
+	})
+
+	it('SJV / second ŠPORT keep VO beside L3D CLEAR on pgm_layer_clear', () => {
+		const exportData = loadSmokeRundownExport()
+		const lookSlots = createLookSlotSequence()
+		for (const segmentId of ['seg-sjv', 'seg-sport'] as const) {
+			const generated = generateParts(
+				mockSegmentContext(),
+				convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segmentId)),
+				undefined,
+				lookSlots
+			)
+			// Skip open GFX wipe shells (part-sjv-open / part-sport-open) — no VO clip.
+			const voParts = generated.parts.filter((part) =>
+				part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
+			)
+			expect(voParts.length, `${segmentId} should have ≥2 SYN VOs`).toBeGreaterThanOrEqual(2)
+			for (const part of voParts) {
+				const l3dClear = part.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+				expect(l3dClear, `${part.part.externalId} L3D CLEAR`).toBeDefined()
+				expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+				expect(l3dClear?.sourceLayerId).not.toBe(SourceLayer.GFX)
+			}
+		}
+	})
+
+	it('ZAVER + AVIZO EMPTYs Full-look ILU so bg_pocasie cannot linger', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(
+			mockSegmentContext(),
+			intermediate,
+			createCountupRevealClaim(),
+			createLookSlotSequence()
+		)
+		const zaver = generated.parts.find((part) =>
+			part.pieces.some((piece) =>
+				(piece.content.timelineObjects ?? []).some(
+					(obj) =>
+						obj.layer === CasparCGLayers.CasparCGIluPlayer &&
+						String((obj.content as { file?: string }).file || '').length > 0 &&
+						(obj.content as { file?: string }).file !== 'EMPTY'
+				)
+			)
+		)
+		expect(zaver).toBeDefined()
+		if (!zaver) return
+
+		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		expect(
+			clearPiece?.content.timelineObjects?.some(
+				(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
 	})
 
 	it('smoke CSV contract: headlines/privítanie→4, tema ILU↔SYN→3/4, SJV wipe overlay on Full', () => {

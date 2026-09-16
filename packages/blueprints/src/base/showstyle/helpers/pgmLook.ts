@@ -577,17 +577,30 @@ export function finalizeHypercomposedPart(
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
 	// (SJV→SJV, ŠPORT→ŠPORT) otherwise become CG UPDATE (text swap, no IN anim).
+	// All Caspar EMPTYs share {@link SourceLayer.PgmLayerClear} (not GFX) so SYN VO is
+	// not pruned by exclusiveGroup `pgm`.
+	const clearObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = []
 	if (hasIncomingL3d || hasWipe) {
-		appendL3dLayerClear(pieces, partExternalId, lookSlot, 0, l3dInDelay > 0 ? l3dInDelay : undefined)
+		// Duration only until the delayed CG ADD. Wiped Takes with no incoming L3D must
+		// hold EMPTY for the whole part — otherwise previous L3D returns after
+		// WIPE_CUT_POINT_MS while previousPartKeepaliveDuration still covers the sting.
+		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, hasIncomingL3d ? l3dInDelay : undefined))
+	}
+	if (wipePocasie) {
+		// EMPTY leftover sport SYN under wipe_pocasie from frame 0. Weather MEDIA/L3D
+		// wait until the cover cut (see applyL3dTakeOffsets).
+		clearObjects.push(...buildLookChannelClearObjects(lookSlot))
+	}
+	// Leaving Počasie (or any Full look with bg_pocasie): nuke look ILU so keepalive +
+	// postroll cannot keep the weather map under the next wipe (ZAVER + AVIZO).
+	if (!partHasLookIluMedia(pieces, lookSlot)) {
+		clearObjects.push(...buildLookIluClearObjects(lookSlot))
+	}
+	if (clearObjects.length > 0) {
+		appendPgmLayerClearPiece(pieces, partExternalId, clearObjects)
 	}
 
 	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie)
-
-	if (wipePocasie) {
-		// EMPTY leftover sport SYN under wipe_pocasie from frame 0 (piece start 0,
-		// nested EMPTY start 0). Weather MEDIA/L3D wait until the cover cut.
-		appendLookChannelClear(pieces, partExternalId, lookSlot, 0)
-	}
 
 	const alreadyRouted = pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some(
@@ -776,47 +789,85 @@ function partHasIncomingL3dTemplate(pieces: IBlueprintPiece[]): boolean {
 	)
 }
 
+/** True when this part already owns look ILU MEDIA (e.g. weather `bg_pocasie`). */
+function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
+	const iluLayer = getLookLayers(lookSlot).ilu
+	return pieces.some((piece) =>
+		(piece.content.timelineObjects ?? []).some((obj) => {
+			if (String(obj.layer) !== (iluLayer as string)) return false
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content)) return false
+			return content.file !== 'EMPTY'
+		})
+	)
+}
+
+function emptyLookMediaObject(
+	layer: CasparCGLayers,
+	clearDurationMs?: number
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: {
+			start: 0,
+			...(clearDurationMs !== undefined ? { duration: clearDurationMs } : {}),
+		},
+		layer,
+		priority: 2,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'EMPTY',
+		},
+	})
+}
+
 /**
  * EMPTY the look L3D layer at Take so a keepalive'd previous template cannot stack
  * under the wipe / hard-cut gap. Duration covers until the delayed CG ADD; omit
  * duration when there is no incoming L3D (wiped Take into a graphic-free part).
  */
-function appendL3dLayerClear(
+function buildL3dLayerClearObjects(
+	lookSlot: LookSlot,
+	clearDurationMs?: number
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	return [emptyLookMediaObject(getLookLayers(lookSlot).lowerThird, clearDurationMs)]
+}
+
+/**
+ * Full logical CLEAR of the Full look (ch4): EMPTY leftover SYN/CAM/`db_loop` so
+ * `wipe_pocasie` cannot keep the last sport VID playing under weather HTML.
+ * Weather keeps ILU (`bg_pocasie`) + L3D; those layers are not EMPTYed for the part.
+ */
+function buildLookChannelClearObjects(lookSlot: LookSlot): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	const layers = getLookLayers(lookSlot)
+	return [layers.clip, layers.camera, layers.doubleBoxLoop].map((layer) => emptyLookMediaObject(layer))
+}
+
+/** EMPTY look ILU so previous `bg_pocasie` cannot ride keepalive/postroll into ZAVER. */
+function buildLookIluClearObjects(lookSlot: LookSlot): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	return [emptyLookMediaObject(getLookLayers(lookSlot).ilu)]
+}
+
+/**
+ * Single hidden piece for all look EMPTYs on this Take. Source layer has no
+ * exclusiveGroup and is distinct from PgmLowerThird so SYN VO + incoming L3D survive.
+ */
+function appendPgmLayerClearPiece(
 	pieces: IBlueprintPiece[],
 	partExternalId: string,
-	lookSlot: LookSlot,
-	startMs: number,
-	clearDurationMs?: number
+	timelineObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[]
 ): void {
-	const layer = getLookLayers(lookSlot).lowerThird
+	const clearsL3d = timelineObjects.some((obj) => L3D_TEMPLATE_LAYERS.has(String(obj.layer)))
 	pieces.push(
 		literal<IBlueprintPiece>({
-			enable: { start: startMs },
+			enable: { start: 0 },
 			externalId: `${partExternalId}_l3d_clear`,
-			name: 'L3D CLEAR (auto-hide previous)',
+			name: clearsL3d ? 'L3D CLEAR (auto-hide previous)' : 'Look CLEAR (ch4 layers)',
 			lifespan: PieceLifespan.WithinPart,
-			// GFX — not PgmLowerThird — so Core processAndPrune does not drop the
-			// incoming L3D piece that also starts at 0 on the exclusive PGM L3D track.
-			sourceLayerId: SourceLayer.GFX,
-			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.GFX),
-			content: {
-				timelineObjects: [
-					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-						id: '',
-						enable: {
-							start: 0,
-							...(clearDurationMs !== undefined ? { duration: clearDurationMs } : {}),
-						},
-						layer,
-						priority: 2,
-						content: {
-							deviceType: TSR.DeviceType.CASPARCG,
-							type: TSR.TimelineContentTypeCasparCg.MEDIA,
-							file: 'EMPTY',
-						},
-					}),
-				],
-			},
+			sourceLayerId: SourceLayer.PgmLayerClear,
+			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmLayerClear),
+			content: { timelineObjects },
 		})
 	)
 }
@@ -837,45 +888,4 @@ function applyLookMediaPostroll(pieces: IBlueprintPiece[]): void {
 		if (!keepPicture) continue
 		piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, LOOK_MEDIA_POSTROLL_MS)
 	}
-}
-
-/**
- * Full logical CLEAR of the Full look (ch4): EMPTY leftover SYN/CAM/`db_loop` so
- * `wipe_pocasie` cannot keep the last sport VID playing under weather HTML.
- * Weather keeps ILU (`bg_pocasie`) + L3D; those layers are not EMPTYed for the part.
- */
-function appendLookChannelClear(
-	pieces: IBlueprintPiece[],
-	partExternalId: string,
-	lookSlot: LookSlot,
-	startMs: number
-): void {
-	const layers = getLookLayers(lookSlot)
-	const clearLayers = [layers.clip, layers.camera, layers.doubleBoxLoop]
-	const timelineObjects = clearLayers.map((layer) =>
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			// Piece-relative: the piece already starts at `startMs`.
-			enable: { start: 0 },
-			layer,
-			priority: 2,
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: 'EMPTY',
-			},
-		})
-	)
-
-	pieces.push(
-		literal<IBlueprintPiece>({
-			enable: { start: startMs },
-			externalId: `${partExternalId}_look_channel_clear`,
-			name: 'Look CLEAR (ch4 SYN/CAM/db_loop)',
-			lifespan: PieceLifespan.WithinPart,
-			sourceLayerId: SourceLayer.GFX,
-			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.GFX),
-			content: { timelineObjects },
-		})
-	)
 }
