@@ -71,8 +71,10 @@ describe('koliska bed envelope', () => {
 		expect(piece.name).toBe('BG music mute (Wipe)')
 		expect(piece.enable).toEqual({ start: 0, duration: 2500 })
 		expect(piece.lifespan).toBe(PieceLifespan.WithinPart)
+		expect(piece.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 		for (const tl of piece.content?.timelineObjects ?? []) {
-			expect(tl.enable).toEqual({ start: 0, duration: 2500 })
+			// Take-relative: object start offsets piece preroll so mute covers the full sting.
+			expect(tl.enable).toEqual({ start: hybridCasparConfig.casparcgLatency, duration: 2500 })
 			expect((tl.content as TSR.TimelineContentCCGMedia).mixer?.volume).toBe(0)
 			expect(tl.priority).toBe(2)
 		}

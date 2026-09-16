@@ -547,8 +547,9 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(iluEmpty).toBeDefined()
 		// Finite duration — open-ended ILU EMPTY keepalive-suppresses next weather bg.
-		expect(!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number').toBe(true)
-		expect(!Array.isArray(iluEmpty?.enable) && (iluEmpty?.enable.duration ?? 0) > 0).toBe(true)
+		const zaverIluClearMs =
+			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
+		expect(zaverIluClearMs).toBeGreaterThan(0)
 	})
 
 	it('wiped L3D enable is Take-relative (preroll + wipe cut); CLEAR EMPTY has no preroll', () => {
@@ -631,8 +632,11 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		expect(!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number').toBe(true)
-		expect(!Array.isArray(iluEmpty?.enable) && (iluEmpty?.enable.duration ?? 0) < 60_000).toBe(true)
+		const sportIluClearMs =
+			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number'
+				? iluEmpty.enable.duration
+				: Number.POSITIVE_INFINITY
+		expect(sportIluClearMs).toBeLessThan(60_000)
 	})
 
 	it('smoke CSV contract: headlines/privítanie→4, tema ILU↔SYN→3/4, SJV wipe overlay on Full', () => {

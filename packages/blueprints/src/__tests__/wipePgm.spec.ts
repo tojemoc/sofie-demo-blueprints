@@ -329,9 +329,14 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const bgMute = result.pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
 		expect(bgMute).toBeDefined()
 		expect(bgMute?.enable).toEqual({ start: 0, duration: 2500 })
+		expect(bgMute?.prerollDuration).toBe(configWithPlayback.casparcgLatency)
 		expect(
 			(bgMute?.content.timelineObjects ?? []).every(
-				(obj) => (obj.content as TSR.TimelineContentCCGMedia).mixer?.volume === 0
+				(obj) =>
+					!Array.isArray(obj.enable) &&
+					obj.enable.start === configWithPlayback.casparcgLatency &&
+					obj.enable.duration === 2500 &&
+					(obj.content as TSR.TimelineContentCCGMedia).mixer?.volume === 0
 			)
 		).toBe(true)
 	})

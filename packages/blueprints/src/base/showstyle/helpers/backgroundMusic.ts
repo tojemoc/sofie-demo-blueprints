@@ -59,6 +59,13 @@ export function createBackgroundMusicMutePiece(
 	durationMs?: number
 ): IBlueprintPiece {
 	const persistAfterPart = label === 'Outro'
+	const prerollMs = config.casparcgLatency
+	// Wipe mute piece prerolls for LOADBG; object enable must stay Take-relative through
+	// the sting tail (start 0 would end prerollMs early and let bg_music_c bleed under SFX).
+	const timelineEnable =
+		durationMs !== undefined && !persistAfterPart
+			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }
+			: undefined
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
@@ -75,11 +82,11 @@ export function createBackgroundMusicMutePiece(
 			timelineObjects: createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
 				volume: 0,
 				priority: 2,
-				...(durationMs !== undefined && !persistAfterPart ? { enable: { start: 0, duration: durationMs } } : {}),
+				...(timelineEnable ? { enable: timelineEnable } : {}),
 			}),
 		},
 		expectedPackages: [],
-		prerollDuration: config.casparcgLatency,
+		prerollDuration: prerollMs,
 	})
 }
 
