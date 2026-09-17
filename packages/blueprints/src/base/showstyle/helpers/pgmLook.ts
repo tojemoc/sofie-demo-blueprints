@@ -109,13 +109,13 @@ export function lookSlotForKind(kind: 'doublebox' | 'full'): LookSlot {
 /** True when this part should compose on the DoubleBox channel (BG A / ch3). */
 export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/doublebox|double-box/i.test(rawType || '')) return true
-	// ZAVER / závěr uses LED `ilu-zaver` but still needs the DB cam window on ch3
-	// (`route://5` on look A). Without this, look B Full CLEAR EMPTYs 4-115 and cam dies.
-	if (/zaver|závěr/i.test(rawType || '')) return true
+	// ZAVER / závěr avízo uses LED `ilu-zaver` + Full-look CAM/`l3d-odporucanie`
+	// (route://4 + route://5) — never DoubleBox / db_loop. Skip cam EMPTY when the
+	// part owns look CAM so Full CLEAR cannot kill 4-115.
 	return objects.some((obj) => {
 		if (obj.objectType !== ObjectType.Graphic) return false
 		const clip = String((obj as GraphicObject).clipName || '').toLowerCase()
-		return clip === 'gfx/doublebox-ilu' || clip === 'gfx/ilu-zaver'
+		return clip === 'gfx/doublebox-ilu'
 	})
 }
 
@@ -700,7 +700,9 @@ export function finalizeHypercomposedPart(
 	// Starting only at the cut left ~20–39f of map after wipe CLEAR when postroll /
 	// keepalive raced the delayed EMPTY. Finite duration — open-ended EMPTY rides
 	// keepalive into the *next* Take and suppresses incoming weather `bg_pocasie`.
-	// ZAVER is DoubleBox (look A): also EMPTY Full-look ILU so ch4 weather map dies.
+	// Leave-weather / non-ILU Takes: EMPTY look ILU so `bg_pocasie` cannot linger
+	// into ZAVER (Full) or the next story. DB Takes without look ILU also CLEAR
+	// Full ILU so a lingering ch4 weather map dies under the sting.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
 		if (hasWipe) {
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, wipeDurationMs, 0))
