@@ -557,9 +557,9 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const zaverIngest = intermediate.parts.find((part) => part.payload.externalId === zaver.part.externalId)
 		expect(zaverIngest).toBeDefined()
-		if (zaverIngest) {
-			expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
-		}
+		if (!zaverIngest) return
+
+		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
 
 		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		// Full compose: PGM routes to ch4; look B cam keeps route://5 (never EMPTY / no live db_loop).
