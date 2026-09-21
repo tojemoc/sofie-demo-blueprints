@@ -22,7 +22,8 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 export function generateVTPart(
 	context: PartContext,
 	part: PartProps<VTProps>,
-	lookSlot: LookSlot = 'B'
+	lookSlot: LookSlot = 'B',
+	previousLookSlot?: LookSlot
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const visionMixerInput = getClipPlayerInput(config)
@@ -109,7 +110,8 @@ export function generateVTPart(
 		part.payload.externalId,
 		part.objects,
 		result.pieces,
-		lookSlot
+		lookSlot,
+		previousLookSlot
 	)
 	return result
 }

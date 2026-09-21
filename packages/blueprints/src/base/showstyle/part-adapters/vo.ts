@@ -23,7 +23,8 @@ import { SisyfosLayers } from '../../studio/layers.js'
 export function generateVOPart(
 	context: PartContext,
 	part: PartProps<VOProps>,
-	lookSlot: LookSlot = 'B'
+	lookSlot: LookSlot = 'B',
+	previousLookSlot?: LookSlot
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const atemInput = getClipPlayerInput(config)
@@ -115,7 +116,8 @@ export function generateVOPart(
 		part.payload.externalId,
 		part.objects,
 		result.pieces,
-		lookSlot
+		lookSlot,
+		previousLookSlot
 	)
 	return result
 }

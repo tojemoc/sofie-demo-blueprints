@@ -13,7 +13,8 @@ import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.
 export function generateLayeredVideoPart(
 	context: PartContext,
 	part: PartProps<LayeredVideoProps>,
-	lookSlot: LookSlot = 'B'
+	lookSlot: LookSlot = 'B',
+	previousLookSlot?: LookSlot
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -54,7 +55,8 @@ export function generateLayeredVideoPart(
 		part.payload.externalId,
 		part.objects,
 		result.pieces,
-		lookSlot
+		lookSlot,
+		previousLookSlot
 	)
 	return result
 }
