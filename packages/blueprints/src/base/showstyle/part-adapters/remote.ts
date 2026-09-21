@@ -16,7 +16,8 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 export function generateRemotePart(
 	context: PartContext,
 	part: PartProps<RemoteProps>,
-	lookSlot: LookSlot = 'A'
+	lookSlot: LookSlot = 'A',
+	previousLookSlot?: LookSlot
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
@@ -76,7 +77,8 @@ export function generateRemotePart(
 		part.payload.externalId,
 		part.objects,
 		result.pieces,
-		lookSlot
+		lookSlot,
+		previousLookSlot
 	)
 	return result
 }

@@ -19,7 +19,8 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 export function generateIntroPart(
 	context: PartContext,
 	part: PartProps<IntroProps>,
-	lookSlot: LookSlot = 'B'
+	lookSlot: LookSlot = 'B',
+	previousLookSlot?: LookSlot
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -67,7 +68,8 @@ export function generateIntroPart(
 		part.payload.externalId,
 		part.objects,
 		result.pieces,
-		lookSlot
+		lookSlot,
+		previousLookSlot
 	)
 	return result
 }

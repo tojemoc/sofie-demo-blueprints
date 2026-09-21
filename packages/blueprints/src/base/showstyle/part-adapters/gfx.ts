@@ -27,7 +27,8 @@ function partHasWeatherGraphic(part: PartProps<GfxProps>): boolean {
 export function generateGfxPart(
 	context: PartContext,
 	part: PartProps<GfxProps>,
-	lookSlot: LookSlot = 'B'
+	lookSlot: LookSlot = 'B',
+	previousLookSlot?: LookSlot
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -83,7 +84,8 @@ export function generateGfxPart(
 		part.payload.externalId,
 		part.objects,
 		result.pieces,
-		lookSlot
+		lookSlot,
+		previousLookSlot
 	)
 	return result
 }

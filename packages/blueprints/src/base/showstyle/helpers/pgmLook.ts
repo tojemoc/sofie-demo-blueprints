@@ -594,7 +594,9 @@ export function finalizeHypercomposedPart(
 	partExternalId: string,
 	objects: SomeObject[],
 	pieces: IBlueprintPiece[],
-	lookSlot: LookSlot = 'A'
+	lookSlot: LookSlot = 'A',
+	/** Look claimed for the previous part. Same slot ⇒ this channel is still on-air (DB→DB). */
+	previousLookSlot?: LookSlot
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
@@ -728,7 +730,8 @@ export function finalizeHypercomposedPart(
 		pieces.push(bgLoop)
 	}
 
-	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs)
+	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
+	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs, sameLookChannel)
 
 	const alreadyRouted = pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some(
@@ -882,9 +885,15 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX lands
  * with `bg_pocasie` at the cover cut.
  *
- * DoubleBox ILU under wipe: PLAY from Take frozen on frame 0 (`playing: false`, `seek: 0`),
- * then `playing: true` at the cover cut — never empties the window; cut drift reads as
- * freeze→motion, not vanish/reappear. `db_loop` stays at enable 0 (OutOnRundownEnd fill).
+ * DoubleBox ILU under wipe:
+ * - **DB→DB** (same look channel, ch3 still on-air): do **not** touch layer 116 until
+ *   {@link WIPE_CUT_POINT_MS}. `playing: false` / `seek: 0` from Take is a LOAD/PAUSE of the
+ *   *incoming* file and replaces the outgoing clip ~380 ms before the cut (black window
+ *   under the sting). Incoming PLAY is `enable.start = wipeCutPointMs`. Outgoing ILU stays
+ *   via `previousPartKeepaliveDuration` + look postroll, both equal to the cut.
+ * - **Full→DB** (ch3 off-air): freeze incoming ILU on frame 0 from Take and play at the
+ *   cut so the idle helper is already decoded when `route://3` punches.
+ * `db_loop` stays at enable 0 (same file, OutOnRundownEnd fill — never EMPTY look A).
  *
  * Object `enable.start` is **Take-relative** once Softie `toPartDelay` is correct.
  * Wipe pieces use {@link IBlueprintPieceType.InTransition} so their large
@@ -901,7 +910,9 @@ function applyL3dTakeOffsets(
 	pieces: IBlueprintPiece[],
 	wipeDurationMs: number,
 	wipePocasie = false,
-	wipeCutPointMs: number = WIPE_CUT_POINT_MS
+	wipeCutPointMs: number = WIPE_CUT_POINT_MS,
+	/** True when this Take stays on the same BG channel the previous look already occupies. */
+	sameLookChannel = false
 ): void {
 	const hasWipe = wipeDurationMs > 0
 
@@ -943,9 +954,11 @@ function applyL3dTakeOffsets(
 			// except leave-weather ILU EMPTY which is scheduled at the cutpoint below.
 			if (content.file === 'EMPTY') continue
 
-			// DB→DB: never delay/empty the DoubleBox window. Freeze incoming ILU on
-			// frame 0 under the wipe; start motion at the cover cut.
-			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string)) {
+			// Look A ILU (ch3-116). DB→DB shares this layer with the on-air outgoing clip —
+			// a Take-time LOAD/PAUSE (`playing: false`, `seek: 0`) replaces it 380 ms early
+			// and the window goes black under the sting. Hold the incoming PLAY until the cut.
+			// Full→DB leaves ch3 off-air, so freezing frame 0 from Take is a prebuild only.
+			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string) && !sameLookChannel) {
 				content.seek = 0
 				content.playing = false
 				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<

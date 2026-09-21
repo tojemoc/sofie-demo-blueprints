@@ -116,6 +116,9 @@ export function generateParts(
 
 	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
+		// Peek BEFORE claim. Default peek is Full (`B`) — baseline PGM is `route://4`, so the
+		// first DoubleBox still prebuilds on idle ch3. A later DoubleBox sees previous `A`.
+		const previousLookSlot = lookSlots.peek()
 		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType)
 		let newPart: BlueprintResultPart
 
@@ -125,17 +128,23 @@ export function generateParts(
 					partContext,
 					rawPart as unknown as PartProps<CameraProps>,
 					countupRevealClaim,
-					lookSlot
+					lookSlot,
+					previousLookSlot
 				)
 				break
 			case PartType.Remote:
-				newPart = generateRemotePart(partContext, rawPart as unknown as PartProps<CameraProps>, lookSlot)
+				newPart = generateRemotePart(
+					partContext,
+					rawPart as unknown as PartProps<CameraProps>,
+					lookSlot,
+					previousLookSlot
+				)
 				break
 			case PartType.VT:
-				newPart = generateVTPart(partContext, rawPart as unknown as PartProps<VTProps>, lookSlot)
+				newPart = generateVTPart(partContext, rawPart as unknown as PartProps<VTProps>, lookSlot, previousLookSlot)
 				break
 			case PartType.VO:
-				newPart = generateVOPart(partContext, rawPart as unknown as PartProps<VOProps>, lookSlot)
+				newPart = generateVOPart(partContext, rawPart as unknown as PartProps<VOProps>, lookSlot, previousLookSlot)
 				break
 			case PartType.Titles:
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
@@ -143,16 +152,21 @@ export function generateParts(
 			case PartType.Intro:
 				// Intro overlay plays on PGM (210); keep Full underlay so route://4 stays beneath.
 				lookSlots.claim('B')
-				newPart = generateIntroPart(partContext, rawPart as unknown as PartProps<IntroProps>, 'B')
+				newPart = generateIntroPart(partContext, rawPart as unknown as PartProps<IntroProps>, 'B', previousLookSlot)
 				break
 			case PartType.DVE:
 				newPart = generateDVEPart(partContext, rawPart as unknown as PartProps<DVEProps>)
 				break
 			case PartType.GFX:
-				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>, lookSlot)
+				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>, lookSlot, previousLookSlot)
 				break
 			case PartType.LayeredVideo:
-				newPart = generateLayeredVideoPart(partContext, rawPart as unknown as PartProps<LayeredVideoProps>, lookSlot)
+				newPart = generateLayeredVideoPart(
+					partContext,
+					rawPart as unknown as PartProps<LayeredVideoProps>,
+					lookSlot,
+					previousLookSlot
+				)
 				break
 			case PartType.Invalid:
 				newPart = {
