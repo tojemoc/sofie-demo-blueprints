@@ -80,14 +80,18 @@ function isLookBearingPartType(type: PartType | null): boolean {
  * Semantic look channels: DoubleBox → BG A (ch3), Full → BG B (ch4).
  * Headlines / SYN / weather / fullscreen cam are always Full (`route://4`).
  * Wipe into DoubleBox PLAYs wipe on PGM 205 and hard-cuts MEDIA `route://3` at the cut point.
+ *
+ * Floated / skipped parts must not update look-slot history — they never go on-air, so a
+ * later DoubleBox should peek the last eligible look (DB→DB vs Full→DB).
  */
 export function resolveLookSlotForPart(
 	type: PartType | null,
 	objects: SomeObject[],
 	lookSlots: LookSlotSequence,
-	rawType?: string
+	rawType?: string,
+	floatedOrSkipped = false
 ): LookSlot {
-	if (!isLookBearingPartType(type)) {
+	if (!isLookBearingPartType(type) || floatedOrSkipped) {
 		return lookSlots.peek()
 	}
 	const slot = lookSlotForKind(isDoubleBoxLook(rawType, objects) ? 'doublebox' : 'full')
@@ -116,10 +120,13 @@ export function generateParts(
 
 	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
+		// Editorial skip / float — never on-air; leave lookSlots unchanged for DB→DB peek.
+		const ingestPayload = rawPart.payload as { float?: boolean; skip?: boolean }
+		const floatedOrSkipped = Boolean(ingestPayload.float || ingestPayload.skip)
 		// Peek BEFORE claim. Default peek is Full (`B`) — baseline PGM is `route://4`, so the
 		// first DoubleBox still prebuilds on idle ch3. A later DoubleBox sees previous `A`.
 		const previousLookSlot = lookSlots.peek()
-		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType)
+		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType, floatedOrSkipped)
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {
@@ -149,11 +156,17 @@ export function generateParts(
 			case PartType.Titles:
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
 				break
-			case PartType.Intro:
+			case PartType.Intro: {
 				// Intro overlay plays on PGM (210); keep Full underlay so route://4 stays beneath.
-				lookSlots.claim('B')
-				newPart = generateIntroPart(partContext, rawPart as unknown as PartProps<IntroProps>, 'B', previousLookSlot)
+				const introLook: LookSlot = floatedOrSkipped ? previousLookSlot : lookSlots.claim('B')
+				newPart = generateIntroPart(
+					partContext,
+					rawPart as unknown as PartProps<IntroProps>,
+					introLook,
+					previousLookSlot
+				)
 				break
+			}
 			case PartType.DVE:
 				newPart = generateDVEPart(partContext, rawPart as unknown as PartProps<DVEProps>)
 				break
@@ -229,8 +242,7 @@ export function generateParts(
 			newPart.pieces.push(createLedPodHeadlinePiece(partContext, studioConfig, rawPart.payload.externalId))
 		}
 		// Editorial skip / float from Rundown Editor — Sofie must not take these parts.
-		const ingestPayload = rawPart.payload as { float?: boolean; skip?: boolean }
-		if (ingestPayload.float || ingestPayload.skip) {
+		if (floatedOrSkipped) {
 			newPart.part.floated = true
 		}
 		// Add userEditOperations to any part (include the segment ones?):

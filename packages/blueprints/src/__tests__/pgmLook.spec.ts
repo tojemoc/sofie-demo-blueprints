@@ -10,7 +10,7 @@ import {
 	SegmentProps,
 	IntroProps,
 } from '../base/showstyle/definitions/index.js'
-import { generateParts } from '../base/showstyle/part-adapters/index.js'
+import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-adapters/index.js'
 import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -116,6 +116,16 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sequence.peek()).toBe('B')
 		expect(sequence.claim('A')).toBe('A')
 		expect(sequence.peek()).toBe('A')
+	})
+
+	it('resolveLookSlotForPart skips claim when floated or skipped', () => {
+		const sequence = createLookSlotSequence()
+		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('A')
+		expect(sequence.peek()).toBe('A')
+		// Floated Full must not overwrite A — later DoubleBox still peeks A for DB→DB.
+		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'Cam', true)).toBe('A')
+		expect(sequence.peek()).toBe('A')
+		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('A')
 	})
 
 	it('maps look A to BG 3 and look B to BG 4', () => {

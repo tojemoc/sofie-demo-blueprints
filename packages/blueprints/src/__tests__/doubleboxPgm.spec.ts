@@ -434,6 +434,121 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(dbLoopEmpty).toHaveLength(0)
 	})
 
+	it('floated Full between DoubleBoxes does not break DB→DB look-slot peek', () => {
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		expect(template).toBeDefined()
+		if (!template) return
+
+		type IngestPiece = {
+			id: string
+			objectType: string
+			objectTime?: number
+			duration?: number
+			clipName?: string
+			attributes: Record<string, unknown>
+		}
+		const asPayload = (part: typeof template) =>
+			part.payload as {
+				externalId?: string
+				type: string
+				float?: boolean
+				skip?: boolean
+				pieces: IngestPiece[]
+			}
+
+		const makeDb = (externalId: string, iluFile: string) => {
+			const part = JSON.parse(JSON.stringify(template)) as typeof template
+			part.externalId = externalId
+			const payload = asPayload(part)
+			payload.externalId = externalId
+			payload.type = 'DoubleBox'
+			payload.pieces = [
+				{
+					id: `${externalId}-ilu`,
+					objectType: 'doublebox-ilu',
+					objectTime: 0,
+					duration: 8,
+					clipName: '',
+					attributes: { text: externalId, iluFile },
+				},
+				{
+					id: `${externalId}-l3d`,
+					objectType: 'l3d-tema',
+					objectTime: 0,
+					duration: 8,
+					clipName: '',
+					attributes: { headline: externalId },
+				},
+				{
+					id: `${externalId}-cam`,
+					objectType: 'camera',
+					objectTime: 0,
+					duration: 0,
+					clipName: '',
+					attributes: { camNo: 1 },
+				},
+				{
+					id: `${externalId}-wipe`,
+					objectType: 'wipe',
+					objectTime: 0,
+					duration: 0,
+					clipName: '',
+					attributes: { fileName: 'wipes/wipe', transition: 'Double Box' },
+				},
+			]
+			return part
+		}
+
+		const floatedFull = JSON.parse(JSON.stringify(template)) as typeof template
+		floatedFull.externalId = 'part-floated-full'
+		const floatedPayload = asPayload(floatedFull)
+		floatedPayload.externalId = 'part-floated-full'
+		floatedPayload.type = 'Camera'
+		floatedPayload.float = true
+		floatedPayload.pieces = [
+			{
+				id: 'part-floated-full-cam',
+				objectType: 'camera',
+				objectTime: 0,
+				duration: 0,
+				clipName: '',
+				attributes: { camNo: 1 },
+			},
+		]
+
+		ingest.parts = [
+			makeDb('part-db-a', 'clips/ILU outgoing.mp4'),
+			floatedFull,
+			makeDb('part-db-b', 'clips/ILU incoming.mp4'),
+		]
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const floatedIntermediate = segment.parts.find((part) => part.payload.externalId === 'part-floated-full')
+		expect(floatedIntermediate?.payload.float || floatedIntermediate?.payload.skip).toBeTruthy()
+
+		const generated = generateParts(mockSegmentContext(), segment, undefined, createLookSlotSequence())
+		const floated = generated.parts.find((part) => part.part.externalId === 'part-floated-full')
+		const incoming = generated.parts.find((part) => part.part.externalId === 'part-db-b')
+		expect(floated?.part.floated).toBe(true)
+		expect(incoming).toBeDefined()
+		if (!incoming) return
+
+		// Without the fix, floated Full would claim look B and this Take would freeze ILU from 0
+		// (Full→DB). Last eligible look is still A → DB→DB hold until wipe cut.
+		const incomingIlu = incoming.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
+					(obj.content as { file?: string }).file === 'clips/ILU incoming'
+			)
+		expect(incomingIlu?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
+		expect(incomingContent.playing).not.toBe(false)
+		expect(incomingContent.seek).toBeUndefined()
+	})
+
 	it('selects DoubleBox camera path when gfx/doublebox-ilu clipName casing differs', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
