@@ -608,6 +608,8 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(lookADbEmpty, 'ZAVER must EMPTY look A db_loop (stray DoubleBox)').toBeDefined()
+		// After Počasie (Full): ch3 off PGM — clear at Take.
+		expect(lookADbEmpty?.enable).toEqual({ start: 0 })
 		const lookACamEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
 		)
@@ -622,6 +624,45 @@ describe('pgmLook look-kind channels + route', () => {
 			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
 		expect(zaverIluClearMs).toBeGreaterThan(0)
 		expect(zaverIluClearMs).toBe(2500)
+	})
+
+	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		// Previous look was DoubleBox (ch3 on PGM) — claim A before generating ZAVER.
+		const lookSlots = createLookSlotSequence()
+		lookSlots.claim('A')
+		const generated = generateParts(mockSegmentContext(), intermediate, createCountupRevealClaim(), lookSlots)
+		const zaver = generated.parts.find((part) =>
+			part.pieces.some((piece) =>
+				(piece.content.timelineObjects ?? []).some(
+					(obj) =>
+						obj.layer === CasparCGLayers.CasparCGIluPlayer &&
+						String((obj.content as { file?: string }).file || '').length > 0 &&
+						(obj.content as { file?: string }).file !== 'EMPTY'
+				)
+			)
+		)
+		expect(zaver).toBeDefined()
+		if (!zaver) return
+		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+
+		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const dbLoopEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
+			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(dbLoopEmpties.length).toBeGreaterThanOrEqual(1)
+		for (const obj of dbLoopEmpties) {
+			const enable = obj.enable
+			expect(Array.isArray(enable)).toBe(false)
+			if (Array.isArray(enable) || !enable) continue
+			expect(typeof enable.start).toBe('number')
+			expect(enable.start, 'no db_loop EMPTY before wipe cut').toBeGreaterThanOrEqual(WIPE_CUT_POINT_MS)
+		}
+		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_CUT_POINT_MS)).toBe(
+			true
+		)
 	})
 
 	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {

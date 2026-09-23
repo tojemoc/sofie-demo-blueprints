@@ -712,8 +712,13 @@ export function finalizeHypercomposedPart(
 		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop, undefined, dbLoopClearStartMs))
 	}
 	if (lookSlot === 'B' && partHasIluZaver(objects)) {
+		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
+		// above — do not also EMPTY it at Take via the bulk look-A clear (that would kill
+		// the on-air frame under the sting before the route cut).
 		clearObjects.push(
-			...buildLookChannelClearObjects('A'),
+			...buildLookChannelClearObjects('A', undefined, {
+				clearDoubleBoxLoop: !(hasWipe && previousLookSlot === 'A'),
+			}),
 			...buildLookIluClearObjects('A'),
 			...buildL3dLayerClearObjects('A')
 		)
@@ -1097,14 +1102,15 @@ function buildL3dLayerClearObjects(
 function buildLookChannelClearObjects(
 	lookSlot: LookSlot,
 	clipClearMs?: number,
-	options?: { clearCamera?: boolean }
+	options?: { clearCamera?: boolean; clearDoubleBoxLoop?: boolean }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
 	const clearCamera = options?.clearCamera !== false
+	const clearDoubleBoxLoop = options?.clearDoubleBoxLoop !== false
 	return [
 		emptyLookMediaObject(layers.clip, clipClearMs),
 		...(clearCamera ? [emptyLookMediaObject(layers.camera)] : []),
-		emptyLookMediaObject(layers.doubleBoxLoop),
+		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop)] : []),
 	]
 }
 
