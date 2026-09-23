@@ -371,6 +371,13 @@ describe('pgmLook look-kind channels + route', () => {
 		})
 		expect((synRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(synTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
+
+		// DB→Full: ch3 still on PGM until the route cut — hold db_loop until then.
+		const synClear = synPart.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const dbLoopEmpty = synClear?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(dbLoopEmpty?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 	})
 
 	it('parseRouteMediaChannel reads full-channel MEDIA files', () => {
@@ -752,6 +759,8 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(lookADbEmpty, 'wiped Full must EMPTY look A db_loop').toBeDefined()
+		// Full→Full: ch3 off PGM — clear stray db_loop at Take.
+		expect(lookADbEmpty?.enable).toEqual({ start: 0 })
 
 		const voPiece = sportFirst.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
 		expect(voPiece).toBeDefined()

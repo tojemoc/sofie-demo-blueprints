@@ -703,10 +703,13 @@ export function finalizeHypercomposedPart(
 	}
 	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Softie PRELOAD used
 	// to LOADBG `db_loop` during ZAVER preroll; even with lookahead NONE, OutOnSegmentEnd
-	// leftovers / mistaken route://3 must not leave a stray frame. ZAVER also CLEARs
-	// look-A ILU/CAM/L3D (ilu-zaver is LED-only).
+	// leftovers / mistaken route://3 must not leave a stray frame. When ch3 is still the
+	// outgoing PGM look (DB→Full), delay EMPTY to the route cut so the frame holds under
+	// the sting; when ch3 is off-air (Full→Full / ZAVER after Počasie), clear at Take.
+	// ZAVER also CLEARs look-A ILU/CAM/L3D (ilu-zaver is LED-only).
 	if (hasWipe && lookSlot === 'B') {
-		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop))
+		const dbLoopClearStartMs = previousLookSlot === 'A' ? wipeCutPointMs : 0
+		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop, undefined, dbLoopClearStartMs))
 	}
 	if (lookSlot === 'B' && partHasIluZaver(objects)) {
 		clearObjects.push(
