@@ -249,7 +249,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
 		expect(dbLoop?.enable).toEqual({ start: 0 })
 		const dbLoopPiece = result.pieces.find((piece) => piece.externalId === 'part-tema-1-1-ilu-fico-tarabu_db_loop')
+<<<<<<< HEAD
 		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+=======
+		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnSegmentEnd)
+>>>>>>> e22c361 (fix(spravy): clear stray DoubleBox on ZAVER+AVIZO)
 		expect(dbLoopPiece?.prerollDuration ?? 0).toBeLessThan(1500)
 		// Never EMPTY look A clip/CAM/db_loop on wiped DoubleBox Takes.
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
@@ -728,5 +732,17 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		).toBe(true)
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(route?.content).toMatchObject({ file: 'route://4' })
+
+		// Stray DoubleBox kill: EMPTY look A db_loop / ILU / CAM / L3D for the part.
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(clearPiece).toBeDefined()
+		const lookAEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
+			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		const emptyLayers = new Set(lookAEmpties.map((obj) => obj.layer))
+		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(true)
+		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmIluPlayer)).toBe(true)
+		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmCamera)).toBe(true)
+		expect(emptyLayers.has(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toBe(true)
 	})
 })

@@ -161,7 +161,11 @@ describe('pgmLook look-kind channels + route', () => {
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
 
-		expect(generated.parts.map((part) => part.part.externalId)).toEqual(['part-hl-1', 'part-hl-2', 'part-hl-3'])
+		expect(generated.parts.map((part) => part.part.externalId)).toEqual([
+			'part-headlines-1-headline1',
+			'part-headlines-2-headline2',
+			'part-headlines-3-headline3',
+		])
 		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(4)
 		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(4)
 		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4)
@@ -302,13 +306,13 @@ describe('pgmLook look-kind channels + route', () => {
 	it('wiped DoubleBox → PGM overlay + delayed route://3; wiped SYN (Full) → overlay + delayed route://4', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const synIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-syn-1')
+		const synIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-2-syn-cluster-taraba')
 		const payload = synIngest?.payload as {
 			pieces: Array<{ id: string; objectType: string; attributes: Record<string, unknown> }>
 		}
 		if (payload && !payload.pieces.some((piece) => piece.objectType.toLowerCase() === 'wipe')) {
 			payload.pieces.push({
-				id: 'part-tema-1-syn-1-wipe',
+				id: 'part-tema-1-2-syn-cluster-taraba-wipe',
 				objectType: 'wipe',
 				attributes: { fileName: 'wipes/wipe', transition: 'ILU TO SYN' },
 			})
@@ -316,8 +320,8 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
-		const dbPart = generated.parts.find((part) => part.part.externalId === 'part-tema-1-db')
-		const synPart = generated.parts.find((part) => part.part.externalId === 'part-tema-1-syn-1')
+		const dbPart = generated.parts.find((part) => part.part.externalId === 'part-tema-1-1-ilu-fico-tarabu')
+		const synPart = generated.parts.find((part) => part.part.externalId === 'part-tema-1-2-syn-cluster-taraba')
 		expect(dbPart).toBeDefined()
 		expect(synPart).toBeDefined()
 		if (!dbPart || !synPart) return
@@ -397,12 +401,12 @@ describe('pgmLook look-kind channels + route', () => {
 			lookSlots
 		)
 
-		const tema3Syn = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-1')
-		const tema3Db = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-2') // ILU Drucker (DoubleBox)
+		const tema3Syn = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-2-syn-feren')
+		const tema3Db = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-3-ilu-estok')
 		const tema4Db = tema4.parts[0]
 		expect(tema3Syn).toBeDefined()
 		expect(tema3Db).toBeDefined()
-		expect(tema4Db?.part.externalId).toBe('part-tema-4-db')
+		expect(tema4Db?.part.externalId).toBe('part-tema-4-1-ilu-cifare')
 		if (!tema3Syn || !tema3Db || !tema4Db) return
 
 		expect(pgmRouteChannel(tema3Syn.pieces)).toBe(4) // SYN Full
@@ -597,6 +601,14 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		const lookADbEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(lookADbEmpty, 'ZAVER must EMPTY look A db_loop (stray DoubleBox)').toBeDefined()
+		const lookACamEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(lookACamEmpty).toBeDefined()
 		const iluEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
@@ -794,15 +806,15 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 
 		const introSeg = gen('seg-intro')
-		const intro = introSeg.parts.find((part) => part.part.externalId === 'part-intro')
-		const privitanie = introSeg.parts.find((part) => part.part.externalId === 'part-intro-mod')
+		const intro = introSeg.parts.find((part) => part.part.externalId === 'part-intro-1-intro')
+		const privitanie = introSeg.parts.find((part) => part.part.externalId === 'part-intro-2-gabriela-kajt-rov')
 		expect(pgmRouteChannel(intro?.pieces ?? [])).toBe(4)
 		expect(pgmRouteChannel(privitanie?.pieces ?? [])).toBe(4)
 		expect(privitanie?.pieces.some((piece) => piece.externalId.endsWith('_full_bg_loop'))).toBe(true)
 
 		const tema1 = gen('seg-tema-1')
-		const db = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-db')
-		const syn = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-syn-1')
+		const db = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-1-ilu-fico-tarabu')
+		const syn = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-2-syn-cluster-taraba')
 		expect(pgmRouteChannel(db?.pieces ?? [])).toBe(3)
 		expect(pgmRouteChannel(syn?.pieces ?? [])).toBe(4)
 		const dbRoute = (db?.pieces ?? [])
@@ -819,7 +831,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(syn?.pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(true)
 
 		const sjv = gen('seg-sjv')
-		const sjvSyn = sjv.parts.find((part) => part.part.externalId === 'part-sjv-syn-1')
+		const sjvSyn = sjv.parts.find((part) => part.part.externalId === 'part-sjv-1-litva')
 		expect(pgmRouteChannel(sjvSyn?.pieces ?? [])).toBe(4)
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
