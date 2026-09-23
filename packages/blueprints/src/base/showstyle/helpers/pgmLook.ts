@@ -994,8 +994,8 @@ function applyL3dTakeOffsets(
 				]
 				continue
 			}
-					// Continuous db_loop OutOnSegmentEnd — keep enable 0 so the frame never
-					// blinks off between DoubleBoxes in the same tema.
+			// Continuous db_loop OutOnSegmentEnd — keep enable 0 so the frame never
+			// blinks off between DoubleBoxes in the same tema.
 			// blanks between keepalive end and a delayed incoming PLAY.
 			if (hasWipe && layer === (LOOK_A_LAYERS.doubleBoxLoop as string)) {
 				continue

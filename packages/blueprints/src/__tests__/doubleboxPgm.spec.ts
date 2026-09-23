@@ -282,7 +282,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
 		// Overlay before cut; countup + route share the cover instant.
-		expect(countupReveal?.enable.start).toBe(wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined)
+		expect(countupReveal?.enable.start).toBe(
+			wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined
+		)
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
