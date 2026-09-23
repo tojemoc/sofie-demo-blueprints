@@ -12,7 +12,7 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 | Headline 1–3 | Full (4) | `route://4` | hard cut | Full companion `bg_loop` + cam + L3D |
 | Intro | Full underlay (4) | `route://4` | `intro.mov` on PGM 210 | Overlay on PGM; no `4→3` under intro |
 | Privítanie (Cam) | Full (4) | `route://4` | — | Fullscreen cam + `l3d-predstavovak` |
-| Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 205** from Take | Overlay at 0; route hard-cuts at `WIPE_CUT_POINT_MS`; previous look keepalive **until the cut** (not the full sting). DB→DB: incoming ILU PLAY at that instant — do not LOAD/PAUSE 3-116 early. `db_loop` + cam + countup |
+| Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 205** from Take | Overlay at 0; route hard-cuts at `WIPE_CUT_POINT_MS`; previous look keepalive **until the cut** (not the full sting). DB→DB: incoming ILU PLAY at that instant — do not LOAD/PAUSE 3-116 early. `db_loop` + cam; **countup** also at the cut (under wipe) |
 | Tema N SYN | Full (4) | `route://4` | hard cut | L3D ADD after short `L3D_OUT_MS` |
 | Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut | |
 | SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 205** from Take | L3D layer EMPTYed at 0 then ADD at cut; `wipe_pocasie` also EMPTYs ch4 clip/CAM/`db_loop`; weather MEDIA/L3D at cut |

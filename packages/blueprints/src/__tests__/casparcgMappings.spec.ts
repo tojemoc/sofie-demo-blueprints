@@ -274,6 +274,7 @@ describe('casparcgMappings', () => {
 		expect(mappings[CasparCGLayers.CasparCGPgmCameraB]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmCameraIngest]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayer]?.lookahead).toBe(LookaheadMode.PRELOAD)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsLogo]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]?.lookahead).toBe(LookaheadMode.NONE)

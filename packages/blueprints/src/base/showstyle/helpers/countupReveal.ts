@@ -89,8 +89,8 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 function countupTimelineObject(mode: 'reveal' | 'sustain' | 'mute'): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const fadeIn = mode === 'reveal'
 	const muted = mode === 'mute' || mode === 'reveal'
-	// Reveal starts PLAY on first DoubleBox Take (not Activate) at opacity/volume 0,
-	// then fades up — hidden through headlines / L3D-mod / first wipe.
+	// Reveal starts PLAY on first DoubleBox Take at the wipe cover cut (opacity/volume 0),
+	// then fades up — hidden through headlines / L3D-mod / wipe until cutPoint.
 	const hiddenUntilFade = mode === 'reveal'
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -117,13 +117,14 @@ function createCountupPiece(
 	config: StudioConfig,
 	partExternalId: string,
 	mode: 'reveal' | 'sustain' | 'mute',
-	options?: { persistMute?: boolean }
+	options?: { persistMute?: boolean; startMs?: number }
 ): IBlueprintPiece {
 	const name = mode === 'reveal' ? '360 countup' : mode === 'mute' ? '360 countup (mute)' : '360 countup (hold)'
 	const persistMute = mode === 'mute' && options?.persistMute
+	const startMs = Math.max(0, options?.startMs ?? 0)
 	return literal<IBlueprintPiece>({
 		enable: {
-			start: 0,
+			start: startMs,
 		},
 		externalId: `${partExternalId}_countup_${mode}`,
 		name,
@@ -148,13 +149,29 @@ function createCountupPiece(
  * Fade countup in on first DoubleBox Take (after L3D-mod + wipe into first tema).
  * Starts Caspar PLAY here (opacity/volume 0 → fade) — not on rundown Activate —
  * so headlines never show countup.
+ *
+ * On wiped Takes, pass `startMs` = editorial wipe cut point so PLAY lands under the
+ * cover with the route hard-cut — never at Take (before the sting has covered).
  */
 export function createCountupRevealPiece(
 	context: ICommonContext,
 	config: StudioConfig,
-	partExternalId: string
+	partExternalId: string,
+	options?: { startMs?: number }
 ): IBlueprintPiece {
-	return createCountupPiece(context, config, partExternalId, 'reveal')
+	return createCountupPiece(context, config, partExternalId, 'reveal', options)
+}
+
+/**
+ * Wiped first-DoubleBox: delay countup reveal to the cover cut (same instant as
+ * `route://` hard-cut). Overlay wipe owns 0→cut; countup must not PLAY at Take.
+ */
+export function delayCountupRevealToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: number): void {
+	const startMs = Math.max(0, wipeCutPointMs)
+	for (const piece of pieces) {
+		if (!piece.externalId?.endsWith('_countup_reveal')) continue
+		piece.enable = { start: startMs }
+	}
 }
 
 /**

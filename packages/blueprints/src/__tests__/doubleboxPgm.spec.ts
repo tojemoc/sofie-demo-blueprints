@@ -132,7 +132,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 	it('tema-1 DoubleBox parts use doublebox-ilu + l3d-tema + CAM FILL (no crop) on Take', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(part).toBeDefined()
 		if (!part) return
 
@@ -150,7 +150,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		payload.type = 'DoubleBox'
 		payload.pieces = [
 			{
-				id: 'piece-part-tema-1-db-ilu',
+				id: 'piece-part-tema-1-1-ilu-fico-tarabu-ilu',
 				objectType: 'doublebox-ilu',
 				objectTime: 0,
 				duration: 8,
@@ -158,7 +158,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				attributes: { text: 'Tematický titulok', iluFile: 'clips/ILU bednar.mp4' },
 			},
 			{
-				id: 'piece-part-tema-1-db-l3d',
+				id: 'piece-part-tema-1-1-ilu-fico-tarabu-l3d',
 				objectType: 'l3d-tema',
 				objectTime: 0,
 				duration: 8,
@@ -166,7 +166,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				attributes: { headline: 'Tematický titulok' },
 			},
 			{
-				id: 'piece-part-tema-1-db-cam',
+				id: 'piece-part-tema-1-1-ilu-fico-tarabu-cam',
 				objectType: 'camera',
 				objectTime: 0,
 				duration: 0,
@@ -174,7 +174,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				attributes: { camNo: 1 },
 			},
 			{
-				id: 'wipe-part-tema-1-db',
+				id: 'wipe-part-tema-1-1-ilu-fico-tarabu',
 				objectType: 'wipe',
 				objectTime: 0,
 				duration: 0,
@@ -184,7 +184,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		]
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 
 		expect(dbPart?.type).toBe(PartType.Camera)
 		expect(dbPart?.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)
@@ -248,7 +248,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const dbLoop = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop)
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
 		expect(dbLoop?.enable).toEqual({ start: 0 })
-		const dbLoopPiece = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_db_loop')
+		const dbLoopPiece = result.pieces.find((piece) => piece.externalId === 'part-tema-1-1-ilu-fico-tarabu_db_loop')
 		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		expect(dbLoopPiece?.prerollDuration ?? 0).toBeLessThan(1500)
 		// Never EMPTY look A clip/CAM/db_loop on wiped DoubleBox Takes.
@@ -262,8 +262,10 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		expect(lookAClears).toHaveLength(0)
 
-		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
+		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-1-ilu-fico-tarabu_countup_reveal')
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		// Wiped first DoubleBox: countup PLAY at cover cut (with route://), not at Take.
+		expect(countupReveal?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		const countupTl = countupReveal?.content.timelineObjects?.[0]
 		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
 		expect(countupTl?.content).toMatchObject({
@@ -277,6 +279,10 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()
 		expect(wipe?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
+		// Overlay before cut; countup + route share the cover instant.
+		expect(countupReveal?.enable.start).toBe(wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined)
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -293,7 +299,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 	it('DB→DB wipe holds outgoing ILU until wipeCutPointMs and PLAYs incoming then', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(template).toBeDefined()
 		if (!template) return
 
@@ -436,7 +442,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 	it('floated Full between DoubleBoxes does not break DB→DB look-slot peek', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(template).toBeDefined()
 		if (!template) return
 
@@ -551,7 +557,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 	it('selects DoubleBox camera path when gfx/doublebox-ilu clipName casing differs', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(part).toBeDefined()
 		if (!part) return
 
@@ -588,7 +594,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		]
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(dbPart).toBeDefined()
 		if (!dbPart) return
 
@@ -617,7 +623,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 	it('coerces stale headline+bypass ILU on a DoubleBox part to doublebox-ilu window FILL', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
-		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
+		const part = ingest.parts.find((p) => p.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(part).toBeDefined()
 		if (!part) return
 
@@ -649,7 +655,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-db')
+		const dbPart = segment.parts.find((p) => p.payload.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(dbPart).toBeDefined()
 		if (!dbPart) return
 		expect(dbPart.objects.some((obj) => obj.clipName === 'gfx/doublebox-ilu')).toBe(true)

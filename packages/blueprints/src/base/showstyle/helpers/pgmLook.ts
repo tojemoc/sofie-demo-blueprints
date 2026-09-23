@@ -26,6 +26,7 @@ import {
 } from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
+import { delayCountupRevealToWipeCut } from './countupReveal.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { createLookCameraClearTimelineObject } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
@@ -655,6 +656,9 @@ export function finalizeHypercomposedPart(
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
 		// Kolíska beds ride Caspar audio layers — Sisyfos ForceMute does not duck them.
 		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
+		// Countup reveal must land under the cover with the route cut — not at Take
+		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
+		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)

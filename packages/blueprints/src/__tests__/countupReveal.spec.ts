@@ -7,6 +7,8 @@ import {
 	appendCountupSustainIfRevealed,
 	beginCountupRevealGeneration,
 	createCountupRevealClaim,
+	createCountupRevealPiece,
+	delayCountupRevealToWipeCut,
 	getCountupRevealClaimForGeneration,
 	partShouldMuteCountup,
 	partShouldPersistCountupMute,
@@ -20,6 +22,16 @@ import { hybridCasparConfig, mockSegmentContext } from './helpers/smokeRundownIn
 describe('countupReveal claim', () => {
 	beforeEach(() => {
 		resetCountupRevealGenerationForTests()
+	})
+
+	it('delayCountupRevealToWipeCut moves reveal enable to the cover cut', () => {
+		const ctx = new PartContext(mockSegmentContext(), 'part-db-1')
+		const reveal = createCountupRevealPiece(ctx, hybridCasparConfig, 'part-db-1')
+		expect(reveal.enable).toEqual({ start: 0 })
+		delayCountupRevealToWipeCut([reveal], 380)
+		expect(reveal.enable).toEqual({ start: 380 })
+		delayCountupRevealToWipeCut([reveal], 1100)
+		expect(reveal.enable).toEqual({ start: 1100 })
 	})
 
 	it('allows one reveal per generation per rundownId, again after a new generation', () => {
