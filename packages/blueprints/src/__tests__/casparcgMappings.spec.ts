@@ -265,10 +265,16 @@ describe('casparcgMappings', () => {
 		}
 	})
 
-	it('preloads BG look mappings and does not lookahead the PGM route', () => {
+	it('does not preload live look compose layers (avoids early LOAD replacing on-air)', () => {
 		const mappings = getCasparCGMappings({ studio: baseStudioConfig })
-		expect(mappings[CasparCGLayers.CasparCGClipPlayer2]?.lookahead).toBe(LookaheadMode.PRELOAD)
-		expect(mappings[CasparCGLayers.CasparCGClipPlayer2B]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		// Clip / ILU / db_loop must be NONE — PRELOAD LOADBGs the next Take onto the
+		// live layer under the wipe (DB ILU cut, Full black blink, stray db_loop on ZAVER).
+		expect(mappings[CasparCGLayers.CasparCGClipPlayer2]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGClipPlayer2B]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmIluPlayer]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmIluPlayerB]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmDoubleBoxLoop]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]?.lookahead).toBe(LookaheadMode.NONE)
 		// Look CAM layers route://ingest — no native DeckLink PRELOAD. Ingest mapping also NONE.
 		expect(mappings[CasparCGLayers.CasparCGPgmCamera]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmCameraB]?.lookahead).toBe(LookaheadMode.NONE)

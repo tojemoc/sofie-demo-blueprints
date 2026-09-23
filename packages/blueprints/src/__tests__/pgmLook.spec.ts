@@ -742,6 +742,17 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sportFirst.part.autoNext).toBe(true)
 		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
 
+		// Full→Full: do not EMPTY the live clip (black blink under wipe). Kill stray db_loop on ch3.
+		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const lookBClipEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(lookBClipEmpty).toBeUndefined()
+		const lookADbEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(lookADbEmpty, 'wiped Full must EMPTY look A db_loop').toBeDefined()
+
 		const voPiece = sportFirst.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
 		expect(voPiece).toBeDefined()
 		// Hold last frame: no piece.enable.duration (loop:false alone is not enough).
@@ -767,7 +778,6 @@ describe('pgmLook look-kind channels + route', () => {
 		// start:1s falls under sting → object delay lands ADD at wipe end (Take-relative).
 		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(wipeDurationMs - objectTimeMs)
 
-		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)

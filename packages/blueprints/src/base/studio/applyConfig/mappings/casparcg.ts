@@ -68,22 +68,18 @@ function lookStackMappings(
 	| CasparCGLayers.CasparCGPgmDoubleBoxLoop
 	| CasparCGLayers.CasparCGGraphicsPgmLowerThird
 > {
+	// NONE on compose layers: PRELOAD LOADBGs the *next* clip onto the live layer
+	// during InTransition preroll and replaces the on-air producer early — visible as
+	// DB→DB ILU cutting under the wipe, Full→Full black blinks, and stray `db_loop`
+	// LOADBG during ZAVER while PGM is still `route://4`. Camera was already NONE.
 	return {
-		[CasparCGLayers.CasparCGClipPlayer2]: casparLayerMapping(
-			channel,
-			BgChannelLayers.ClipPlayer,
-			LookaheadMode.PRELOAD
-		),
-		[CasparCGLayers.CasparCGPgmIluPlayer]: casparLayerMapping(
-			channel,
-			BgChannelLayers.IluPlayer,
-			LookaheadMode.PRELOAD
-		),
+		[CasparCGLayers.CasparCGClipPlayer2]: casparLayerMapping(channel, BgChannelLayers.ClipPlayer, LookaheadMode.NONE),
+		[CasparCGLayers.CasparCGPgmIluPlayer]: casparLayerMapping(channel, BgChannelLayers.IluPlayer, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmCamera]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: casparLayerMapping(
 			channel,
 			BgChannelLayers.DoubleBoxLoop,
-			LookaheadMode.PRELOAD
+			LookaheadMode.NONE
 		),
 		// NONE: PRELOAD of the next L3D on the same CEF layer becomes CG UPDATE
 		// (text swap, no in/out animation). Takes must STOP then ADD instead.
@@ -106,21 +102,13 @@ function lookStackMappingsB(
 	| CasparCGLayers.CasparCGGraphicsPgmLowerThirdB
 > {
 	return {
-		[CasparCGLayers.CasparCGClipPlayer2B]: casparLayerMapping(
-			channel,
-			BgChannelLayers.ClipPlayer,
-			LookaheadMode.PRELOAD
-		),
-		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparLayerMapping(
-			channel,
-			BgChannelLayers.IluPlayer,
-			LookaheadMode.PRELOAD
-		),
+		[CasparCGLayers.CasparCGClipPlayer2B]: casparLayerMapping(channel, BgChannelLayers.ClipPlayer, LookaheadMode.NONE),
+		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparLayerMapping(channel, BgChannelLayers.IluPlayer, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmCameraB]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparLayerMapping(
 			channel,
 			BgChannelLayers.DoubleBoxLoop,
-			LookaheadMode.PRELOAD
+			LookaheadMode.NONE
 		),
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]: casparLayerMapping(
 			channel,
