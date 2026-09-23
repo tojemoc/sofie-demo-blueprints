@@ -641,6 +641,7 @@ export function finalizeHypercomposedPart(
 		: undefined
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
+	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
@@ -686,15 +687,13 @@ export function finalizeHypercomposedPart(
 		// the clear window while the sting/keepalive still covers.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearDurationMs))
 	}
-	// Full→Full wipes (SJV→ŠPORT, ŠPORT→Počasie, …): EMPTY leftover SYN on the clip
-	// layer so previous editorial audio/video cannot ride under wipe_sport / wipe_pocasie.
-	// wipe_pocasie: EMPTY through the full sting so sport cannot flash after wipe CLEAR
-	// when EMPTY expired at cut while bg_loop raced same priority. Other Full wipes:
-	// EMPTY through cover cut only (mute under sting; new SYN wins at cut).
-	// DoubleBox Takes compose on look A — never EMPTY ch3 (never-empty DB window).
-	// Never EMPTY the look camera when this part owns cam (ZAVER / fullscreen cam) —
-	// CLEAR prio 2 was killing `route://5` on 4-115 after Activate had DeckLink live.
-	if (hasWipe && lookSlot === 'B') {
+	// Full wipe onto a *new* look channel (e.g. DoubleBox→Full): EMPTY stale clip/CAM/
+	// db_loop on ch4 under the sting. Full→Full (SJV→ŠPORT, ŠPORT→Počasie, …) must
+	// NOT EMPTY the live clip — that paints black on route://4 under a still-open
+	// wipe and reads as a blink; keepalive + delayed incoming MEDIA at the cut is enough
+	// (audio already muted for the sting). DoubleBox Takes never EMPTY ch3.
+	// Never EMPTY the look camera when this part owns cam (ZAVER / fullscreen cam).
+	if (hasWipe && lookSlot === 'B' && !sameLookChannel) {
 		const clipClearMs = wipePocasie ? wipeDurationMs : wipeCutPointMs
 		clearObjects.push(
 			...buildLookChannelClearObjects(lookSlot, clipClearMs, {
@@ -702,13 +701,24 @@ export function finalizeHypercomposedPart(
 			})
 		)
 	}
-	// ZAVER+AVIZO is Full look B — kill any leftover DoubleBox compose on ch3
-	// (db_loop / ILU / CAM / L3D). Older bundles used OutOnRundownEnd for db_loop so
-	// the frame survived into závěr; even with OutOnSegmentEnd, a same-rundown
-	// leftover or mistaken route://3 must not leave a stray DoubleBox on air.
+	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Softie PRELOAD used
+	// to LOADBG `db_loop` during ZAVER preroll; even with lookahead NONE, OutOnSegmentEnd
+	// leftovers / mistaken route://3 must not leave a stray frame. When ch3 is still the
+	// outgoing PGM look (DB→Full), delay EMPTY to the route cut so the frame holds under
+	// the sting; when ch3 is off-air (Full→Full / ZAVER after Počasie), clear at Take.
+	// ZAVER also CLEARs look-A ILU/CAM/L3D (ilu-zaver is LED-only).
+	if (hasWipe && lookSlot === 'B') {
+		const dbLoopClearStartMs = previousLookSlot === 'A' ? wipeCutPointMs : 0
+		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop, undefined, dbLoopClearStartMs))
+	}
 	if (lookSlot === 'B' && partHasIluZaver(objects)) {
+		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
+		// above — do not also EMPTY it at Take via the bulk look-A clear (that would kill
+		// the on-air frame under the sting before the route cut).
 		clearObjects.push(
-			...buildLookChannelClearObjects('A'),
+			...buildLookChannelClearObjects('A', undefined, {
+				clearDoubleBoxLoop: !(hasWipe && previousLookSlot === 'A'),
+			}),
 			...buildLookIluClearObjects('A'),
 			...buildL3dLayerClearObjects('A')
 		)
@@ -745,8 +755,7 @@ export function finalizeHypercomposedPart(
 		pieces.push(bgLoop)
 	}
 
-	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
-	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs, sameLookChannel)
+	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs)
 
 	const alreadyRouted = pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some(
@@ -901,13 +910,11 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * with `bg_pocasie` at the cover cut.
  *
  * DoubleBox ILU under wipe:
- * - **DB→DB** (same look channel, ch3 still on-air): do **not** touch layer 116 until
- *   {@link WIPE_CUT_POINT_MS}. `playing: false` / `seek: 0` from Take is a LOAD/PAUSE of the
- *   *incoming* file and replaces the outgoing clip ~380 ms before the cut (black window
- *   under the sting). Incoming PLAY is `enable.start = wipeCutPointMs`. Outgoing ILU stays
- *   via `previousPartKeepaliveDuration` + look postroll, both equal to the cut.
- * - **Full→DB** (ch3 off-air): freeze incoming ILU on frame 0 from Take and play at the
- *   cut so the idle helper is already decoded when `route://3` punches.
+ * - Always delay incoming ILU PLAY to {@link wipeCutPointMs}. Never `playing: false` /
+ *   `seek: 0` from Take — that LOAD/PAUSE replaces the on-air outgoing clip under the
+ *   sting (DB→DB between themes). Full→DB (ch3 idle) uses the same delayed PLAY once
+ *   look ILU mappings use LookaheadMode.NONE (PRELOAD was an early LOAD too).
+ * - Outgoing ILU stays via `previousPartKeepaliveDuration` + look postroll (= cut).
  * `db_loop` stays at enable 0 (same file, OutOnSegmentEnd fill — never EMPTY look A
  * on DoubleBox Takes).
  *
@@ -926,9 +933,7 @@ function applyL3dTakeOffsets(
 	pieces: IBlueprintPiece[],
 	wipeDurationMs: number,
 	wipePocasie = false,
-	wipeCutPointMs: number = WIPE_CUT_POINT_MS,
-	/** True when this Take stays on the same BG channel the previous look already occupies. */
-	sameLookChannel = false
+	wipeCutPointMs: number = WIPE_CUT_POINT_MS
 ): void {
 	const hasWipe = wipeDurationMs > 0
 
@@ -970,28 +975,12 @@ function applyL3dTakeOffsets(
 			// except leave-weather ILU EMPTY which is scheduled at the cutpoint below.
 			if (content.file === 'EMPTY') continue
 
-			// Look A ILU (ch3-116). DB→DB shares this layer with the on-air outgoing clip —
-			// a Take-time LOAD/PAUSE (`playing: false`, `seek: 0`) replaces it 380 ms early
-			// and the window goes black under the sting. Hold the incoming PLAY until the cut.
-			// Full→DB leaves ch3 off-air, so freezing frame 0 from Take is a prebuild only.
-			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string) && !sameLookChannel) {
-				content.seek = 0
-				content.playing = false
-				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
-					TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
-				>
-				;(obj as TimelineBlueprintExt).keyframes = [
-					...existing,
-					{
-						id: '',
-						enable: { start: wipeCutPointMs },
-						content: {
-							deviceType: TSR.DeviceType.CASPARCG,
-							type: TSR.TimelineContentTypeCasparCg.MEDIA,
-							playing: true,
-						},
-					},
-				]
+			// Look A ILU (ch3-116). Never `playing: false` / `seek: 0` from Take — that is a
+			// LOAD/PAUSE which replaces the on-air outgoing clip under the wipe (DB→DB between
+			// themes). Full→DB (ch3 idle) is fine with a delayed PLAY at the cut too — Softie
+			// LOADBGs via piece timing once mappings are LookaheadMode.NONE.
+			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string)) {
+				shiftEnableStartIfAtTake(obj, lookMediaDelay)
 				continue
 			}
 			// Continuous db_loop OutOnSegmentEnd — keep enable 0 so the frame never
@@ -1113,14 +1102,15 @@ function buildL3dLayerClearObjects(
 function buildLookChannelClearObjects(
 	lookSlot: LookSlot,
 	clipClearMs?: number,
-	options?: { clearCamera?: boolean }
+	options?: { clearCamera?: boolean; clearDoubleBoxLoop?: boolean }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
 	const clearCamera = options?.clearCamera !== false
+	const clearDoubleBoxLoop = options?.clearDoubleBoxLoop !== false
 	return [
 		emptyLookMediaObject(layers.clip, clipClearMs),
 		...(clearCamera ? [emptyLookMediaObject(layers.camera)] : []),
-		emptyLookMediaObject(layers.doubleBoxLoop),
+		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop)] : []),
 	]
 }
 

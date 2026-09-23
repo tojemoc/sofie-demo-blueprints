@@ -224,16 +224,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
 			},
 		})
-		// Single DoubleBox (previous look is not A): ch3 is off-air, so freeze frame 0 from Take.
-		// DB→DB must NOT do this — see the following test.
-		expect(pgmIlu?.enable).toEqual({ start: 0 })
-		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
-		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).seek).toBe(0)
-		const unfreeze = pgmIlu?.keyframes?.find(
-			(kf) => (kf.content as { playing?: boolean } | undefined)?.playing === true
-		)
-		expect(unfreeze?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
-		expect(unfreeze?.content).toMatchObject({ playing: true })
+		// Wiped DoubleBox: delay ILU PLAY to the cover cut (never freeze/LOAD from Take —
+		// that replaces on-air DB→DB under the sting). Same path as Intro→first theme.
+		expect(pgmIlu?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
+		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).seek).toBeUndefined()
+		expect(
+			(pgmIlu?.keyframes ?? []).some((kf) => (kf.content as { playing?: boolean } | undefined)?.playing === true)
+		).toBe(false)
 
 		const tema = timeline.find(
 			(obj) =>
