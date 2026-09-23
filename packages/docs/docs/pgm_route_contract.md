@@ -16,7 +16,7 @@ Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, Dou
 | Tema N SYN | Full (4) | `route://4` | hard cut | L3D ADD after short `L3D_OUT_MS` |
 | Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut | |
 | SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 205** from Take | L3D layer EMPTYed at 0 then ADD at cut; `wipe_pocasie` also EMPTYs ch4 clip/CAM/`db_loop`; weather MEDIA/L3D at cut |
-| SYN avízo / last words | Full (4) | `route://4` | hard cut | LED: windowed `ilu-zaver` (~60–68%) over `bg_loop`; PGM: CAM + L3DO |
+| SYN avízo / last words | Full (4) | `route://4` | hard cut / wipe | LED: windowed `ilu-zaver` (~60–68%) over `bg_loop`; PGM: CAM + L3DO; **EMPTY look A** (`db_loop`/ILU/CAM) so no stray DoubleBox |
 | Outro | Full (4) | `route://4` | `outro.mov` on PGM 210 | beds/SFX muted **OutOnRundownEnd**; freeze last frame |
 
 **LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a
