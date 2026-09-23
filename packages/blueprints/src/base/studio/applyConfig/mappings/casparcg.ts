@@ -145,7 +145,14 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGAudioBed]: casparLayerMapping(ledChannel, LedChannelLayers.AudioBed),
 
 		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.Route),
-		[CasparCGLayers.CasparCGPgmEffectsPlayer]: casparLayerMapping(pgmChannel, PgmChannelLayers.EffectsPlayer),
+		// PRELOAD: wipe.mov must LOADBG during InTransition preroll. NONE cold-starts
+		// PLAY at Take (~40–60f ffmpeg latency) so the cover-cut lands before the sting
+		// is on screen — countup / route:// flip flash under an incomplete wipe.
+		[CasparCGLayers.CasparCGPgmEffectsPlayer]: casparLayerMapping(
+			pgmChannel,
+			PgmChannelLayers.EffectsPlayer,
+			LookaheadMode.PRELOAD
+		),
 		[CasparCGLayers.CasparCGPgmIntroPlayer]: casparLayerMapping(pgmChannel, PgmChannelLayers.IntroOverlay),
 		[CasparCGLayers.CasparCGGraphicsLogo]: casparLayerMapping(pgmChannel, PgmChannelLayers.GraphicsLogo),
 		[CasparCGLayers.CasparCGAudioBedPgm]: casparLayerMapping(pgmChannel, PgmChannelLayers.AudioBed),

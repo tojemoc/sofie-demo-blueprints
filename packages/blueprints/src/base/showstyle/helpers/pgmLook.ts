@@ -26,6 +26,7 @@ import {
 } from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
+import { delayCountupRevealToWipeCut } from './countupReveal.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { createLookCameraClearTimelineObject } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
@@ -655,6 +656,9 @@ export function finalizeHypercomposedPart(
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
 		// Kolíska beds ride Caspar audio layers — Sisyfos ForceMute does not duck them.
 		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
+		// Countup reveal must land under the cover with the route cut — not at Take
+		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
+		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
@@ -696,6 +700,17 @@ export function finalizeHypercomposedPart(
 			...buildLookChannelClearObjects(lookSlot, clipClearMs, {
 				clearCamera: !partHasLookCameraMedia(pieces, lookSlot),
 			})
+		)
+	}
+	// ZAVER+AVIZO is Full look B — kill any leftover DoubleBox compose on ch3
+	// (db_loop / ILU / CAM / L3D). Older bundles used OutOnRundownEnd for db_loop so
+	// the frame survived into závěr; even with OutOnSegmentEnd, a same-rundown
+	// leftover or mistaken route://3 must not leave a stray DoubleBox on air.
+	if (lookSlot === 'B' && partHasIluZaver(objects)) {
+		clearObjects.push(
+			...buildLookChannelClearObjects('A'),
+			...buildLookIluClearObjects('A'),
+			...buildL3dLayerClearObjects('A')
 		)
 	}
 	// Leaving Počasie: clear bg_pocasie from Take through wipe end (while covered).
@@ -893,7 +908,8 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  *   via `previousPartKeepaliveDuration` + look postroll, both equal to the cut.
  * - **Full→DB** (ch3 off-air): freeze incoming ILU on frame 0 from Take and play at the
  *   cut so the idle helper is already decoded when `route://3` punches.
- * `db_loop` stays at enable 0 (same file, OutOnRundownEnd fill — never EMPTY look A).
+ * `db_loop` stays at enable 0 (same file, OutOnSegmentEnd fill — never EMPTY look A
+ * on DoubleBox Takes).
  *
  * Object `enable.start` is **Take-relative** once Softie `toPartDelay` is correct.
  * Wipe pieces use {@link IBlueprintPieceType.InTransition} so their large
@@ -978,7 +994,8 @@ function applyL3dTakeOffsets(
 				]
 				continue
 			}
-			// Continuous db_loop OutOnRundownEnd — keep enable 0 so the frame never
+			// Continuous db_loop OutOnSegmentEnd — keep enable 0 so the frame never
+			// blinks off between DoubleBoxes in the same tema.
 			// blanks between keepalive end and a delayed incoming PLAY.
 			if (hasWipe && layer === (LOOK_A_LAYERS.doubleBoxLoop as string)) {
 				continue
@@ -1028,6 +1045,14 @@ function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boo
 			return content.file !== 'EMPTY'
 		})
 	)
+}
+
+/** True when ingest carries `gfx/ilu-zaver` (ZAVER+AVIZO / odporúčanie). */
+function partHasIluZaver(objects: SomeObject[]): boolean {
+	return objects.some((obj) => {
+		if (obj.objectType !== ObjectType.Graphic) return false
+		return String((obj as GraphicObject).clipName || '').toLowerCase() === 'gfx/ilu-zaver'
+	})
 }
 
 /** True when this part plays look CAM (live `route://5` / DeckLink) — do not EMPTY it. */

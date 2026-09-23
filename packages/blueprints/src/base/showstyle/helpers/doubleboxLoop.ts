@@ -15,8 +15,10 @@ export const DOUBLEBOX_LOOP_FILE = 'loops/db_loop'
 
 /**
  * Create a piece that plays the DoubleBox compositing frame on BG A layer 118.
- * OutOnRundownEnd keeps `loops/db_loop` running on the DoubleBox channel so the
- * next wiped Take already has the frame up (Full looks route ch4 — frame stays invisible).
+ * OutOnSegmentEnd keeps `loops/db_loop` up for DB→SYN→DB inside a tema, then drops it
+ * when the segment ends — so SJV / ŠPORT / Počasie / ZAVER+AVIZO never keep a stray
+ * DoubleBox frame on ch3 (OutOnRundownEnd left it alive under Full looks for the rest
+ * of the rundown). Next DoubleBox Take PLAYs a fresh piece; preroll LOADBGs the frame.
  * Headlines / post-intro MOD are fullscreen cam — they never call this helper.
  */
 export function createDoubleBoxLoopPiece(
@@ -30,7 +32,7 @@ export function createDoubleBoxLoopPiece(
 		},
 		externalId: `${partExternalId}_db_loop`,
 		name: 'DoubleBox frame',
-		lifespan: PieceLifespan.OutOnRundownEnd,
+		lifespan: PieceLifespan.OutOnSegmentEnd,
 		sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
 		content: {

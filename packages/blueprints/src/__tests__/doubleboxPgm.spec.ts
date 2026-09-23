@@ -249,7 +249,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(dbLoop, 'db_loop must start on DoubleBox Take').toBeDefined()
 		expect(dbLoop?.enable).toEqual({ start: 0 })
 		const dbLoopPiece = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_db_loop')
-		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(dbLoopPiece?.lifespan).toBe(PieceLifespan.OutOnSegmentEnd)
 		expect(dbLoopPiece?.prerollDuration ?? 0).toBeLessThan(1500)
 		// Never EMPTY look A clip/CAM/db_loop on wiped DoubleBox Takes.
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
@@ -264,6 +264,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		// Wiped first DoubleBox: countup PLAY at cover cut (with route://), not at Take.
+		expect(countupReveal?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
 		const countupTl = countupReveal?.content.timelineObjects?.[0]
 		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
 		expect(countupTl?.content).toMatchObject({
@@ -277,6 +279,12 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()
 		expect(wipe?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
+		// Overlay before cut; countup + route share the cover instant.
+		expect(countupReveal?.enable.start).toBe(
+			wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined
+		)
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -722,5 +730,17 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		).toBe(true)
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(route?.content).toMatchObject({ file: 'route://4' })
+
+		// Stray DoubleBox kill: EMPTY look A db_loop / ILU / CAM / L3D for the part.
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		expect(clearPiece).toBeDefined()
+		const lookAEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
+			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		const emptyLayers = new Set(lookAEmpties.map((obj) => obj.layer))
+		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(true)
+		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmIluPlayer)).toBe(true)
+		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmCamera)).toBe(true)
+		expect(emptyLayers.has(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toBe(true)
 	})
 })

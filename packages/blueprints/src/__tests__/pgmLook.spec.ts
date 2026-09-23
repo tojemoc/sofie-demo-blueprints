@@ -398,7 +398,7 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 
 		const tema3Syn = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-1')
-		const tema3Db = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-2') // ILU Drucker (DoubleBox)
+		const tema3Db = tema3.parts.find((part) => part.part.externalId === 'part-tema-3-syn-2')
 		const tema4Db = tema4.parts[0]
 		expect(tema3Syn).toBeDefined()
 		expect(tema3Db).toBeDefined()
@@ -597,6 +597,14 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		const lookADbEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(lookADbEmpty, 'ZAVER must EMPTY look A db_loop (stray DoubleBox)').toBeDefined()
+		const lookACamEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(lookACamEmpty).toBeDefined()
 		const iluEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
