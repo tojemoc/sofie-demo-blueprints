@@ -31,6 +31,7 @@ import {
 	isDoubleBoxLook,
 	lookSlotForKind,
 	parseRouteMediaChannel,
+	raiseLookMediaPostrollForNextKeepalive,
 	resetLookSlotGenerationForTests,
 	wipeStingDelayFrames,
 } from '../base/showstyle/helpers/pgmLook.js'
@@ -138,6 +139,43 @@ describe('pgmLook look-kind channels + route', () => {
 		// Postroll reserves a full default sting so the *next* wipe's editorial cutPoint can hold.
 		expect(LOOK_MEDIA_POSTROLL_MS).toBe(2500)
 		expect(WIPE_CUT_POINT_MS).toBe(380)
+	})
+
+	it('raises previous look postroll when the next on-air wipe cutPoint exceeds 2500 ms', () => {
+		const lookClipPiece = {
+			postrollDuration: LOOK_MEDIA_POSTROLL_MS,
+			content: {
+				timelineObjects: [
+					{
+						layer: LOOK_B_LAYERS.clip,
+						content: {
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/syn.mp4',
+						},
+					},
+				],
+			},
+		}
+		const parts = [
+			{
+				part: { externalId: 'hard-cut', title: 'Hard cut' },
+				pieces: [lookClipPiece as never],
+			},
+			{
+				part: {
+					externalId: 'wiped',
+					title: 'Wiped',
+					inTransition: {
+						previousPartKeepaliveDuration: 3000,
+						blockTakeDuration: 4000,
+						partContentDelayDuration: 0,
+					},
+				},
+				pieces: [],
+			},
+		]
+		raiseLookMediaPostrollForNextKeepalive(parts)
+		expect(lookClipPiece.postrollDuration).toBeGreaterThanOrEqual(3000)
 	})
 
 	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {

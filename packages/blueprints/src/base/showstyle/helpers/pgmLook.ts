@@ -1178,8 +1178,12 @@ function appendPgmLayerClearPiece(
  * least a full default sting ({@link LOOK_MEDIA_POSTROLL_MS}) so a later wipe's
  * cutPoint > 380 ms can actually hold picture; wiped Takes also cover this
  * part's own sting length when longer.
+ *
+ * After segment generation, {@link raiseLookMediaPostrollForNextKeepalive} also
+ * raises each part to the *following* on-air wipe's cutPoint when that exceeds
+ * the default floor (e.g. hard-cut → wipe with cutPoint 3000 ms).
  */
-function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
+export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
 	const minPostroll = Math.max(0, Math.floor(postrollMs))
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects ?? []
@@ -1194,5 +1198,31 @@ function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = 
 		})
 		if (!keepPicture) continue
 		piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, minPostroll)
+	}
+}
+
+/**
+ * After a segment's parts are generated, raise each part's look-MEDIA postroll to
+ * cover the next on-air part's `previousPartKeepaliveDuration` (RE wipe cutPoint).
+ * Needed when that cut exceeds {@link LOOK_MEDIA_POSTROLL_MS} (default sting floor) —
+ * Softie cannot hold the previous picture past piece postroll even if keepalive is longer.
+ */
+export function raiseLookMediaPostrollForNextKeepalive(
+	parts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }>
+): void {
+	for (let i = 0; i < parts.length; i++) {
+		let nextKeepalive = 0
+		for (let j = i + 1; j < parts.length; j++) {
+			const next = parts[j].part
+			if (next.invalid || next.floated) continue
+			const keepalive = next.inTransition?.previousPartKeepaliveDuration
+			if (typeof keepalive === 'number' && Number.isFinite(keepalive) && keepalive > 0) {
+				nextKeepalive = Math.floor(keepalive)
+			}
+			break
+		}
+		if (nextKeepalive > 0) {
+			applyLookMediaPostroll(parts[i].pieces, nextKeepalive)
+		}
 	}
 }

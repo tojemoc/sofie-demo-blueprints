@@ -55,6 +55,7 @@ import {
 	getLookSlotSequenceForGeneration,
 	isDoubleBoxLook,
 	lookSlotForKind,
+	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
 import { resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
@@ -327,6 +328,11 @@ export function generateParts(
 
 		return newPart
 	})
+
+	// Softie holds previous look only for piece.postrollDuration into the next Take's
+	// previousPartKeepaliveDuration. Raise each part to the following on-air wipe's
+	// editorial cutPoint when that exceeds the per-part default sting floor (2500 ms).
+	raiseLookMediaPostrollForNextKeepalive(parts)
 
 	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
 		// Prefer the wipe-entrance Take (first VO / wipe host), not a skipped open GFX shell.
