@@ -135,7 +135,8 @@ describe('pgmLook look-kind channels + route', () => {
 
 	it('converts wipe cut-point ms to frames at 50fps (docs helper; casparcg-state wants ms)', () => {
 		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(19)
-		expect(LOOK_MEDIA_POSTROLL_MS).toBe(WIPE_CUT_POINT_MS)
+		// Postroll reserves a full default sting so the *next* wipe's editorial cutPoint can hold.
+		expect(LOOK_MEDIA_POSTROLL_MS).toBe(2500)
 		expect(WIPE_CUT_POINT_MS).toBe(380)
 	})
 

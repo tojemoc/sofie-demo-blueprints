@@ -128,6 +128,18 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 	it('honours editorial wipe cutPoint from RE payload for route + keepalive', () => {
 		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const syn = ingest.parts.find((part) => part.externalId === synExternalId)
+		expect(syn).toBeDefined()
+		if (!syn) return
+		const payload = syn.payload as {
+			pieces: Array<{ objectType: string; attributes: Record<string, unknown> }>
+		}
+		const wipeIngest = payload.pieces.find((p) => p.objectType.toLowerCase() === 'wipe')
+		expect(wipeIngest).toBeDefined()
+		if (!wipeIngest) return
+		// RE → Sofie path: cutPoint lives on attributes before convertIngestData.
+		wipeIngest.attributes.cutPoint = 500
+
 		const segment = convertIngestData(mockIngestContext, ingest)
 		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
 		expect(synPart).toBeDefined()
@@ -136,17 +148,15 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const wipe = synPart.objects.find(
 			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
-		expect(wipe).toBeDefined()
-		if (!wipe) return
-		;(wipe.attributes as { cutPoint?: number }).cutPoint = 1100
+		expect((wipe?.attributes as { cutPoint?: number }).cutPoint).toBe(500)
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(1100)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(500)
 
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(routeObj?.enable).toEqual({ start: 1100 })
+		expect(routeObj?.enable).toEqual({ start: 500 })
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -158,12 +168,40 @@ describe('wipe piece type → PGM route / overlay', () => {
 					!(obj.content as { file?: string }).file?.startsWith('route://')
 			)
 		expect(lookClip).toBeDefined()
-		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(1100)
-		// Look MEDIA postroll must match resolved cutPoint so Softie keepalive can hold picture.
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(500)
+		// Softie holds previous picture only for piece.postrollDuration past Take into
+		// the next wipe's keepalive — reserve full sting headroom (≥ cutPoint).
 		const lookClipPiece = result.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj === lookClip)
 		)
-		expect(lookClipPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(1100)
+		expect(lookClipPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(2500)
+	})
+
+	it('reserves full-sting look postroll so a later wipe cutPoint > 380 ms can hold', () => {
+		const { ingest, synExternalId } = withWipeOnSyn(exportData)
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		const lookPieces = result.pieces.filter((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => {
+				const layer = String(obj.layer)
+				const content = obj.content as { type?: string; file?: string }
+				return (
+					(layer === LOOK_B_LAYERS.clip || layer === LOOK_B_LAYERS.camera) &&
+					content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					content.file !== 'EMPTY' &&
+					!content.file?.startsWith('route://')
+				)
+			})
+		)
+		expect(lookPieces.length).toBeGreaterThan(0)
+		for (const piece of lookPieces) {
+			expect(piece.postrollDuration ?? 0).toBeGreaterThanOrEqual(2500)
+		}
 	})
 
 	it('keeps previous look through the wipe (no pre-sting hard cut)', () => {
