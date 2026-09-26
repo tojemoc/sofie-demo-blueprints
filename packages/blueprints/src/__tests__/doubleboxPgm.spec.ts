@@ -26,7 +26,9 @@ import {
 } from './helpers/smokeRundownIngest.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
-import { WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 
 describe('DoubleBox PGM ILU above CAM', () => {
 	const exportData = loadSmokeRundownExport()
@@ -226,7 +228,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 		// Wiped DoubleBox: delay ILU PLAY to the cover cut (never freeze/LOAD from Take —
 		// that replaces on-air DB→DB under the sting). Same path as Intro→first theme.
-		expect(pgmIlu?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(pgmIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
 		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).seek).toBeUndefined()
 		expect(
@@ -263,7 +265,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		// Wiped first DoubleBox: countup PLAY at cover cut (with route://), not at Take.
-		expect(countupReveal?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(countupReveal?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		const countupTl = countupReveal?.content.timelineObjects?.[0]
 		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
 		expect(countupTl?.content).toMatchObject({
@@ -276,7 +278,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()
-		expect(wipe?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(wipe?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
 		// Overlay before cut; countup + route share the cover instant.
@@ -388,9 +390,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(outgoingIluPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(WIPE_CUT_POINT_MS)
 
 		// Incoming DB→DB: nothing on 3-116 until the cut. No pause, no seek-0, no EMPTY.
-		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 		const incomingIlu = iluOf(incoming.pieces, 'clips/ILU incoming')
-		expect(incomingIlu?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(incomingIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
 		expect(incomingContent.playing).not.toBe(false)
 		expect(incomingContent.seek).toBeUndefined()
@@ -405,20 +407,20 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				if ((obj.content as { file?: string }).file !== 'EMPTY') return false
 				const enable = obj.enable
 				if (!enable || Array.isArray(enable)) return true
-				return typeof enable.start !== 'number' || enable.start < WIPE_CUT_POINT_MS
+				return typeof enable.start !== 'number' || enable.start < WIPE_AIR_CUT_MS
 			})
 		expect(earlyIluEmpty).toHaveLength(0)
 
 		const incomingCam = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
-		expect(incomingCam?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(incomingCam?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(incomingCam?.content).toMatchObject({ file: 'route://5' })
 
 		const route = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(route?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(route?.content).toMatchObject({ file: 'route://3' })
 
 		const wipeOverlay = incoming.pieces
@@ -549,7 +551,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
 					(obj.content as { file?: string }).file === 'clips/ILU incoming'
 			)
-		expect(incomingIlu?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(incomingIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
 		expect(incomingContent.playing).not.toBe(false)
 		expect(incomingContent.seek).toBeUndefined()

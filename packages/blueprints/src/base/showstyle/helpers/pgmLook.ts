@@ -18,9 +18,10 @@ import {
 	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
+	WIPE_PLAYOUT_LATENCY_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
-	resolveWipeCutPointMs,
+	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
 	isWipePocasieFile,
 	partHasOutroOverlay,
@@ -33,6 +34,9 @@ import { createLookCameraClearTimelineObject } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 
 export type LookSlot = 'A' | 'B'
+
+/** Default Take-relative air cut (= editorial file cut + playout latency). */
+const DEFAULT_WIPE_AIR_CUT_MS = WIPE_CUT_POINT_MS + WIPE_PLAYOUT_LATENCY_MS
 
 /**
  * Caspar channel format used when converting wipe cut-point ms → STING frames.
@@ -332,7 +336,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 export function createFullChannelRouteContent(
 	channel: number,
 	stingFile?: string,
-	cutPointMs: number = WIPE_CUT_POINT_MS
+	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
 ): TSR.TimelineContentCCGMedia {
 	return {
 		deviceType: TSR.DeviceType.CASPARCG,
@@ -372,7 +376,7 @@ export function createPgmRouteTimelineObject(
 	const useSting = Boolean(wipeFile) && options?.sting !== false
 	const stingFile = useSting && wipeFile ? toCasparPlayPath(wipeFile) : undefined
 	const routeStartMs = options?.routeStartMs ?? 0
-	const cutPointMs = options?.cutPointMs ?? WIPE_CUT_POINT_MS
+	const cutPointMs = options?.cutPointMs ?? DEFAULT_WIPE_AIR_CUT_MS
 
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -431,7 +435,8 @@ function createPgmWipeOverlayTimelineObject(
 
 /**
  * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 205) and
- * hard-cut MEDIA `route://N` at {@link WIPE_CUT_POINT_MS} under the cover.
+ * hard-cut MEDIA `route://N` at the air cut (editorial file cut + playout latency)
+ * under the cover.
  *
  * DoubleBox previously used Caspar STING on the route, but casparcg-state coerces
  * ROUTE `layer` → 0 (`route://N-0` → black PGM) and STING `delay` was easy to
@@ -453,7 +458,7 @@ function createPgmRoutePiece(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
-	const wipeCutPointMs = resolveWipeCutPointMs(wipe?.attributes, wipeDurationMs)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -540,7 +545,7 @@ function attachRouteToWipePiece(
 	slot: LookSlot,
 	wipeFile: string,
 	wipeDurationMs: number,
-	wipeCutPointMs: number = WIPE_CUT_POINT_MS
+	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
 ): void {
 	const mutes = (wipePiece.content.timelineObjects ?? []).filter(
 		(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
@@ -642,7 +647,7 @@ export function finalizeHypercomposedPart(
 
 	const wipe = findWipeVideoObject(objects)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
-	const wipeCutPointMs = resolveWipeCutPointMs(wipe?.attributes, wipeDurationMs)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const wipeFile = wipe
 		? normalizeLayeredVideoFileName(
 				'wipe',
@@ -958,7 +963,7 @@ function applyL3dTakeOffsets(
 	pieces: IBlueprintPiece[],
 	wipeDurationMs: number,
 	wipePocasie = false,
-	wipeCutPointMs: number = WIPE_CUT_POINT_MS
+	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
 ): void {
 	const hasWipe = wipeDurationMs > 0
 

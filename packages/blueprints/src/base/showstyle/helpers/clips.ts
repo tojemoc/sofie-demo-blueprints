@@ -38,11 +38,26 @@ export const DEFAULT_BG_LOOP_FILE = 'loops/bg_loop'
 export const DEFAULT_WIPE_DURATION_MS = 2500
 
 /**
- * Default cut point within the wipe stinger — when the screen is fully covered and content switches.
- * Frame 19 @ 50fps = 380 ms into `wipes/wipe*.mov` (not frame 51 / ~1020 ms).
- * Override per wipe via RE payload / ingest `attributes.cutPoint` (ms).
+ * Editorial cover frame within the wipe file — ms from the start of `wipes/wipe*.mov`
+ * (Resolve frame-by-frame). Frame 19 @ 50fps = 380 ms. Override per wipe via RE
+ * `attributes.cutPoint` (**milliseconds into the file**, not seconds like piece.duration).
+ *
+ * Softie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
+ * value + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar still lags PLAY→first-frame
+ * after PRELOAD LOADBG. Without that offset, Resolve’s 380 ms lands ~400 ms too early
+ * on air (old empirical default was 760 ms = 380 + 380).
  */
 export const WIPE_CUT_POINT_MS = 380
+
+/**
+ * Caspar decode / compositor lag from Take (PLAY after PRELOAD LOADBG) until wipe
+ * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
+ * enable times, so the air cut must be editorial file-ms + this latency.
+ *
+ * Tuned so default air cut = 380 + 380 = 760 ms (matches the pre-#109 empirical sting
+ * cover). Adjust here if PRELOAD/ffmpeg latency changes — not by padding RE cutPoint.
+ */
+export const WIPE_PLAYOUT_LATENCY_MS = 380
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
@@ -70,8 +85,10 @@ export function resolveWipeDurationMs(wipeDurationFromIngest?: number): number {
 }
 
 /**
- * Editorial wipe cut point (ms) from RE `cutPoint`, else {@link WIPE_CUT_POINT_MS}.
- * Clamped to `[0, wipeDurationMs]` so a mistyped value cannot land after the sting ends.
+ * Editorial wipe cut point — **ms into the wipe file** (Resolve), from RE `cutPoint`,
+ * else {@link WIPE_CUT_POINT_MS}. Clamped to `[0, wipeDurationMs]`.
+ *
+ * Do **not** schedule timeline enables with this alone — use {@link resolveWipeAirCutMs}.
  */
 export function resolveWipeCutPointMs(
 	attributes?: { cutPoint?: unknown } | null,
@@ -92,6 +109,24 @@ export function resolveWipeCutPointMs(
 		cut = Math.min(cut, max)
 	}
 	return cut
+}
+
+/**
+ * Take-relative ms when PGM should hard-cut under the sting (route / look / countup /
+ * keepalive). Editorial file cut + {@link WIPE_PLAYOUT_LATENCY_MS}, clamped to the
+ * wipe duration so the switch cannot land after CLEAR.
+ */
+export function resolveWipeAirCutMs(
+	attributes?: { cutPoint?: unknown } | null,
+	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS
+): number {
+	const fileCutMs = resolveWipeCutPointMs(attributes, wipeDurationMs)
+	const airCutMs = fileCutMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS))
+	const max = Math.max(0, Math.floor(wipeDurationMs))
+	if (max > 0) {
+		return Math.min(airCutMs, max)
+	}
+	return airCutMs
 }
 
 function resolveVideoFileName(object: VideoObject): string | undefined {

@@ -6,7 +6,9 @@ import {
 	resolveClipPlayback,
 	getVideoPlayLayer,
 	resolveWipeCutPointMs,
+	resolveWipeAirCutMs,
 	WIPE_CUT_POINT_MS,
+	WIPE_PLAYOUT_LATENCY_MS,
 } from '../base/showstyle/helpers/clips.js'
 
 function makeVideo(overrides: Partial<VideoObject> & { attributes?: VideoObject['attributes'] }): VideoObject {
@@ -132,7 +134,7 @@ describe('getVideoPlayLayer', () => {
 })
 
 describe('resolveWipeCutPointMs', () => {
-	it('defaults to frame-19 cover (380 ms @ 50fps)', () => {
+	it('defaults to frame-19 cover (380 ms @ 50fps) — ms into the wipe file', () => {
 		expect(WIPE_CUT_POINT_MS).toBe(380)
 		expect(resolveWipeCutPointMs(undefined)).toBe(380)
 		expect(resolveWipeCutPointMs({})).toBe(WIPE_CUT_POINT_MS)
@@ -145,5 +147,18 @@ describe('resolveWipeCutPointMs', () => {
 		expect(resolveWipeCutPointMs({ cutPoint: 4000 }, 2500)).toBe(2500)
 		expect(resolveWipeCutPointMs({ cutPoint: 0 }, 2500)).toBe(0)
 		expect(resolveWipeCutPointMs({ cutPoint: 380 }, 2500)).toBe(380)
+	})
+})
+
+describe('resolveWipeAirCutMs', () => {
+	it('adds Caspar PLAY→first-frame latency so Resolve file-ms matches on-air cover', () => {
+		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(380)
+		// Default: Resolve 380 + latency 380 = 760 (old empirical air cut).
+		expect(resolveWipeAirCutMs(undefined)).toBe(760)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 })).toBe(760)
+		expect(resolveWipeAirCutMs({ cutPoint: 500 })).toBe(880)
+		expect(resolveWipeAirCutMs({ cutPoint: 0 })).toBe(WIPE_PLAYOUT_LATENCY_MS)
+		// Never schedule after wipe CLEAR.
+		expect(resolveWipeAirCutMs({ cutPoint: 2400 }, 2500)).toBe(2500)
 	})
 })
