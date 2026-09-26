@@ -7,7 +7,9 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
-import { WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { PartContext } from '../common/context.js'
@@ -532,7 +534,7 @@ describe('casparV2Graphics', () => {
 			(piece.content.timelineObjects ?? []).some((obj) => obj.id === bg?.id || obj === bg)
 		)
 		expect(Math.max(0, bgPiece?.prerollDuration ?? 0)).toBeGreaterThan(0)
-		expect(bg?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(bg?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.enable).toEqual({ start: 0 })
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
@@ -556,7 +558,7 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/bg_loop'
 		)
 		expect(bgLoop).toBeDefined()
-		expect(bgLoop?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(bgLoop?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(bgLoop?.priority).toBeGreaterThanOrEqual(3)
 		expect(
 			timeline.some(
@@ -572,11 +574,11 @@ describe('casparV2Graphics', () => {
 			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
 		)
 		// wipe_pocasie: weather GFX lands with bg_pocasie at the cover cut.
-		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_CUT_POINT_MS)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(WIPE_AIR_CUT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
 		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0
-		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS + l3dObjectTime })
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_AIR_CUT_MS + l3dObjectTime })
 	})
 
 	it('mutes kolíska beds while the outro overlay plays', () => {

@@ -35,7 +35,9 @@ import {
 	resetLookSlotGenerationForTests,
 	wipeStingDelayFrames,
 } from '../base/showstyle/helpers/pgmLook.js'
-import { WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -187,7 +189,7 @@ describe('pgmLook look-kind channels + route', () => {
 				inTransition: {
 					type: TSR.Transition.STING,
 					maskFile: 'wipes/wipe',
-					delay: WIPE_CUT_POINT_MS,
+					delay: WIPE_AIR_CUT_MS,
 				},
 			},
 		})
@@ -386,7 +388,7 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 
 		const dbRoute = dbTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(dbRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(dbRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -403,7 +405,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
 		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(synRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(synRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -416,7 +418,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const dbLoopEmpty = synClear?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(dbLoopEmpty?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(dbLoopEmpty?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 	})
 
 	it('parseRouteMediaChannel reads full-channel MEDIA files', () => {
@@ -685,7 +687,7 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(zaver).toBeDefined()
 		if (!zaver) return
-		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const dbLoopEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
@@ -697,11 +699,9 @@ describe('pgmLook look-kind channels + route', () => {
 			expect(Array.isArray(enable)).toBe(false)
 			if (Array.isArray(enable) || !enable) continue
 			expect(typeof enable.start).toBe('number')
-			expect(enable.start, 'no db_loop EMPTY before wipe cut').toBeGreaterThanOrEqual(WIPE_CUT_POINT_MS)
+			expect(enable.start, 'no db_loop EMPTY before wipe cut').toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
 		}
-		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_CUT_POINT_MS)).toBe(
-			true
-		)
+		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
 	})
 
 	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {
@@ -740,7 +740,7 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 		expect(result.part.autoNext).toBe(true)
 		const l3d = result.pieces
 			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
@@ -783,7 +783,7 @@ describe('pgmLook look-kind channels + route', () => {
 					(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
 					(obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
 			)
-		expect(!Array.isArray(lookMedia?.enable) && lookMedia?.enable.start).toBe(WIPE_CUT_POINT_MS)
+		expect(!Array.isArray(lookMedia?.enable) && lookMedia?.enable.start).toBe(WIPE_AIR_CUT_MS)
 
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.prerollDuration ?? 0).toBe(0)
@@ -827,7 +827,7 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!sportFirst) return
 
 		expect(sportFirst.part.autoNext).toBe(true)
-		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 
 		// Full→Full: do not EMPTY the live clip (black blink under wipe). Kill stray db_loop on ch3.
 		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
@@ -915,7 +915,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const dbRoute = (db?.pieces ?? [])
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(dbRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect((dbRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(
 			(db?.pieces ?? [])
@@ -931,7 +931,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(sjvRoute?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(sjvRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect((sjvRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 })

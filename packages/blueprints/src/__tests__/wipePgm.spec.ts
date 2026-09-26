@@ -9,7 +9,9 @@ import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { normalizeLayeredVideoFileName, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { normalizeLayeredVideoFileName, resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import { LOOK_B_LAYERS } from '../base/showstyle/helpers/pgmLook.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
@@ -109,7 +111,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(overlay?.keyframes).toBeUndefined()
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
-		expect(routeObj?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(routeObj?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(routeObj?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -152,11 +154,11 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(500)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(880)
 
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(routeObj?.enable).toEqual({ start: 500 })
+		expect(routeObj?.enable).toEqual({ start: 880 })
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -168,7 +170,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 					!(obj.content as { file?: string }).file?.startsWith('route://')
 			)
 		expect(lookClip).toBeDefined()
-		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(500)
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(880)
 		// Softie holds previous picture only for piece.postrollDuration past Take into
 		// the next wipe's keepalive — reserve full sting headroom (≥ cutPoint).
 		const lookClipPiece = result.pieces.find((piece) =>
@@ -212,7 +214,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_CUT_POINT_MS)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 		expect(result.part.inTransition?.blockTakeDuration).toBe(2500)
 		const overlay = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -234,7 +236,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const clipEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_CUT_POINT_MS })
+		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_AIR_CUT_MS })
 		const voPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
 		// Softie must not hold editorial MEDIA until Take+lookPreroll.
 		expect(voPiece?.prerollDuration ?? 0).toBeLessThan(1500)
@@ -364,7 +366,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		// No incoming L3D: EMPTY must not expire at WIPE_CUT_POINT_MS (keepalive continues).
+		// No incoming L3D: EMPTY must not expire at WIPE_AIR_CUT_MS (keepalive continues).
 		expect(l3dEmpty?.enable).toEqual({ start: 0 })
 		const timeline = wipePiece?.content.timelineObjects ?? []
 		expect(timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)?.content).toMatchObject({
@@ -372,7 +374,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/360_wipe',
 		})
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.enable).toEqual({ start: WIPE_CUT_POINT_MS })
+		expect(route?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(route?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',

@@ -240,7 +240,8 @@ describe('countupReveal claim', () => {
 			])
 		).toBe(true)
 
-		// Intro muted for the part only; outro / závěr / ilu-zaver persist after Take.
+		// Intro would mute only if countup were already revealed (appendCountupSustainIfRevealed);
+		// outro / závěr / ilu-zaver persist mute after Take.
 		expect(partShouldPersistCountupMute('Intro', [])).toBe(false)
 		expect(partShouldPersistCountupMute('outro', [])).toBe(true)
 		expect(partShouldPersistCountupMute('Závěr', [])).toBe(true)
@@ -279,7 +280,19 @@ describe('countupReveal claim', () => {
 		)
 		const introMute = mutePieces.find((piece) => piece.externalId === 'part-intro_countup_mute')
 		expect(introMute?.lifespan).toBe(PieceLifespan.WithinPart)
-		expect(introMute?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 0 })
+		expect(introMute?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 0, opacity: 1 })
+
+		// Pre-reveal Intro must not start PLAY — claim not revealed ⇒ no mute piece.
+		const preRevealIntroPieces: typeof mutePieces = []
+		appendCountupSustainIfRevealed(
+			new PartContext(mockSegmentContext(), 'part-intro-pre'),
+			hybridCasparConfig,
+			'part-intro-pre',
+			preRevealIntroPieces as never,
+			createCountupRevealClaim(),
+			{ mute: true, persistMute: false }
+		)
+		expect(preRevealIntroPieces.some((piece) => piece.externalId?.includes('_countup_'))).toBe(false)
 
 		const outroMutePieces: typeof mutePieces = []
 		appendCountupSustainIfRevealed(

@@ -18,9 +18,10 @@ import {
 	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
+	WIPE_PLAYOUT_LATENCY_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
-	resolveWipeCutPointMs,
+	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
 	isWipePocasieFile,
 	partHasOutroOverlay,
@@ -33,6 +34,9 @@ import { createLookCameraClearTimelineObject } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 
 export type LookSlot = 'A' | 'B'
+
+/** Default Take-relative air cut (= editorial file cut + playout latency). */
+const DEFAULT_WIPE_AIR_CUT_MS = WIPE_CUT_POINT_MS + WIPE_PLAYOUT_LATENCY_MS
 
 /**
  * Caspar channel format used when converting wipe cut-point ms → STING frames.
@@ -332,7 +336,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 export function createFullChannelRouteContent(
 	channel: number,
 	stingFile?: string,
-	cutPointMs: number = WIPE_CUT_POINT_MS
+	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
 ): TSR.TimelineContentCCGMedia {
 	return {
 		deviceType: TSR.DeviceType.CASPARCG,
@@ -372,7 +376,7 @@ export function createPgmRouteTimelineObject(
 	const useSting = Boolean(wipeFile) && options?.sting !== false
 	const stingFile = useSting && wipeFile ? toCasparPlayPath(wipeFile) : undefined
 	const routeStartMs = options?.routeStartMs ?? 0
-	const cutPointMs = options?.cutPointMs ?? WIPE_CUT_POINT_MS
+	const cutPointMs = options?.cutPointMs ?? DEFAULT_WIPE_AIR_CUT_MS
 
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -431,7 +435,8 @@ function createPgmWipeOverlayTimelineObject(
 
 /**
  * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 205) and
- * hard-cut MEDIA `route://N` at {@link WIPE_CUT_POINT_MS} under the cover.
+ * hard-cut MEDIA `route://N` at the air cut (editorial file cut + playout latency)
+ * under the cover.
  *
  * DoubleBox previously used Caspar STING on the route, but casparcg-state coerces
  * ROUTE `layer` → 0 (`route://N-0` → black PGM) and STING `delay` was easy to
@@ -453,7 +458,7 @@ function createPgmRoutePiece(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
-	const wipeCutPointMs = resolveWipeCutPointMs(wipe?.attributes, wipeDurationMs)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -540,7 +545,7 @@ function attachRouteToWipePiece(
 	slot: LookSlot,
 	wipeFile: string,
 	wipeDurationMs: number,
-	wipeCutPointMs: number = WIPE_CUT_POINT_MS
+	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
 ): void {
 	const mutes = (wipePiece.content.timelineObjects ?? []).filter(
 		(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
@@ -642,7 +647,7 @@ export function finalizeHypercomposedPart(
 
 	const wipe = findWipeVideoObject(objects)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
-	const wipeCutPointMs = resolveWipeCutPointMs(wipe?.attributes, wipeDurationMs)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const wipeFile = wipe
 		? normalizeLayeredVideoFileName(
 				'wipe',
@@ -767,7 +772,11 @@ export function finalizeHypercomposedPart(
 		pieces.push(bgLoop)
 	}
 
-	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs)
+	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs, {
+		// Full→DB: ch3 is idle under the sting — LOAD/PAUSE ILU from Take so the first
+		// frame is ready when route://3 flips. DB→DB must not early-LOAD (replaces on-air).
+		preloadIdleDoubleBoxIlu: hasWipe && lookSlot === 'A' && !sameLookChannel,
+	})
 
 	const alreadyRouted = pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some(
@@ -935,11 +944,13 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * with `bg_pocasie` at the cover cut.
  *
  * DoubleBox ILU under wipe:
- * - Always delay incoming ILU PLAY to {@link wipeCutPointMs}. Never `playing: false` /
- *   `seek: 0` from Take — that LOAD/PAUSE replaces the on-air outgoing clip under the
- *   sting (DB→DB between themes). Full→DB (ch3 idle) uses the same delayed PLAY once
- *   look ILU mappings use LookaheadMode.NONE (PRELOAD was an early LOAD too).
- * - Outgoing ILU stays via `previousPartKeepaliveDuration` + look postroll (= cut).
+ * - **Full→DB** (ch3 idle): LOAD/PAUSE from Take (`playing: false`, `seek: 0`), then
+ *   keyframe `playing: true` at the air cut so the left window is not pitch-black when
+ *   `route://3` flips. Clip audio stays ducked for the sting
+ *   ({@link muteEditorialClipAudioDuringWipe}) so ILU does not fight wipe SFX.
+ * - **DB→DB** (ch3 live): delay incoming PLAY to the air cut only — never pause/seek
+ *   from Take (that LOAD replaces the on-air outgoing clip under the sting).
+ * - Outgoing ILU stays via `previousPartKeepaliveDuration` + look postroll (= air cut).
  * `db_loop` stays at enable 0 (same file, OutOnSegmentEnd fill — never EMPTY look A
  * on DoubleBox Takes).
  *
@@ -958,9 +969,11 @@ function applyL3dTakeOffsets(
 	pieces: IBlueprintPiece[],
 	wipeDurationMs: number,
 	wipePocasie = false,
-	wipeCutPointMs: number = WIPE_CUT_POINT_MS
+	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
+	options?: { preloadIdleDoubleBoxIlu?: boolean }
 ): void {
 	const hasWipe = wipeDurationMs > 0
+	const preloadIdleDoubleBoxIlu = Boolean(options?.preloadIdleDoubleBoxIlu)
 
 	for (const piece of pieces) {
 		const lookMediaDelay = hasWipe ? wipeCutPointMs : 0
@@ -1000,11 +1013,30 @@ function applyL3dTakeOffsets(
 			// except leave-weather ILU EMPTY which is scheduled at the cutpoint below.
 			if (content.file === 'EMPTY') continue
 
-			// Look A ILU (ch3-116). Never `playing: false` / `seek: 0` from Take — that is a
-			// LOAD/PAUSE which replaces the on-air outgoing clip under the wipe (DB→DB between
-			// themes). Full→DB (ch3 idle) is fine with a delayed PLAY at the cut too — Softie
-			// LOADBGs via piece timing once mappings are LookaheadMode.NONE.
+			// Look A ILU (ch3-116).
 			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string)) {
+				if (preloadIdleDoubleBoxIlu) {
+					// Full→DB: cue on idle ch3 from Take; unpause at air cut under the cover.
+					content.playing = false
+					content.seek = 0
+					const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
+						TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+					>
+					;(obj as TimelineBlueprintExt).keyframes = [
+						...existing,
+						{
+							id: '',
+							enable: { start: wipeCutPointMs },
+							content: {
+								deviceType: TSR.DeviceType.CASPARCG,
+								type: TSR.TimelineContentTypeCasparCg.MEDIA,
+								playing: true,
+							},
+						},
+					]
+					continue
+				}
+				// DB→DB: delayed PLAY only — do not LOAD/PAUSE over the live outgoing clip.
 				shiftEnableStartIfAtTake(obj, lookMediaDelay)
 				continue
 			}

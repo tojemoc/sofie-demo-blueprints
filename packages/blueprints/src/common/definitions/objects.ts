@@ -61,8 +61,10 @@ export type VideoObjectAttributes = {
 	/** Operator-facing wipe direction label (does not change the media file). */
 	transition?: string
 	/**
-	 * Wipe cover-frame cut point in milliseconds (RE payload `cutPoint`).
-	 * When unset, blueprints use the default 380 ms cover frame (frame 19 @ 50fps).
+	 * Wipe cover-frame cut point in **milliseconds into the wipe file** (RE `cutPoint`,
+	 * Resolve frame time). Softie schedules the on-air hard-cut at cutPoint + playout
+	 * latency (`resolveWipeAirCutMs`) so Caspar PLAY→first-frame lag does not make
+	 * Resolve’s 380 ms land early. Default file cut = 380 ms (frame 19 @ 50fps).
 	 */
 	cutPoint?: number
 }
