@@ -226,14 +226,19 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
 			},
 		})
-		// Wiped DoubleBox: delay ILU PLAY to the cover cut (never freeze/LOAD from Take —
-		// that replaces on-air DB→DB under the sting). Same path as Intro→first theme.
-		expect(pgmIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
-		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
-		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).seek).toBeUndefined()
+		// Full→DB (ch3 idle): LOAD/PAUSE ILU from Take, PLAY at air cut — first frame ready
+		// when route://3 flips (no pitch-black window). DB→DB must not do this.
+		expect(pgmIlu?.enable).toEqual({ start: 0 })
+		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect((pgmIlu?.content as TSR.TimelineContentCCGMedia).seek).toBe(0)
 		expect(
-			(pgmIlu?.keyframes ?? []).some((kf) => (kf.content as { playing?: boolean } | undefined)?.playing === true)
-		).toBe(false)
+			(pgmIlu?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 
 		const tema = timeline.find(
 			(obj) =>
@@ -380,16 +385,19 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					(obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer && (obj.content as { file?: string }).file === file
 				)
 
-		// First DB is off-air ch3 (baseline route://4) — prebuild may freeze. It must still
-		// postroll through the next cut so the clip is the outgoing picture for DB→DB.
+		// First DB is off-air ch3 (baseline route://4) — Full→DB preloads ILU (LOAD/PAUSE).
+		// It must still postroll through the next cut so the clip is the outgoing picture for DB→DB.
 		const outgoingIlu = iluOf(outgoing.pieces, 'clips/ILU outgoing')
 		expect(outgoingIlu).toBeDefined()
+		expect(outgoingIlu?.enable).toEqual({ start: 0 })
+		expect((outgoingIlu?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect((outgoingIlu?.content as TSR.TimelineContentCCGMedia).seek).toBe(0)
 		const outgoingIluPiece = outgoing.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj === outgoingIlu)
 		)
 		expect(outgoingIluPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(WIPE_CUT_POINT_MS)
 
-		// Incoming DB→DB: nothing on 3-116 until the cut. No pause, no seek-0, no EMPTY.
+		// Incoming DB→DB: delayed PLAY at the cut only — no pause/seek (would replace on-air).
 		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 		const incomingIlu = iluOf(incoming.pieces, 'clips/ILU incoming')
 		expect(incomingIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
@@ -398,6 +406,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(incomingContent.seek).toBeUndefined()
 		expect(
 			(incomingIlu?.keyframes ?? []).some((kf) => (kf.content as { playing?: boolean } | undefined)?.playing === false)
+		).toBe(false)
+		expect(
+			(incomingIlu?.keyframes ?? []).some((kf) => (kf.content as { playing?: boolean } | undefined)?.playing === true)
 		).toBe(false)
 
 		const earlyIluEmpty = incoming.pieces
