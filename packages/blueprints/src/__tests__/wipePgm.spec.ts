@@ -188,10 +188,9 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const lookPieces = result.pieces.filter((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => {
-				const layer = String(obj.layer)
 				const content = obj.content as { type?: string; file?: string }
 				return (
-					(layer === LOOK_B_LAYERS.clip || layer === LOOK_B_LAYERS.camera) &&
+					(obj.layer === LOOK_B_LAYERS.clip || obj.layer === LOOK_B_LAYERS.camera) &&
 					content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
 					content.file !== 'EMPTY' &&
 					!content.file?.startsWith('route://')
