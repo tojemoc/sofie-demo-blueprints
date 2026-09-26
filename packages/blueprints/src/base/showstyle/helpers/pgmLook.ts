@@ -15,6 +15,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import {
+	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
 	getVideoPlayLayer,
@@ -51,11 +52,22 @@ export const DEFAULT_LOOK_PREROLL_MS = 1500
 export const L3D_OUT_MS = 200
 
 /**
- * Keep outgoing look MEDIA on the timeline through the wipe cover-frame.
- * 380 is {@link WIPE_CUT_POINT_MS}; inlined so this const does not read clips.ts
- * during module init (webpack CJS: clips → baseline → pgmLook cycle).
+ * Minimum look-MEDIA postroll so Softie can hold the previous picture into the
+ * next Take's wipe keepalive window.
+ *
+ * Softie piece groups end at `control.end + postrollDuration`. The next part's
+ * `previousPartKeepaliveDuration` (editorial RE `cutPoint`) only keeps picture
+ * if this postroll is ≥ that keepalive. Inlining 2500 ({@link DEFAULT_WIPE_DURATION_MS})
+ * avoids reading clips.ts at module init (webpack CJS: clips → baseline → pgmLook).
  */
-export const LOOK_MEDIA_POSTROLL_MS = 380
+export const LOOK_MEDIA_POSTROLL_MS = 2500
+
+/**
+ * Short finite EMPTY for hard-cut look-ILU pulse clears (not wiped). Kept at the
+ * default cover-frame length so a lingering weather map dies quickly without
+ * riding an open-ended EMPTY into the next Take.
+ */
+export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -737,7 +749,7 @@ export function finalizeHypercomposedPart(
 				clearObjects.push(...buildLookIluClearObjects('B', wipeDurationMs, 0))
 			}
 		} else {
-			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_MEDIA_POSTROLL_MS))
+			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_ILU_HARD_CUT_CLEAR_MS))
 		}
 	}
 	if (clearObjects.length > 0) {
@@ -777,7 +789,20 @@ export function finalizeHypercomposedPart(
 		mutePgmWipeOverlayAudio(pieces)
 	}
 
-	applyLookMediaPostroll(pieces, hasWipe ? wipeCutPointMs : LOOK_MEDIA_POSTROLL_MS)
+	// Softie only extends previous look pieces by `postrollDuration` past Take into
+	// the next part's `previousPartKeepaliveDuration` (RE `cutPoint`). Matching only
+	// *this* wipe's cut (or the old 380 ms default) left hard-cut / default parts
+	// dying at 380 ms when the following wipe asked for 500 ms+ — RE cutPoint looked
+	// ignored. Reserve full sting headroom (and this wipe's duration/cut when longer).
+	applyLookMediaPostroll(
+		pieces,
+		Math.max(
+			LOOK_MEDIA_POSTROLL_MS,
+			DEFAULT_WIPE_DURATION_MS,
+			hasWipe ? wipeCutPointMs : 0,
+			hasWipe ? wipeDurationMs : 0
+		)
+	)
 }
 
 /** True when Full-look CAM on 115 would cover SYN/VT (110) or weather underlay (116). */
@@ -1148,11 +1173,17 @@ function appendPgmLayerClearPiece(
 
 /**
  * Outgoing look VIDEO stays up through the wipe cover / keepalive window.
- * On wiped Takes pass the resolved wipe cut point so Softie postroll matches
- * `previousPartKeepaliveDuration` (editorial cutPoint can exceed the 380 ms default).
- * Hard cuts keep {@link LOOK_MEDIA_POSTROLL_MS}.
+ * Softie pieces only continue `postrollDuration` past Take into the next part's
+ * `previousPartKeepaliveDuration` (editorial RE `cutPoint`). Always reserve at
+ * least a full default sting ({@link LOOK_MEDIA_POSTROLL_MS}) so a later wipe's
+ * cutPoint > 380 ms can actually hold picture; wiped Takes also cover this
+ * part's own sting length when longer.
+ *
+ * After segment generation, {@link raiseLookMediaPostrollForNextKeepalive} also
+ * raises each part to the *following* on-air wipe's cutPoint when that exceeds
+ * the default floor (e.g. hard-cut → wipe with cutPoint 3000 ms).
  */
-function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
+export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
 	const minPostroll = Math.max(0, Math.floor(postrollMs))
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects ?? []
@@ -1167,5 +1198,31 @@ function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = 
 		})
 		if (!keepPicture) continue
 		piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, minPostroll)
+	}
+}
+
+/**
+ * After a segment's parts are generated, raise each part's look-MEDIA postroll to
+ * cover the next on-air part's `previousPartKeepaliveDuration` (RE wipe cutPoint).
+ * Needed when that cut exceeds {@link LOOK_MEDIA_POSTROLL_MS} (default sting floor) —
+ * Softie cannot hold the previous picture past piece postroll even if keepalive is longer.
+ */
+export function raiseLookMediaPostrollForNextKeepalive(
+	parts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }>
+): void {
+	for (let i = 0; i < parts.length; i++) {
+		let nextKeepalive = 0
+		for (let j = i + 1; j < parts.length; j++) {
+			const next = parts[j].part
+			if (next.invalid || next.floated) continue
+			const keepalive = next.inTransition?.previousPartKeepaliveDuration
+			if (typeof keepalive === 'number' && Number.isFinite(keepalive) && keepalive > 0) {
+				nextKeepalive = Math.floor(keepalive)
+			}
+			break
+		}
+		if (nextKeepalive > 0) {
+			applyLookMediaPostroll(parts[i].pieces, nextKeepalive)
+		}
 	}
 }
