@@ -701,9 +701,7 @@ describe('pgmLook look-kind channels + route', () => {
 			expect(typeof enable.start).toBe('number')
 			expect(enable.start, 'no db_loop EMPTY before wipe cut').toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
 		}
-		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(
-			true
-		)
+		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
 	})
 
 	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {

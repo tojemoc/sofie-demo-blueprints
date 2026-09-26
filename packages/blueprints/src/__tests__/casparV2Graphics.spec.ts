@@ -7,7 +7,7 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
-import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
