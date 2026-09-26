@@ -61,6 +61,9 @@ describe('intro overlay + bg-loop layered videos', () => {
 		expect(introPiece?.expectedPackages?.[0]).toMatchObject({
 			content: { filePath: 'assets/intro_michal.mov' },
 		})
+
+		// Countup stays off until first wipe→DoubleBox after MOD — Intro must not PLAY it.
+		expect(result.pieces.some((piece) => piece.externalId?.includes('_countup_'))).toBe(false)
 	})
 
 	it('recovers GFX parts that only have a video as Intro overlay', () => {

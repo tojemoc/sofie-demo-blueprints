@@ -6,7 +6,6 @@ import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
-import { createCountupMutePiece } from '../helpers/countupReveal.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 
 /**
@@ -44,8 +43,9 @@ export function generateIntroPart(
 				? part.payload.clipProps.duration
 				: undefined
 	pieces.push(createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs))
-	// Belt-and-braces: keep countup SFX off while Intro overlay owns the soundtrack.
-	pieces.push(createCountupMutePiece(context, config, part.payload.externalId))
+	// Do not PLAY countup here. Reveal is opacity 0 until the first wipe into DoubleBox
+	// after MOD; a mute piece would start PLAY at opacity 1 under the intro overlay.
+	// Post-reveal Intro mute (if any) is handled by appendCountupSustainIfRevealed.
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 

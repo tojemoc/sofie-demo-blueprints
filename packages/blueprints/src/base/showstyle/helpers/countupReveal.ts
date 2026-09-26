@@ -186,7 +186,7 @@ export function createCountupSustainPiece(
 	return createCountupPiece(context, config, partExternalId, 'sustain')
 }
 
-/** Keep countup visible but silent (Intro overlay / outro jingle own the soundtrack). */
+/** Keep countup visible but silent (outro / závěr jingle owns the soundtrack). */
 export function createCountupMutePiece(
 	context: ICommonContext,
 	config: StudioConfig,
@@ -198,7 +198,7 @@ export function createCountupMutePiece(
 
 /**
  * Shared outro / závěr classification (jingle video, gfx/outro, gfx/ilu-zaver, rawType).
- * Intro is intentionally excluded — muted for the part but not persisted after Take.
+ * Intro is excluded — countup is not playing yet before the first DoubleBox reveal.
  */
 export function partIsOutroOrZaverCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/outro|zaver|závěr/i.test(rawType || '')) return true
