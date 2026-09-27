@@ -55,9 +55,10 @@ import {
 	getLookSlotSequenceForGeneration,
 	isDoubleBoxLook,
 	lookSlotForKind,
+	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
-import { resolveWipeDurationMs } from '../helpers/clips.js'
+import { normalizeLayeredVideoFileName, resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import { createLedPodHeadlinePiece, segmentUsesLedPodHeadline } from '../helpers/ledPodHeadline.js'
 import { SourceLayer } from '../applyconfig/layers.js'
@@ -333,6 +334,9 @@ export function generateParts(
 	// previousPartKeepaliveDuration. Raise each part to the following on-air wipe's
 	// editorial cutPoint when that exceeds the per-part default sting floor (2500 ms).
 	raiseLookMediaPostrollForNextKeepalive(parts)
+	// Segment-local raise cannot see the next segment's opening wipe — hold the last
+	// on-air part through a full sting so cross-segment wiped Takes keep picture.
+	raiseLookMediaPostrollForCrossSegmentWipe(parts)
 
 	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
 		// Prefer the wipe-entrance Take (first VO / wipe host), not a skipped open GFX shell.
@@ -358,7 +362,12 @@ export function generateParts(
 		// muteFrom 0: bed must be at intended level the moment wipe CLEAR (not latency-shifted).
 		const wipe = findWipeVideoObject(entranceRaw?.objects ?? [])
 		if (wipe) {
-			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration), 0)
+			const rawWipeFile =
+				(typeof wipe.attributes?.fileName === 'string' && wipe.attributes.fileName.trim()) ||
+				(typeof wipe.clipName === 'string' && wipe.clipName.trim()) ||
+				''
+			const wipeFile = rawWipeFile ? normalizeLayeredVideoFileName('wipe', rawWipeFile) : undefined
+			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration, wipeFile), 0)
 		}
 		entrancePart.pieces.push(sportMusic)
 	}

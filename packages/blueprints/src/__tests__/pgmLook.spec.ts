@@ -26,6 +26,7 @@ import {
 	L3D_OUT_MS,
 	LOOK_MEDIA_POSTROLL_MS,
 	LOOK_HARD_CUT_POSTROLL_MS,
+	LOOK_MEDIA_POSTROLL_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
@@ -33,11 +34,12 @@ import {
 	isDoubleBoxLook,
 	lookSlotForKind,
 	parseRouteMediaChannel,
+	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 	resetLookSlotGenerationForTests,
 	wipeStingDelayFrames,
 } from '../base/showstyle/helpers/pgmLook.js'
-import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import {
@@ -180,6 +182,31 @@ describe('pgmLook look-kind channels + route', () => {
 		]
 		raiseLookMediaPostrollForNextKeepalive(parts)
 		expect(lookClipPiece.postrollDuration).toBeGreaterThanOrEqual(3000)
+	})
+
+	it('raises last on-air part postroll for cross-segment wipe keepalive', () => {
+		const lookClipPiece = {
+			postrollDuration: LOOK_HARD_CUT_POSTROLL_MS,
+			content: {
+				timelineObjects: [
+					{
+						layer: LOOK_B_LAYERS.clip,
+						content: {
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/syn.mp4',
+						},
+					},
+				],
+			},
+		}
+		const parts = [
+			{
+				part: { externalId: 'seg-end', title: 'Last hard-cut' },
+				pieces: [lookClipPiece as never],
+			},
+		]
+		raiseLookMediaPostrollForCrossSegmentWipe(parts)
+		expect(lookClipPiece.postrollDuration).toBeGreaterThanOrEqual(LOOK_MEDIA_POSTROLL_MS)
 	})
 
 	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {
@@ -705,12 +732,25 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Leave-weather: Full-look ILU EMPTY from Take through wipe end.
-		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(0)
+		// Leave-weather: Full-look ILU EMPTY from air cut through wipe end (under cover).
+		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(WIPE_AIR_CUT_MS)
 		const zaverIluClearMs =
 			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
 		expect(zaverIluClearMs).toBeGreaterThan(0)
-		expect(zaverIluClearMs).toBe(2500)
+		expect(zaverIluClearMs).toBe(2500 - WIPE_AIR_CUT_MS)
+		const ledZaver = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGIluPlayer &&
+				(obj.content as { file?: string }).file !== 'EMPTY' &&
+				String((obj.content as { file?: string }).file || '').length > 0
+		)
+		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(WIPE_AIR_CUT_MS)
+		const wipeOverlay = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer &&
+				String((obj.content as { file?: string }).file || '').includes('wipe')
+		)
+		expect(!Array.isArray(wipeOverlay?.enable) && wipeOverlay?.enable.start).toBe(0)
 	})
 
 	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
@@ -909,7 +949,7 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!l3d) return
 		const objectTimeMs = typeof l3d.piece.enable?.start === 'number' ? l3d.piece.enable.start : 0
 		expect(objectTimeMs).toBeGreaterThanOrEqual(1000)
-		const wipeDurationMs = 2500
+		const wipeDurationMs = resolveWipeDurationMs(2500, 'wipes/wipe_sport')
 		// start:1s falls under sting → object delay lands ADD at wipe end (Take-relative).
 		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(wipeDurationMs - objectTimeMs)
 

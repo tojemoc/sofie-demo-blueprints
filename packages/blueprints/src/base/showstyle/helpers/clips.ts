@@ -69,19 +69,48 @@ export const WIPE_PLAYOUT_LATENCY_MS = 380
 export const DEFAULT_WIPE_PREROLL_MS = 3000
 
 /**
+ * Animation length of themed story wipes (ms @ 50fps), shorter than the generic
+ * 2500 ms RE default. Softie overlay duration longer than the mov freezes the last
+ * frame on PGM (operators reported SJV +7f / ŠPORT +8f / Počasie +8f of hold).
+ * Keys are Caspar PLAY paths (no extension), matching {@link toCasparPlayPath}.
+ */
+export const THEMED_WIPE_ANIMATION_MS: Readonly<Record<string, number>> = {
+	'wipes/wipe_sjv': 2500 - 7 * 20, // 2360 — 7 frames of freeze on last frame
+	'wipes/wipe_sport': 2500 - 8 * 20, // 2340
+	'wipes/wipe_pocasie': 2500 - 8 * 20, // 2340
+}
+
+function normalizeWipePlayPath(fileName: string | undefined): string | undefined {
+	if (!fileName) return undefined
+	const trimmed = fileName.trim().replace(/\\/g, '/')
+	if (!trimmed) return undefined
+	return trimmed.replace(/\.(mov|mp4|mxf|mkv|webm)$/i, '')
+}
+
+/**
  * How long Host/Playback ForceMute + editorial Caspar duck last.
  * Must end with the wipe SFX — not an oversized tail after the stinger.
  * Defaults to the visual wipe length; override via RE wipe piece duration when set.
+ * Themed `wipe_sjv` / `_sport` / `_pocasie` are capped to their animation length so
+ * Caspar does not freeze the last frame past the sting.
  */
-export function resolveWipeDurationMs(wipeDurationFromIngest?: number): number {
+export function resolveWipeDurationMs(wipeDurationFromIngest?: number, wipeFile?: string): number {
+	let duration = DEFAULT_WIPE_DURATION_MS
 	if (
 		typeof wipeDurationFromIngest === 'number' &&
 		Number.isFinite(wipeDurationFromIngest) &&
 		wipeDurationFromIngest > 0
 	) {
-		return Math.floor(wipeDurationFromIngest)
+		duration = Math.floor(wipeDurationFromIngest)
 	}
-	return DEFAULT_WIPE_DURATION_MS
+	const playPath = normalizeWipePlayPath(wipeFile)
+	if (playPath) {
+		const themed = THEMED_WIPE_ANIMATION_MS[playPath]
+		if (typeof themed === 'number' && themed > 0) {
+			duration = Math.min(duration, themed)
+		}
+	}
+	return duration
 }
 
 /**
@@ -398,7 +427,7 @@ export function parseLayeredVideosFromObjects(
 				: object.duration > 0
 					? object.duration
 					: playLayer === 'wipe'
-						? resolveWipeDurationMs()
+						? resolveWipeDurationMs(undefined, fileName)
 						: undefined
 
 		const skipWipeOverlay = playLayer === 'wipe' && Boolean(config.casparcg.hypercomposed)
