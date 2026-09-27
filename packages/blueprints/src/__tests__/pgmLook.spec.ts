@@ -26,7 +26,6 @@ import {
 	L3D_OUT_MS,
 	LOOK_MEDIA_POSTROLL_MS,
 	LOOK_HARD_CUT_POSTROLL_MS,
-	LOOK_MEDIA_POSTROLL_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,

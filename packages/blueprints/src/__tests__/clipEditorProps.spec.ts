@@ -169,9 +169,7 @@ describe('resolveWipeDurationMs', () => {
 	it('caps themed story wipes so Softie does not freeze the last mov frame', () => {
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sjv.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sjv'])
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sport')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sport'])
-		expect(resolveWipeDurationMs(2500, 'wipes/wipe_pocasie.mov')).toBe(
-			THEMED_WIPE_ANIMATION_MS['wipes/wipe_pocasie']
-		)
+		expect(resolveWipeDurationMs(2500, 'wipes/wipe_pocasie.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_pocasie'])
 		// Generic wipe.mov keeps the RE / default length.
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe.mov')).toBe(2500)
 		expect(resolveWipeDurationMs(undefined)).toBe(2500)

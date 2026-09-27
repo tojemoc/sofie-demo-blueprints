@@ -729,9 +729,7 @@ export function finalizeHypercomposedPart(
 	// Leave-weather into wiped ZAVER: hold previous weather L3D until the air cut so
 	// WX HTML stays under the sting until cover — not cleared at Take while wipe
 	// overlay is still loading. Wipe-only GFX shells keep L3D CLEAR at Take.
-	const leaveWeatherUnderWipe = Boolean(
-		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasIluZaver(objects)
-	)
+	const leaveWeatherUnderWipe = Boolean(hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasIluZaver(objects))
 	const l3dClearStartMs = leaveWeatherUnderWipe ? wipeCutPointMs : 0
 	const l3dClearHoldMs =
 		l3dClearDurationMs !== undefined && l3dClearStartMs > 0
