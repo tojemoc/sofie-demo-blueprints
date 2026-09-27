@@ -73,6 +73,13 @@ export const LOOK_MEDIA_POSTROLL_MS = 2500
  */
 export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
 
+/**
+ * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
+ * Kept at the legacy ~cover-frame length — long wipe-style postroll on hard cuts
+ * made `bg_loop` / companion loops peek on DB↔Full switches.
+ */
+export const LOOK_HARD_CUT_POSTROLL_MS = 380
+
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
 	camera: CasparCGLayers.CasparCGPgmCamera,
@@ -319,6 +326,29 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 		if (hasLookRouteCamera) continue
 		// Native DeckLink/dshow must not LOADBG on look layers (ingest helper owns the device).
 		// Look CAM is normally MEDIA route://5 — safe to preroll; skip only if a piece still has INPUT.
+		if (pieceUsesLiveCameraProducer(piece)) continue
+		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
+	}
+}
+
+/**
+ * Hard-cut Takes onto the **idle** look channel (Full↔DoubleBox): LOADBG CAM / ILU /
+ * `db_loop` before Take so route://N does not show empty windows for ~380 ms.
+ * Wiped Takes use {@link applyLookPreroll} instead (stricter skips — no early ILU LOAD).
+ */
+function applyHardCutIncomingLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
+	if (prerollMs <= 0) return
+
+	for (const piece of pieces) {
+		const objs = piece.content.timelineObjects ?? []
+		const usesLook = objs.some((obj) => isLookComposeLayer(String(obj.layer)))
+		if (!usesLook) continue
+		const hasL3dTemplate = objs.some((obj) => {
+			const layer = String(obj.layer)
+			if (!L3D_TEMPLATE_LAYERS.has(layer)) return false
+			return isCasparTemplate(obj.content as { type?: string })
+		})
+		if (hasL3dTemplate) continue
 		if (pieceUsesLiveCameraProducer(piece)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
@@ -677,6 +707,8 @@ export function finalizeHypercomposedPart(
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
 		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
+	} else if (previousLookSlot !== undefined && previousLookSlot !== lookSlot) {
+		applyHardCutIncomingLookPreroll(pieces, getLookPrerollMs(config))
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
@@ -798,19 +830,19 @@ export function finalizeHypercomposedPart(
 		mutePgmWipeOverlayAudio(pieces)
 	}
 
-	// Softie only extends previous look pieces by `postrollDuration` past Take into
-	// the next part's `previousPartKeepaliveDuration` (RE `cutPoint`). Matching only
-	// *this* wipe's cut (or the old 380 ms default) left hard-cut / default parts
-	// dying at 380 ms when the following wipe asked for 500 ms+ — RE cutPoint looked
-	// ignored. Reserve full sting headroom (and this wipe's duration/cut when longer).
+	// Wiped Takes: reserve full sting postroll so the next Take's keepalive can hold
+	// picture through editorial cutPoint. Hard cuts keep the legacy short postroll so
+	// companion bg_loop does not linger on DB↔Full switches.
 	applyLookMediaPostroll(
 		pieces,
-		Math.max(
-			LOOK_MEDIA_POSTROLL_MS,
-			DEFAULT_WIPE_DURATION_MS,
-			hasWipe ? wipeCutPointMs : 0,
-			hasWipe ? wipeDurationMs : 0
-		)
+		hasWipe
+			? Math.max(
+					LOOK_MEDIA_POSTROLL_MS,
+					DEFAULT_WIPE_DURATION_MS,
+					wipeCutPointMs,
+					wipeDurationMs
+				)
+			: LOOK_HARD_CUT_POSTROLL_MS
 	)
 }
 
