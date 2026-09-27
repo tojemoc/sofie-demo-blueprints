@@ -421,13 +421,15 @@ export function parseLayeredVideosFromObjects(
 
 		// Wipes are short PGM transitions: never leave an open-ended piece covering the wipe layer.
 		// Outro holds last frame for the rundown — do not end the piece when the mov ends.
+		// Always resolve wipe duration through resolveWipeDurationMs so themed caps apply even
+		// when RE/ingest supplies a positive duration (e.g. 2500 on wipe_sport).
 		const enableDuration =
 			playLayer === 'effects' && isOutroVideoFile(fileName)
 				? undefined
-				: object.duration > 0
-					? object.duration
-					: playLayer === 'wipe'
-						? resolveWipeDurationMs(undefined, fileName)
+				: playLayer === 'wipe'
+					? resolveWipeDurationMs(object.duration > 0 ? object.duration : undefined, fileName)
+					: object.duration > 0
+						? object.duration
 						: undefined
 
 		const skipWipeOverlay = playLayer === 'wipe' && Boolean(config.casparcg.hypercomposed)
