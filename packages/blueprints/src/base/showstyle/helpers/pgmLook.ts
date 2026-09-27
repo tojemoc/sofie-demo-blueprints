@@ -836,12 +836,7 @@ export function finalizeHypercomposedPart(
 	applyLookMediaPostroll(
 		pieces,
 		hasWipe
-			? Math.max(
-					LOOK_MEDIA_POSTROLL_MS,
-					DEFAULT_WIPE_DURATION_MS,
-					wipeCutPointMs,
-					wipeDurationMs
-				)
+			? Math.max(LOOK_MEDIA_POSTROLL_MS, DEFAULT_WIPE_DURATION_MS, wipeCutPointMs, wipeDurationMs)
 			: LOOK_HARD_CUT_POSTROLL_MS
 	)
 }

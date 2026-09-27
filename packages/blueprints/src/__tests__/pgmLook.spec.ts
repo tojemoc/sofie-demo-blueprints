@@ -331,9 +331,7 @@ describe('pgmLook look-kind channels + route', () => {
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === LOOK_A_LAYERS.ilu && (obj.content as { file?: string }).file !== 'EMPTY')
 		expect(iluObj).toBeDefined()
-		const iluHost = result.pieces.find((piece) =>
-			(piece.content.timelineObjects ?? []).some((obj) => obj === iluObj)
-		)
+		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
 		expect(iluHost?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
 		expect(
 			result.pieces
