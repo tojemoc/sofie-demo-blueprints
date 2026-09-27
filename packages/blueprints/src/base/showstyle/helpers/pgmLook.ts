@@ -1149,10 +1149,12 @@ function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boo
  * delayed unrelated LED ILU / L3D CLEAR on wiped GFX shells.
  */
 function isActiveIluZaverPiece(piece: IBlueprintPiece): boolean {
-	// parseGraphic names pieces `gfx/ilu-zaver | …`; headlines share CasparCGIluPlayer
-	// but use SourceLayer.IluMedia and a different name prefix.
+	// parseGraphic names pieces `gfx/ilu-zaver | …` from raw clipName; isIluZaver trims
+	// via normalizeGraphicClipName — trim here so leading/trailing whitespace still matches.
+	// Headlines share CasparCGIluPlayer but use SourceLayer.IluMedia and a different name.
 	if (
 		!String(piece.name || '')
+			.trim()
 			.toLowerCase()
 			.startsWith('gfx/ilu-zaver')
 	)

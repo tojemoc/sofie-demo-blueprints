@@ -812,7 +812,8 @@ describe('pgmLook look-kind channels + route', () => {
 		const zaverIlu = {
 			enable: { start: 0 },
 			externalId: 'zaver-ilu',
-			name: 'gfx/ilu-zaver | ILU AVIZO',
+			// Leading space mirrors parseGraphic keeping raw clipName while isIluZaver trims.
+			name: ' gfx/ilu-zaver | ILU AVIZO',
 			lifespan: PieceLifespan.OutOnRundownEnd,
 			sourceLayerId: SourceLayer.LowerThird,
 			outputLayerId: 'pgm',
