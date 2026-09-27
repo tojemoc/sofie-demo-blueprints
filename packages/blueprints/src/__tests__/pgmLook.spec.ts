@@ -12,6 +12,7 @@ import {
 } from '../base/showstyle/definitions/index.js'
 import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-adapters/index.js'
 import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { PartContext } from '../common/context.js'
@@ -24,6 +25,7 @@ import {
 	LOOK_B_LAYERS,
 	L3D_OUT_MS,
 	LOOK_MEDIA_POSTROLL_MS,
+	LOOK_HARD_CUT_POSTROLL_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
@@ -298,6 +300,50 @@ describe('pgmLook look-kind channels + route', () => {
 			file: 'route://4',
 		})
 		expect((routeObj?.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		expect(routePiece?.postrollDuration).toBe(LOOK_HARD_CUT_POSTROLL_MS)
+	})
+
+	it('hard-cut Full→DoubleBox cross-slot prerolls idle look CAM/ILU before Take', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const dbIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-db')
+		expect(dbIngest).toBeDefined()
+		if (!dbIngest) return
+		const payload = dbIngest.payload as { pieces: Array<{ objectType: string }> }
+		payload.pieces = payload.pieces.filter((piece) => piece.objectType.toLowerCase() !== 'wipe')
+
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const dbPart = segment.parts.find((part) => part.payload.externalId === 'part-tema-1-db')
+		expect(dbPart).toBeDefined()
+		if (!dbPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), dbPart.payload.externalId)
+		const result = generateCameraPart(
+			partContext,
+			dbPart as PartProps<CameraProps>,
+			createCountupRevealClaim(),
+			'A',
+			'B'
+		)
+		const camPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.Camera as string))
+		expect(camPiece?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		const iluObj = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => obj.layer === LOOK_A_LAYERS.ilu && (obj.content as { file?: string }).file !== 'EMPTY')
+		expect(iluObj).toBeDefined()
+		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
+		expect(iluHost?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		expect(
+			result.pieces
+				.flatMap((piece) => piece.content.timelineObjects ?? [])
+				.filter(
+					(obj) =>
+						obj.layer === LOOK_A_LAYERS.camera ||
+						obj.layer === LOOK_A_LAYERS.ilu ||
+						obj.layer === LOOK_A_LAYERS.doubleBoxLoop
+				)
+				.every((obj) => !Array.isArray(obj.enable) && (obj.enable?.start ?? 0) === 0)
+		).toBe(true)
 	})
 
 	it('clears Full-look CAM (EMPTY) so SYN on 4-110 is not covered by baseline route://5', () => {
