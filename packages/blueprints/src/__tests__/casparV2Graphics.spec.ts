@@ -341,6 +341,26 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
+	it('keeps gfx/ilu-zaver on LED through Outro (OutOnRundownEnd)', () => {
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'zaver-ilu',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO SAKOVA.mp4' },
+			},
+		]).pieces[0]
+
+		expect(piece?.sourceLayerId).toBe(SourceLayer.LowerThird)
+		expect(piece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		// Duration must not end the piece early — hold until Take / OutOnRundownEnd.
+		expect(piece?.enable).toEqual({ start: 0 })
+		expect(piece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGIluPlayer)
+	})
+
 	it('does not PLAY assets/countup from baseline (starts on first DoubleBox Take)', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const countup = baseline.timelineObjects?.find(
