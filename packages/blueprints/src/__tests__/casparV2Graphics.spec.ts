@@ -7,7 +7,7 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
-import { resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs, resolveWipeDurationMs } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -341,6 +341,26 @@ describe('casparV2Graphics', () => {
 		expect((caspar?.content as TSR.TimelineContentCCGTemplate).name).toBe('gfx/logo-bug')
 	})
 
+	it('keeps gfx/ilu-zaver on LED through Outro (OutOnRundownEnd)', () => {
+		const piece = parseGraphicsFromObjects(hybridCasparConfig, [
+			{
+				id: 'zaver-ilu',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO SAKOVA.mp4' },
+			},
+		]).pieces[0]
+
+		expect(piece?.sourceLayerId).toBe(SourceLayer.LowerThird)
+		expect(piece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		// Duration must not end the piece early — hold until Take / OutOnRundownEnd.
+		expect(piece?.enable).toEqual({ start: 0 })
+		expect(piece?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGIluPlayer)
+	})
+
 	it('does not PLAY assets/countup from baseline (starts on first DoubleBox Take)', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const countup = baseline.timelineObjects?.find(
@@ -547,7 +567,11 @@ describe('casparV2Graphics', () => {
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)).toBe(true)
 		const clipEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
 		// EMPTY through full sting so sport cannot flash after wipe CLEAR; bg_loop (prio 3) wins at cut.
-		expect(clipEmpty?.enable).toEqual({ start: 0, duration: 2500 })
+		// Themed wipe_pocasie is shorter than the generic 2500 ms RE default (no frozen last frame).
+		expect(clipEmpty?.enable).toEqual({
+			start: 0,
+			duration: resolveWipeDurationMs(2500, 'wipes/wipe_pocasie'),
+		})
 		// Weather owns look ILU — do not EMPTY bg_pocasie on the weather Take itself.
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB)).toBe(false)
 		// Weather stack restores loops/bg_loop under bg_pocasie + GFX.

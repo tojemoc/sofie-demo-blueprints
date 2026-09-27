@@ -705,6 +705,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 			},
 		})
+		const ledIluPiece = result.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => obj === ledIlu)
+		)
+		// Hang through Outro — outro.mov wipe-IN needs the LED filled until cover.
+		expect(ledIluPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		expect(
 			timeline.some(
 				(obj) =>

@@ -766,6 +766,12 @@ function getGraphicLifespan(sourceLayer: SourceLayer, object: GraphicObjectBase)
 		return PieceLifespan.OutOnRundownEnd
 	}
 
+	// LED závěr ILU: hang through Outro (outro.mov has a wipe-like IN — clearing LED
+	// at Take to Outro flashes empty wall before the sting covers). Holds until rundown end.
+	if (isIluZaver(object)) {
+		return PieceLifespan.OutOnRundownEnd
+	}
+
 	if (
 		sourceLayer === SourceLayer.Strap &&
 		(!object.attributes['text'] ||

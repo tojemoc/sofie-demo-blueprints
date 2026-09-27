@@ -75,10 +75,12 @@ export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
 
 /**
  * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
- * Kept at the legacy ~cover-frame length — long wipe-style postroll on hard cuts
+ * Kept near the legacy ~cover-frame length — long wipe-style postroll on hard cuts
  * made `bg_loop` / companion loops peek on DB↔Full switches.
+ * One frame (@50fps) above 380 so Softie/Caspar do not open a single black frame
+ * between outgoing keepalive end and incoming look PLAY on DB↔Full hard cuts.
  */
-export const LOOK_HARD_CUT_POSTROLL_MS = 380
+export const LOOK_HARD_CUT_POSTROLL_MS = 400
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -487,7 +489,7 @@ function createPgmRoutePiece(
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
-	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
+	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
 	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
@@ -676,8 +678,6 @@ export function finalizeHypercomposedPart(
 	remapLookLayers(pieces, lookSlot)
 
 	const wipe = findWipeVideoObject(objects)
-	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration)
-	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const wipeFile = wipe
 		? normalizeLayeredVideoFileName(
 				'wipe',
@@ -686,6 +686,8 @@ export function finalizeHypercomposedPart(
 					DEFAULT_WIPE_FILE
 			)
 		: undefined
+	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
@@ -724,6 +726,19 @@ export function finalizeHypercomposedPart(
 			? L3D_OUT_MS + earliestL3dObjectTimeMs
 			: 0
 	const l3dClearDurationMs = hasIncomingL3d ? firstL3dOnAirMs : undefined
+	// Leave-weather into wiped ZAVER: hold previous weather L3D until the air cut so
+	// WX HTML stays under the sting until cover — not cleared at Take while wipe
+	// overlay is still loading. Wipe-only GFX shells keep L3D CLEAR at Take.
+	// Require an *active* on-air ilu-zaver piece — an ad-lib-only ingest hit must not
+	// delay L3D CLEAR on unrelated wiped GFX.
+	const leaveWeatherUnderWipe = Boolean(
+		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
+	)
+	const l3dClearStartMs = leaveWeatherUnderWipe ? wipeCutPointMs : 0
+	const l3dClearHoldMs =
+		l3dClearDurationMs !== undefined && l3dClearStartMs > 0
+			? Math.max(0, l3dClearDurationMs - l3dClearStartMs)
+			: l3dClearDurationMs
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
 	// (SJV→SJV, ŠPORT→ŠPORT) otherwise become CG UPDATE (text swap, no IN anim).
@@ -734,7 +749,7 @@ export function finalizeHypercomposedPart(
 		// Duration only until the delayed CG ADD. Wiped Takes with no incoming L3D must
 		// hold EMPTY for the whole part — otherwise previous L3D returns after
 		// the clear window while the sting/keepalive still covers.
-		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearDurationMs))
+		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
 	}
 	// Full wipe onto a *new* look channel (e.g. DoubleBox→Full): EMPTY stale clip/CAM/
 	// db_loop on ch4 under the sting. Full→Full (SJV→ŠPORT, ŠPORT→Počasie, …) must
@@ -760,7 +775,7 @@ export function finalizeHypercomposedPart(
 		const dbLoopClearStartMs = previousLookSlot === 'A' ? wipeCutPointMs : 0
 		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop, undefined, dbLoopClearStartMs))
 	}
-	if (lookSlot === 'B' && partHasIluZaver(objects)) {
+	if (lookSlot === 'B' && partHasActiveIluZaver(pieces)) {
 		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
 		// above — do not also EMPTY it at Take via the bulk look-A clear (that would kill
 		// the on-air frame under the sting before the route cut).
@@ -772,18 +787,19 @@ export function finalizeHypercomposedPart(
 			...buildL3dLayerClearObjects('A')
 		)
 	}
-	// Leaving Počasie: clear bg_pocasie from Take through wipe end (while covered).
-	// Starting only at the cut left ~20–39f of map after wipe CLEAR when postroll /
-	// keepalive raced the delayed EMPTY. Finite duration — open-ended EMPTY rides
+	// Leaving Počasie: clear bg_pocasie at the air cut (under wipe cover) through wipe
+	// end. Clearing at Take made WX disappear before the sting was on PGM (operators
+	// saw weather hide → LED switch → wipe). Finite duration — open-ended EMPTY rides
 	// keepalive into the *next* Take and suppresses incoming weather `bg_pocasie`.
 	// Leave-weather / non-ILU Takes: EMPTY look ILU so `bg_pocasie` cannot linger
 	// into ZAVER (Full) or the next story. DB Takes without look ILU also CLEAR
 	// Full ILU so a lingering ch4 weather map dies under the sting.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
 		if (hasWipe) {
-			clearObjects.push(...buildLookIluClearObjects(lookSlot, wipeDurationMs, 0))
+			const leaveWeatherClearMs = Math.max(0, wipeDurationMs - wipeCutPointMs)
+			clearObjects.push(...buildLookIluClearObjects(lookSlot, leaveWeatherClearMs, wipeCutPointMs))
 			if (lookSlot === 'A') {
-				clearObjects.push(...buildLookIluClearObjects('B', wipeDurationMs, 0))
+				clearObjects.push(...buildLookIluClearObjects('B', leaveWeatherClearMs, wipeCutPointMs))
 			}
 		} else {
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_ILU_HARD_CUT_CLEAR_MS))
@@ -809,6 +825,13 @@ export function finalizeHypercomposedPart(
 		// frame is ready when route://3 flips. DB→DB must not early-LOAD (replaces on-air).
 		preloadIdleDoubleBoxIlu: hasWipe && lookSlot === 'A' && !sameLookChannel,
 	})
+
+	// Wiped ZAVER: LED `ilu-zaver` must land at the air cut with WX hide / route flip —
+	// not at Take (before the sting covers PGM). Ad-lib-only ingest must not delay
+	// other LED ILU (e.g. headline) sitting on the same Caspar layer.
+	if (hasWipe && partHasActiveIluZaver(pieces)) {
+		delayLedIluZaverToWipeCut(pieces, wipeCutPointMs)
+	}
 
 	const alreadyRouted = pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some(
@@ -1037,7 +1060,7 @@ function applyL3dTakeOffsets(
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
 			if (!isCasparMedia(content)) continue
 			// Look / L3D CLEAR EMPTYs must stay at Take (sport SYN + previous L3D),
-			// except leave-weather ILU EMPTY which is scheduled at the cutpoint below.
+			// except leave-weather ILU EMPTY which is scheduled at the air cut above.
 			if (content.file === 'EMPTY') continue
 
 			// Look A ILU (ch3-116).
@@ -1120,12 +1143,33 @@ function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boo
 	)
 }
 
-/** True when ingest carries `gfx/ilu-zaver` (ZAVER+AVIZO / odporúčanie). */
-function partHasIluZaver(objects: SomeObject[]): boolean {
-	return objects.some((obj) => {
-		if (obj.objectType !== ObjectType.Graphic) return false
-		return String((obj as GraphicObject).clipName || '').toLowerCase() === 'gfx/ilu-zaver'
+/**
+ * True when on-air pieces include LED `gfx/ilu-zaver` MEDIA with an `iluFile`.
+ * Ad-lib-only ingest (absent from `pieces`) must not count — that false positive
+ * delayed unrelated LED ILU / L3D CLEAR on wiped GFX shells.
+ */
+function isActiveIluZaverPiece(piece: IBlueprintPiece): boolean {
+	// parseGraphic names pieces `gfx/ilu-zaver | …` from raw clipName; isIluZaver trims
+	// via normalizeGraphicClipName — trim here so leading/trailing whitespace still matches.
+	// Headlines share CasparCGIluPlayer but use SourceLayer.IluMedia and a different name.
+	if (
+		!String(piece.name || '')
+			.trim()
+			.toLowerCase()
+			.startsWith('gfx/ilu-zaver')
+	)
+		return false
+	const fileName = (piece.content as { fileName?: string }).fileName
+	if (!fileName) return false
+	return (piece.content.timelineObjects ?? []).some((obj) => {
+		if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) return false
+		const content = obj.content as { type?: string; file?: string }
+		return isCasparMedia(content) && content.file !== 'EMPTY'
 	})
+}
+
+function partHasActiveIluZaver(pieces: IBlueprintPiece[]): boolean {
+	return pieces.some(isActiveIluZaverPiece)
 }
 
 /** True when this part plays look CAM (live `route://5` / DeckLink) — do not EMPTY it. */
@@ -1164,15 +1208,17 @@ function emptyLookMediaObject(
 }
 
 /**
- * EMPTY the look L3D layer at Take so a keepalive'd previous template cannot stack
- * under the wipe / hard-cut gap. Duration covers until the delayed CG ADD; omit
- * duration when there is no incoming L3D (wiped Take into a graphic-free part).
+ * EMPTY the look L3D layer at Take (or `clearStartMs`) so a keepalive'd previous
+ * template cannot stack under the wipe / hard-cut gap. Duration covers until the
+ * delayed CG ADD; omit duration when there is no incoming L3D (wiped Take into a
+ * graphic-free part).
  */
 function buildL3dLayerClearObjects(
 	lookSlot: LookSlot,
-	clearDurationMs?: number
+	clearDurationMs?: number,
+	clearStartMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	return [emptyLookMediaObject(getLookLayers(lookSlot).lowerThird, clearDurationMs)]
+	return [emptyLookMediaObject(getLookLayers(lookSlot).lowerThird, clearDurationMs, clearStartMs)]
 }
 
 /**
@@ -1282,6 +1328,43 @@ export function raiseLookMediaPostrollForNextKeepalive(
 		}
 		if (nextKeepalive > 0) {
 			applyLookMediaPostroll(parts[i].pieces, nextKeepalive)
+		}
+	}
+}
+
+/**
+ * Softie generates segments independently — {@link raiseLookMediaPostrollForNextKeepalive}
+ * cannot see a wipe on the *next* segment. SPRÁVY segment boundaries almost always
+ * open with a wipe; without a full-sting postroll on the last on-air part, Softie
+ * drops previous look MEDIA after {@link LOOK_HARD_CUT_POSTROLL_MS} (~400 ms) while
+ * the next wipe's air cut is still ~760 ms out — black / early cut under the sting
+ * (seen on SYN ADEL → ILU GUBIK and other cross-segment wipes).
+ */
+export function raiseLookMediaPostrollForCrossSegmentWipe(
+	parts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }>
+): void {
+	for (let i = parts.length - 1; i >= 0; i--) {
+		const part = parts[i].part
+		if (part.invalid || part.floated) continue
+		applyLookMediaPostroll(parts[i].pieces, LOOK_MEDIA_POSTROLL_MS)
+		break
+	}
+}
+
+/**
+ * Delay LED `ilu-zaver` MEDIA to the wipe air cut so the LED switch lands under
+ * the PGM sting with WX hide / route flip — not at Take before wipe frame 0.
+ * Only shifts active závěr pieces — never other CasparCGIluPlayer MEDIA (headlines).
+ */
+function delayLedIluZaverToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: number): void {
+	if (wipeCutPointMs <= 0) return
+	for (const piece of pieces) {
+		if (!isActiveIluZaverPiece(piece)) continue
+		for (const obj of piece.content.timelineObjects ?? []) {
+			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) continue
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
+			shiftEnableStartIfAtTake(obj, wipeCutPointMs)
 		}
 	}
 }

@@ -7,6 +7,8 @@ import {
 	getVideoPlayLayer,
 	resolveWipeCutPointMs,
 	resolveWipeAirCutMs,
+	resolveWipeDurationMs,
+	THEMED_WIPE_ANIMATION_MS,
 	WIPE_CUT_POINT_MS,
 	WIPE_PLAYOUT_LATENCY_MS,
 } from '../base/showstyle/helpers/clips.js'
@@ -160,5 +162,16 @@ describe('resolveWipeAirCutMs', () => {
 		expect(resolveWipeAirCutMs({ cutPoint: 0 })).toBe(WIPE_PLAYOUT_LATENCY_MS)
 		// Never schedule after wipe CLEAR.
 		expect(resolveWipeAirCutMs({ cutPoint: 2400 }, 2500)).toBe(2500)
+	})
+})
+
+describe('resolveWipeDurationMs', () => {
+	it('caps themed story wipes so Softie does not freeze the last mov frame', () => {
+		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sjv.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sjv'])
+		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sport')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sport'])
+		expect(resolveWipeDurationMs(2500, 'wipes/wipe_pocasie.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_pocasie'])
+		// Generic wipe.mov keeps the RE / default length.
+		expect(resolveWipeDurationMs(2500, 'wipes/wipe.mov')).toBe(2500)
+		expect(resolveWipeDurationMs(undefined)).toBe(2500)
 	})
 })
