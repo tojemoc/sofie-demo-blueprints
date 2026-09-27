@@ -729,7 +729,11 @@ export function finalizeHypercomposedPart(
 	// Leave-weather into wiped ZAVER: hold previous weather L3D until the air cut so
 	// WX HTML stays under the sting until cover — not cleared at Take while wipe
 	// overlay is still loading. Wipe-only GFX shells keep L3D CLEAR at Take.
-	const leaveWeatherUnderWipe = Boolean(hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasIluZaver(objects))
+	// Require an *active* on-air ilu-zaver piece — an ad-lib-only ingest hit must not
+	// delay L3D CLEAR on unrelated wiped GFX.
+	const leaveWeatherUnderWipe = Boolean(
+		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
+	)
 	const l3dClearStartMs = leaveWeatherUnderWipe ? wipeCutPointMs : 0
 	const l3dClearHoldMs =
 		l3dClearDurationMs !== undefined && l3dClearStartMs > 0
@@ -771,7 +775,7 @@ export function finalizeHypercomposedPart(
 		const dbLoopClearStartMs = previousLookSlot === 'A' ? wipeCutPointMs : 0
 		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop, undefined, dbLoopClearStartMs))
 	}
-	if (lookSlot === 'B' && partHasIluZaver(objects)) {
+	if (lookSlot === 'B' && partHasActiveIluZaver(pieces)) {
 		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
 		// above — do not also EMPTY it at Take via the bulk look-A clear (that would kill
 		// the on-air frame under the sting before the route cut).
@@ -823,8 +827,9 @@ export function finalizeHypercomposedPart(
 	})
 
 	// Wiped ZAVER: LED `ilu-zaver` must land at the air cut with WX hide / route flip —
-	// not at Take (before the sting covers PGM).
-	if (hasWipe && partHasIluZaver(objects)) {
+	// not at Take (before the sting covers PGM). Ad-lib-only ingest must not delay
+	// other LED ILU (e.g. headline) sitting on the same Caspar layer.
+	if (hasWipe && partHasActiveIluZaver(pieces)) {
 		delayLedIluZaverToWipeCut(pieces, wipeCutPointMs)
 	}
 
@@ -1138,12 +1143,31 @@ function partHasLookIluMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boo
 	)
 }
 
-/** True when ingest carries `gfx/ilu-zaver` (ZAVER+AVIZO / odporúčanie). */
-function partHasIluZaver(objects: SomeObject[]): boolean {
-	return objects.some((obj) => {
-		if (obj.objectType !== ObjectType.Graphic) return false
-		return String((obj as GraphicObject).clipName || '').toLowerCase() === 'gfx/ilu-zaver'
+/**
+ * True when on-air pieces include LED `gfx/ilu-zaver` MEDIA with an `iluFile`.
+ * Ad-lib-only ingest (absent from `pieces`) must not count — that false positive
+ * delayed unrelated LED ILU / L3D CLEAR on wiped GFX shells.
+ */
+function isActiveIluZaverPiece(piece: IBlueprintPiece): boolean {
+	// parseGraphic names pieces `gfx/ilu-zaver | …`; headlines share CasparCGIluPlayer
+	// but use SourceLayer.IluMedia and a different name prefix.
+	if (
+		!String(piece.name || '')
+			.toLowerCase()
+			.startsWith('gfx/ilu-zaver')
+	)
+		return false
+	const fileName = (piece.content as { fileName?: string }).fileName
+	if (!fileName) return false
+	return (piece.content.timelineObjects ?? []).some((obj) => {
+		if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) return false
+		const content = obj.content as { type?: string; file?: string }
+		return isCasparMedia(content) && content.file !== 'EMPTY'
 	})
+}
+
+function partHasActiveIluZaver(pieces: IBlueprintPiece[]): boolean {
+	return pieces.some(isActiveIluZaverPiece)
 }
 
 /** True when this part plays look CAM (live `route://5` / DeckLink) — do not EMPTY it. */
@@ -1328,10 +1352,12 @@ export function raiseLookMediaPostrollForCrossSegmentWipe(
 /**
  * Delay LED `ilu-zaver` MEDIA to the wipe air cut so the LED switch lands under
  * the PGM sting with WX hide / route flip — not at Take before wipe frame 0.
+ * Only shifts active závěr pieces — never other CasparCGIluPlayer MEDIA (headlines).
  */
 function delayLedIluZaverToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: number): void {
 	if (wipeCutPointMs <= 0) return
 	for (const piece of pieces) {
+		if (!isActiveIluZaverPiece(piece)) continue
 		for (const obj of piece.content.timelineObjects ?? []) {
 			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) continue
 			const content = obj.content as { type?: string; file?: string }

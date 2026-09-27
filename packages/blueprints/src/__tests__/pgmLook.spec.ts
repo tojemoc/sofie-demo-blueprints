@@ -1,4 +1,4 @@
-import { TSR } from '@sofie-automation/blueprints-integration'
+import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
 	PartType,
@@ -29,6 +29,7 @@ import {
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
+	finalizeHypercomposedPart,
 	getLookCasparChannel,
 	isDoubleBoxLook,
 	lookSlotForKind,
@@ -39,6 +40,7 @@ import {
 	wipeStingDelayFrames,
 } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { ObjectType } from '../common/definitions/objects.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 import {
@@ -750,6 +752,109 @@ describe('pgmLook look-kind channels + route', () => {
 				String((obj.content as { file?: string }).file || '').includes('wipe')
 		)
 		expect(!Array.isArray(wipeOverlay?.enable) && wipeOverlay?.enable.start).toBe(0)
+	})
+
+	it('ad-lib-only gfx/ilu-zaver does not delay other LED ILU on wiped Takes', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'gfx-wiped', title: 'GFX wipe shell' }
+		const headlineIlu = {
+			enable: { start: 0 },
+			externalId: 'headline-ilu',
+			name: 'gfx/l3d-headline | Tarabovo',
+			lifespan: PieceLifespan.WithinPart,
+			sourceLayerId: SourceLayer.IluMedia,
+			outputLayerId: 'pgm',
+			content: {
+				fileName: 'clips/HEADLINE1.mov',
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGIluPlayer,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/HEADLINE1.mov',
+						},
+					},
+				],
+			},
+		}
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+			{
+				id: 'zaver-adlib',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 0,
+				isAdlib: true,
+				attributes: { iluFile: 'clips/ILU AVIZO.mp4' },
+			},
+		]
+		const pieces = [headlineIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
+		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'gfx-wiped', objects as never, pieces, 'B')
+		const led = pieces[0].content.timelineObjects?.[0]
+		// Headline ILU stays at Take — ad-lib zaver must not trigger LED delay.
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(0)
+	})
+
+	it('active gfx/ilu-zaver LED MEDIA delays to wipe air cut', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'zaver-wiped', title: 'ZAVER' }
+		const zaverIlu = {
+			enable: { start: 0 },
+			externalId: 'zaver-ilu',
+			name: 'gfx/ilu-zaver | ILU AVIZO',
+			lifespan: PieceLifespan.OutOnRundownEnd,
+			sourceLayerId: SourceLayer.LowerThird,
+			outputLayerId: 'pgm',
+			content: {
+				fileName: 'clips/ILU AVIZO.mp4',
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGIluPlayer,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/ILU AVIZO.mp4',
+						},
+					},
+				],
+			},
+		}
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+			{
+				id: 'zaver',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO.mp4' },
+			},
+		]
+		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
+		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'zaver-wiped', objects as never, pieces, 'B')
+		const led = pieces[0].content.timelineObjects?.[0]
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS)
 	})
 
 	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
