@@ -3,6 +3,9 @@
  * Air cut is the baseline (cutPoint + cover centre + PRELOAD latency). Early cuts
  * on air were cold PLAY after Sofie PRELOAD of wipe_sjv evicted LOADBG'd wipe.mov
  * on shared layer 205 — fixed by per-file EffectsPlayer layers (205–208).
+ *
+ * Fixture: pinned megarepo `spravy-v3-smoke-rundown.json` (same ADEL/GUBIK ids as
+ * Export). Do not load `Export rundown.json` — it is not in the CI asset pin.
  */
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { readFileSync } from 'node:fs'
@@ -33,26 +36,26 @@ import {
 	type SmokeRundownExport,
 } from './helpers/smokeRundownIngest.js'
 
-function loadExportRundown(): SmokeRundownExport {
-	const path = resolveMegarepoAsset('Export rundown.json')
+function loadSmokeRundown(): SmokeRundownExport {
+	const path = resolveMegarepoAsset('spravy-v3-smoke-rundown.json')
 	return JSON.parse(readFileSync(path, 'utf8'))
 }
 
-describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
+describe('SYN CLUSTER ADEL → ILU GUBIK wipe (smoke rundown)', () => {
 	it('Full→DB air cut matches baseline; classical wipe stays on layer 205', () => {
-		const exportData = loadExportRundown()
+		const smoke = loadSmokeRundown()
 		const slots = createLookSlotSequence()
 		const ctx = mockSegmentContext()
 
 		const tema4 = generateParts(
 			ctx,
-			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-4')),
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(smoke, 'seg-tema-4')),
 			undefined,
 			slots
 		)
 		const tema5 = generateParts(
 			ctx,
-			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-5')),
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(smoke, 'seg-tema-5')),
 			undefined,
 			slots
 		)
