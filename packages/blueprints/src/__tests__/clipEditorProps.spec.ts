@@ -8,9 +8,13 @@ import {
 	resolveWipeCutPointMs,
 	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
+	snapMsToFrame,
+	isClassicalWipeFile,
 	THEMED_WIPE_ANIMATION_MS,
 	WIPE_CUT_POINT_MS,
 	WIPE_PLAYOUT_LATENCY_MS,
+	WIPE_COVER_CENTER_OFFSET_MS,
+	WIPE_FRAME_MS,
 } from '../base/showstyle/helpers/clips.js'
 
 function makeVideo(overrides: Partial<VideoObject> & { attributes?: VideoObject['attributes'] }): VideoObject {
@@ -153,15 +157,25 @@ describe('resolveWipeCutPointMs', () => {
 })
 
 describe('resolveWipeAirCutMs', () => {
-	it('adds Caspar PLAY→first-frame latency so Resolve file-ms matches on-air cover', () => {
+	it('lands classical wipe.mov in the middle of a 2-frame cover (±½ frame @ 50fps)', () => {
 		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(380)
-		// Default: Resolve 380 + latency 380 = 760 (old empirical air cut).
-		expect(resolveWipeAirCutMs(undefined)).toBe(760)
-		expect(resolveWipeAirCutMs({ cutPoint: 380 })).toBe(760)
-		expect(resolveWipeAirCutMs({ cutPoint: 500 })).toBe(880)
-		expect(resolveWipeAirCutMs({ cutPoint: 0 })).toBe(WIPE_PLAYOUT_LATENCY_MS)
+		expect(WIPE_COVER_CENTER_OFFSET_MS).toBe(10)
+		expect(isClassicalWipeFile('wipes/wipe.mov')).toBe(true)
+		expect(isClassicalWipeFile('wipes/wipe_sjv')).toBe(false)
+		// Resolve 380 + half-frame cover + latency 380 → 770 → snap to 780.
+		expect(resolveWipeAirCutMs(undefined)).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 500 })).toBe(900)
+		expect(resolveWipeAirCutMs({ cutPoint: 0 })).toBe(400)
 		// Never schedule after wipe CLEAR.
 		expect(resolveWipeAirCutMs({ cutPoint: 2400 }, 2500)).toBe(2500)
+	})
+
+	it('does not bias themed wipe cover frames (SJV / ŠPORT / Počasie)', () => {
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sjv')).toBe(760)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sport.mov')).toBe(760)
+		expect(snapMsToFrame(770)).toBe(780)
+		expect(WIPE_FRAME_MS).toBe(20)
 	})
 })
 

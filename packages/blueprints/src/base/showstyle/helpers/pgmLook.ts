@@ -18,7 +18,7 @@ import {
 	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
-	WIPE_PLAYOUT_LATENCY_MS,
+	WIPE_FRAME_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
 	resolveWipeAirCutMs,
@@ -35,8 +35,8 @@ import { createFullBgLoopPiece } from './fullBgLoop.js'
 
 export type LookSlot = 'A' | 'B'
 
-/** Default Take-relative air cut (= editorial file cut + playout latency). */
-const DEFAULT_WIPE_AIR_CUT_MS = WIPE_CUT_POINT_MS + WIPE_PLAYOUT_LATENCY_MS
+/** Default Take-relative air cut for classical `wipes/wipe` (cover-centre + latency). */
+const DEFAULT_WIPE_AIR_CUT_MS = resolveWipeAirCutMs(undefined, DEFAULT_WIPE_DURATION_MS, DEFAULT_WIPE_FILE)
 
 /**
  * Caspar channel format used when converting wipe cut-point ms → STING frames.
@@ -74,13 +74,22 @@ export const LOOK_MEDIA_POSTROLL_MS = 2500
 export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
 
 /**
+ * Same-slot hard cuts: hold previous look MEDIA this long into the next Take and
+ * delay incoming look PLAY by the same amount so Caspar never shows an empty layer
+ * between CLEARs (singular black frames on SYN→SYN / ILU→ILU).
+ * Two frames @50fps.
+ */
+export const LOOK_HARD_CUT_OVERLAP_MS = WIPE_FRAME_MS * 2
+
+/**
  * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
  * Kept near the legacy ~cover-frame length — long wipe-style postroll on hard cuts
  * made `bg_loop` / companion loops peek on DB↔Full switches.
- * One frame (@50fps) above 380 so Softie/Caspar do not open a single black frame
+ * Two frames (@50fps) above 380 so Softie/Caspar do not open a single black frame
  * between outgoing keepalive end and incoming look PLAY on DB↔Full hard cuts.
+ * Must be ≥ {@link LOOK_HARD_CUT_OVERLAP_MS}.
  */
-export const LOOK_HARD_CUT_POSTROLL_MS = 400
+export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_OVERLAP_MS
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -357,6 +366,28 @@ function applyHardCutIncomingLookPreroll(pieces: IBlueprintPiece[], prerollMs: n
 }
 
 /**
+ * Same-slot hard cut: delay look compose MEDIA that would otherwise PLAY at Take so
+ * previousPartKeepaliveDuration can hold the outgoing picture for
+ * {@link LOOK_HARD_CUT_OVERLAP_MS}. Skips EMPTY clears, L3D templates, and continuous
+ * `db_loop` (must not blink between DoubleBoxes).
+ */
+function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void {
+	if (delayMs <= 0) return
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const layer = String(obj.layer)
+			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
+			if (layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string)) {
+				continue
+			}
+			shiftEnableStartIfAtTake(obj, delayMs)
+		}
+	}
+}
+
+/**
  * Full-channel underlay as MEDIA `route://N` (not TSR ROUTE).
  * casparcg-state `setDefaultValue` coerces ROUTE `layer` null/undefined → 0, so AMCP
  * becomes `route://N-0` (empty layer → black PGM) instead of the full mix `route://N`.
@@ -459,6 +490,9 @@ function createPgmWipeOverlayTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
+			// Always start at frame 0 so PRELOAD LOADBG and Take PLAY share the same
+			// decoder timeline — Softie cannot ACK “on screen”, so seek is the cue.
+			seek: 0,
 			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
@@ -490,7 +524,7 @@ function createPgmRoutePiece(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
-	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile)
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -687,7 +721,7 @@ export function finalizeHypercomposedPart(
 			)
 		: undefined
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
-	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs)
+	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile)
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
@@ -711,6 +745,17 @@ export function finalizeHypercomposedPart(
 		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
 	} else if (previousLookSlot !== undefined && previousLookSlot !== lookSlot) {
 		applyHardCutIncomingLookPreroll(pieces, getLookPrerollMs(config))
+	} else if (sameLookChannel) {
+		// Same-slot hard cut (SYN→SYN, ILU→ILU, …): Softie Lookahead NONE cannot
+		// LOADBG the next clip under the live layer, so cold PLAY flashed one black
+		// frame. Hold previous look for 2 frames and delay incoming look MEDIA by the
+		// same amount — picture never drops.
+		part.inTransition = {
+			blockTakeDuration: 0,
+			previousPartKeepaliveDuration: LOOK_HARD_CUT_OVERLAP_MS,
+			partContentDelayDuration: 0,
+		}
+		delayHardCutLookMedia(pieces, LOOK_HARD_CUT_OVERLAP_MS)
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)

@@ -43,19 +43,41 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
  * `attributes.cutPoint` (**milliseconds into the file**, not seconds like piece.duration).
  *
  * Softie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
- * value + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar still lags PLAY→first-frame
- * after PRELOAD LOADBG. Without that offset, Resolve’s 380 ms lands ~400 ms too early
- * on air (old empirical default was 760 ms = 380 + 380).
+ * value + optional cover-centre bias + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar
+ * still lags PLAY→first-frame after PRELOAD LOADBG. Without that offset, Resolve’s
+ * 380 ms lands ~400 ms too early on air.
+ *
+ * Softie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
+ * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
+ * ({@link WIPE_COVER_CENTER_OFFSET_MS}) and snaps to the 50fps grid so ±½-frame jitter
+ * still falls on one of those two cover frames.
  */
 export const WIPE_CUT_POINT_MS = 380
+
+/** Studio / wipe editorial frame rate (Caspar 1080p5000). */
+export const WIPE_FRAME_RATE = 50
+
+/** One frame at {@link WIPE_FRAME_RATE} (20 ms). */
+export const WIPE_FRAME_MS = 1000 / WIPE_FRAME_RATE
+
+/**
+ * Classical `wipes/wipe` keeps two fully covering frames at the Resolve cut
+ * (frame 19 + 20). Air cut targets the centre so ±½ frame still hits cover.
+ */
+export const WIPE_COVER_FRAMES = 2
+
+/** Half-frame bias into the 2-frame cover (= 10 ms @ 50fps). */
+export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
 
 /**
  * Caspar decode / compositor lag from Take (PLAY after PRELOAD LOADBG) until wipe
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned so default air cut = 380 + 380 = 760 ms (matches the pre-#109 empirical sting
- * cover). Adjust here if PRELOAD/ffmpeg latency changes — not by padding RE cutPoint.
+ * Tuned for PRELOAD’d `wipes/wipe` (~19f). Cold PLAY without LOADBG is 40–60f and
+ * cannot be absorbed by the 2-frame cover — EffectsPlayer PRELOAD + wipe preroll
+ * must stay reliable. Adjust here if PRELOAD/ffmpeg latency changes — not by
+ * padding RE cutPoint.
  */
 export const WIPE_PLAYOUT_LATENCY_MS = 380
 
@@ -85,6 +107,22 @@ function normalizeWipePlayPath(fileName: string | undefined): string | undefined
 	const trimmed = fileName.trim().replace(/\\/g, '/')
 	if (!trimmed) return undefined
 	return trimmed.replace(/\.(mov|mp4|mxf|mkv|webm)$/i, '')
+}
+
+/** True for the classical story wipe (`wipes/wipe`), not themed SJV/ŠPORT/Počasie. */
+export function isClassicalWipeFile(fileName?: string): boolean {
+	const playPath = normalizeWipePlayPath(fileName)
+	if (!playPath) return true
+	if (playPath === DEFAULT_WIPE_FILE || playPath === 'wipe') return true
+	// Reject themed keys explicitly; any other `wipe_*` is not classical.
+	if (playPath in THEMED_WIPE_ANIMATION_MS) return false
+	return /(?:^|\/)wipe$/i.test(playPath)
+}
+
+/** Snap Softie enable times onto the 50fps grid (nearest frame). */
+export function snapMsToFrame(ms: number, frameMs: number = WIPE_FRAME_MS): number {
+	if (!Number.isFinite(ms) || ms <= 0) return 0
+	return Math.round(ms / frameMs) * frameMs
 }
 
 /**
@@ -142,15 +180,23 @@ export function resolveWipeCutPointMs(
 
 /**
  * Take-relative ms when PGM should hard-cut under the sting (route / look / countup /
- * keepalive). Editorial file cut + {@link WIPE_PLAYOUT_LATENCY_MS}, clamped to the
- * wipe duration so the switch cannot land after CLEAR.
+ * keepalive).
+ *
+ * Classical `wipes/wipe`: editorial file cut + half-frame cover centre + playout
+ * latency, snapped to {@link WIPE_FRAME_MS}, so the hard-cut lands in the middle of
+ * the 2-frame cover (380 ± ½ frame when PRELOAD latency is stable).
+ *
+ * Themed wipes keep file cut + latency only (their cover frames differ per asset).
+ * Clamped to the wipe duration so the switch cannot land after CLEAR.
  */
 export function resolveWipeAirCutMs(
 	attributes?: { cutPoint?: unknown } | null,
-	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS
+	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS,
+	wipeFile?: string
 ): number {
 	const fileCutMs = resolveWipeCutPointMs(attributes, wipeDurationMs)
-	const airCutMs = fileCutMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS))
+	const coverBiasMs = isClassicalWipeFile(wipeFile) ? WIPE_COVER_CENTER_OFFSET_MS : 0
+	const airCutMs = snapMsToFrame(fileCutMs + coverBiasMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS)))
 	const max = Math.max(0, Math.floor(wipeDurationMs))
 	if (max > 0) {
 		return Math.min(airCutMs, max)

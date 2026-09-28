@@ -26,6 +26,7 @@ import {
 	L3D_OUT_MS,
 	LOOK_MEDIA_POSTROLL_MS,
 	LOOK_HARD_CUT_POSTROLL_MS,
+	LOOK_HARD_CUT_OVERLAP_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
@@ -43,6 +44,8 @@ import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '.
 import { ObjectType } from '../common/definitions/objects.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
+/** Themed story wipes keep file-cut + latency only (no classical ½-frame cover bias). */
+const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_sjv')
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -245,7 +248,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
 
-		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(0)
+		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(LOOK_HARD_CUT_OVERLAP_MS)
 		const hl2L3d = hl2Timeline.find(
 			(obj) =>
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
@@ -329,6 +332,33 @@ describe('pgmLook look-kind channels + route', () => {
 		})
 		expect((routeObj?.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
 		expect(routePiece?.postrollDuration).toBe(LOOK_HARD_CUT_POSTROLL_MS)
+	})
+
+	it('same-slot hard-cut overlaps previous look by 2 frames (no singular black frame)', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.type === PartType.VO)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		// Previous look was also Full (B) — SYN→SYN style same-slot hard cut.
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B', 'B')
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(LOOK_HARD_CUT_OVERLAP_MS)
+
+		const lookClip = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					obj.layer === LOOK_B_LAYERS.clip &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY'
+			)
+		expect(lookClip).toBeDefined()
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(LOOK_HARD_CUT_OVERLAP_MS)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeGreaterThanOrEqual(LOOK_HARD_CUT_OVERLAP_MS)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBe(420)
 	})
 
 	it('hard-cut Full→DoubleBox cross-slot prerolls idle look CAM/ILU before Take', () => {
@@ -1018,7 +1048,7 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!sportFirst) return
 
 		expect(sportFirst.part.autoNext).toBe(true)
-		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
+		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(THEMED_WIPE_AIR_CUT_MS)
 
 		// Full→Full: do not EMPTY the live clip (black blink under wipe). Kill stray db_loop on ch3.
 		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
@@ -1122,7 +1152,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(true)
 		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(sjvRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		expect(sjvRoute?.enable).toEqual({ start: THEMED_WIPE_AIR_CUT_MS })
 		expect((sjvRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 })

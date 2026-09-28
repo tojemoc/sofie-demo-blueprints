@@ -94,6 +94,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
+			seek: 0,
 			// Straight-alpha .mov → premul before Caspar composites (layer straightAlpha is a no-op).
 			videoFilter: 'premultiply=inplace=1',
 			mixer: {
@@ -154,11 +155,11 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(880)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(900)
 
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(routeObj?.enable).toEqual({ start: 880 })
+		expect(routeObj?.enable).toEqual({ start: 900 })
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -170,7 +171,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 					!(obj.content as { file?: string }).file?.startsWith('route://')
 			)
 		expect(lookClip).toBeDefined()
-		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(880)
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(900)
 		// Softie holds previous picture only for piece.postrollDuration past Take into
 		// the next wipe's keepalive — reserve full sting headroom (≥ cutPoint).
 		const lookClipPiece = result.pieces.find((piece) =>
@@ -374,7 +375,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/360_wipe',
 		})
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		// Non-classical wipe file (360_wipe) — no half-frame cover bias.
+		expect(route?.enable).toEqual({ start: resolveWipeAirCutMs(undefined, 2500, 'wipes/360_wipe') })
 		expect(route?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
