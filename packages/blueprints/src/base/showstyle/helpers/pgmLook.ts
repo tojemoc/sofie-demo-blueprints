@@ -102,12 +102,20 @@ export const LOOK_HARD_CUT_OVERLAP_MS = LOOK_HARD_CUT_INCOMING_DELAY_MS
 export const LOOK_HARD_CUT_CASPAR_LATENCY_MS = WIPE_FRAME_MS * 14
 
 /**
+ * Extra frames past the Caspar latency floor before cross-slot `route://` flips.
+ * Abutting first-frame === route (#120/#122) still blinked black when Latency hit
+ * the 14f ceiling after hot-PLAY at {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}.
+ */
+export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 2
+
+/**
  * Hold previous look MEDIA this long into the next hard-cut Take.
- * {@link LOOK_HARD_CUT_INCOMING_DELAY_MS} + {@link LOOK_HARD_CUT_CASPAR_LATENCY_MS}
- * so same-slot cold PLAY cannot open a seam filled by baseline `bg_loop`.
+ * delay + Caspar latency floor + route headroom so same-slot cold PLAY / cross-slot
+ * hot-PLAY cannot open a seam filled by baseline `bg_loop` or black.
  * Cross-slot idle looks use {@link applyHardCutIdleLookHotCue} instead (LOADBG).
  */
-export const LOOK_HARD_CUT_KEEPALIVE_MS = LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK_HARD_CUT_CASPAR_LATENCY_MS
+export const LOOK_HARD_CUT_KEEPALIVE_MS =
+	LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK_HARD_CUT_CASPAR_LATENCY_MS + LOOK_HARD_CUT_ROUTE_HEADROOM_MS
 
 /**
  * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
@@ -116,6 +124,14 @@ export const LOOK_HARD_CUT_KEEPALIVE_MS = LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK
  * Must be ≥ {@link LOOK_HARD_CUT_KEEPALIVE_MS}.
  */
 export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_KEEPALIVE_MS
+
+/**
+ * Same-slot wiped Takes (DB→DB / Full→Full): cold PLAY of incoming look MEDIA at the
+ * air cut lands ~2f late vs the classical cover centre (operator frame-by-frame on
+ * ILU GABIKA AVIZO → ILU FERENCAK). Start the look cut this many ms earlier so the
+ * first decoded frame meets the cover; wipe overlay / PGM route keep the full air cut.
+ */
+export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 2
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -364,33 +380,6 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 		// Native DeckLink/dshow must not LOADBG on look layers (ingest helper owns the device).
 		// Look CAM is normally MEDIA route://5 — safe to preroll; skip only if a piece still has INPUT.
 		if (pieceUsesLiveCameraProducer(piece)) continue
-		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
-	}
-}
-
-/**
- * Hard-cut Takes onto the **idle** look channel (Full↔DoubleBox): LOADBG CAM / ILU /
- * `db_loop` before Take so route://N does not show empty windows for ~380 ms.
- * Wiped Takes use {@link applyLookPreroll} instead (stricter skips — no early ILU LOAD).
- */
-function applyHardCutIncomingLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
-	if (prerollMs <= 0) return
-
-	for (const piece of pieces) {
-		const objs = piece.content.timelineObjects ?? []
-		const usesLook = objs.some((obj) => isLookComposeLayer(String(obj.layer)))
-		if (!usesLook) continue
-		const hasL3dTemplate = objs.some((obj) => {
-			const layer = String(obj.layer)
-			if (!L3D_TEMPLATE_LAYERS.has(layer)) return false
-			return isCasparTemplate(obj.content as { type?: string })
-		})
-		if (hasL3dTemplate) continue
-		if (pieceUsesLiveCameraProducer(piece)) continue
-		// Same as applyLookPreroll: Sofie piece.prerollDuration would delay VO/VT MEDIA
-		// past LOOK_HARD_CUT_KEEPALIVE_MS (incoming enable is only ~40 ms after Take).
-		const sourceId = String(piece.sourceLayerId)
-		if (sourceId === (SourceLayer.VO as string) || sourceId === (SourceLayer.VT as string)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
 }
@@ -847,6 +836,12 @@ export function finalizeHypercomposedPart(
 		wipeDurationMs,
 		Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
 	)
+	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
+	// Operator frame-by-frame (ILU GABIKA AVIZO → ILU FERENCAK): that PLAY lands ~2f
+	// after the classical cover centre — lead the look cut so the first frame meets cover.
+	// Wipe overlay / PGM route / countup keep the full air cut.
+	const wipeLookCutMs =
+		hasWipe && sameLookChannel ? Math.max(0, wipeCutPointMs - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS) : wipeCutPointMs
 	// Leave-weather into wiped ZAVER: detect early so keepalive / WX hide can wait for
 	// solid cover (not Take, not a bare air-cut while the sting is still incomplete).
 	const leaveWeatherUnderWipe = Boolean(
@@ -855,14 +850,15 @@ export function finalizeHypercomposedPart(
 	/** Hide previous weather L3D/ILU this far into the Take (air cut + 2f under cover). */
 	const leaveWeatherHideMs = leaveWeatherUnderWipe
 		? Math.min(wipeDurationMs, wipeCutPointMs + LOOK_HARD_CUT_OVERLAP_MS)
-		: wipeCutPointMs
+		: wipeLookCutMs
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		// Keep previous look VIDEO only until the cover cut — not the full sting.
 		// Leave-weather extends keepalive to leaveWeatherHideMs so cities/map stay until
 		// the sting is actually covering (air cut alone was early when PRELOAD lagged).
-		// Full-sting keepalive left DB→DB / Full→Full switches until wipe CLEAR
+		// Same-slot uses wipeLookCutMs (air cut − lead) so the switch matches the early
+		// look PLAY. Full-sting keepalive left DB→DB / Full→Full switches until wipe CLEAR
 		// (new look could not win while the previous part still occupied the channel).
 		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
 		part.inTransition = {
@@ -879,9 +875,13 @@ export function finalizeHypercomposedPart(
 	} else if (previousLookSlot !== undefined) {
 		// Hard cut (same-slot or cross-slot): hold previous look past the incoming
 		// delay so Caspar cold-PLAY cannot open a black / bg_loop seam. Keepalive
-		// covers delay + measured Caspar Latency floor (same-slot cannot LOADBG over
-		// on-air). Cross-slot idle looks LOADBG from Take and hot-PLAY with route://.
-		applyHardCutIncomingLookPreroll(pieces, getLookPrerollMs(config))
+		// covers delay + measured Caspar Latency floor + route headroom (same-slot
+		// cannot LOADBG over on-air). Cross-slot idle looks LOADBG from Take and
+		// hot-PLAY with route://. Do **not** raise look `prerollDuration` here —
+		// Sofie toPartDelay would hold Camera/ILU (~1500 ms) past keepalive and open
+		// a black / bg_loop hole on Full↔DB hard cuts (AMCP: LOAD at Take, route://
+		// ~1.8s later). Idle LOADBG needs no Sofie preroll; same-slot cold-PLAYs at
+		// LOOK_HARD_CUT_INCOMING_DELAY_MS under keepalive.
 		part.inTransition = {
 			blockTakeDuration: 0,
 			previousPartKeepaliveDuration: LOOK_HARD_CUT_KEEPALIVE_MS,
@@ -1012,10 +1012,11 @@ export function finalizeHypercomposedPart(
 		pieces.push(bgLoop)
 	}
 
-	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs, {
+	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeLookCutMs, {
 		// Idle look channel under the sting: LOAD/PAUSE all compose MEDIA from Take so
 		// PLAY at the air cut is hot when route://N flips. Same-slot (DB→DB / Full→Full)
-		// must not early-LOAD (replaces on-air under the wipe).
+		// must not early-LOAD (replaces on-air under the wipe); wipeLookCutMs leads the
+		// cold PLAY by SAME_SLOT_WIPE_AIR_CUT_LEAD_MS so cover centre meets first frame.
 		preloadIdleLookMedia: hasWipe && !sameLookChannel,
 	})
 
@@ -1208,9 +1209,11 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  *   `playing: true` at the air cut so the first frame is ready when `route://N` flips
  *   (no cold PLAY lag). Clip audio stays ducked for the sting
  *   ({@link muteEditorialClipAudioDuringWipe}).
- * - **Same look channel** (DB→DB / Full→Full): delay incoming PLAY to the air cut
+ * - **Same look channel** (DB→DB / Full→Full): delay incoming PLAY to
+ *   `wipeCutPointMs` (caller passes air cut − {@link SAME_SLOT_WIPE_AIR_CUT_LEAD_MS})
  *   only — never pause/seek from Take (that LOAD replaces the on-air outgoing clip).
- * - Outgoing MEDIA stays via `previousPartKeepaliveDuration` + look postroll (= air cut).
+ * - Outgoing MEDIA stays via `previousPartKeepaliveDuration` + look postroll
+ *   (= same look-cut instant).
  * `db_loop` stays at enable 0 (same file, OutOnSegmentEnd fill — never EMPTY look A
  * on DoubleBox Takes).
  *

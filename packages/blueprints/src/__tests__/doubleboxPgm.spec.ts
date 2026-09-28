@@ -25,10 +25,16 @@ import {
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
-import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
+import {
+	createLookSlotSequence,
+	isDoubleBoxLook,
+	SAME_SLOT_WIPE_AIR_CUT_LEAD_MS,
+} from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
+/** Same-slot DB→DB cold PLAY leads the cover by this many ms. */
+const SAME_SLOT_WIPE_LOOK_CUT_MS = WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
 
 describe('DoubleBox PGM ILU above CAM', () => {
 	const exportData = loadSmokeRundownExport()
@@ -409,10 +415,11 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		expect(outgoingIluPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(WIPE_CUT_POINT_MS)
 
-		// Incoming DB→DB: delayed PLAY at the cut only — no pause/seek (would replace on-air).
-		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
+		// Incoming DB→DB: delayed PLAY at look cut (air cut − 2f lead) — no pause/seek
+		// (would replace on-air). Route / wipe overlay keep the full air cut.
+		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(SAME_SLOT_WIPE_LOOK_CUT_MS)
 		const incomingIlu = iluOf(incoming.pieces, 'clips/ILU incoming')
-		expect(incomingIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		expect(incomingIlu?.enable).toEqual({ start: SAME_SLOT_WIPE_LOOK_CUT_MS })
 		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
 		expect(incomingContent.playing).not.toBe(false)
 		expect(incomingContent.seek).toBeUndefined()
@@ -430,14 +437,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 				if ((obj.content as { file?: string }).file !== 'EMPTY') return false
 				const enable = obj.enable
 				if (!enable || Array.isArray(enable)) return true
-				return typeof enable.start !== 'number' || enable.start < WIPE_AIR_CUT_MS
+				return typeof enable.start !== 'number' || enable.start < SAME_SLOT_WIPE_LOOK_CUT_MS
 			})
 		expect(earlyIluEmpty).toHaveLength(0)
 
 		const incomingCam = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
-		expect(incomingCam?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		expect(incomingCam?.enable).toEqual({ start: SAME_SLOT_WIPE_LOOK_CUT_MS })
 		expect(incomingCam?.content).toMatchObject({ file: 'route://5' })
 
 		const route = incoming.pieces
@@ -566,7 +573,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		if (!incoming) return
 
 		// Without the fix, floated Full would claim look B and this Take would freeze ILU from 0
-		// (Full→DB). Last eligible look is still A → DB→DB hold until wipe cut.
+		// (Full→DB). Last eligible look is still A → DB→DB hold until look cut (air − 2f).
 		const incomingIlu = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find(
@@ -574,7 +581,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
 					(obj.content as { file?: string }).file === 'clips/ILU incoming'
 			)
-		expect(incomingIlu?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		expect(incomingIlu?.enable).toEqual({ start: SAME_SLOT_WIPE_LOOK_CUT_MS })
 		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
 		expect(incomingContent.playing).not.toBe(false)
 		expect(incomingContent.seek).toBeUndefined()
