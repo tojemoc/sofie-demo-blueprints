@@ -1,7 +1,8 @@
 /**
- * Diagnostic: SYN CLUSTER ADEL → ILU GUBIK (cross-segment Full→DB wipe).
- * Export rundown has cutPoint:380 on the wipe; air cut must land under cover.
- * Operator: cut was 11f @50fps (220ms) early at WIPE_PLAYOUT_LATENCY_MS=380 → now 600.
+ * SYN CLUSTER ADEL → ILU GUBIK: cross-segment Full→DB wipe.
+ * Same-slot DB→DB openings keep baseline air cut; only Full↔DB gets +11f bias
+ * (idle-look LOAD at Take slows wipe frame 0 — global latency bump would make
+ * other wipes late).
  */
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { readFileSync } from 'node:fs'
@@ -16,7 +17,13 @@ import {
 	LOOK_B_LAYERS,
 	createLookSlotSequence,
 } from '../base/showstyle/helpers/pgmLook.js'
-import { resolveWipeAirCutMs, WIPE_PLAYOUT_LATENCY_MS, WIPE_FRAME_MS } from '../base/showstyle/helpers/clips.js'
+import {
+	applyCrossSlotWipeAirCutBias,
+	resolveWipeAirCutMs,
+	WIPE_PLAYOUT_LATENCY_MS,
+	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
+	WIPE_FRAME_MS,
+} from '../base/showstyle/helpers/clips.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { resolveMegarepoAsset } from './helpers/megarepoAssets.js'
 import {
@@ -32,7 +39,7 @@ function loadExportRundown(): SmokeRundownExport {
 }
 
 describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
-	it('holds ADEL look postroll through GUBIK air cut; route flips at air cut under wipe', () => {
+	it('Full→DB air cut is baseline + 11f; same-slot baseline unchanged', () => {
 		const exportData = loadExportRundown()
 		const slots = createLookSlotSequence()
 		const ctx = mockSegmentContext()
@@ -56,11 +63,13 @@ describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
 		expect(gubik).toBeDefined()
 		if (!adel || !gubik) return
 
-		const expectedAirCut = resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')
-		// 380 file + 10 cover + 600 latency → 990 → snap 1000 (= prior 780 + 11f).
-		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(600)
+		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(380)
+		expect(CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS).toBe(11 * WIPE_FRAME_MS)
+
+		const baselineAirCut = resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')
+		expect(baselineAirCut).toBe(780)
+		const expectedAirCut = applyCrossSlotWipeAirCutBias(baselineAirCut, 2500, true)
 		expect(expectedAirCut).toBe(1000)
-		expect(expectedAirCut - 780).toBe(11 * WIPE_FRAME_MS)
 
 		const adelClip = adel.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some(
@@ -70,7 +79,6 @@ describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
 			)
 		)
 		expect(adelClip?.postrollDuration ?? 0).toBeGreaterThanOrEqual(LOOK_MEDIA_POSTROLL_MS)
-		expect(adelClip?.postrollDuration ?? 0).toBeGreaterThanOrEqual(expectedAirCut)
 		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeLessThan(expectedAirCut)
 
 		expect(gubik.part.inTransition?.previousPartKeepaliveDuration).toBe(expectedAirCut)

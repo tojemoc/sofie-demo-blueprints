@@ -24,6 +24,7 @@ import {
 	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
 	wipePlayoutLatencyFromConfig,
+	applyCrossSlotWipeAirCutBias,
 	isWipePocasieFile,
 	partHasOutroOverlay,
 } from './clips.js'
@@ -580,17 +581,15 @@ function createPgmRoutePiece(
 	partExternalId: string,
 	slot: LookSlot,
 	wipe: VideoObject | undefined,
-	wipeFile: string | undefined
+	wipeFile: string | undefined,
+	wipeCutPointMsOverride?: number
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
-	const wipeCutPointMs = resolveWipeAirCutMs(
-		wipe?.attributes,
-		wipeDurationMs,
-		wipeFile,
-		wipePlayoutLatencyFromConfig(config)
-	)
+	const wipeCutPointMs =
+		wipeCutPointMsOverride ??
+		resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config))
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -787,15 +786,16 @@ export function finalizeHypercomposedPart(
 			)
 		: undefined
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
-	const wipeCutPointMs = resolveWipeAirCutMs(
-		wipe?.attributes,
-		wipeDurationMs,
-		wipeFile,
-		wipePlayoutLatencyFromConfig(config)
-	)
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
+	// Full↔DB: idle-look LOAD at Take slows wipe frame 0 — delay air cut 11f only on
+	// that path. Same-slot DB→DB / Full→Full keep the baseline air cut.
+	const wipeCutPointMs = applyCrossSlotWipeAirCutBias(
+		resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config)),
+		wipeDurationMs,
+		Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
+	)
 	// Leave-weather into wiped ZAVER: detect early so keepalive / WX hide can wait for
 	// solid cover (not Take, not a bare air-cut while the sting is still incomplete).
 	const leaveWeatherUnderWipe = Boolean(
@@ -974,7 +974,17 @@ export function finalizeHypercomposedPart(
 		if (wipePiece && wipeFile) {
 			attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile, wipeDurationMs, wipeCutPointMs)
 		} else {
-			pieces.push(createPgmRoutePiece(context, config, partExternalId, lookSlot, wipe, wipe ? wipeFile : undefined))
+			pieces.push(
+				createPgmRoutePiece(
+					context,
+					config,
+					partExternalId,
+					lookSlot,
+					wipe,
+					wipe ? wipeFile : undefined,
+					hasWipe ? wipeCutPointMs : undefined
+				)
+			)
 		}
 	}
 

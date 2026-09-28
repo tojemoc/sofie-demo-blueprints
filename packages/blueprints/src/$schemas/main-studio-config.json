@@ -293,9 +293,9 @@
 		"wipePlayoutLatencyMs": {
 			"type": "integer",
 			"ui:title": "Wipe playout latency (ms)",
-			"ui:description": "Caspar PLAY→first-frame lag after LOADBG for PGM wipe overlays. Added to RE wipe cutPoint so the route/look hard-cut lands under cover. Default 600 (= ~30f @50fps; calibrated when cutPoint 380 was 11f early on air). Tune here if Caspar/ffmpeg changes — do not pad RE cutPoint or rebuild blueprints.",
+			"ui:description": "Baseline Caspar PLAY→first-frame lag after LOADBG for PGM wipe overlays (added to RE cutPoint). Default 380. Full↔DB Takes add a separate 11f bias in blueprints — do not raise this to fix only SYN→ILU cross-slot openings or same-slot wipes go late. Tune here only if ALL wipes drift.",
 			"ui:category": "Playback",
-			"default": 600,
+			"default": 380,
 			"min": 0
 		},
 		"casparcgMediaFolder": {

@@ -165,7 +165,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const editorialAirCut = resolveWipeAirCutMs({ cutPoint: 500 }, 2500, 'wipes/wipe')
-		expect(editorialAirCut).toBe(1120)
+		expect(editorialAirCut).toBe(900)
 		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(editorialAirCut)
 
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))

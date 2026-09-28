@@ -45,9 +45,8 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
  * Sofie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
  * value + optional cover-centre bias + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar
  * still lags PLAY→first-frame after PRELOAD LOADBG. Without that offset, Resolve’s
- * 380 ms lands ~400 ms too early on air. Operator measurement on classical
- * `wipes/wipe` (SYN ADEL → ILU GUBIK) showed a further **11 frames / 220 ms** early
- * at the prior 380 ms latency guess — {@link WIPE_PLAYOUT_LATENCY_MS} is now 600 ms.
+ * 380 ms lands ~400 ms too early on air. Full↔DB Takes add
+ * {@link CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS} (11f) on top — same-slot openings do not.
  *
  * Sofie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
  * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
@@ -76,16 +75,23 @@ export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned for LOADBG'd `wipes/wipe` after PRELOAD. Operator measurement on
- * classical `wipes/wipe` (SYN ADEL → ILU GUBIK, cutPoint 380) showed the air cut
- * **11 frames @50fps (220 ms) early** at the previous 380 ms guess — so Caspar
- * PLAY→frame0 after hot PLAY is closer to ~30f than ~19f on this stack.
- * Cold PLAY without LOADBG is 40–60f and cannot be absorbed by the 2-frame cover —
- * wipe overlay uses explicit playing:false + Sofie EffectsPlayer PRELOAD so Take
- * is always a hot PLAY. Adjust here if Caspar/ffmpeg latency changes — not by
- * padding RE cutPoint.
+ * Tuned for LOADBG'd `wipes/wipe` on quiet Takes (~19f). Cold PLAY without LOADBG
+ * is 40–60f and cannot be absorbed by the 2-frame cover — wipe overlay uses
+ * explicit playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
+ * Adjust via studio Setting `wipePlayoutLatencyMs` if the baseline stack drifts —
+ * not by padding RE cutPoint. Do **not** pad this for Full↔DB Takes — those get
+ * {@link CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS} only.
  */
-export const WIPE_PLAYOUT_LATENCY_MS = 600
+export const WIPE_PLAYOUT_LATENCY_MS = 380
+
+/**
+ * Extra Take-relative air-cut delay for **cross-slot** wiped Takes (Full↔DoubleBox).
+ * Idle look LOAD/PAUSE at Take (ILU/CAM/clips on the incoming channel) contends with
+ * wipe hot-PLAY on PGM 205 — operators measured classical cover **11f @50fps early**
+ * on SYN ADEL → ILU GUBIK while same-slot DB→DB openings stayed correct.
+ * Same-slot wipes must **not** get this bias (would land 11f late).
+ */
+export const CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS = WIPE_FRAME_MS * 11
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
@@ -194,6 +200,9 @@ export function resolveWipeCutPointMs(
  *
  * Themed wipes keep file cut + latency only (their cover frames differ per asset).
  * Clamped to the wipe duration so the switch cannot land after CLEAR.
+ *
+ * Cross-slot (Full↔DB) Takes add {@link CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS} via
+ * {@link applyCrossSlotWipeAirCutBias} — not here — so same-slot openings stay put.
  */
 export function resolveWipeAirCutMs(
 	attributes?: { cutPoint?: unknown } | null,
@@ -213,6 +222,22 @@ export function resolveWipeAirCutMs(
 		return Math.min(airCutMs, max)
 	}
 	return airCutMs
+}
+
+/**
+ * Delay air cut on Full↔DB wiped Takes only (idle-look LOAD at Take slows wipe
+ * frame 0). Same-slot / unknown previous slot unchanged.
+ */
+export function applyCrossSlotWipeAirCutBias(
+	airCutMs: number,
+	wipeDurationMs: number,
+	crossSlot: boolean
+): number {
+	if (!crossSlot) return airCutMs
+	const biased = snapMsToFrame(airCutMs + CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS)
+	const max = Math.max(0, Math.floor(wipeDurationMs))
+	if (max > 0) return Math.min(biased, max)
+	return biased
 }
 
 /** Studio Setting override, else {@link WIPE_PLAYOUT_LATENCY_MS}. */
