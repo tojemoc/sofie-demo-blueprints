@@ -399,7 +399,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(iluObj).toBeDefined()
 		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
 		expect(iluHost?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
-		// Idle look: LOAD from Take (enable 0), hot PLAY with delayed route://.
+		// Idle look: LOAD from Take (enable 0), hot PLAY before route:// flips.
 		expect(!Array.isArray(iluObj?.enable) && iluObj?.enable.start).toBe(0)
 		expect((iluObj?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
 		expect(
@@ -413,7 +413,9 @@ describe('pgmLook look-kind channels + route', () => {
 		const route = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
-		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		// Route waits for keepalive so PLAY has Caspar latency headroom before PGM flips.
+		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
+		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBeGreaterThan(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		expect(
 			result.pieces
 				.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -456,7 +458,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const route = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
-		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 	})
 
 	it('clears Full-look CAM (EMPTY) so SYN on 4-110 is not covered by baseline route://5', () => {

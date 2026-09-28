@@ -423,13 +423,14 @@ function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void
 
 /**
  * Cross-slot hard cut onto the **idle** look channel: LOAD/PAUSE compose MEDIA from
- * Take, then hot PLAY at {@link LOOK_HARD_CUT_INCOMING_DELAY_MS} (same instant as the
- * delayed `route://` flip). Without this, PGM briefly shows baseline Full
- * `loops/bg_loop` (or black) while SYN/ILU cold-PLAYs after the route cut — Caspar
- * Latency 4–14f in operator logs, longer than the old 4f keepalive.
+ * Take, then hot PLAY at `playAtMs`. The PGM `route://` flip is delayed separately
+ * (see {@link LOOK_HARD_CUT_KEEPALIVE_MS}) so the first frame is ready before PGM
+ * leaves the previous channel — otherwise baseline Full `loops/bg_loop` (or black)
+ * flashes for Caspar Latency 4–14f.
  *
  * Same pattern as wiped {@link applyL3dTakeOffsets} `preloadIdleLookMedia`. Skips
- * EMPTY, L3D templates, and continuous `db_loop`.
+ * EMPTY, L3D templates, and continuous `db_loop`. Preserves editorial `seek` on
+ * clips; defaults to 0 only when unset. Look CAM `route://5` is unchanged (no seek).
  */
 function applyHardCutIdleLookHotCue(pieces: IBlueprintPiece[], playAtMs: number): void {
 	if (playAtMs < 0) return
@@ -437,13 +438,18 @@ function applyHardCutIdleLookHotCue(pieces: IBlueprintPiece[], playAtMs: number)
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
-			const content = obj.content as { type?: string; file?: string }
+			const content = obj.content as { type?: string; file?: string; seek?: number }
 			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
 			if (layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string)) {
 				continue
 			}
 			const isRoute = typeof content.file === 'string' && content.file.startsWith('route://')
-			applyCasparHotPlayCue(obj as TimelineBlueprintExt, playAtMs, isRoute ? undefined : { seekMs: 0 })
+			if (isRoute) {
+				applyCasparHotPlayCue(obj as TimelineBlueprintExt, playAtMs)
+				continue
+			}
+			const seekMs = typeof content.seek === 'number' && Number.isFinite(content.seek) ? content.seek : 0
+			applyCasparHotPlayCue(obj as TimelineBlueprintExt, playAtMs, { seekMs })
 		}
 	}
 }
@@ -884,6 +890,8 @@ export function finalizeHypercomposedPart(
 		if (sameLookChannel) {
 			delayHardCutLookMedia(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		} else {
+			// LOAD from Take; hot PLAY at the short delay so Caspar can decode while
+			// PGM still shows the previous channel (route delayed to keepalive below).
 			applyHardCutIdleLookHotCue(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		}
 	}
@@ -926,19 +934,23 @@ export function finalizeHypercomposedPart(
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
 	}
 	// Full wipe onto a *new* look channel (e.g. DoubleBox→Full): EMPTY stale CAM /
-	// db_loop on ch4 under the sting. Do **not** EMPTY the clip layer for story
-	// Takes — prio-2 EMPTY evicts idle LOADBG (`preloadIdleLookMedia`) and lets
-	// baseline `loops/bg_loop` flash at the air cut under the wipe (operator
-	// 2026-09-28). Story MEDIA LOADBGs from Take instead. Full→Full must also not
-	// EMPTY the live clip (black blink). wipe_pocasie still EMPTYs clip through
-	// the sting so prio-3 weather bg_loop can win at the cover cut.
-	// Never EMPTY the look camera when this part owns cam (ZAVER / fullscreen cam).
+	// db_loop on ch4 under the sting. EMPTY the clip layer only when this part has
+	// no incoming clip MEDIA (clear leftover SYN) or for wipe_pocasie (prio-3 weather
+	// bg_loop). Story Takes with clip MEDIA must not EMPTY — prio-2 EMPTY evicts
+	// idle LOADBG (`preloadIdleLookMedia`) and lets baseline `loops/bg_loop` flash
+	// at the air cut (operator 2026-09-28). Full→Full must also not EMPTY the live
+	// clip (black blink). Never EMPTY look CAM when this part owns it.
 	if (hasWipe && lookSlot === 'B' && !sameLookChannel) {
+		const clearClip = wipePocasie || !partHasLookClipMedia(pieces, lookSlot)
 		clearObjects.push(
-			...buildLookChannelClearObjects(lookSlot, wipePocasie ? wipeDurationMs : undefined, {
-				clearCamera: !partHasLookCameraMedia(pieces, lookSlot),
-				clearClip: wipePocasie,
-			})
+			...buildLookChannelClearObjects(
+				lookSlot,
+				clearClip ? (wipePocasie ? wipeDurationMs : wipeCutPointMs) : undefined,
+				{
+					clearCamera: !partHasLookCameraMedia(pieces, lookSlot),
+					clearClip,
+				}
+			)
 		)
 	}
 	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Sofie PRELOAD used
@@ -1038,10 +1050,11 @@ export function finalizeHypercomposedPart(
 		}
 	}
 
-	// Cross-slot hard cut: delay route:// after the piece exists so PGM stays on the
-	// previous channel through LOOK_HARD_CUT_INCOMING_DELAY_MS (idle look preroll settles).
+	// Cross-slot hard cut: delay route:// until keepalive so idle LOADBG→PLAY
+	// (at LOOK_HARD_CUT_INCOMING_DELAY_MS) has LOOK_HARD_CUT_CASPAR_LATENCY_MS to
+	// produce a first frame before PGM leaves the previous channel.
 	if (!hasWipe && previousLookSlot !== undefined && !sameLookChannel) {
-		delayHardCutPgmRoute(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		delayHardCutPgmRoute(pieces, LOOK_HARD_CUT_KEEPALIVE_MS)
 	}
 
 	if (partHasOutroOverlay(objects)) {
@@ -1359,6 +1372,19 @@ function partHasLookCameraMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): 
 			if (String(obj.layer) !== (cameraLayer as string)) return false
 			const content = obj.content as { type?: string; file?: string; inputType?: string }
 			if (content?.type === TSR.TimelineContentTypeCasparCg.INPUT) return true
+			if (!isCasparMedia(content) || content.file === 'EMPTY') return false
+			return true
+		})
+	)
+}
+
+/** True when this part plays non-EMPTY Caspar MEDIA on the look clip layer (SYN/VT/ILU clips). */
+function partHasLookClipMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
+	const clipLayer = getLookLayers(lookSlot).clip
+	return pieces.some((piece) =>
+		(piece.content.timelineObjects ?? []).some((obj) => {
+			if (String(obj.layer) !== (clipLayer as string)) return false
+			const content = obj.content as { type?: string; file?: string }
 			if (!isCasparMedia(content) || content.file === 'EMPTY') return false
 			return true
 		})
