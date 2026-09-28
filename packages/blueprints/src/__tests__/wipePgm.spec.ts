@@ -162,13 +162,22 @@ describe('wipe piece type → PGM route / overlay', () => {
 		)
 		expect((wipe?.attributes as { cutPoint?: number }).cutPoint).toBe(500)
 
-		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const wipePlayoutLatencyMs = 600
+		const partContext = new PartContext(
+			{
+				...mockSegmentContext(),
+				getStudioConfig: () => ({ studio: { ...hybridCasparConfig, wipePlayoutLatencyMs } }),
+			},
+			synPart.payload.externalId
+		)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(900)
+		const editorialAirCut = resolveWipeAirCutMs({ cutPoint: 500 }, 2500, 'wipes/wipe', wipePlayoutLatencyMs)
+		expect(editorialAirCut).toBe(1120)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(editorialAirCut)
 
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(routeObj?.enable).toEqual({ start: 900 })
+		expect(routeObj?.enable).toEqual({ start: editorialAirCut })
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -187,7 +196,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			(lookClip?.keyframes ?? []).some(
 				(kf) =>
 					!Array.isArray(kf.enable) &&
-					kf.enable?.start === 900 &&
+					kf.enable?.start === editorialAirCut &&
 					(kf.content as { playing?: boolean } | undefined)?.playing === true
 			)
 		).toBe(true)

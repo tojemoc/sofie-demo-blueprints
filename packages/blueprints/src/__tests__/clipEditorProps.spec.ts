@@ -8,6 +8,8 @@ import {
 	resolveWipeCutPointMs,
 	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
+	applyCrossSlotWipeAirCutBias,
+	pgmWipeEffectsLayerForFile,
 	snapMsToFrame,
 	isClassicalWipeFile,
 	THEMED_WIPE_ANIMATION_MS,
@@ -15,7 +17,9 @@ import {
 	WIPE_PLAYOUT_LATENCY_MS,
 	WIPE_COVER_CENTER_OFFSET_MS,
 	WIPE_FRAME_MS,
+	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
 } from '../base/showstyle/helpers/clips.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 
 function makeVideo(overrides: Partial<VideoObject> & { attributes?: VideoObject['attributes'] }): VideoObject {
 	return {
@@ -176,6 +180,30 @@ describe('resolveWipeAirCutMs', () => {
 		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sport.mov')).toBe(760)
 		expect(snapMsToFrame(770)).toBe(780)
 		expect(WIPE_FRAME_MS).toBe(20)
+	})
+
+	it('honours an explicit playoutLatencyMs override (studio Setting)', () => {
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe', 380)).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe', 600)).toBe(1000)
+	})
+})
+
+describe('applyCrossSlotWipeAirCutBias', () => {
+	it('is a no-op (early cross-slot cuts were cold PLAY, not Full↔DB LOAD)', () => {
+		expect(CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS).toBe(0)
+		expect(applyCrossSlotWipeAirCutBias(780, 2500, false)).toBe(780)
+		expect(applyCrossSlotWipeAirCutBias(780, 2500, true)).toBe(780)
+		expect(applyCrossSlotWipeAirCutBias(2400, 2500, true)).toBe(2400)
+	})
+})
+
+describe('pgmWipeEffectsLayerForFile', () => {
+	it('maps each wipe file to its own EffectsPlayer Sofie layer', () => {
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe.mov')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_sjv')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerSjv)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_sport.mov')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerSport)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_pocasie')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerPocasie)
 	})
 })
 

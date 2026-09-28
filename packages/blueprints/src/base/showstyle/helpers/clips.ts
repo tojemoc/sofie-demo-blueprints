@@ -42,15 +42,12 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
  * (Resolve frame-by-frame). Frame 19 @ 50fps = 380 ms. Override per wipe via RE
  * `attributes.cutPoint` (**milliseconds into the file**, not seconds like piece.duration).
  *
- * Sofie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
- * value + optional cover-centre bias + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar
- * still lags PLAY→first-frame after PRELOAD LOADBG. Without that offset, Resolve’s
- * 380 ms lands ~400 ms too early on air.
- *
  * Sofie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
  * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
  * ({@link WIPE_COVER_CENTER_OFFSET_MS}) and snaps to the 50fps grid so ±½-frame jitter
- * still falls on one of those two cover frames.
+ * still falls on one of those two cover frames. Still lags PLAY→first-frame after PRELOAD
+ * LOADBG — see {@link WIPE_PLAYOUT_LATENCY_MS}. Per-file EffectsPlayer layers (205–208)
+ * keep Take hot so this latency stays stable.
  */
 export const WIPE_CUT_POINT_MS = 380
 
@@ -74,12 +71,21 @@ export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned for LOADBG'd `wipes/wipe` (~19f). Cold PLAY without LOADBG is 40–60f and
- * cannot be absorbed by the 2-frame cover — wipe overlay uses explicit
- * playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
- * Adjust here if Caspar/ffmpeg latency changes — not by padding RE cutPoint.
+ * Tuned for LOADBG'd `wipes/wipe` on quiet Takes (~19f). Cold PLAY without LOADBG
+ * is 40–60f and cannot be absorbed by the 2-frame cover — wipe overlay uses
+ * explicit playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
+ * Adjust via studio Setting `wipePlayoutLatencyMs` if the baseline stack drifts —
+ * not by padding RE cutPoint. Each wipe file has its own PGM EffectsPlayer layer
+ * (205–208) so PRELOAD of a different sting cannot force a cold PLAY.
  */
 export const WIPE_PLAYOUT_LATENCY_MS = 380
+
+/**
+ * @deprecated No longer applied. Early ADEL→GUBIK cuts were cold PLAY after
+ * wrong-file PRELOAD eviction on shared layer 205 — fixed by per-file layers
+ * 205–208. Kept as 0 so old call sites / docs stay compile-safe.
+ */
+export const CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS = 0
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
@@ -192,16 +198,62 @@ export function resolveWipeCutPointMs(
 export function resolveWipeAirCutMs(
 	attributes?: { cutPoint?: unknown } | null,
 	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS,
-	wipeFile?: string
+	wipeFile?: string,
+	playoutLatencyMs: number = WIPE_PLAYOUT_LATENCY_MS
 ): number {
 	const fileCutMs = resolveWipeCutPointMs(attributes, wipeDurationMs)
 	const coverBiasMs = isClassicalWipeFile(wipeFile) ? WIPE_COVER_CENTER_OFFSET_MS : 0
-	const airCutMs = snapMsToFrame(fileCutMs + coverBiasMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS)))
+	const latencyMs =
+		typeof playoutLatencyMs === 'number' && Number.isFinite(playoutLatencyMs) && playoutLatencyMs >= 0
+			? Math.floor(playoutLatencyMs)
+			: WIPE_PLAYOUT_LATENCY_MS
+	const airCutMs = snapMsToFrame(fileCutMs + coverBiasMs + latencyMs)
 	const max = Math.max(0, Math.floor(wipeDurationMs))
 	if (max > 0) {
 		return Math.min(airCutMs, max)
 	}
 	return airCutMs
+}
+
+/**
+ * @deprecated Pass-through. Cross-slot +11f bias was a misdiagnosis of cold PLAY
+ * after wrong-file PRELOAD eviction — fixed by per-wipe EffectsPlayer layers.
+ */
+export function applyCrossSlotWipeAirCutBias(airCutMs: number, _wipeDurationMs: number, _crossSlot: boolean): number {
+	return airCutMs
+}
+
+/** Studio Setting override, else {@link WIPE_PLAYOUT_LATENCY_MS}. */
+export function wipePlayoutLatencyFromConfig(config?: { wipePlayoutLatencyMs?: number } | null): number {
+	const raw = config?.wipePlayoutLatencyMs
+	if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+		return Math.floor(raw)
+	}
+	return WIPE_PLAYOUT_LATENCY_MS
+}
+
+/**
+ * Sofie / Caspar EffectsPlayer mapping for a wipe file. Classical → 205; themed
+ * SJV / ŠPORT / Počasie → 206 / 207 / 208 so PRELOAD of one never LOADBG-evicts another.
+ */
+export function pgmWipeEffectsLayerForFile(fileName?: string): CasparCGLayers {
+	const playPath = normalizeWipePlayPath(fileName)
+	if (playPath === 'wipes/wipe_sjv') return CasparCGLayers.CasparCGPgmEffectsPlayerSjv
+	if (playPath === 'wipes/wipe_sport') return CasparCGLayers.CasparCGPgmEffectsPlayerSport
+	if (playPath === 'wipes/wipe_pocasie') return CasparCGLayers.CasparCGPgmEffectsPlayerPocasie
+	return CasparCGLayers.CasparCGPgmEffectsPlayer
+}
+
+/** All PGM wipe EffectsPlayer Sofie layer ids (classical + themed). */
+export const PGM_WIPE_EFFECTS_LAYERS: ReadonlySet<string> = new Set([
+	CasparCGLayers.CasparCGPgmEffectsPlayer,
+	CasparCGLayers.CasparCGPgmEffectsPlayerSjv,
+	CasparCGLayers.CasparCGPgmEffectsPlayerSport,
+	CasparCGLayers.CasparCGPgmEffectsPlayerPocasie,
+])
+
+export function isPgmWipeEffectsLayer(layer: string): boolean {
+	return PGM_WIPE_EFFECTS_LAYERS.has(layer)
 }
 
 function resolveVideoFileName(object: VideoObject): string | undefined {

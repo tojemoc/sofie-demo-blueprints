@@ -64,12 +64,19 @@ export const PgmChannelLayers = {
 	GraphicsLowerThird: BgChannelLayers.GraphicsLowerThird,
 	GraphicsLogo: 123,
 	/**
-	 * Story-block wipe overlay. Layer **205** (not 200): older bundles left
-	 * `MIXER 2-200 KEYER 1` sticky on 200, so remastered `wipe.mov` still looked
-	 * luma-keyed while `outro.mov` on 210 (never keyed) was fine. A fresh layer
-	 * plus alpha-only mixer avoids inheriting that channel mixer state.
+	 * Classical story wipe overlay (`wipes/wipe`). Layer **205** (not 200): older
+	 * bundles left `MIXER 2-200 KEYER 1` sticky on 200, so remastered `wipe.mov`
+	 * still looked luma-keyed while `outro.mov` on 210 (never keyed) was fine.
+	 * Themed wipes use 206–208 — one Sofie mapping / physical layer per file so
+	 * PRELOAD of e.g. `wipe_sjv` cannot destroy a LOADBG'd `wipe.mov` (cold PLAY).
 	 */
 	EffectsPlayer: 205,
+	/** Themed SJV wipe (`wipes/wipe_sjv`). */
+	EffectsPlayerSjv: 206,
+	/** Themed ŠPORT wipe (`wipes/wipe_sport`). */
+	EffectsPlayerSport: 207,
+	/** Themed Počasie wipe (`wipes/wipe_pocasie`). */
+	EffectsPlayerPocasie: 208,
 	/** Intro / znelka / outro — above the routed look; PGM only (never LED). */
 	IntroOverlay: 210,
 	/** Debug channel name burn-in (top-right). */

@@ -290,6 +290,14 @@
 			"ui:category": "Playback",
 			"min": 0
 		},
+		"wipePlayoutLatencyMs": {
+			"type": "integer",
+			"ui:title": "Wipe playout latency (ms)",
+			"ui:description": "Baseline Caspar PLAY→first-frame lag after LOADBG for PGM wipe overlays (added to RE cutPoint + classical ½-frame cover bias). Default 380. Same value for Full↔DB and same-slot wipes — tune here only if ALL wipes drift; do not pad RE cutPoint.",
+			"ui:category": "Playback",
+			"default": 380,
+			"min": 0
+		},
 		"casparcgMediaFolder": {
 			"type": "string",
 			"ui:title": "CasparCG media folder",

@@ -23,6 +23,10 @@ import {
 	normalizeLayeredVideoFileName,
 	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
+	wipePlayoutLatencyFromConfig,
+	pgmWipeEffectsLayerForFile,
+	isPgmWipeEffectsLayer,
+	applyCrossSlotWipeAirCutBias,
 	isWipePocasieFile,
 	partHasOutroOverlay,
 } from './clips.js'
@@ -74,22 +78,34 @@ export const LOOK_MEDIA_POSTROLL_MS = 2500
 export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
 
 /**
- * Same-slot hard cuts: hold previous look MEDIA this long into the next Take and
- * delay incoming look PLAY by the same amount so Caspar never shows an empty layer
- * between CLEARs (singular black frames on SYN→SYN / ILU→ILU).
- * Two frames @50fps.
+ * Same-slot / cross-slot hard cuts: delay incoming look PLAY (and cross-slot
+ * `route://` flip) by this many ms so previous keepalive can cover Caspar's
+ * cold-PLAY seam. Two frames @50fps.
+ *
+ * Must stay **strictly less** than {@link LOOK_HARD_CUT_KEEPALIVE_MS} — abutting
+ * delay===keepalive (#120) still flashed black when incoming PLAY lagged a frame.
  */
-export const LOOK_HARD_CUT_OVERLAP_MS = WIPE_FRAME_MS * 2
+export const LOOK_HARD_CUT_INCOMING_DELAY_MS = WIPE_FRAME_MS * 2
+
+/**
+ * @deprecated Prefer {@link LOOK_HARD_CUT_INCOMING_DELAY_MS} / {@link LOOK_HARD_CUT_KEEPALIVE_MS}.
+ * Kept as an alias of the incoming delay for leave-weather (+2f under cover) call sites.
+ */
+export const LOOK_HARD_CUT_OVERLAP_MS = LOOK_HARD_CUT_INCOMING_DELAY_MS
+
+/**
+ * Hold previous look MEDIA this long into the next hard-cut Take.
+ * Four frames @50fps — two frames of true overlap past {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}.
+ */
+export const LOOK_HARD_CUT_KEEPALIVE_MS = WIPE_FRAME_MS * 4
 
 /**
  * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
  * Kept near the legacy ~cover-frame length — long wipe-style postroll on hard cuts
  * made `bg_loop` / companion loops peek on DB↔Full switches.
- * Two frames (@50fps) above 380 so Sofie/Caspar do not open a single black frame
- * between outgoing keepalive end and incoming look PLAY on DB↔Full hard cuts.
- * Must be ≥ {@link LOOK_HARD_CUT_OVERLAP_MS}.
+ * Must be ≥ {@link LOOK_HARD_CUT_KEEPALIVE_MS}.
  */
-export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_OVERLAP_MS
+export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_KEEPALIVE_MS
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -361,15 +377,22 @@ function applyHardCutIncomingLookPreroll(pieces: IBlueprintPiece[], prerollMs: n
 		})
 		if (hasL3dTemplate) continue
 		if (pieceUsesLiveCameraProducer(piece)) continue
+		// Same as applyLookPreroll: Sofie piece.prerollDuration would delay VO/VT MEDIA
+		// past LOOK_HARD_CUT_KEEPALIVE_MS (incoming enable is only ~40 ms after Take).
+		const sourceId = String(piece.sourceLayerId)
+		if (sourceId === (SourceLayer.VO as string) || sourceId === (SourceLayer.VT as string)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
 }
 
 /**
  * Same-slot hard cut: delay look compose MEDIA that would otherwise PLAY at Take so
- * previousPartKeepaliveDuration can hold the outgoing picture for
- * {@link LOOK_HARD_CUT_OVERLAP_MS}. Skips EMPTY clears, L3D templates, and continuous
+ * previousPartKeepaliveDuration can hold the outgoing picture across
+ * {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}. Skips EMPTY clears, L3D templates, and continuous
  * `db_loop` (must not blink between DoubleBoxes).
+ *
+ * Do **not** LOAD/PAUSE (`playing: false`) here — same-slot would replace the on-air
+ * outgoing clip. True overlap comes from keepalive &gt; delay ({@link LOOK_HARD_CUT_KEEPALIVE_MS}).
  */
 function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void {
 	if (delayMs <= 0) return
@@ -382,6 +405,19 @@ function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void
 			if (layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string)) {
 				continue
 			}
+			shiftEnableStartIfAtTake(obj, delayMs)
+		}
+	}
+}
+
+/** Delay PGM `route://` hard-cut flip so previous route keepalive covers the seam. */
+function delayHardCutPgmRoute(pieces: IBlueprintPiece[], delayMs: number): void {
+	if (delayMs <= 0) return
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			if (String(obj.layer) !== (CasparCGLayers.CasparCGPgmRoute as string)) continue
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content)) continue
 			shiftEnableStartIfAtTake(obj, delayMs)
 		}
 	}
@@ -513,7 +549,7 @@ function createPgmWipeOverlayTimelineObject(
 	const overlay = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { start: startMs, duration: wipeDurationMs },
-		layer: CasparCGLayers.CasparCGPgmEffectsPlayer,
+		layer: pgmWipeEffectsLayerForFile(wipeFile),
 		priority: 1,
 		content: {
 			deviceType: TSR.DeviceType.CASPARCG,
@@ -532,9 +568,9 @@ function createPgmWipeOverlayTimelineObject(
 }
 
 /**
- * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 205) and
- * hard-cut MEDIA `route://N` at the air cut (editorial file cut + playout latency)
- * under the cover.
+ * All hypercomposed story-block wipes PLAY on a PGM EffectsPlayer layer (205–208
+ * by wipe file) and hard-cut MEDIA `route://N` at the air cut (editorial file cut
+ * + playout latency) under the cover.
  *
  * DoubleBox previously used Caspar STING on the route, but casparcg-state coerces
  * ROUTE `layer` → 0 (`route://N-0` → black PGM) and STING `delay` was easy to
@@ -551,12 +587,15 @@ function createPgmRoutePiece(
 	partExternalId: string,
 	slot: LookSlot,
 	wipe: VideoObject | undefined,
-	wipeFile: string | undefined
+	wipeFile: string | undefined,
+	wipeCutPointMsOverride?: number
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
-	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile)
+	const wipeCutPointMs =
+		wipeCutPointMsOverride ??
+		resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config))
 	const transitionLabel =
 		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
 			? wipe.attributes.transition.trim()
@@ -620,7 +659,7 @@ function createPgmRoutePiece(
 						context,
 						wipeFile,
 						overlayWipe
-							? [CasparCGLayers.CasparCGPgmEffectsPlayer, CasparCGLayers.CasparCGPgmRoute]
+							? [pgmWipeEffectsLayerForFile(wipeFile), CasparCGLayers.CasparCGPgmRoute]
 							: [CasparCGLayers.CasparCGPgmRoute],
 						{
 							includeSideEffects: true,
@@ -681,7 +720,7 @@ function attachRouteToWipePiece(
 			context,
 			wipeFile,
 			overlayWipe
-				? [CasparCGLayers.CasparCGPgmEffectsPlayer, CasparCGLayers.CasparCGPgmRoute]
+				? [pgmWipeEffectsLayerForFile(wipeFile), CasparCGLayers.CasparCGPgmRoute]
 				: [CasparCGLayers.CasparCGPgmRoute],
 			{
 				includeSideEffects: true,
@@ -753,10 +792,17 @@ export function finalizeHypercomposedPart(
 			)
 		: undefined
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
-	const wipeCutPointMs = resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile)
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
+	// Air cut = editorial cutPoint + cover centre + PRELOAD latency. Cross-slot
+	// bias is a no-op (early ADEL→GUBIK was cold PLAY after wrong-file PRELOAD
+	// on shared 205 — fixed by per-file layers 205–208).
+	const wipeCutPointMs = applyCrossSlotWipeAirCutBias(
+		resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config)),
+		wipeDurationMs,
+		Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
+	)
 	// Leave-weather into wiped ZAVER: detect early so keepalive / WX hide can wait for
 	// solid cover (not Take, not a bare air-cut while the sting is still incomplete).
 	const leaveWeatherUnderWipe = Boolean(
@@ -786,19 +832,19 @@ export function finalizeHypercomposedPart(
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
 		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
-	} else if (previousLookSlot !== undefined && previousLookSlot !== lookSlot) {
+	} else if (previousLookSlot !== undefined) {
+		// Hard cut (same-slot or cross-slot): hold previous look past the incoming
+		// delay so Caspar cold-PLAY cannot open a black seam. #120 abutted
+		// delay===keepalive (2f) — operators still saw black; keepalive is now 4f
+		// with a 2f incoming delay (2f of true overlap). Cross-slot also delays
+		// `route://` so PGM stays on the previous channel until the idle look is up.
 		applyHardCutIncomingLookPreroll(pieces, getLookPrerollMs(config))
-	} else if (sameLookChannel) {
-		// Same-slot hard cut (SYN→SYN, ILU→ILU, …): Sofie Lookahead NONE cannot
-		// LOADBG the next clip under the live layer, so cold PLAY flashed one black
-		// frame. Hold previous look for 2 frames and delay incoming look MEDIA by the
-		// same amount — picture never drops.
 		part.inTransition = {
 			blockTakeDuration: 0,
-			previousPartKeepaliveDuration: LOOK_HARD_CUT_OVERLAP_MS,
+			previousPartKeepaliveDuration: LOOK_HARD_CUT_KEEPALIVE_MS,
 			partContentDelayDuration: 0,
 		}
-		delayHardCutLookMedia(pieces, LOOK_HARD_CUT_OVERLAP_MS)
+		delayHardCutLookMedia(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
@@ -935,8 +981,24 @@ export function finalizeHypercomposedPart(
 		if (wipePiece && wipeFile) {
 			attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile, wipeDurationMs, wipeCutPointMs)
 		} else {
-			pieces.push(createPgmRoutePiece(context, config, partExternalId, lookSlot, wipe, wipe ? wipeFile : undefined))
+			pieces.push(
+				createPgmRoutePiece(
+					context,
+					config,
+					partExternalId,
+					lookSlot,
+					wipe,
+					wipe ? wipeFile : undefined,
+					hasWipe ? wipeCutPointMs : undefined
+				)
+			)
 		}
+	}
+
+	// Cross-slot hard cut: delay route:// after the piece exists so PGM stays on the
+	// previous channel through LOOK_HARD_CUT_INCOMING_DELAY_MS (idle look preroll settles).
+	if (!hasWipe && previousLookSlot !== undefined && !sameLookChannel) {
+		delayHardCutPgmRoute(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
 	}
 
 	if (partHasOutroOverlay(objects)) {
@@ -1006,7 +1068,7 @@ function muteLookClipAudioForRestOfPart(pieces: IBlueprintPiece[]): void {
 function mutePgmWipeOverlayAudio(pieces: IBlueprintPiece[]): void {
 	for (const piece of pieces) {
 		for (const obj of piece.content.timelineObjects ?? []) {
-			if (String(obj.layer) !== (CasparCGLayers.CasparCGPgmEffectsPlayer as string)) continue
+			if (!isPgmWipeEffectsLayer(String(obj.layer))) continue
 			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
 			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
 			content.mixer = { ...(content.mixer ?? {}), volume: 0 }

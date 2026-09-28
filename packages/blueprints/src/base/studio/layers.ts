@@ -25,8 +25,18 @@ export enum CasparCGLayers {
 	/** LED pod underlay under headline ILU movs (`assets/pod_headline`, layer 112). */
 	CasparCGLedPodHeadline = 'casparcg_led_pod_headline',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
-	/** Compat mapping: PGM layer 200 overlay for story-block wipes. */
+	/**
+	 * Classical story wipe (`wipes/wipe`) — PGM Caspar layer 205.
+	 * Themed wipes use sibling mappings below so Sofie PRELOAD of one file cannot
+	 * LOADBG-evict another on the same physical layer (cold PLAY Latency 22–34f).
+	 */
 	CasparCGPgmEffectsPlayer = 'casparcg_effects_player_pgm',
+	/** Themed SJV wipe (`wipes/wipe_sjv`) — PGM Caspar layer 206. */
+	CasparCGPgmEffectsPlayerSjv = 'casparcg_effects_player_pgm_sjv',
+	/** Themed ŠPORT wipe (`wipes/wipe_sport`) — PGM Caspar layer 207. */
+	CasparCGPgmEffectsPlayerSport = 'casparcg_effects_player_pgm_sport',
+	/** Themed Počasie wipe (`wipes/wipe_pocasie`) — PGM Caspar layer 208. */
+	CasparCGPgmEffectsPlayerPocasie = 'casparcg_effects_player_pgm_pocasie',
 	/** PGM route bus — PLAY MEDIA route://{bgA|bgB} (hard cut under wipe overlay). */
 	CasparCGPgmRoute = 'casparcg_pgm_route',
 	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED; stays above the route. */

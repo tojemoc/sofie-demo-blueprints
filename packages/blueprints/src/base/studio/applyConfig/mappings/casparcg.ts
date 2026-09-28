@@ -118,6 +118,49 @@ function lookStackMappingsB(
 	}
 }
 
+/** Shared PRELOAD options for every PGM wipe EffectsPlayer mapping. */
+function pgmWipeEffectsMapping(channel: number, layer: number): BlueprintMapping<TSR.MappingCasparCGLayer> {
+	return literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+		device: TSR.DeviceType.CASPARCG,
+		deviceId: 'casparcg0',
+		lookahead: LookaheadMode.PRELOAD,
+		lookaheadDepth: 1,
+		lookaheadMaxSearchDistance: 100,
+		options: {
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel,
+			layer,
+		},
+	})
+}
+
+/**
+ * One Sofie mapping + Caspar layer per wipe file so PRELOAD cannot evict a
+ * different sting from the next Take (see cold-PLAY Latency 22–34f in Caspar logs).
+ */
+function pgmWipeEffectsMappings(
+	pgmChannel: number
+): Pick<
+	BlueprintMappings,
+	| CasparCGLayers.CasparCGPgmEffectsPlayer
+	| CasparCGLayers.CasparCGPgmEffectsPlayerSjv
+	| CasparCGLayers.CasparCGPgmEffectsPlayerSport
+	| CasparCGLayers.CasparCGPgmEffectsPlayerPocasie
+> {
+	return {
+		[CasparCGLayers.CasparCGPgmEffectsPlayer]: pgmWipeEffectsMapping(pgmChannel, PgmChannelLayers.EffectsPlayer),
+		[CasparCGLayers.CasparCGPgmEffectsPlayerSjv]: pgmWipeEffectsMapping(pgmChannel, PgmChannelLayers.EffectsPlayerSjv),
+		[CasparCGLayers.CasparCGPgmEffectsPlayerSport]: pgmWipeEffectsMapping(
+			pgmChannel,
+			PgmChannelLayers.EffectsPlayerSport
+		),
+		[CasparCGLayers.CasparCGPgmEffectsPlayerPocasie]: pgmWipeEffectsMapping(
+			pgmChannel,
+			PgmChannelLayers.EffectsPlayerPocasie
+		),
+	}
+}
+
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
 	const { ledChannel, pgmChannel, bgChannelA, bgChannelB, camIngestChannel } = getHypercomposedChannels(config)
 
@@ -140,18 +183,12 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		// before the sting is on screen — countup / route:// flip flash under an
 		// incomplete wipe. Deep search: classical wipe Takes can sit more than the
 		// default 10 objects ahead when headlines / beds intervene.
-		[CasparCGLayers.CasparCGPgmEffectsPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
-			device: TSR.DeviceType.CASPARCG,
-			deviceId: 'casparcg0',
-			lookahead: LookaheadMode.PRELOAD,
-			lookaheadDepth: 1,
-			lookaheadMaxSearchDistance: 100,
-			options: {
-				mappingType: TSR.MappingCasparCGType.Layer,
-				channel: pgmChannel,
-				layer: PgmChannelLayers.EffectsPlayer,
-			},
-		}),
+		//
+		// One Sofie mapping (+ physical Caspar layer) **per wipe file**. A single
+		// shared 205 meant PRELOAD of `wipe_sjv` destroyed LOADBG'd `wipe.mov`
+		// (Caspar log: `wipe_sjv Destroyed` then cold `PLAY 2-205 "wipes/wipe"`
+		// Latency:32) while air cut still assumed hot (~0–19f).
+		...pgmWipeEffectsMappings(pgmChannel),
 		[CasparCGLayers.CasparCGPgmIntroPlayer]: casparLayerMapping(pgmChannel, PgmChannelLayers.IntroOverlay),
 		[CasparCGLayers.CasparCGGraphicsLogo]: casparLayerMapping(pgmChannel, PgmChannelLayers.GraphicsLogo),
 		[CasparCGLayers.CasparCGAudioBedPgm]: casparLayerMapping(pgmChannel, PgmChannelLayers.AudioBed),
