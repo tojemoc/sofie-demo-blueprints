@@ -27,6 +27,8 @@ import {
 	LOOK_MEDIA_POSTROLL_MS,
 	LOOK_HARD_CUT_POSTROLL_MS,
 	LOOK_HARD_CUT_OVERLAP_MS,
+	LOOK_HARD_CUT_INCOMING_DELAY_MS,
+	LOOK_HARD_CUT_KEEPALIVE_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
@@ -248,7 +250,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
 
-		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(LOOK_HARD_CUT_OVERLAP_MS)
+		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 		const hl2L3d = hl2Timeline.find(
 			(obj) =>
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
@@ -345,7 +347,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		// Previous look was also Full (B) — SYN→SYN style same-slot hard cut.
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B', 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(LOOK_HARD_CUT_OVERLAP_MS)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -356,9 +358,11 @@ describe('pgmLook look-kind channels + route', () => {
 					(obj.content as { file?: string }).file !== 'EMPTY'
 			)
 		expect(lookClip).toBeDefined()
-		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(LOOK_HARD_CUT_OVERLAP_MS)
-		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeGreaterThanOrEqual(LOOK_HARD_CUT_OVERLAP_MS)
-		expect(LOOK_HARD_CUT_POSTROLL_MS).toBe(420)
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBeGreaterThan(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeGreaterThanOrEqual(LOOK_HARD_CUT_KEEPALIVE_MS)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBe(460)
+		expect(LOOK_HARD_CUT_OVERLAP_MS).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 	})
 
 	it('hard-cut Full→DoubleBox cross-slot prerolls idle look CAM/ILU before Take', () => {
@@ -383,6 +387,7 @@ describe('pgmLook look-kind channels + route', () => {
 			'A',
 			'B'
 		)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 		const camPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.Camera as string))
 		expect(camPiece?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
 		const iluObj = result.pieces
@@ -391,15 +396,16 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(iluObj).toBeDefined()
 		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
 		expect(iluHost?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		// Incoming look MEDIA (not db_loop) delayed; route:// also delayed on cross-slot.
+		expect(!Array.isArray(iluObj?.enable) && iluObj?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		const route = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
+		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		expect(
 			result.pieces
 				.flatMap((piece) => piece.content.timelineObjects ?? [])
-				.filter(
-					(obj) =>
-						obj.layer === LOOK_A_LAYERS.camera ||
-						obj.layer === LOOK_A_LAYERS.ilu ||
-						obj.layer === LOOK_A_LAYERS.doubleBoxLoop
-				)
+				.filter((obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop)
 				.every((obj) => !Array.isArray(obj.enable) && (obj.enable?.start ?? 0) === 0)
 		).toBe(true)
 	})

@@ -1,0 +1,104 @@
+/**
+ * Diagnostic: SYN CLUSTER ADEL → ILU GUBIK (cross-segment Full→DB wipe).
+ * Export rundown has cutPoint:380 on the wipe; air cut must land under cover.
+ * Operator: cut was 11f @50fps (220ms) early at WIPE_PLAYOUT_LATENCY_MS=380 → now 600.
+ */
+import { TSR } from '@sofie-automation/blueprints-integration'
+import { readFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
+import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { generateParts } from '../base/showstyle/part-adapters/index.js'
+import {
+	LOOK_HARD_CUT_INCOMING_DELAY_MS,
+	LOOK_HARD_CUT_KEEPALIVE_MS,
+	LOOK_HARD_CUT_POSTROLL_MS,
+	LOOK_MEDIA_POSTROLL_MS,
+	LOOK_B_LAYERS,
+	createLookSlotSequence,
+} from '../base/showstyle/helpers/pgmLook.js'
+import { resolveWipeAirCutMs, WIPE_PLAYOUT_LATENCY_MS, WIPE_FRAME_MS } from '../base/showstyle/helpers/clips.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
+import { resolveMegarepoAsset } from './helpers/megarepoAssets.js'
+import {
+	mockIngestContext,
+	mockSegmentContext,
+	smokeExportToIngestSegment,
+	type SmokeRundownExport,
+} from './helpers/smokeRundownIngest.js'
+
+function loadExportRundown(): SmokeRundownExport {
+	const path = resolveMegarepoAsset('Export rundown.json')
+	return JSON.parse(readFileSync(path, 'utf8'))
+}
+
+describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
+	it('holds ADEL look postroll through GUBIK air cut; route flips at air cut under wipe', () => {
+		const exportData = loadExportRundown()
+		const slots = createLookSlotSequence()
+		const ctx = mockSegmentContext()
+
+		const tema4 = generateParts(
+			ctx,
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-4')),
+			undefined,
+			slots
+		)
+		const tema5 = generateParts(
+			ctx,
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-5')),
+			undefined,
+			slots
+		)
+
+		const adel = tema4.parts.find((p) => p.part.externalId === 'part-tema-4-2-syn-cluster-adel')
+		const gubik = tema5.parts.find((p) => p.part.externalId === 'part-tema-5-1-ilu-gubik')
+		expect(adel).toBeDefined()
+		expect(gubik).toBeDefined()
+		if (!adel || !gubik) return
+
+		const expectedAirCut = resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')
+		// 380 file + 10 cover + 600 latency → 990 → snap 1000 (= prior 780 + 11f).
+		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(600)
+		expect(expectedAirCut).toBe(1000)
+		expect(expectedAirCut - 780).toBe(11 * WIPE_FRAME_MS)
+
+		const adelClip = adel.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some(
+				(obj) =>
+					String(obj.layer) === (LOOK_B_LAYERS.clip as string) &&
+					(obj.content as { file?: string }).file?.includes('SYN CLUSTER ADEL')
+			)
+		)
+		expect(adelClip?.postrollDuration ?? 0).toBeGreaterThanOrEqual(LOOK_MEDIA_POSTROLL_MS)
+		expect(adelClip?.postrollDuration ?? 0).toBeGreaterThanOrEqual(expectedAirCut)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeLessThan(expectedAirCut)
+
+		expect(gubik.part.inTransition?.previousPartKeepaliveDuration).toBe(expectedAirCut)
+
+		const timeline = gubik.pieces.flatMap((p) => p.content.timelineObjects ?? [])
+		const wipeOverlay = timeline.find(
+			(obj) =>
+				String(obj.layer) === (CasparCGLayers.CasparCGPgmEffectsPlayer as string) &&
+				typeof (obj.content as { file?: string }).file === 'string' &&
+				/wipe/i.test((obj.content as { file: string }).file)
+		)
+		expect(wipeOverlay).toBeDefined()
+		expect(!Array.isArray(wipeOverlay?.enable) && wipeOverlay?.enable.start).toBe(0)
+
+		const route = timeline.find(
+			(obj) =>
+				String(obj.layer) === (CasparCGLayers.CasparCGPgmRoute as string) &&
+				(obj.content as { type?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA
+		)
+		expect(route).toBeDefined()
+		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(expectedAirCut)
+		expect((route?.content as { file?: string }).file).toBe('route://3')
+	})
+
+	it('same-slot hard cuts use true overlap (keepalive > incoming delay)', () => {
+		expect(LOOK_HARD_CUT_INCOMING_DELAY_MS).toBe(40)
+		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBe(80)
+		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBeGreaterThan(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeGreaterThanOrEqual(LOOK_HARD_CUT_KEEPALIVE_MS)
+	})
+})

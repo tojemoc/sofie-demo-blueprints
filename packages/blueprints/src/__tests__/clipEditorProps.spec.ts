@@ -158,24 +158,31 @@ describe('resolveWipeCutPointMs', () => {
 
 describe('resolveWipeAirCutMs', () => {
 	it('lands classical wipe.mov in the middle of a 2-frame cover (±½ frame @ 50fps)', () => {
-		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(380)
+		// 600 ms = prior 380 + operator-measured 11f @50fps early on SYN→ILU GUBIK.
+		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(600)
 		expect(WIPE_COVER_CENTER_OFFSET_MS).toBe(10)
 		expect(isClassicalWipeFile('wipes/wipe.mov')).toBe(true)
 		expect(isClassicalWipeFile('wipes/wipe_sjv')).toBe(false)
-		// Resolve 380 + half-frame cover + latency 380 → 770 → snap to 780.
-		expect(resolveWipeAirCutMs(undefined)).toBe(780)
-		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')).toBe(780)
-		expect(resolveWipeAirCutMs({ cutPoint: 500 })).toBe(900)
-		expect(resolveWipeAirCutMs({ cutPoint: 0 })).toBe(400)
+		// Resolve 380 + half-frame cover + latency 600 → 990 → snap to 1000.
+		expect(resolveWipeAirCutMs(undefined)).toBe(1000)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')).toBe(1000)
+		expect(resolveWipeAirCutMs({ cutPoint: 500 })).toBe(1120)
+		expect(resolveWipeAirCutMs({ cutPoint: 0 })).toBe(620)
 		// Never schedule after wipe CLEAR.
 		expect(resolveWipeAirCutMs({ cutPoint: 2400 }, 2500)).toBe(2500)
 	})
 
 	it('does not bias themed wipe cover frames (SJV / ŠPORT / Počasie)', () => {
-		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sjv')).toBe(760)
-		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sport.mov')).toBe(760)
-		expect(snapMsToFrame(770)).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sjv')).toBe(980)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sport.mov')).toBe(980)
+		expect(snapMsToFrame(990)).toBe(1000)
 		expect(WIPE_FRAME_MS).toBe(20)
+	})
+
+	it('honours an explicit playoutLatencyMs override (studio Setting)', () => {
+		// Same cutPoint 380; latency 380 (old default) → prior 780 air cut.
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe', 380)).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe', 600)).toBe(1000)
 	})
 })
 

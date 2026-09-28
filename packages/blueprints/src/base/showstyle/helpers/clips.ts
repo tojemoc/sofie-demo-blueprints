@@ -45,7 +45,9 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
  * Sofie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
  * value + optional cover-centre bias + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar
  * still lags PLAY→first-frame after PRELOAD LOADBG. Without that offset, Resolve’s
- * 380 ms lands ~400 ms too early on air.
+ * 380 ms lands ~400 ms too early on air. Operator measurement on classical
+ * `wipes/wipe` (SYN ADEL → ILU GUBIK) showed a further **11 frames / 220 ms** early
+ * at the prior 380 ms latency guess — {@link WIPE_PLAYOUT_LATENCY_MS} is now 600 ms.
  *
  * Sofie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
  * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
@@ -74,12 +76,16 @@ export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned for LOADBG'd `wipes/wipe` (~19f). Cold PLAY without LOADBG is 40–60f and
- * cannot be absorbed by the 2-frame cover — wipe overlay uses explicit
- * playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
- * Adjust here if Caspar/ffmpeg latency changes — not by padding RE cutPoint.
+ * Tuned for LOADBG'd `wipes/wipe` after PRELOAD. Operator measurement on
+ * classical `wipes/wipe` (SYN ADEL → ILU GUBIK, cutPoint 380) showed the air cut
+ * **11 frames @50fps (220 ms) early** at the previous 380 ms guess — so Caspar
+ * PLAY→frame0 after hot PLAY is closer to ~30f than ~19f on this stack.
+ * Cold PLAY without LOADBG is 40–60f and cannot be absorbed by the 2-frame cover —
+ * wipe overlay uses explicit playing:false + Sofie EffectsPlayer PRELOAD so Take
+ * is always a hot PLAY. Adjust here if Caspar/ffmpeg latency changes — not by
+ * padding RE cutPoint.
  */
-export const WIPE_PLAYOUT_LATENCY_MS = 380
+export const WIPE_PLAYOUT_LATENCY_MS = 600
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
@@ -192,16 +198,30 @@ export function resolveWipeCutPointMs(
 export function resolveWipeAirCutMs(
 	attributes?: { cutPoint?: unknown } | null,
 	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS,
-	wipeFile?: string
+	wipeFile?: string,
+	playoutLatencyMs: number = WIPE_PLAYOUT_LATENCY_MS
 ): number {
 	const fileCutMs = resolveWipeCutPointMs(attributes, wipeDurationMs)
 	const coverBiasMs = isClassicalWipeFile(wipeFile) ? WIPE_COVER_CENTER_OFFSET_MS : 0
-	const airCutMs = snapMsToFrame(fileCutMs + coverBiasMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS)))
+	const latencyMs =
+		typeof playoutLatencyMs === 'number' && Number.isFinite(playoutLatencyMs) && playoutLatencyMs >= 0
+			? Math.floor(playoutLatencyMs)
+			: WIPE_PLAYOUT_LATENCY_MS
+	const airCutMs = snapMsToFrame(fileCutMs + coverBiasMs + latencyMs)
 	const max = Math.max(0, Math.floor(wipeDurationMs))
 	if (max > 0) {
 		return Math.min(airCutMs, max)
 	}
 	return airCutMs
+}
+
+/** Studio Setting override, else {@link WIPE_PLAYOUT_LATENCY_MS}. */
+export function wipePlayoutLatencyFromConfig(config?: { wipePlayoutLatencyMs?: number } | null): number {
+	const raw = config?.wipePlayoutLatencyMs
+	if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+		return Math.floor(raw)
+	}
+	return WIPE_PLAYOUT_LATENCY_MS
 }
 
 function resolveVideoFileName(object: VideoObject): string | undefined {

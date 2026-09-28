@@ -290,6 +290,14 @@
 			"ui:category": "Playback",
 			"min": 0
 		},
+		"wipePlayoutLatencyMs": {
+			"type": "integer",
+			"ui:title": "Wipe playout latency (ms)",
+			"ui:description": "Caspar PLAY→first-frame lag after LOADBG for PGM wipe overlays. Added to RE wipe cutPoint so the route/look hard-cut lands under cover. Default 600 (= ~30f @50fps; calibrated when cutPoint 380 was 11f early on air). Tune here if Caspar/ffmpeg changes — do not pad RE cutPoint or rebuild blueprints.",
+			"ui:category": "Playback",
+			"default": 600,
+			"min": 0
+		},
 		"casparcgMediaFolder": {
 			"type": "string",
 			"ui:title": "CasparCG media folder",
