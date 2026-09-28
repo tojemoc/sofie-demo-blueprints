@@ -476,12 +476,41 @@ export const PGM_WIPE_OVERLAY_MIXER: NonNullable<TSR.TimelineContentCCGMedia['mi
  */
 export const PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER = 'premultiply=inplace=1'
 
+/**
+ * Explicit LOADBG → hot PLAY: `playing: false` cues Caspar LOAD/PAUSE, then a
+ * keyframe sets `playing: true` at `playAtMs` (object-relative). Sofie Lookahead
+ * PRELOAD copies strip keyframes without `preserveForLookahead`, so EffectsPlayer
+ * PRELOAD LOADBGs the paused cue while Next; Take applies the PLAY keyframe hot.
+ * Idle look layers (lookahead NONE) use the same pattern with `playAtMs` = air cut
+ * so LOAD runs from Take under the sting and PLAY is hot when `route://` flips.
+ */
+function applyCasparHotPlayCue(obj: TimelineBlueprintExt, playAtMs: number, options?: { seekMs?: number }): void {
+	const content = obj.content as TSR.TimelineContentCCGMedia
+	content.playing = false
+	if (options?.seekMs !== undefined) {
+		content.seek = options.seekMs
+	}
+	const existing = (obj.keyframes ?? []) as NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']>
+	obj.keyframes = [
+		...existing,
+		{
+			id: '',
+			enable: { start: Math.max(0, Math.floor(playAtMs)) },
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				playing: true,
+			},
+		},
+	]
+}
+
 function createPgmWipeOverlayTimelineObject(
 	wipeFile: string,
 	wipeDurationMs: number,
 	startMs: number = 0
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
-	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+	const overlay = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { start: startMs, duration: wipeDurationMs },
 		layer: CasparCGLayers.CasparCGPgmEffectsPlayer,
@@ -490,13 +519,16 @@ function createPgmWipeOverlayTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
-			// Always start at frame 0 so PRELOAD LOADBG and Take PLAY share the same
-			// decoder timeline — Sofie cannot ACK “on screen”, so seek is the cue.
+			// Frame 0 for Sofie PRELOAD LOADBG + Take hot-PLAY (same decoder cue).
 			seek: 0,
 			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
 	})
+	// LOADBG (playing:false) from object start; hot PLAY at Take (keyframe start 0).
+	// Sofie PRELOAD while Next strips this keyframe → paused LOADBG on EffectsPlayer.
+	applyCasparHotPlayCue(overlay, 0, { seekMs: 0 })
+	return overlay
 }
 
 /**
@@ -880,9 +912,10 @@ export function finalizeHypercomposedPart(
 	}
 
 	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeCutPointMs, {
-		// Full→DB: ch3 is idle under the sting — LOAD/PAUSE ILU from Take so the first
-		// frame is ready when route://3 flips. DB→DB must not early-LOAD (replaces on-air).
-		preloadIdleDoubleBoxIlu: hasWipe && lookSlot === 'A' && !sameLookChannel,
+		// Idle look channel under the sting: LOAD/PAUSE all compose MEDIA from Take so
+		// PLAY at the air cut is hot when route://N flips. Same-slot (DB→DB / Full→Full)
+		// must not early-LOAD (replaces on-air under the wipe).
+		preloadIdleLookMedia: hasWipe && !sameLookChannel,
 	})
 
 	// Wiped ZAVER: LED `ilu-zaver` must land with WX hide under cover — not at Take
@@ -1052,14 +1085,14 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX lands
  * with `bg_pocasie` at the cover cut.
  *
- * DoubleBox ILU under wipe:
- * - **Full→DB** (ch3 idle): LOAD/PAUSE from Take (`playing: false`, `seek: 0`), then
- *   keyframe `playing: true` at the air cut so the left window is not pitch-black when
- *   `route://3` flips. Clip audio stays ducked for the sting
- *   ({@link muteEditorialClipAudioDuringWipe}) so ILU does not fight wipe SFX.
- * - **DB→DB** (ch3 live): delay incoming PLAY to the air cut only — never pause/seek
- *   from Take (that LOAD replaces the on-air outgoing clip under the sting).
- * - Outgoing ILU stays via `previousPartKeepaliveDuration` + look postroll (= air cut).
+ * Look compose MEDIA under wipe ({@link applyCasparHotPlayCue}):
+ * - **Idle look channel** (Full↔DB / DB→Full): LOAD/PAUSE from Take, then keyframe
+ *   `playing: true` at the air cut so the first frame is ready when `route://N` flips
+ *   (no cold PLAY lag). Clip audio stays ducked for the sting
+ *   ({@link muteEditorialClipAudioDuringWipe}).
+ * - **Same look channel** (DB→DB / Full→Full): delay incoming PLAY to the air cut
+ *   only — never pause/seek from Take (that LOAD replaces the on-air outgoing clip).
+ * - Outgoing MEDIA stays via `previousPartKeepaliveDuration` + look postroll (= air cut).
  * `db_loop` stays at enable 0 (same file, OutOnSegmentEnd fill — never EMPTY look A
  * on DoubleBox Takes).
  *
@@ -1079,10 +1112,10 @@ function applyL3dTakeOffsets(
 	wipeDurationMs: number,
 	wipePocasie = false,
 	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
-	options?: { preloadIdleDoubleBoxIlu?: boolean }
+	options?: { preloadIdleLookMedia?: boolean }
 ): void {
 	const hasWipe = wipeDurationMs > 0
-	const preloadIdleDoubleBoxIlu = Boolean(options?.preloadIdleDoubleBoxIlu)
+	const preloadIdleLookMedia = Boolean(options?.preloadIdleLookMedia)
 
 	for (const piece of pieces) {
 		const lookMediaDelay = hasWipe ? wipeCutPointMs : 0
@@ -1122,40 +1155,22 @@ function applyL3dTakeOffsets(
 			// except leave-weather ILU EMPTY which is scheduled at the air cut above.
 			if (content.file === 'EMPTY') continue
 
-			// Look A ILU (ch3-116).
-			if (hasWipe && !wipePocasie && layer === (LOOK_A_LAYERS.ilu as string)) {
-				if (preloadIdleDoubleBoxIlu) {
-					// Full→DB: cue on idle ch3 from Take; unpause at air cut under the cover.
-					content.playing = false
-					content.seek = 0
-					const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
-						TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
-					>
-					;(obj as TimelineBlueprintExt).keyframes = [
-						...existing,
-						{
-							id: '',
-							enable: { start: wipeCutPointMs },
-							content: {
-								deviceType: TSR.DeviceType.CASPARCG,
-								type: TSR.TimelineContentTypeCasparCg.MEDIA,
-								playing: true,
-							},
-						},
-					]
-					continue
-				}
-				// DB→DB: delayed PLAY only — do not LOAD/PAUSE over the live outgoing clip.
-				shiftEnableStartIfAtTake(obj, lookMediaDelay)
-				continue
-			}
 			// Continuous db_loop OutOnSegmentEnd — keep enable 0 so the frame never
 			// blinks off between DoubleBoxes in the same tema.
-			// blanks between keepalive end and a delayed incoming PLAY.
 			if (hasWipe && layer === (LOOK_A_LAYERS.doubleBoxLoop as string)) {
 				continue
 			}
 
+			if (hasWipe && preloadIdleLookMedia) {
+				// Idle look channel: LOAD/PAUSE from Take; hot PLAY at the air cut.
+				// route:// CAM uses noStarttime — do not force seek:0 on live routes.
+				const isRoute = typeof content.file === 'string' && content.file.startsWith('route://')
+				applyCasparHotPlayCue(obj as TimelineBlueprintExt, wipeCutPointMs, isRoute ? undefined : { seekMs: 0 })
+				continue
+			}
+
+			// Live look channel (same-slot wipe): delayed PLAY only — do not LOAD/PAUSE
+			// over the on-air outgoing clip under the sting.
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
 		}
 	}

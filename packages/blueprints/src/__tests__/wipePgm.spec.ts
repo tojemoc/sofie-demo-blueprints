@@ -95,6 +95,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
 			seek: 0,
+			playing: false,
 			// Straight-alpha .mov → premul before Caspar composites (layer straightAlpha is a no-op).
 			videoFilter: 'premultiply=inplace=1',
 			mixer: {
@@ -109,7 +110,15 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
-		expect(overlay?.keyframes).toBeUndefined()
+		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs.
+		expect(
+			(overlay?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === 0 &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
 		expect(routeObj?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
@@ -171,7 +180,17 @@ describe('wipe piece type → PGM route / overlay', () => {
 					!(obj.content as { file?: string }).file?.startsWith('route://')
 			)
 		expect(lookClip).toBeDefined()
-		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(900)
+		// Idle Full channel (no previousLookSlot): LOAD from Take, hot PLAY at air cut.
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(0)
+		expect((lookClip?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(lookClip?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === 900 &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		// Sofie holds previous picture only for piece.postrollDuration past Take into
 		// the next wipe's keepalive — reserve full sting headroom (≥ cutPoint).
 		const lookClipPiece = result.pieces.find((piece) =>

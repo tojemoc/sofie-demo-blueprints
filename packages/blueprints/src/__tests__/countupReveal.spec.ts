@@ -24,14 +24,19 @@ describe('countupReveal claim', () => {
 		resetCountupRevealGenerationForTests()
 	})
 
-	it('delayCountupRevealToWipeCut moves reveal enable to the cover cut', () => {
+	it('delayCountupRevealToWipeCut LOADBGs from Take and hot-PLAYs at the cover cut', () => {
 		const ctx = new PartContext(mockSegmentContext(), 'part-db-1')
 		const reveal = createCountupRevealPiece(ctx, hybridCasparConfig, 'part-db-1')
 		expect(reveal.enable).toEqual({ start: 0 })
 		delayCountupRevealToWipeCut([reveal], 380)
-		expect(reveal.enable).toEqual({ start: 380 })
+		expect(reveal.enable).toEqual({ start: 0 })
+		const tl = reveal.content.timelineObjects?.[0]
+		expect((tl?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(tl?.keyframes?.[0]?.enable).toEqual({ start: 380 })
+		expect(tl?.keyframes?.[0]?.content).toMatchObject({ playing: true })
 		delayCountupRevealToWipeCut([reveal], 1100)
-		expect(reveal.enable).toEqual({ start: 1100 })
+		expect(reveal.enable).toEqual({ start: 0 })
+		expect(reveal.content.timelineObjects?.[0]?.keyframes?.[0]?.enable).toEqual({ start: 1100 })
 	})
 
 	it('allows one reveal per generation per rundownId, again after a new generation', () => {

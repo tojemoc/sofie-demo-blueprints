@@ -70,14 +70,14 @@ export const WIPE_COVER_FRAMES = 2
 export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
 
 /**
- * Caspar decode / compositor lag from Take (PLAY after PRELOAD LOADBG) until wipe
+ * Caspar decode / compositor lag from Take (hot PLAY after LOADBG) until wipe
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned for PRELOAD’d `wipes/wipe` (~19f). Cold PLAY without LOADBG is 40–60f and
- * cannot be absorbed by the 2-frame cover — EffectsPlayer PRELOAD + wipe preroll
- * must stay reliable. Adjust here if PRELOAD/ffmpeg latency changes — not by
- * padding RE cutPoint.
+ * Tuned for LOADBG'd `wipes/wipe` (~19f). Cold PLAY without LOADBG is 40–60f and
+ * cannot be absorbed by the 2-frame cover — wipe overlay uses explicit
+ * playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
+ * Adjust here if Caspar/ffmpeg latency changes — not by padding RE cutPoint.
  */
 export const WIPE_PLAYOUT_LATENCY_MS = 380
 

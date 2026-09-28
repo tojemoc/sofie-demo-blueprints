@@ -1007,7 +1007,18 @@ describe('pgmLook look-kind channels + route', () => {
 					(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
 					(obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
 			)
-		expect(!Array.isArray(lookMedia?.enable) && lookMedia?.enable.start).toBe(WIPE_AIR_CUT_MS)
+		expect(lookMedia).toBeDefined()
+		// No previousLookSlot → idle Full channel: LOAD from Take, hot PLAY at air cut.
+		expect(!Array.isArray(lookMedia?.enable) && lookMedia?.enable.start).toBe(0)
+		expect((lookMedia?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(lookMedia?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.prerollDuration ?? 0).toBe(0)

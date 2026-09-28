@@ -549,12 +549,22 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
 		)
 		expect(bg).toBeDefined()
-		// Take-relative cover cut (prerollDuration is lookahead only — do not bake it into enable).
+		// Idle Full channel: LOAD/PAUSE from Take, hot PLAY at cover cut (prerollDuration
+		// is Sofie lookahead only — do not bake it into enable.start).
 		const bgPiece = result.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj.id === bg?.id || obj === bg)
 		)
 		expect(Math.max(0, bgPiece?.prerollDuration ?? 0)).toBeGreaterThan(0)
-		expect(bg?.enable).toEqual({ start: POCASIE_WIPE_AIR_CUT_MS })
+		expect(bg?.enable).toEqual({ start: 0 })
+		expect((bg?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(bg?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === POCASIE_WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.enable).toEqual({ start: 0 })
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
@@ -582,7 +592,16 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/bg_loop'
 		)
 		expect(bgLoop).toBeDefined()
-		expect(bgLoop?.enable).toEqual({ start: POCASIE_WIPE_AIR_CUT_MS })
+		expect(bgLoop?.enable).toEqual({ start: 0 })
+		expect((bgLoop?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(bgLoop?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === POCASIE_WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		expect(bgLoop?.priority).toBeGreaterThanOrEqual(3)
 		expect(
 			timeline.some(
