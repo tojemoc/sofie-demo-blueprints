@@ -377,6 +377,10 @@ function applyHardCutIncomingLookPreroll(pieces: IBlueprintPiece[], prerollMs: n
 		})
 		if (hasL3dTemplate) continue
 		if (pieceUsesLiveCameraProducer(piece)) continue
+		// Same as applyLookPreroll: Sofie piece.prerollDuration would delay VO/VT MEDIA
+		// past LOOK_HARD_CUT_KEEPALIVE_MS (incoming enable is only ~40 ms after Take).
+		const sourceId = String(piece.sourceLayerId)
+		if (sourceId === (SourceLayer.VO as string) || sourceId === (SourceLayer.VT as string)) continue
 		piece.prerollDuration = Math.max(piece.prerollDuration ?? 0, prerollMs)
 	}
 }
