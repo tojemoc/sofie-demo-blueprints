@@ -1,8 +1,8 @@
 /**
  * SYN CLUSTER ADEL → ILU GUBIK: cross-segment Full→DB wipe.
- * Same-slot DB→DB openings keep baseline air cut; only Full↔DB gets +11f bias
- * (idle-look LOAD at Take slows wipe frame 0 — global latency bump would make
- * other wipes late).
+ * Air cut is the baseline (cutPoint + cover centre + PRELOAD latency). Early cuts
+ * on air were cold PLAY after Sofie PRELOAD of wipe_sjv evicted LOADBG'd wipe.mov
+ * on shared layer 205 — fixed by per-file EffectsPlayer layers (205–208).
  */
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { readFileSync } from 'node:fs'
@@ -22,7 +22,7 @@ import {
 	resolveWipeAirCutMs,
 	WIPE_PLAYOUT_LATENCY_MS,
 	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
-	WIPE_FRAME_MS,
+	pgmWipeEffectsLayerForFile,
 } from '../base/showstyle/helpers/clips.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { resolveMegarepoAsset } from './helpers/megarepoAssets.js'
@@ -39,7 +39,7 @@ function loadExportRundown(): SmokeRundownExport {
 }
 
 describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
-	it('Full→DB air cut is baseline + 11f; same-slot baseline unchanged', () => {
+	it('Full→DB air cut matches baseline; classical wipe stays on layer 205', () => {
 		const exportData = loadExportRundown()
 		const slots = createLookSlotSequence()
 		const ctx = mockSegmentContext()
@@ -64,12 +64,14 @@ describe('SYN CLUSTER ADEL → ILU GUBIK wipe (Export rundown)', () => {
 		if (!adel || !gubik) return
 
 		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(380)
-		expect(CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS).toBe(11 * WIPE_FRAME_MS)
+		expect(CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS).toBe(0)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_sjv')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerSjv)
 
 		const baselineAirCut = resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')
 		expect(baselineAirCut).toBe(780)
 		const expectedAirCut = applyCrossSlotWipeAirCutBias(baselineAirCut, 2500, true)
-		expect(expectedAirCut).toBe(1000)
+		expect(expectedAirCut).toBe(780)
 
 		const adelClip = adel.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some(

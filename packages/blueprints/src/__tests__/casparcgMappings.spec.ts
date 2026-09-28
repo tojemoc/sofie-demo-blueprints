@@ -283,11 +283,32 @@ describe('casparcgMappings', () => {
 		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayer]?.lookahead).toBe(LookaheadMode.PRELOAD)
 		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayer]?.lookaheadDepth).toBe(1)
 		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayer]?.lookaheadMaxSearchDistance).toBe(100)
+		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayerSjv]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayerSport]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayerPocasie]?.lookahead).toBe(LookaheadMode.PRELOAD)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsLogo]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayer).layer).toBe(PgmChannelLayers.EffectsPlayer)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayerSjv).layer).toBe(PgmChannelLayers.EffectsPlayerSjv)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayerSport).layer).toBe(
+			PgmChannelLayers.EffectsPlayerSport
+		)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayerPocasie).layer).toBe(
+			PgmChannelLayers.EffectsPlayerPocasie
+		)
 		expect(PgmChannelLayers.EffectsPlayer).toBe(205)
+		expect(PgmChannelLayers.EffectsPlayerSjv).toBe(206)
+		expect(PgmChannelLayers.EffectsPlayerSport).toBe(207)
+		expect(PgmChannelLayers.EffectsPlayerPocasie).toBe(208)
+		// Distinct physical layers — PRELOAD of one wipe file must not touch another.
+		const wipeLayers = [
+			PgmChannelLayers.EffectsPlayer,
+			PgmChannelLayers.EffectsPlayerSjv,
+			PgmChannelLayers.EffectsPlayerSport,
+			PgmChannelLayers.EffectsPlayerPocasie,
+		]
+		expect(new Set(wipeLayers).size).toBe(4)
 	})
 
 	it('routes 360° sekúnd logo-bug to PGM (not LED, not BG look)', () => {

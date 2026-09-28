@@ -24,6 +24,8 @@ import {
 	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
 	wipePlayoutLatencyFromConfig,
+	pgmWipeEffectsLayerForFile,
+	isPgmWipeEffectsLayer,
 	applyCrossSlotWipeAirCutBias,
 	isWipePocasieFile,
 	partHasOutroOverlay,
@@ -543,7 +545,7 @@ function createPgmWipeOverlayTimelineObject(
 	const overlay = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: { start: startMs, duration: wipeDurationMs },
-		layer: CasparCGLayers.CasparCGPgmEffectsPlayer,
+		layer: pgmWipeEffectsLayerForFile(wipeFile),
 		priority: 1,
 		content: {
 			deviceType: TSR.DeviceType.CASPARCG,
@@ -562,9 +564,9 @@ function createPgmWipeOverlayTimelineObject(
 }
 
 /**
- * All hypercomposed story-block wipes PLAY on PGM EffectsPlayer (layer 205) and
- * hard-cut MEDIA `route://N` at the air cut (editorial file cut + playout latency)
- * under the cover.
+ * All hypercomposed story-block wipes PLAY on a PGM EffectsPlayer layer (205–208
+ * by wipe file) and hard-cut MEDIA `route://N` at the air cut (editorial file cut
+ * + playout latency) under the cover.
  *
  * DoubleBox previously used Caspar STING on the route, but casparcg-state coerces
  * ROUTE `layer` → 0 (`route://N-0` → black PGM) and STING `delay` was easy to
@@ -653,7 +655,7 @@ function createPgmRoutePiece(
 						context,
 						wipeFile,
 						overlayWipe
-							? [CasparCGLayers.CasparCGPgmEffectsPlayer, CasparCGLayers.CasparCGPgmRoute]
+							? [pgmWipeEffectsLayerForFile(wipeFile), CasparCGLayers.CasparCGPgmRoute]
 							: [CasparCGLayers.CasparCGPgmRoute],
 						{
 							includeSideEffects: true,
@@ -714,7 +716,7 @@ function attachRouteToWipePiece(
 			context,
 			wipeFile,
 			overlayWipe
-				? [CasparCGLayers.CasparCGPgmEffectsPlayer, CasparCGLayers.CasparCGPgmRoute]
+				? [pgmWipeEffectsLayerForFile(wipeFile), CasparCGLayers.CasparCGPgmRoute]
 				: [CasparCGLayers.CasparCGPgmRoute],
 			{
 				includeSideEffects: true,
@@ -789,8 +791,9 @@ export function finalizeHypercomposedPart(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
-	// Full↔DB: idle-look LOAD at Take slows wipe frame 0 — delay air cut 11f only on
-	// that path. Same-slot DB→DB / Full→Full keep the baseline air cut.
+	// Air cut = editorial cutPoint + cover centre + PRELOAD latency. Cross-slot
+	// bias is a no-op (early ADEL→GUBIK was cold PLAY after wrong-file PRELOAD
+	// on shared 205 — fixed by per-file layers 205–208).
 	const wipeCutPointMs = applyCrossSlotWipeAirCutBias(
 		resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config)),
 		wipeDurationMs,
@@ -1061,7 +1064,7 @@ function muteLookClipAudioForRestOfPart(pieces: IBlueprintPiece[]): void {
 function mutePgmWipeOverlayAudio(pieces: IBlueprintPiece[]): void {
 	for (const piece of pieces) {
 		for (const obj of piece.content.timelineObjects ?? []) {
-			if (String(obj.layer) !== (CasparCGLayers.CasparCGPgmEffectsPlayer as string)) continue
+			if (!isPgmWipeEffectsLayer(String(obj.layer))) continue
 			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
 			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
 			content.mixer = { ...(content.mixer ?? {}), volume: 0 }

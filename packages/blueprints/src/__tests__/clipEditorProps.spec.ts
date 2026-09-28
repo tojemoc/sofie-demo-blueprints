@@ -9,6 +9,7 @@ import {
 	resolveWipeAirCutMs,
 	resolveWipeDurationMs,
 	applyCrossSlotWipeAirCutBias,
+	pgmWipeEffectsLayerForFile,
 	snapMsToFrame,
 	isClassicalWipeFile,
 	THEMED_WIPE_ANIMATION_MS,
@@ -18,6 +19,7 @@ import {
 	WIPE_FRAME_MS,
 	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
 } from '../base/showstyle/helpers/clips.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 
 function makeVideo(overrides: Partial<VideoObject> & { attributes?: VideoObject['attributes'] }): VideoObject {
 	return {
@@ -187,11 +189,21 @@ describe('resolveWipeAirCutMs', () => {
 })
 
 describe('applyCrossSlotWipeAirCutBias', () => {
-	it('adds 11f only on Full↔DB; same-slot air cut unchanged', () => {
-		expect(CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS).toBe(220)
+	it('is a no-op (early cross-slot cuts were cold PLAY, not Full↔DB LOAD)', () => {
+		expect(CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS).toBe(0)
 		expect(applyCrossSlotWipeAirCutBias(780, 2500, false)).toBe(780)
-		expect(applyCrossSlotWipeAirCutBias(780, 2500, true)).toBe(1000)
-		expect(applyCrossSlotWipeAirCutBias(2400, 2500, true)).toBe(2500)
+		expect(applyCrossSlotWipeAirCutBias(780, 2500, true)).toBe(780)
+		expect(applyCrossSlotWipeAirCutBias(2400, 2500, true)).toBe(2400)
+	})
+})
+
+describe('pgmWipeEffectsLayerForFile', () => {
+	it('maps each wipe file to its own EffectsPlayer Sofie layer', () => {
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe.mov')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayer)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_sjv')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerSjv)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_sport.mov')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerSport)
+		expect(pgmWipeEffectsLayerForFile('wipes/wipe_pocasie')).toBe(CasparCGLayers.CasparCGPgmEffectsPlayerPocasie)
 	})
 })
 
