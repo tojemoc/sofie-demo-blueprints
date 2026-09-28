@@ -251,7 +251,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
 	})
 
-	it('Full wiped Takes EMPTY clip through cut so previous SYN audio dies under wipe_sport', () => {
+	it('Full wiped story Takes LOADBG clip (no EMPTY) so baseline bg_loop cannot flash at air cut', () => {
 		const { ingest, synExternalId } = withWipeOnSyn(exportData)
 		const segment = convertIngestData(mockIngestContext, ingest)
 		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
@@ -259,13 +259,32 @@ describe('wipe piece type → PGM route / overlay', () => {
 		if (!synPart) return
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
-		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
+		// previousLookSlot A = DoubleBox→Full cross-slot wipe (real transition that used to EMPTY clip).
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B', 'A')
 		expect(result.part.autoNext).toBe(true)
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const clipEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_AIR_CUT_MS })
+		expect(clipEmpty, 'story DB→Full wipe must not EMPTY clip (evicts LOADBG → bg_loop flash)').toBeUndefined()
+		const lookClip = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					obj.layer === LOOK_B_LAYERS.clip &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY'
+			)
+		expect(lookClip).toBeDefined()
+		expect((lookClip?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(lookClip?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		const voPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
 		// Sofie must not hold editorial MEDIA until Take+lookPreroll.
 		expect(voPiece?.prerollDuration ?? 0).toBeLessThan(1500)

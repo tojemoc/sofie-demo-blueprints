@@ -29,6 +29,8 @@ import {
 	LOOK_HARD_CUT_OVERLAP_MS,
 	LOOK_HARD_CUT_INCOMING_DELAY_MS,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
+	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
+	LOOK_ILU_HARD_CUT_CLEAR_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
@@ -336,7 +338,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(routePiece?.postrollDuration).toBe(LOOK_HARD_CUT_POSTROLL_MS)
 	})
 
-	it('same-slot hard-cut overlaps previous look by 2 frames (no singular black frame)', () => {
+	it('same-slot hard-cut keepalive covers Caspar cold-PLAY latency (no bg_loop seam)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const segment = convertIngestData(mockIngestContext, ingest)
@@ -360,12 +362,13 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(lookClip).toBeDefined()
 		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBeGreaterThan(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK_HARD_CUT_CASPAR_LATENCY_MS)
 		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeGreaterThanOrEqual(LOOK_HARD_CUT_KEEPALIVE_MS)
-		expect(LOOK_HARD_CUT_POSTROLL_MS).toBe(460)
+		expect(LOOK_HARD_CUT_POSTROLL_MS).toBe(LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_KEEPALIVE_MS)
 		expect(LOOK_HARD_CUT_OVERLAP_MS).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 	})
 
-	it('hard-cut Full→DoubleBox cross-slot prerolls idle look CAM/ILU before Take', () => {
+	it('hard-cut Full→DoubleBox cross-slot LOADBGs idle look CAM/ILU from Take', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const dbIngest = ingest.parts.find((part) => part.externalId === 'part-tema-1-db')
@@ -396,8 +399,17 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(iluObj).toBeDefined()
 		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
 		expect(iluHost?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
-		// Incoming look MEDIA (not db_loop) delayed; route:// also delayed on cross-slot.
-		expect(!Array.isArray(iluObj?.enable) && iluObj?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		// Idle look: LOAD from Take (enable 0), hot PLAY with delayed route://.
+		expect(!Array.isArray(iluObj?.enable) && iluObj?.enable.start).toBe(0)
+		expect((iluObj?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(iluObj?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === LOOK_HARD_CUT_INCOMING_DELAY_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		const route = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
@@ -408,6 +420,43 @@ describe('pgmLook look-kind channels + route', () => {
 				.filter((obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop)
 				.every((obj) => !Array.isArray(obj.enable) && (obj.enable?.start ?? 0) === 0)
 		).toBe(true)
+	})
+
+	it('hard-cut DoubleBox→Full VO LOADBGs SYN so baseline bg_loop cannot flash on route://4', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.type === PartType.VO)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
+		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B', 'A')
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
+
+		const lookClip = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					obj.layer === LOOK_B_LAYERS.clip &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY'
+			)
+		expect(lookClip).toBeDefined()
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(0)
+		expect((lookClip?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(lookClip?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === LOOK_HARD_CUT_INCOMING_DELAY_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
+		const route = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
+		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 	})
 
 	it('clears Full-look CAM (EMPTY) so SYN on 4-110 is not covered by baseline route://5', () => {
