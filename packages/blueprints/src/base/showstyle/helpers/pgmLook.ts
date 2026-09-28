@@ -94,15 +94,25 @@ export const LOOK_HARD_CUT_INCOMING_DELAY_MS = WIPE_FRAME_MS * 2
 export const LOOK_HARD_CUT_OVERLAP_MS = LOOK_HARD_CUT_INCOMING_DELAY_MS
 
 /**
- * Hold previous look MEDIA this long into the next hard-cut Take.
- * Four frames @50fps — two frames of true overlap past {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}.
+ * Floor for Caspar cold PLAY→first-frame on look clips after LOAD/PAUSE is not
+ * available (same-slot hard cuts). Operator Caspar logs (2026-09-28): Latency
+ * 4–14 frames @50fps on SYN/ILU. Keepalive must cover delay + this floor or
+ * baseline Full `loops/bg_loop` fills the hole on `route://4`.
  */
-export const LOOK_HARD_CUT_KEEPALIVE_MS = WIPE_FRAME_MS * 4
+export const LOOK_HARD_CUT_CASPAR_LATENCY_MS = WIPE_FRAME_MS * 14
+
+/**
+ * Hold previous look MEDIA this long into the next hard-cut Take.
+ * {@link LOOK_HARD_CUT_INCOMING_DELAY_MS} + {@link LOOK_HARD_CUT_CASPAR_LATENCY_MS}
+ * so same-slot cold PLAY cannot open a seam filled by baseline `bg_loop`.
+ * Cross-slot idle looks use {@link applyHardCutIdleLookHotCue} instead (LOADBG).
+ */
+export const LOOK_HARD_CUT_KEEPALIVE_MS = LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK_HARD_CUT_CASPAR_LATENCY_MS
 
 /**
  * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
- * Kept near the legacy ~cover-frame length — long wipe-style postroll on hard cuts
- * made `bg_loop` / companion loops peek on DB↔Full switches.
+ * Kept near cover-frame + keepalive — full wipe-style postroll (2500) on hard cuts
+ * made `bg_loop` / companion loops linger on DB↔Full switches.
  * Must be ≥ {@link LOOK_HARD_CUT_KEEPALIVE_MS}.
  */
 export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_KEEPALIVE_MS
@@ -392,7 +402,8 @@ function applyHardCutIncomingLookPreroll(pieces: IBlueprintPiece[], prerollMs: n
  * `db_loop` (must not blink between DoubleBoxes).
  *
  * Do **not** LOAD/PAUSE (`playing: false`) here — same-slot would replace the on-air
- * outgoing clip. True overlap comes from keepalive &gt; delay ({@link LOOK_HARD_CUT_KEEPALIVE_MS}).
+ * outgoing clip. True overlap comes from keepalive covering delay + Caspar latency
+ * ({@link LOOK_HARD_CUT_KEEPALIVE_MS}).
  */
 function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void {
 	if (delayMs <= 0) return
@@ -406,6 +417,39 @@ function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void
 				continue
 			}
 			shiftEnableStartIfAtTake(obj, delayMs)
+		}
+	}
+}
+
+/**
+ * Cross-slot hard cut onto the **idle** look channel: LOAD/PAUSE compose MEDIA from
+ * Take, then hot PLAY at `playAtMs`. The PGM `route://` flip is delayed separately
+ * (see {@link LOOK_HARD_CUT_KEEPALIVE_MS}) so the first frame is ready before PGM
+ * leaves the previous channel — otherwise baseline Full `loops/bg_loop` (or black)
+ * flashes for Caspar Latency 4–14f.
+ *
+ * Same pattern as wiped {@link applyL3dTakeOffsets} `preloadIdleLookMedia`. Skips
+ * EMPTY, L3D templates, and continuous `db_loop`. Preserves editorial `seek` on
+ * clips; defaults to 0 only when unset. Look CAM `route://5` is unchanged (no seek).
+ */
+function applyHardCutIdleLookHotCue(pieces: IBlueprintPiece[], playAtMs: number): void {
+	if (playAtMs < 0) return
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const layer = String(obj.layer)
+			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
+			const content = obj.content as { type?: string; file?: string; seek?: number }
+			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
+			if (layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string)) {
+				continue
+			}
+			const isRoute = typeof content.file === 'string' && content.file.startsWith('route://')
+			if (isRoute) {
+				applyCasparHotPlayCue(obj as TimelineBlueprintExt, playAtMs)
+				continue
+			}
+			const seekMs = typeof content.seek === 'number' && Number.isFinite(content.seek) ? content.seek : 0
+			applyCasparHotPlayCue(obj as TimelineBlueprintExt, playAtMs, { seekMs })
 		}
 	}
 }
@@ -834,17 +878,22 @@ export function finalizeHypercomposedPart(
 		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
 	} else if (previousLookSlot !== undefined) {
 		// Hard cut (same-slot or cross-slot): hold previous look past the incoming
-		// delay so Caspar cold-PLAY cannot open a black seam. #120 abutted
-		// delay===keepalive (2f) — operators still saw black; keepalive is now 4f
-		// with a 2f incoming delay (2f of true overlap). Cross-slot also delays
-		// `route://` so PGM stays on the previous channel until the idle look is up.
+		// delay so Caspar cold-PLAY cannot open a black / bg_loop seam. Keepalive
+		// covers delay + measured Caspar Latency floor (same-slot cannot LOADBG over
+		// on-air). Cross-slot idle looks LOADBG from Take and hot-PLAY with route://.
 		applyHardCutIncomingLookPreroll(pieces, getLookPrerollMs(config))
 		part.inTransition = {
 			blockTakeDuration: 0,
 			previousPartKeepaliveDuration: LOOK_HARD_CUT_KEEPALIVE_MS,
 			partContentDelayDuration: 0,
 		}
-		delayHardCutLookMedia(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		if (sameLookChannel) {
+			delayHardCutLookMedia(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		} else {
+			// LOAD from Take; hot PLAY at the short delay so Caspar can decode while
+			// PGM still shows the previous channel (route delayed to keepalive below).
+			applyHardCutIdleLookHotCue(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		}
 	}
 
 	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
@@ -884,18 +933,24 @@ export function finalizeHypercomposedPart(
 		// the clear window while the sting/keepalive still covers.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
 	}
-	// Full wipe onto a *new* look channel (e.g. DoubleBox→Full): EMPTY stale clip/CAM/
-	// db_loop on ch4 under the sting. Full→Full (SJV→ŠPORT, ŠPORT→Počasie, …) must
-	// NOT EMPTY the live clip — that paints black on route://4 under a still-open
-	// wipe and reads as a blink; keepalive + delayed incoming MEDIA at the cut is enough
-	// (audio already muted for the sting). DoubleBox Takes never EMPTY ch3.
-	// Never EMPTY the look camera when this part owns cam (ZAVER / fullscreen cam).
+	// Full wipe onto a *new* look channel (e.g. DoubleBox→Full): EMPTY stale CAM /
+	// db_loop on ch4 under the sting. EMPTY the clip layer only when this part has
+	// no incoming clip MEDIA (clear leftover SYN) or for wipe_pocasie (prio-3 weather
+	// bg_loop). Story Takes with clip MEDIA must not EMPTY — prio-2 EMPTY evicts
+	// idle LOADBG (`preloadIdleLookMedia`) and lets baseline `loops/bg_loop` flash
+	// at the air cut (operator 2026-09-28). Full→Full must also not EMPTY the live
+	// clip (black blink). Never EMPTY look CAM when this part owns it.
 	if (hasWipe && lookSlot === 'B' && !sameLookChannel) {
-		const clipClearMs = wipePocasie ? wipeDurationMs : wipeCutPointMs
+		const clearClip = wipePocasie || !partHasLookClipMedia(pieces, lookSlot)
 		clearObjects.push(
-			...buildLookChannelClearObjects(lookSlot, clipClearMs, {
-				clearCamera: !partHasLookCameraMedia(pieces, lookSlot),
-			})
+			...buildLookChannelClearObjects(
+				lookSlot,
+				clearClip ? (wipePocasie ? wipeDurationMs : wipeCutPointMs) : undefined,
+				{
+					clearCamera: !partHasLookCameraMedia(pieces, lookSlot),
+					clearClip,
+				}
+			)
 		)
 	}
 	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Sofie PRELOAD used
@@ -995,10 +1050,11 @@ export function finalizeHypercomposedPart(
 		}
 	}
 
-	// Cross-slot hard cut: delay route:// after the piece exists so PGM stays on the
-	// previous channel through LOOK_HARD_CUT_INCOMING_DELAY_MS (idle look preroll settles).
+	// Cross-slot hard cut: delay route:// until keepalive so idle LOADBG→PLAY
+	// (at LOOK_HARD_CUT_INCOMING_DELAY_MS) has LOOK_HARD_CUT_CASPAR_LATENCY_MS to
+	// produce a first frame before PGM leaves the previous channel.
 	if (!hasWipe && previousLookSlot !== undefined && !sameLookChannel) {
-		delayHardCutPgmRoute(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
+		delayHardCutPgmRoute(pieces, LOOK_HARD_CUT_KEEPALIVE_MS)
 	}
 
 	if (partHasOutroOverlay(objects)) {
@@ -1322,6 +1378,19 @@ function partHasLookCameraMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): 
 	)
 }
 
+/** True when this part plays non-EMPTY Caspar MEDIA on the look clip layer (SYN/VT/ILU clips). */
+function partHasLookClipMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
+	const clipLayer = getLookLayers(lookSlot).clip
+	return pieces.some((piece) =>
+		(piece.content.timelineObjects ?? []).some((obj) => {
+			if (String(obj.layer) !== (clipLayer as string)) return false
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content) || content.file === 'EMPTY') return false
+			return true
+		})
+	)
+}
+
 function emptyLookMediaObject(
 	layer: CasparCGLayers,
 	clearDurationMs?: number,
@@ -1364,17 +1433,19 @@ function buildL3dLayerClearObjects(
  * When `clipClearMs` is set, clip EMPTY is finite so {@link createFullBgLoopPiece} can
  * restore `loops/bg_loop` under the weather stack after the cover cut.
  * Skip camera EMPTY when the incoming part owns look CAM (ZAVER / cam Takes).
+ * Skip clip EMPTY for story DB→Full wipes (`clearClip: false`) so idle LOADBG survives.
  */
 function buildLookChannelClearObjects(
 	lookSlot: LookSlot,
 	clipClearMs?: number,
-	options?: { clearCamera?: boolean; clearDoubleBoxLoop?: boolean }
+	options?: { clearCamera?: boolean; clearDoubleBoxLoop?: boolean; clearClip?: boolean }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
 	const clearCamera = options?.clearCamera !== false
 	const clearDoubleBoxLoop = options?.clearDoubleBoxLoop !== false
+	const clearClip = options?.clearClip !== false
 	return [
-		emptyLookMediaObject(layers.clip, clipClearMs),
+		...(clearClip ? [emptyLookMediaObject(layers.clip, clipClearMs)] : []),
 		...(clearCamera ? [emptyLookMediaObject(layers.camera)] : []),
 		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop)] : []),
 	]
