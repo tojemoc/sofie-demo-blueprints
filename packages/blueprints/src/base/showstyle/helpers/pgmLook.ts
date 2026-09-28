@@ -56,10 +56,10 @@ export const DEFAULT_LOOK_PREROLL_MS = 1500
 export const L3D_OUT_MS = 200
 
 /**
- * Minimum look-MEDIA postroll so Softie can hold the previous picture into the
+ * Minimum look-MEDIA postroll so Sofie can hold the previous picture into the
  * next Take's wipe keepalive window.
  *
- * Softie piece groups end at `control.end + postrollDuration`. The next part's
+ * Sofie piece groups end at `control.end + postrollDuration`. The next part's
  * `previousPartKeepaliveDuration` (editorial RE `cutPoint`) only keeps picture
  * if this postroll is ≥ that keepalive. Inlining 2500 ({@link DEFAULT_WIPE_DURATION_MS})
  * avoids reading clips.ts at module init (webpack CJS: clips → baseline → pgmLook).
@@ -85,7 +85,7 @@ export const LOOK_HARD_CUT_OVERLAP_MS = WIPE_FRAME_MS * 2
  * Outgoing look-MEDIA postroll on **hard-cut** Takes (no wipe on this part).
  * Kept near the legacy ~cover-frame length — long wipe-style postroll on hard cuts
  * made `bg_loop` / companion loops peek on DB↔Full switches.
- * Two frames (@50fps) above 380 so Softie/Caspar do not open a single black frame
+ * Two frames (@50fps) above 380 so Sofie/Caspar do not open a single black frame
  * between outgoing keepalive end and incoming look PLAY on DB↔Full hard cuts.
  * Must be ≥ {@link LOOK_HARD_CUT_OVERLAP_MS}.
  */
@@ -290,7 +290,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 		const usesLook = objs.some((obj) => isLookComposeLayer(String(obj.layer)))
 		if (!usesLook) continue
 		// L3D HTML templates: ADD timing is Take-relative via applyL3dTakeOffsets.
-		// Inflating prerollDuration on those pieces made Softie hold the CG until
+		// Inflating prerollDuration on those pieces made Sofie hold the CG until
 		// Take+preroll+enable (~4s after wipe CLEAR). Media LOADBG preroll stays.
 		const hasL3dTemplate = objs.some((obj) => {
 			const layer = String(obj.layer)
@@ -298,7 +298,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 			return isCasparTemplate(obj.content as { type?: string })
 		})
 		if (hasL3dTemplate) continue
-		// Editorial look MEDIA (VO/VT clips, ILU, weather map): same Softie hold —
+		// Editorial look MEDIA (VO/VT clips, ILU, weather map): same Sofie hold —
 		// piece.prerollDuration delayed audible/visible start ~1.2–1.5s after wipe end
 		// (SJV ILU audio, sport leak under wipe_pocasie). Wipe piece already has
 		// DEFAULT_WIPE_PREROLL_MS for LOADBG on the sting.
@@ -307,7 +307,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 			sourceId === (SourceLayer.VO as string) ||
 			sourceId === (SourceLayer.VT as string) ||
 			sourceId === (SourceLayer.GFX as string) ||
-			// DoubleBox frame + Full companion loop: Softie hold opened a black hole after
+			// DoubleBox frame + Full companion loop: Sofie hold opened a black hole after
 			// keepalive ended at cut while incoming db_loop waited Take+preroll.
 			sourceId === (SourceLayer.PgmDoubleBoxLoop as string) ||
 			sourceId === (SourceLayer.FullBgLoop as string)
@@ -327,7 +327,7 @@ function applyLookPreroll(pieces: IBlueprintPiece[], prerollMs: number): void {
 			)
 		})
 		if (hasEditorialLookMedia) continue
-		// Look CAM is MEDIA route://5 — same Softie hold risk on wiped DB Takes.
+		// Look CAM is MEDIA route://5 — same Sofie hold risk on wiped DB Takes.
 		const hasLookRouteCamera = objs.some((obj) => {
 			const layer = String(obj.layer)
 			if (layer !== (LOOK_A_LAYERS.camera as string) && layer !== (LOOK_B_LAYERS.camera as string)) return false
@@ -491,7 +491,7 @@ function createPgmWipeOverlayTimelineObject(
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(wipeFile),
 			// Always start at frame 0 so PRELOAD LOADBG and Take PLAY share the same
-			// decoder timeline — Softie cannot ACK “on screen”, so seek is the cue.
+			// decoder timeline — Sofie cannot ACK “on screen”, so seek is the cue.
 			seek: 0,
 			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
@@ -596,7 +596,7 @@ function createPgmRoutePiece(
 					),
 				]
 			: undefined,
-		// Wipe overlay needs a long LOADBG window. Softie excludes InTransition preroll
+		// Wipe overlay needs a long LOADBG window. Sofie excludes InTransition preroll
 		// from toPartDelay — do not put this preroll on Normal look pieces.
 		prerollDuration: hasWipe
 			? Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
@@ -746,7 +746,7 @@ export function finalizeHypercomposedPart(
 	} else if (previousLookSlot !== undefined && previousLookSlot !== lookSlot) {
 		applyHardCutIncomingLookPreroll(pieces, getLookPrerollMs(config))
 	} else if (sameLookChannel) {
-		// Same-slot hard cut (SYN→SYN, ILU→ILU, …): Softie Lookahead NONE cannot
+		// Same-slot hard cut (SYN→SYN, ILU→ILU, …): Sofie Lookahead NONE cannot
 		// LOADBG the next clip under the live layer, so cold PLAY flashed one black
 		// frame. Hold previous look for 2 frames and delay incoming look MEDIA by the
 		// same amount — picture never drops.
@@ -810,7 +810,7 @@ export function finalizeHypercomposedPart(
 			})
 		)
 	}
-	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Softie PRELOAD used
+	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Sofie PRELOAD used
 	// to LOADBG `db_loop` during ZAVER preroll; even with lookahead NONE, OutOnSegmentEnd
 	// leftovers / mistaken route://3 must not leave a stray frame. When ch3 is still the
 	// outgoing PGM look (DB→Full), delay EMPTY to the route cut so the frame holds under
@@ -1049,14 +1049,14 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * `db_loop` stays at enable 0 (same file, OutOnSegmentEnd fill — never EMPTY look A
  * on DoubleBox Takes).
  *
- * Object `enable.start` is **Take-relative** once Softie `toPartDelay` is correct.
+ * Object `enable.start` is **Take-relative** once Sofie `toPartDelay` is correct.
  * Wipe pieces use {@link IBlueprintPieceType.InTransition} so their large
  * `DEFAULT_WIPE_PREROLL_MS` does **not** inflate `toPartDelay` (live AMCP showed
  * ILU/weather LOAD ~500ms after wipe CLEAR ≈ Take+3s when wipe was Normal).
  * `piece.prerollDuration` on Normal pieces still shifts the child group to
  * `control.start − preroll` (LOADBG ahead of control) — do not bake preroll into
  * these enable delays. L3D template pieces also must not inherit look preroll
- * (see {@link applyLookPreroll}) or Softie holds the CG late.
+ * (see {@link applyLookPreroll}) or Sofie holds the CG late.
  *
  * Hard cuts: look MEDIA at 0; L3Ds wait a short {@link L3D_OUT_MS} after CLEAR.
  */
@@ -1323,7 +1323,7 @@ function appendPgmLayerClearPiece(
 
 /**
  * Outgoing look VIDEO stays up through the wipe cover / keepalive window.
- * Softie pieces only continue `postrollDuration` past Take into the next part's
+ * Sofie pieces only continue `postrollDuration` past Take into the next part's
  * `previousPartKeepaliveDuration` (editorial RE `cutPoint`). Always reserve at
  * least a full default sting ({@link LOOK_MEDIA_POSTROLL_MS}) so a later wipe's
  * cutPoint > 380 ms can actually hold picture; wiped Takes also cover this
@@ -1355,7 +1355,7 @@ export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: nu
  * After a segment's parts are generated, raise each part's look-MEDIA postroll to
  * cover the next on-air part's `previousPartKeepaliveDuration` (RE wipe cutPoint).
  * Needed when that cut exceeds {@link LOOK_MEDIA_POSTROLL_MS} (default sting floor) —
- * Softie cannot hold the previous picture past piece postroll even if keepalive is longer.
+ * Sofie cannot hold the previous picture past piece postroll even if keepalive is longer.
  */
 export function raiseLookMediaPostrollForNextKeepalive(
 	parts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }>
@@ -1378,9 +1378,9 @@ export function raiseLookMediaPostrollForNextKeepalive(
 }
 
 /**
- * Softie generates segments independently — {@link raiseLookMediaPostrollForNextKeepalive}
+ * Sofie generates segments independently — {@link raiseLookMediaPostrollForNextKeepalive}
  * cannot see a wipe on the *next* segment. SPRÁVY segment boundaries almost always
- * open with a wipe; without a full-sting postroll on the last on-air part, Softie
+ * open with a wipe; without a full-sting postroll on the last on-air part, Sofie
  * drops previous look MEDIA after {@link LOOK_HARD_CUT_POSTROLL_MS} (~400 ms) while
  * the next wipe's air cut is still ~760 ms out — black / early cut under the sting
  * (seen on SYN ADEL → ILU GUBIK and other cross-segment wipes).

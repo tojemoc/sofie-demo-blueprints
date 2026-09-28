@@ -330,7 +330,7 @@ export function generateParts(
 		return newPart
 	})
 
-	// Softie holds previous look only for piece.postrollDuration into the next Take's
+	// Sofie holds previous look only for piece.postrollDuration into the next Take's
 	// previousPartKeepaliveDuration. Raise each part to the following on-air wipe's
 	// editorial cutPoint when that exceeds the per-part default sting floor (2500 ms).
 	raiseLookMediaPostrollForNextKeepalive(parts)

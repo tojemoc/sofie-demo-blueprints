@@ -62,7 +62,7 @@ export type VideoObjectAttributes = {
 	transition?: string
 	/**
 	 * Wipe cover-frame cut point in **milliseconds into the wipe file** (RE `cutPoint`,
-	 * Resolve frame time). Softie schedules the on-air hard-cut at cutPoint + playout
+	 * Resolve frame time). Sofie schedules the on-air hard-cut at cutPoint + playout
 	 * latency (`resolveWipeAirCutMs`) so Caspar PLAY→first-frame lag does not make
 	 * Resolve’s 380 ms land early. Default file cut = 380 ms (frame 19 @ 50fps).
 	 */

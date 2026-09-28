@@ -62,7 +62,7 @@ export function createBackgroundMusicMutePiece(
 	const prerollMs = config.casparcgLatency
 	// Wipe mute piece prerolls for LOADBG; object enable must stay Take-relative through
 	// the sting tail (start 0 would end prerollMs early and let bg_music_c bleed under SFX).
-	// Piece enable.duration includes preroll so Softie does not truncate the offset object.
+	// Piece enable.duration includes preroll so Sofie does not truncate the offset object.
 	const timelineEnable =
 		durationMs !== undefined && !persistAfterPart
 			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }

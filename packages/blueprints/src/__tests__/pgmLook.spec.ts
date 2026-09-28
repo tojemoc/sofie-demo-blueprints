@@ -972,7 +972,7 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		expect(l3d).toBeDefined()
 		if (!l3d) return
-		// L3D templates must not inherit look preroll — Softie held ADD until Take+preroll+enable.
+		// L3D templates must not inherit look preroll — Sofie held ADD until Take+preroll+enable.
 		// casparcgLatency (~50) on the piece is fine; look preroll (~1500) is not.
 		expect(l3d.piece.prerollDuration ?? 0).toBeLessThan(DEFAULT_LOOK_PREROLL_MS)
 		const wipeDurationMs = 2500

@@ -42,12 +42,12 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
  * (Resolve frame-by-frame). Frame 19 @ 50fps = 380 ms. Override per wipe via RE
  * `attributes.cutPoint` (**milliseconds into the file**, not seconds like piece.duration).
  *
- * Softie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
+ * Sofie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
  * value + optional cover-centre bias + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar
  * still lags PLAY→first-frame after PRELOAD LOADBG. Without that offset, Resolve’s
  * 380 ms lands ~400 ms too early on air.
  *
- * Softie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
+ * Sofie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
  * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
  * ({@link WIPE_COVER_CENTER_OFFSET_MS}) and snaps to the 50fps grid so ±½-frame jitter
  * still falls on one of those two cover frames.
@@ -84,7 +84,7 @@ export const WIPE_PLAYOUT_LATENCY_MS = 380
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
  * Wipe pieces must be {@link IBlueprintPieceType.InTransition} so this value is
- * **excluded** from Softie `calculatePartPreroll` / `toPartDelay` — otherwise every
+ * **excluded** from Sofie `calculatePartPreroll` / `toPartDelay` — otherwise every
  * normal look piece (ILU, SYN, bed C) lands ~3s late (after wipe CLEAR). The wipe
  * child-group still starts at `control.start − preroll` for LOADBG ahead of Take.
  */
@@ -92,7 +92,7 @@ export const DEFAULT_WIPE_PREROLL_MS = 3000
 
 /**
  * Animation length of themed story wipes (ms @ 50fps), shorter than the generic
- * 2500 ms RE default. Softie overlay duration longer than the mov freezes the last
+ * 2500 ms RE default. Sofie overlay duration longer than the mov freezes the last
  * frame on PGM (operators reported SJV +7f / ŠPORT +8f / Počasie +8f of hold).
  * Keys are Caspar PLAY paths (no extension), matching {@link toCasparPlayPath}.
  */
@@ -119,7 +119,7 @@ export function isClassicalWipeFile(fileName?: string): boolean {
 	return /(?:^|\/)wipe$/i.test(playPath)
 }
 
-/** Snap Softie enable times onto the 50fps grid (nearest frame). */
+/** Snap Sofie enable times onto the 50fps grid (nearest frame). */
 export function snapMsToFrame(ms: number, frameMs: number = WIPE_FRAME_MS): number {
 	if (!Number.isFinite(ms) || ms <= 0) return 0
 	return Math.round(ms / frameMs) * frameMs
@@ -525,7 +525,7 @@ export function parseLayeredVideosFromObjects(
 				lifespan: layeredVideoLifespan(playLayer, fileName),
 				sourceLayerId: sourceLayer,
 				outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
-				// InTransition: Softie ignores this piece's preroll when computing part
+				// InTransition: Sofie ignores this piece's preroll when computing part
 				// toPartDelay, so look MEDIA / bed C stay Take-relative while wipe still
 				// LOADBGs via childGroup = control − preroll.
 				...(playLayer === 'wipe' ? { pieceType: IBlueprintPieceType.InTransition } : {}),

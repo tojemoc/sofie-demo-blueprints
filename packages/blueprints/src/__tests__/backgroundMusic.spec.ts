@@ -71,7 +71,7 @@ describe('koliska bed envelope', () => {
 		const piece = createWipeBackgroundMusicMutePiece(hybridCasparConfig, 'part-sport-1', 2500)
 		expect(piece.name).toBe('BG music mute (Wipe)')
 		const preroll = hybridCasparConfig.casparcgLatency
-		// Piece duration includes preroll so Softie does not truncate the Take-relative mute.
+		// Piece duration includes preroll so Sofie does not truncate the Take-relative mute.
 		expect(piece.enable).toEqual({ start: 0, duration: preroll + 2500 })
 		expect(piece.lifespan).toBe(PieceLifespan.WithinPart)
 		expect(piece.prerollDuration).toBe(preroll)

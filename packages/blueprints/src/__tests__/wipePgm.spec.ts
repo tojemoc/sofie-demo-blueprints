@@ -122,7 +122,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
 		// Preroll so Caspar LOADBGs the alpha wipe before Take (~3s cue otherwise).
 		expect(wipePiece?.prerollDuration).toBeGreaterThanOrEqual(3000)
-		// InTransition: Softie must not fold wipe preroll into toPartDelay (look MEDIA late).
+		// InTransition: Sofie must not fold wipe preroll into toPartDelay (look MEDIA late).
 		expect(wipePiece?.pieceType).toBe(IBlueprintPieceType.InTransition)
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
@@ -172,7 +172,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			)
 		expect(lookClip).toBeDefined()
 		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(900)
-		// Softie holds previous picture only for piece.postrollDuration past Take into
+		// Sofie holds previous picture only for piece.postrollDuration past Take into
 		// the next wipe's keepalive — reserve full sting headroom (≥ cutPoint).
 		const lookClipPiece = result.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj === lookClip)
@@ -239,7 +239,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		)
 		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_AIR_CUT_MS })
 		const voPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
-		// Softie must not hold editorial MEDIA until Take+lookPreroll.
+		// Sofie must not hold editorial MEDIA until Take+lookPreroll.
 		expect(voPiece?.prerollDuration ?? 0).toBeLessThan(1500)
 	})
 
@@ -468,7 +468,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const routePiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmRoute as string))
 		expect(routePiece).toBeDefined()
-		// Softie holds Take by max piece preroll — look/wipe ms here made every hard cut lag ~1.5–3s.
+		// Sofie holds Take by max piece preroll — look/wipe ms here made every hard cut lag ~1.5–3s.
 		expect(routePiece?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 	})
 })

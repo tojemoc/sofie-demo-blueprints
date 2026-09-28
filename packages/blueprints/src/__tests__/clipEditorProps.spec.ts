@@ -59,7 +59,7 @@ describe('parseClipEditorProps', () => {
 		expect(props?.fileName).toBe('clips/fallback.mp4')
 	})
 
-	it('returns undefined when no path is set (avoids Softie stripExtension crash)', () => {
+	it('returns undefined when no path is set (avoids Sofie stripExtension crash)', () => {
 		expect(parseClipEditorProps(makeVideo({ attributes: {} }))).toBeUndefined()
 		expect(parseClipProps(makeVideo({ clipName: '', attributes: {} }))).toBeUndefined()
 	})
@@ -180,7 +180,7 @@ describe('resolveWipeAirCutMs', () => {
 })
 
 describe('resolveWipeDurationMs', () => {
-	it('caps themed story wipes so Softie does not freeze the last mov frame', () => {
+	it('caps themed story wipes so Sofie does not freeze the last mov frame', () => {
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sjv.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sjv'])
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sport')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sport'])
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_pocasie.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_pocasie'])
