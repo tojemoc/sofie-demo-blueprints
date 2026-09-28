@@ -8,8 +8,10 @@ import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { LOOK_B_LAYERS, SAME_SLOT_WIPE_AIR_CUT_LEAD_MS } from '../base/showstyle/helpers/pgmLook.js'
 
 const POCASIE_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_pocasie')
+const POCASIE_SAME_SLOT_LOOK_CUT_MS = POCASIE_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { PartContext } from '../common/context.js'
@@ -620,6 +622,45 @@ describe('casparV2Graphics', () => {
 		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(POCASIE_WIPE_AIR_CUT_MS)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
+		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: POCASIE_WIPE_AIR_CUT_MS + l3dObjectTime })
+	})
+
+	it('same-slot wipe_pocasie keeps weather L3D at full air cut (look MEDIA leads)', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-weather')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const weatherPart = segment.parts[0]
+		expect(weatherPart).toBeDefined()
+		if (!weatherPart) return
+
+		// Full→Full (e.g. ŠPORT→Počasie): previous look B → same-slot lead on MEDIA only.
+		const partContext = new PartContext(mockSegmentContext(), weatherPart.payload.externalId)
+		const result = generateGfxPart(partContext, weatherPart as never, 'B', 'B')
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(POCASIE_SAME_SLOT_LOOK_CUT_MS)
+
+		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
+		const bg = timeline.find(
+			(obj) =>
+				obj.layer === LOOK_B_LAYERS.ilu && (obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
+		)
+		expect(bg?.enable).toEqual({ start: POCASIE_SAME_SLOT_LOOK_CUT_MS })
+		expect((bg?.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
+
+		const weatherL3d = timeline.find(
+			(obj) =>
+				obj.layer === LOOK_B_LAYERS.lowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+		const l3dPiece = result.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
+		)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(POCASIE_WIPE_AIR_CUT_MS)
+
+		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const l3dEmpty = (clearPiece?.content.timelineObjects ?? []).find(
+			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
 		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0
 		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: POCASIE_WIPE_AIR_CUT_MS + l3dObjectTime })
 	})

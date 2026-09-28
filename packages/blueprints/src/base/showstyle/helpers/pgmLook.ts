@@ -1017,7 +1017,10 @@ export function finalizeHypercomposedPart(
 		// PLAY at the air cut is hot when route://N flips. Same-slot (DB→DB / Full→Full)
 		// must not early-LOAD (replaces on-air under the wipe); wipeLookCutMs leads the
 		// cold PLAY by SAME_SLOT_WIPE_AIR_CUT_LEAD_MS so cover centre meets first frame.
+		// Weather L3D / L3D CLEAR stay on the full air cut (wipeCutPointMs) — do not
+		// advance gfx/pocasie with the same-slot look lead.
 		preloadIdleLookMedia: hasWipe && !sameLookChannel,
+		wipeAirCutMs: wipeCutPointMs,
 	})
 
 	// Wiped ZAVER: LED `ilu-zaver` must land with WX hide under cover — not at Take
@@ -1199,18 +1202,20 @@ function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): v
  * cannot stack two templates. Incoming L3Ds ADD after a gap — never CG UPDATE.
  *
  * Wiped Takes: wipe overlay covers from 0. Look MEDIA (clips / CAM / Full ILU /
- * weather map / bg_loop) hard-cuts at the cover frame so same-channel rebuilds are not
+ * weather map / bg_loop) hard-cuts at the look cut so same-channel rebuilds are not
  * visible under a still-open route. Incoming L3Ds ADD after the sting ends so the
- * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX lands
- * with `bg_pocasie` at the cover cut.
+ * in-anim is not buried under wipe SFX — except `wipe_pocasie`, where weather GFX
+ * lands at the **full air cut** (CLEAR duration aligns with that instant). Same-slot
+ * look MEDIA may lead by {@link SAME_SLOT_WIPE_AIR_CUT_LEAD_MS}; do not advance the
+ * weather template with that lead.
  *
  * Look compose MEDIA under wipe ({@link applyCasparHotPlayCue}):
  * - **Idle look channel** (Full↔DB / DB→Full): LOAD/PAUSE from Take, then keyframe
- *   `playing: true` at the air cut so the first frame is ready when `route://N` flips
- *   (no cold PLAY lag). Clip audio stays ducked for the sting
+ *   `playing: true` at the full air cut so the first frame is ready when `route://N`
+ *   flips (no cold PLAY lag). Clip audio stays ducked for the sting
  *   ({@link muteEditorialClipAudioDuringWipe}).
  * - **Same look channel** (DB→DB / Full→Full): delay incoming PLAY to
- *   `wipeCutPointMs` (caller passes air cut − {@link SAME_SLOT_WIPE_AIR_CUT_LEAD_MS})
+ *   `wipeLookCutMs` (caller passes air cut − {@link SAME_SLOT_WIPE_AIR_CUT_LEAD_MS})
  *   only — never pause/seek from Take (that LOAD replaces the on-air outgoing clip).
  * - Outgoing MEDIA stays via `previousPartKeepaliveDuration` + look postroll
  *   (= same look-cut instant).
@@ -1232,14 +1237,18 @@ function applyL3dTakeOffsets(
 	pieces: IBlueprintPiece[],
 	wipeDurationMs: number,
 	wipePocasie = false,
-	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
-	options?: { preloadIdleLookMedia?: boolean }
+	wipeLookCutMs: number = DEFAULT_WIPE_AIR_CUT_MS,
+	options?: { preloadIdleLookMedia?: boolean; wipeAirCutMs?: number }
 ): void {
 	const hasWipe = wipeDurationMs > 0
 	const preloadIdleLookMedia = Boolean(options?.preloadIdleLookMedia)
+	const wipeAirCutMs =
+		typeof options?.wipeAirCutMs === 'number' && Number.isFinite(options.wipeAirCutMs)
+			? Math.max(0, Math.floor(options.wipeAirCutMs))
+			: wipeLookCutMs
 
 	for (const piece of pieces) {
-		const lookMediaDelay = hasWipe ? wipeCutPointMs : 0
+		const lookMediaDelay = hasWipe ? wipeLookCutMs : 0
 		const pieceStartMs =
 			typeof piece.enable?.start === 'number' && Number.isFinite(piece.enable.start)
 				? Math.max(0, Math.floor(piece.enable.start))
@@ -1253,8 +1262,9 @@ function applyL3dTakeOffsets(
 				let l3dInDelay = L3D_OUT_MS
 				if (hasWipe) {
 					if (wipePocasie) {
-						// Weather GFX with bg_pocasie at the cover cut.
-						l3dInDelay = wipeCutPointMs
+						// Weather GFX at the full air cut (CLEAR ends here) — not the
+						// same-slot look-MEDIA lead.
+						l3dInDelay = wipeAirCutMs
 					} else if (pieceStartMs === 0) {
 						// After the sting ends.
 						l3dInDelay = wipeDurationMs
@@ -1283,10 +1293,10 @@ function applyL3dTakeOffsets(
 			}
 
 			if (hasWipe && preloadIdleLookMedia) {
-				// Idle look channel: LOAD/PAUSE from Take; hot PLAY at the air cut.
-				// route:// CAM uses noStarttime — do not force seek:0 on live routes.
+				// Idle look channel: LOAD/PAUSE from Take; hot PLAY at the full air cut
+				// (route:// flip). route:// CAM uses noStarttime — do not force seek:0.
 				const isRoute = typeof content.file === 'string' && content.file.startsWith('route://')
-				applyCasparHotPlayCue(obj as TimelineBlueprintExt, wipeCutPointMs, isRoute ? undefined : { seekMs: 0 })
+				applyCasparHotPlayCue(obj as TimelineBlueprintExt, wipeAirCutMs, isRoute ? undefined : { seekMs: 0 })
 				continue
 			}
 
