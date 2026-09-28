@@ -8,7 +8,16 @@ import {
 } from '../base/showstyle/helpers/ledPodHeadline.js'
 import { LED_BG_LOOP_TEMA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
-import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
+import { generateParts } from '../base/showstyle/part-adapters/index.js'
+import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { createLookSlotSequence } from '../base/showstyle/helpers/pgmLook.js'
+import {
+	hybridCasparConfig,
+	loadSmokeRundownExport,
+	mockIngestContext,
+	mockSegmentContext,
+	smokeExportToIngestSegment,
+} from './helpers/smokeRundownIngest.js'
 
 describe('segmentUsesLedBgLoopZoom', () => {
 	it('matches smoke segment ids and section display-name tokens', () => {
@@ -76,5 +85,16 @@ describe('LED pod headline', () => {
 		expect(piece.expectedPackages?.[0]?.content).toMatchObject({
 			filePath: 'assets/pod_headline.png',
 		})
+	})
+
+	it('re-asserts LED pod EMPTY on SJV Takes so baseline PNG cannot flash', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-sjv')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
+		const sjvSyn = generated.parts.find((part) => part.part.externalId === 'part-sjv-syn-2')
+		expect(sjvSyn).toBeDefined()
+		expect(sjvSyn?.pieces.some((piece) => piece.externalId?.endsWith('_led_pod_headline_clear'))).toBe(true)
+		expect(sjvSyn?.pieces.some((piece) => piece.externalId?.endsWith('_led_pod_headline'))).toBe(false)
 	})
 })

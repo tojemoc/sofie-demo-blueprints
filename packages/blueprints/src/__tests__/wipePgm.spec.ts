@@ -94,6 +94,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/wipe',
+			seek: 0,
+			playing: false,
 			// Straight-alpha .mov → premul before Caspar composites (layer straightAlpha is a no-op).
 			videoFilter: 'premultiply=inplace=1',
 			mixer: {
@@ -108,7 +110,15 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
-		expect(overlay?.keyframes).toBeUndefined()
+		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs.
+		expect(
+			(overlay?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === 0 &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(routeObj).toBeDefined()
 		expect(routeObj?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
@@ -121,7 +131,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(wipePiece?.content.ignoreMediaObjectStatus).toBe(true)
 		// Preroll so Caspar LOADBGs the alpha wipe before Take (~3s cue otherwise).
 		expect(wipePiece?.prerollDuration).toBeGreaterThanOrEqual(3000)
-		// InTransition: Softie must not fold wipe preroll into toPartDelay (look MEDIA late).
+		// InTransition: Sofie must not fold wipe preroll into toPartDelay (look MEDIA late).
 		expect(wipePiece?.pieceType).toBe(IBlueprintPieceType.InTransition)
 		// Main VO clip must stay the story video, not the wipe.
 		expect(result.pieces[0]?.name).toContain('clips/')
@@ -154,11 +164,11 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
-		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(880)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(900)
 
 		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
 		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(routeObj?.enable).toEqual({ start: 880 })
+		expect(routeObj?.enable).toEqual({ start: 900 })
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -170,8 +180,18 @@ describe('wipe piece type → PGM route / overlay', () => {
 					!(obj.content as { file?: string }).file?.startsWith('route://')
 			)
 		expect(lookClip).toBeDefined()
-		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(880)
-		// Softie holds previous picture only for piece.postrollDuration past Take into
+		// Idle Full channel (no previousLookSlot): LOAD from Take, hot PLAY at air cut.
+		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(0)
+		expect((lookClip?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(lookClip?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === 900 &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
+		// Sofie holds previous picture only for piece.postrollDuration past Take into
 		// the next wipe's keepalive — reserve full sting headroom (≥ cutPoint).
 		const lookClipPiece = result.pieces.find((piece) =>
 			(piece.content.timelineObjects ?? []).some((obj) => obj === lookClip)
@@ -238,7 +258,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		)
 		expect(clipEmpty?.enable).toEqual({ start: 0, duration: WIPE_AIR_CUT_MS })
 		const voPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
-		// Softie must not hold editorial MEDIA until Take+lookPreroll.
+		// Sofie must not hold editorial MEDIA until Take+lookPreroll.
 		expect(voPiece?.prerollDuration ?? 0).toBeLessThan(1500)
 	})
 
@@ -374,7 +394,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/360_wipe',
 		})
 		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		// Non-classical wipe file (360_wipe) — no half-frame cover bias.
+		expect(route?.enable).toEqual({ start: resolveWipeAirCutMs(undefined, 2500, 'wipes/360_wipe') })
 		expect(route?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -466,7 +487,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const routePiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmRoute as string))
 		expect(routePiece).toBeDefined()
-		// Softie holds Take by max piece preroll — look/wipe ms here made every hard cut lag ~1.5–3s.
+		// Sofie holds Take by max piece preroll — look/wipe ms here made every hard cut lag ~1.5–3s.
 		expect(routePiece?.prerollDuration).toBe(hybridCasparConfig.casparcgLatency)
 	})
 })

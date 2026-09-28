@@ -89,8 +89,8 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 function countupTimelineObject(mode: 'reveal' | 'sustain' | 'mute'): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const fadeIn = mode === 'reveal'
 	const muted = mode === 'mute' || mode === 'reveal'
-	// Reveal starts PLAY on first DoubleBox Take at the wipe cover cut (opacity/volume 0),
-	// then fades up — hidden through headlines / L3D-mod / wipe until cutPoint.
+	// Reveal starts LOADBG on first DoubleBox Take (opacity/volume 0), then hot-PLAYs
+	// and fades up at the wipe cover cut — hidden through headlines / L3D-mod / sting.
 	const hiddenUntilFade = mode === 'reveal'
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -147,11 +147,9 @@ function createCountupPiece(
 
 /**
  * Fade countup in on first DoubleBox Take (after L3D-mod + wipe into first tema).
- * Starts Caspar PLAY here (opacity/volume 0 → fade) — not on rundown Activate —
- * so headlines never show countup.
- *
- * On wiped Takes, pass `startMs` = editorial wipe cut point so PLAY lands under the
- * cover with the route hard-cut — never at Take (before the sting has covered).
+ * Starts Caspar LOADBG here (opacity/volume 0) — not on rundown Activate —
+ * so headlines never show countup. On wiped Takes {@link delayCountupRevealToWipeCut}
+ * hot-PLAYs + fades at the cover cut.
  */
 export function createCountupRevealPiece(
 	context: ICommonContext,
@@ -163,14 +161,32 @@ export function createCountupRevealPiece(
 }
 
 /**
- * Wiped first-DoubleBox: delay countup reveal to the cover cut (same instant as
- * `route://` hard-cut). Overlay wipe owns 0→cut; countup must not PLAY at Take.
+ * Wiped first-DoubleBox: LOADBG countup from Take (piece stays at 0), hot-PLAY + fade
+ * at the cover cut (same instant as `route://` hard-cut). Never cold-PLAY at the cut
+ * and never audible/visible at Take before the sting covers.
  */
 export function delayCountupRevealToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: number): void {
-	const startMs = Math.max(0, wipeCutPointMs)
+	const playAtMs = Math.max(0, Math.floor(wipeCutPointMs))
 	for (const piece of pieces) {
 		if (!piece.externalId?.endsWith('_countup_reveal')) continue
-		piece.enable = { start: startMs }
+		// Keep piece at Take so Sofie childGroup / Caspar can LOADBG during preroll;
+		// hot PLAY + fade land at the air cut via keyframes.
+		piece.enable = { start: 0 }
+		for (const obj of piece.content.timelineObjects ?? []) {
+			if (String(obj.layer) !== (CasparCGLayers.CasparCGGraphicsLogo as string)) continue
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			if (content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
+			content.playing = false
+			const fadeKeyframes = countupRevealKeyframes().map((kf) => ({
+				...kf,
+				enable: { start: playAtMs },
+				content: {
+					...kf.content,
+					playing: true,
+				},
+			}))
+			;(obj as TimelineBlueprintExt).keyframes = fadeKeyframes
+		}
 	}
 }
 

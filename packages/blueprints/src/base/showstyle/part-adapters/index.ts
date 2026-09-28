@@ -60,7 +60,11 @@ import {
 } from '../helpers/pgmLook.js'
 import { normalizeLayeredVideoFileName, resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
-import { createLedPodHeadlinePiece, segmentUsesLedPodHeadline } from '../helpers/ledPodHeadline.js'
+import {
+	createLedPodHeadlinePiece,
+	createLedPodHeadlineClearPiece,
+	segmentUsesLedPodHeadline,
+} from '../helpers/ledPodHeadline.js'
 import { SourceLayer } from '../applyconfig/layers.js'
 
 /** Part types that compose a story look on BG A/B. */
@@ -242,6 +246,12 @@ export function generateParts(
 			})
 		) {
 			newPart.pieces.push(createLedPodHeadlinePiece(partContext, studioConfig, rawPart.payload.externalId))
+		} else if (studioConfig.casparcg.hypercomposed && isLookBearingPartType(rawPart.type)) {
+			// Baseline PLAYs pod_headline forever (prio 0). DoubleBox CLEAR is OutOnRundownEnd,
+			// but Sofie timeline rebuilds between SJV/ŠPORT Takes briefly let baseline win —
+			// operators saw pod_headline.png flash on the LED. Re-assert EMPTY on every
+			// non-headline look part so layer 112 stays dark.
+			newPart.pieces.push(createLedPodHeadlineClearPiece(rawPart.payload.externalId))
 		}
 		// Editorial skip / float from Rundown Editor — Sofie must not take these parts.
 		if (floatedOrSkipped) {
@@ -330,7 +340,7 @@ export function generateParts(
 		return newPart
 	})
 
-	// Softie holds previous look only for piece.postrollDuration into the next Take's
+	// Sofie holds previous look only for piece.postrollDuration into the next Take's
 	// previousPartKeepaliveDuration. Raise each part to the following on-air wipe's
 	// editorial cutPoint when that exceeds the per-part default sting floor (2500 ms).
 	raiseLookMediaPostrollForNextKeepalive(parts)

@@ -269,14 +269,17 @@ describe('DoubleBox PGM ILU above CAM', () => {
 
 		const countupReveal = result.pieces.find((piece) => piece.externalId === 'part-tema-1-db_countup_reveal')
 		expect(countupReveal?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
-		// Wiped first DoubleBox: countup PLAY at cover cut (with route://), not at Take.
-		expect(countupReveal?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		// Wiped first DoubleBox: LOADBG from Take, hot PLAY + fade at cover cut.
+		expect(countupReveal?.enable).toEqual({ start: 0 })
 		const countupTl = countupReveal?.content.timelineObjects?.[0]
 		expect(countupTl?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
 		expect(countupTl?.content).toMatchObject({
+			playing: false,
 			mixer: { opacity: 0, volume: 0 },
 		})
+		expect(countupTl?.keyframes?.[0]?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(countupTl?.keyframes?.[0]?.content).toMatchObject({
+			playing: true,
 			mixer: { opacity: 1, volume: 1 },
 		})
 		expect(result.pieces.some((piece) => piece.externalId.endsWith('_led_pod_headline_clear'))).toBe(true)
@@ -286,10 +289,19 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(wipe?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
-		// Overlay before cut; countup + route share the cover instant.
-		expect(countupReveal?.enable.start).toBe(
-			wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined
-		)
+		expect((wipeOverlay?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect(
+			(wipeOverlay?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === 0 &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
+		// Overlay from Take; countup hot-PLAY + route share the cover instant.
+		expect(countupTl?.keyframes?.[0]?.enable).toEqual({
+			start: wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined,
+		})
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',

@@ -42,27 +42,49 @@ export const DEFAULT_WIPE_DURATION_MS = 2500
  * (Resolve frame-by-frame). Frame 19 @ 50fps = 380 ms. Override per wipe via RE
  * `attributes.cutPoint` (**milliseconds into the file**, not seconds like piece.duration).
  *
- * Softie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
- * value + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar still lags PLAY→first-frame
- * after PRELOAD LOADBG. Without that offset, Resolve’s 380 ms lands ~400 ms too early
- * on air (old empirical default was 760 ms = 380 + 380).
+ * Sofie schedules the route / look hard-cut at {@link resolveWipeAirCutMs} (= this
+ * value + optional cover-centre bias + {@link WIPE_PLAYOUT_LATENCY_MS}), because Caspar
+ * still lags PLAY→first-frame after PRELOAD LOADBG. Without that offset, Resolve’s
+ * 380 ms lands ~400 ms too early on air.
+ *
+ * Sofie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
+ * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
+ * ({@link WIPE_COVER_CENTER_OFFSET_MS}) and snaps to the 50fps grid so ±½-frame jitter
+ * still falls on one of those two cover frames.
  */
 export const WIPE_CUT_POINT_MS = 380
 
+/** Studio / wipe editorial frame rate (Caspar 1080p5000). */
+export const WIPE_FRAME_RATE = 50
+
+/** One frame at {@link WIPE_FRAME_RATE} (20 ms). */
+export const WIPE_FRAME_MS = 1000 / WIPE_FRAME_RATE
+
 /**
- * Caspar decode / compositor lag from Take (PLAY after PRELOAD LOADBG) until wipe
+ * Classical `wipes/wipe` keeps two fully covering frames at the Resolve cut
+ * (frame 19 + 20). Air cut targets the centre so ±½ frame still hits cover.
+ */
+export const WIPE_COVER_FRAMES = 2
+
+/** Half-frame bias into the 2-frame cover (= 10 ms @ 50fps). */
+export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
+
+/**
+ * Caspar decode / compositor lag from Take (hot PLAY after LOADBG) until wipe
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned so default air cut = 380 + 380 = 760 ms (matches the pre-#109 empirical sting
- * cover). Adjust here if PRELOAD/ffmpeg latency changes — not by padding RE cutPoint.
+ * Tuned for LOADBG'd `wipes/wipe` (~19f). Cold PLAY without LOADBG is 40–60f and
+ * cannot be absorbed by the 2-frame cover — wipe overlay uses explicit
+ * playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
+ * Adjust here if Caspar/ffmpeg latency changes — not by padding RE cutPoint.
  */
 export const WIPE_PLAYOUT_LATENCY_MS = 380
 
 /**
  * Sofie preroll so Caspar can LOADBG the alpha wipe before Take.
  * Wipe pieces must be {@link IBlueprintPieceType.InTransition} so this value is
- * **excluded** from Softie `calculatePartPreroll` / `toPartDelay` — otherwise every
+ * **excluded** from Sofie `calculatePartPreroll` / `toPartDelay` — otherwise every
  * normal look piece (ILU, SYN, bed C) lands ~3s late (after wipe CLEAR). The wipe
  * child-group still starts at `control.start − preroll` for LOADBG ahead of Take.
  */
@@ -70,7 +92,7 @@ export const DEFAULT_WIPE_PREROLL_MS = 3000
 
 /**
  * Animation length of themed story wipes (ms @ 50fps), shorter than the generic
- * 2500 ms RE default. Softie overlay duration longer than the mov freezes the last
+ * 2500 ms RE default. Sofie overlay duration longer than the mov freezes the last
  * frame on PGM (operators reported SJV +7f / ŠPORT +8f / Počasie +8f of hold).
  * Keys are Caspar PLAY paths (no extension), matching {@link toCasparPlayPath}.
  */
@@ -85,6 +107,22 @@ function normalizeWipePlayPath(fileName: string | undefined): string | undefined
 	const trimmed = fileName.trim().replace(/\\/g, '/')
 	if (!trimmed) return undefined
 	return trimmed.replace(/\.(mov|mp4|mxf|mkv|webm)$/i, '')
+}
+
+/** True for the classical story wipe (`wipes/wipe`), not themed SJV/ŠPORT/Počasie. */
+export function isClassicalWipeFile(fileName?: string): boolean {
+	const playPath = normalizeWipePlayPath(fileName)
+	if (!playPath) return true
+	if (playPath === DEFAULT_WIPE_FILE || playPath === 'wipe') return true
+	// Reject themed keys explicitly; any other `wipe_*` is not classical.
+	if (playPath in THEMED_WIPE_ANIMATION_MS) return false
+	return /(?:^|\/)wipe$/i.test(playPath)
+}
+
+/** Snap Sofie enable times onto the 50fps grid (nearest frame). */
+export function snapMsToFrame(ms: number, frameMs: number = WIPE_FRAME_MS): number {
+	if (!Number.isFinite(ms) || ms <= 0) return 0
+	return Math.round(ms / frameMs) * frameMs
 }
 
 /**
@@ -142,15 +180,23 @@ export function resolveWipeCutPointMs(
 
 /**
  * Take-relative ms when PGM should hard-cut under the sting (route / look / countup /
- * keepalive). Editorial file cut + {@link WIPE_PLAYOUT_LATENCY_MS}, clamped to the
- * wipe duration so the switch cannot land after CLEAR.
+ * keepalive).
+ *
+ * Classical `wipes/wipe`: editorial file cut + half-frame cover centre + playout
+ * latency, snapped to {@link WIPE_FRAME_MS}, so the hard-cut lands in the middle of
+ * the 2-frame cover (380 ± ½ frame when PRELOAD latency is stable).
+ *
+ * Themed wipes keep file cut + latency only (their cover frames differ per asset).
+ * Clamped to the wipe duration so the switch cannot land after CLEAR.
  */
 export function resolveWipeAirCutMs(
 	attributes?: { cutPoint?: unknown } | null,
-	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS
+	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS,
+	wipeFile?: string
 ): number {
 	const fileCutMs = resolveWipeCutPointMs(attributes, wipeDurationMs)
-	const airCutMs = fileCutMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS))
+	const coverBiasMs = isClassicalWipeFile(wipeFile) ? WIPE_COVER_CENTER_OFFSET_MS : 0
+	const airCutMs = snapMsToFrame(fileCutMs + coverBiasMs + Math.max(0, Math.floor(WIPE_PLAYOUT_LATENCY_MS)))
 	const max = Math.max(0, Math.floor(wipeDurationMs))
 	if (max > 0) {
 		return Math.min(airCutMs, max)
@@ -479,7 +525,7 @@ export function parseLayeredVideosFromObjects(
 				lifespan: layeredVideoLifespan(playLayer, fileName),
 				sourceLayerId: sourceLayer,
 				outputLayerId: getOutputLayerForSourceLayer(sourceLayer),
-				// InTransition: Softie ignores this piece's preroll when computing part
+				// InTransition: Sofie ignores this piece's preroll when computing part
 				// toPartDelay, so look MEDIA / bed C stay Take-relative while wipe still
 				// LOADBGs via childGroup = control − preroll.
 				...(playLayer === 'wipe' ? { pieceType: IBlueprintPieceType.InTransition } : {}),

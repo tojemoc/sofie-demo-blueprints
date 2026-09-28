@@ -133,14 +133,25 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGAudioBed]: casparLayerMapping(ledChannel, LedChannelLayers.AudioBed),
 
 		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.Route),
-		// PRELOAD: wipe.mov must LOADBG during InTransition preroll. NONE cold-starts
-		// PLAY at Take (~40–60f ffmpeg latency) so the cover-cut lands before the sting
-		// is on screen — countup / route:// flip flash under an incomplete wipe.
-		[CasparCGLayers.CasparCGPgmEffectsPlayer]: casparLayerMapping(
-			pgmChannel,
-			PgmChannelLayers.EffectsPlayer,
-			LookaheadMode.PRELOAD
-		),
+		// PRELOAD + explicit hot-PLAY cue on the wipe overlay (playing:false LOADBG,
+		// keyframe playing:true at Take). Sofie PRELOAD while Next strips the PLAY
+		// keyframe so Caspar LOADBGs the paused sting; Take applies hot PLAY. NONE
+		// cold-starts PLAY at Take (~40–60f ffmpeg latency) so the cover-cut lands
+		// before the sting is on screen — countup / route:// flip flash under an
+		// incomplete wipe. Deep search: classical wipe Takes can sit more than the
+		// default 10 objects ahead when headlines / beds intervene.
+		[CasparCGLayers.CasparCGPgmEffectsPlayer]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+			device: TSR.DeviceType.CASPARCG,
+			deviceId: 'casparcg0',
+			lookahead: LookaheadMode.PRELOAD,
+			lookaheadDepth: 1,
+			lookaheadMaxSearchDistance: 100,
+			options: {
+				mappingType: TSR.MappingCasparCGType.Layer,
+				channel: pgmChannel,
+				layer: PgmChannelLayers.EffectsPlayer,
+			},
+		}),
 		[CasparCGLayers.CasparCGPgmIntroPlayer]: casparLayerMapping(pgmChannel, PgmChannelLayers.IntroOverlay),
 		[CasparCGLayers.CasparCGGraphicsLogo]: casparLayerMapping(pgmChannel, PgmChannelLayers.GraphicsLogo),
 		[CasparCGLayers.CasparCGAudioBedPgm]: casparLayerMapping(pgmChannel, PgmChannelLayers.AudioBed),
