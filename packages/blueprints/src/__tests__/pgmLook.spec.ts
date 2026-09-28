@@ -763,19 +763,22 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Leave-weather: Full-look ILU EMPTY from air cut through wipe end (under cover).
-		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(WIPE_AIR_CUT_MS)
-		const zaverIluClearMs =
-			!Array.isArray(iluEmpty?.enable) && typeof iluEmpty?.enable.duration === 'number' ? iluEmpty.enable.duration : 0
-		expect(zaverIluClearMs).toBeGreaterThan(0)
-		expect(zaverIluClearMs).toBe(2500 - WIPE_AIR_CUT_MS)
+		// Leave-weather: Full-look ILU EMPTY from cover-hide (air cut + 2f), open-ended
+		// for the ZAVER part — finite through wipe end flashed weather after sting CLEAR.
+		const leaveWeatherHideMs = WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS
+		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(leaveWeatherHideMs)
+		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.duration).toBeUndefined()
+		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(!Array.isArray(l3dEmpty?.enable) && l3dEmpty?.enable.start).toBe(leaveWeatherHideMs)
 		const ledZaver = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGIluPlayer &&
 				(obj.content as { file?: string }).file !== 'EMPTY' &&
 				String((obj.content as { file?: string }).file || '').length > 0
 		)
-		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(WIPE_AIR_CUT_MS)
+		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(leaveWeatherHideMs)
 		const wipeOverlay = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer &&
@@ -885,7 +888,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
 		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'zaver-wiped', objects as never, pieces, 'B')
 		const led = pieces[0].content.timelineObjects?.[0]
-		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS)
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS)
 	})
 
 	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
@@ -908,7 +911,7 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(zaver).toBeDefined()
 		if (!zaver) return
-		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
+		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const dbLoopEmpties = (clearPiece?.content.timelineObjects ?? []).filter(

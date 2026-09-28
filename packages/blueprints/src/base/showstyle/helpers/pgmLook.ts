@@ -725,16 +725,27 @@ export function finalizeHypercomposedPart(
 	const hasWipe = Boolean(wipe && wipeFile)
 	const wipePocasie = Boolean(wipeFile && isWipePocasieFile(wipeFile))
 	const sameLookChannel = previousLookSlot !== undefined && previousLookSlot === lookSlot
+	// Leave-weather into wiped ZAVER: detect early so keepalive / WX hide can wait for
+	// solid cover (not Take, not a bare air-cut while the sting is still incomplete).
+	const leaveWeatherUnderWipe = Boolean(
+		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
+	)
+	/** Hide previous weather L3D/ILU this far into the Take (air cut + 2f under cover). */
+	const leaveWeatherHideMs = leaveWeatherUnderWipe
+		? Math.min(wipeDurationMs, wipeCutPointMs + LOOK_HARD_CUT_OVERLAP_MS)
+		: wipeCutPointMs
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		// Keep previous look VIDEO only until the cover cut — not the full sting.
+		// Leave-weather extends keepalive to leaveWeatherHideMs so cities/map stay until
+		// the sting is actually covering (air cut alone was early when PRELOAD lagged).
 		// Full-sting keepalive left DB→DB / Full→Full switches until wipe CLEAR
 		// (new look could not win while the previous part still occupied the channel).
 		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
 		part.inTransition = {
 			blockTakeDuration: wipeDurationMs,
-			previousPartKeepaliveDuration: wipeCutPointMs,
+			previousPartKeepaliveDuration: leaveWeatherHideMs,
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
@@ -771,18 +782,17 @@ export function finalizeHypercomposedPart(
 			? L3D_OUT_MS + earliestL3dObjectTimeMs
 			: 0
 	const l3dClearDurationMs = hasIncomingL3d ? firstL3dOnAirMs : undefined
-	// Leave-weather into wiped ZAVER: hold previous weather L3D until the air cut so
-	// WX HTML stays under the sting until cover — not cleared at Take while wipe
-	// overlay is still loading. Wipe-only GFX shells keep L3D CLEAR at Take.
-	// Require an *active* on-air ilu-zaver piece — an ad-lib-only ingest hit must not
-	// delay L3D CLEAR on unrelated wiped GFX.
-	const leaveWeatherUnderWipe = Boolean(
-		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
-	)
-	const l3dClearStartMs = leaveWeatherUnderWipe ? wipeCutPointMs : 0
+	// Leave-weather into wiped ZAVER: hold previous weather L3D until cover is solid —
+	// not cleared at Take while wipe overlay is still loading. Wipe-only GFX shells
+	// keep L3D CLEAR at Take. Require an *active* on-air ilu-zaver piece — an
+	// ad-lib-only ingest hit must not delay L3D CLEAR on unrelated wiped GFX.
+	const l3dClearStartMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : 0
 	const l3dClearHoldMs =
 		l3dClearDurationMs !== undefined && l3dClearStartMs > 0
-			? Math.max(0, l3dClearDurationMs - l3dClearStartMs)
+			? Math.max(0, l3dClearDurationMs - l3dClearStartMs) +
+				// Overlap the delayed ADD by 2f so weather cities cannot flash for a frame
+				// when EMPTY ends at the same instant the new L3D enables.
+				(leaveWeatherUnderWipe ? LOOK_HARD_CUT_OVERLAP_MS : 0)
 			: l3dClearDurationMs
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
@@ -832,18 +842,22 @@ export function finalizeHypercomposedPart(
 			...buildL3dLayerClearObjects('A')
 		)
 	}
-	// Leaving Počasie: clear bg_pocasie at the air cut (under wipe cover) through wipe
-	// end. Clearing at Take made WX disappear before the sting was on PGM (operators
-	// saw weather hide → LED switch → wipe). Finite duration — open-ended EMPTY rides
-	// keepalive into the *next* Take and suppresses incoming weather `bg_pocasie`.
+	// Leaving Počasie: clear bg_pocasie under wipe cover. Finite EMPTY through wipe end
+	// let weather postroll flash one frame after sting CLEAR — leave-weather ZAVER uses
+	// open-ended WithinPart EMPTY instead (safe: next Take is Outro, not weather).
 	// Leave-weather / non-ILU Takes: EMPTY look ILU so `bg_pocasie` cannot linger
 	// into ZAVER (Full) or the next story. DB Takes without look ILU also CLEAR
 	// Full ILU so a lingering ch4 weather map dies under the sting.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
 		if (hasWipe) {
-			const leaveWeatherClearMs = Math.max(0, wipeDurationMs - wipeCutPointMs)
-			clearObjects.push(...buildLookIluClearObjects(lookSlot, leaveWeatherClearMs, wipeCutPointMs))
+			if (leaveWeatherUnderWipe) {
+				clearObjects.push(...buildLookIluClearObjects(lookSlot, undefined, leaveWeatherHideMs))
+			} else {
+				const leaveWeatherClearMs = Math.max(0, wipeDurationMs - wipeCutPointMs)
+				clearObjects.push(...buildLookIluClearObjects(lookSlot, leaveWeatherClearMs, wipeCutPointMs))
+			}
 			if (lookSlot === 'A') {
+				const leaveWeatherClearMs = Math.max(0, wipeDurationMs - wipeCutPointMs)
 				clearObjects.push(...buildLookIluClearObjects('B', leaveWeatherClearMs, wipeCutPointMs))
 			}
 		} else {
@@ -871,11 +885,11 @@ export function finalizeHypercomposedPart(
 		preloadIdleDoubleBoxIlu: hasWipe && lookSlot === 'A' && !sameLookChannel,
 	})
 
-	// Wiped ZAVER: LED `ilu-zaver` must land at the air cut with WX hide / route flip —
-	// not at Take (before the sting covers PGM). Ad-lib-only ingest must not delay
-	// other LED ILU (e.g. headline) sitting on the same Caspar layer.
+	// Wiped ZAVER: LED `ilu-zaver` must land with WX hide under cover — not at Take
+	// (before the sting covers PGM). Ad-lib-only ingest must not delay other LED ILU
+	// (e.g. headline) sitting on the same Caspar layer.
 	if (hasWipe && partHasActiveIluZaver(pieces)) {
-		delayLedIluZaverToWipeCut(pieces, wipeCutPointMs)
+		delayLedIluZaverToWipeCut(pieces, leaveWeatherHideMs)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
