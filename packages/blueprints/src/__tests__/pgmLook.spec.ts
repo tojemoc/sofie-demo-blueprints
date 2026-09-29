@@ -971,7 +971,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
 	})
 
-	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
+	it('wiped ZAVER after DoubleBox delays other-slot clears until wipe cut (no early clear)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -994,18 +994,26 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(LEAVE_WEATHER_HIDE_MS)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
-		const dbLoopEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
-			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
-		)
-		expect(dbLoopEmpties.length).toBeGreaterThanOrEqual(1)
-		for (const obj of dbLoopEmpties) {
-			const enable = obj.enable
-			expect(Array.isArray(enable)).toBe(false)
-			if (Array.isArray(enable) || !enable) continue
-			expect(typeof enable.start).toBe('number')
-			expect(enable.start, 'no db_loop EMPTY before wipe cut').toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
+		const otherSlotLayers = [
+			LOOK_A_LAYERS.doubleBoxLoop,
+			LOOK_A_LAYERS.camera,
+			LOOK_A_LAYERS.ilu,
+			LOOK_A_LAYERS.lowerThird,
+		]
+		for (const layer of otherSlotLayers) {
+			const empties = (clearPiece?.content.timelineObjects ?? []).filter(
+				(obj) => obj.layer === layer && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+			expect(empties.length, `${layer} EMPTY`).toBeGreaterThanOrEqual(1)
+			for (const obj of empties) {
+				const enable = obj.enable
+				expect(Array.isArray(enable)).toBe(false)
+				if (Array.isArray(enable) || !enable) continue
+				expect(typeof enable.start).toBe('number')
+				expect(enable.start, `no ${layer} EMPTY before wipe cut`).toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
+			}
+			expect(empties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
 		}
-		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
 	})
 
 	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {

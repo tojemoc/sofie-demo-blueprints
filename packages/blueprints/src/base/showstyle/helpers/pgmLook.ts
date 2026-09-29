@@ -1065,13 +1065,17 @@ export function finalizeHypercomposedPart(
 	if (lookKind === 'full' && partHasActiveIluZaver(pieces)) {
 		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
 		// above — do not also EMPTY it at Take via the bulk other-slot clear (that would kill
-		// the on-air frame under the sting before the route cut).
+		// the on-air frame under the sting before the route cut). Same delay for CAM / ILU /
+		// L3D when the other slot is still the outgoing PGM look.
+		const otherSlotClearStartMs =
+			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeCutPointMs : 0
 		clearObjects.push(
 			...buildLookChannelClearObjects(idleOtherSlot, undefined, {
 				clearDoubleBoxLoop: !(hasWipe && previousLookSlot === idleOtherSlot),
+				clearStartMs: otherSlotClearStartMs,
 			}),
-			...buildLookIluClearObjects(idleOtherSlot),
-			...buildL3dLayerClearObjects(idleOtherSlot)
+			...buildLookIluClearObjects(idleOtherSlot, undefined, otherSlotClearStartMs),
+			...buildL3dLayerClearObjects(idleOtherSlot, undefined, otherSlotClearStartMs)
 		)
 	}
 	// Leaving Počasie: clear bg_pocasie under wipe cover. Finite EMPTY through wipe end
@@ -1553,16 +1557,23 @@ function buildL3dLayerClearObjects(
 function buildLookChannelClearObjects(
 	lookSlot: LookSlot,
 	clipClearMs?: number,
-	options?: { clearCamera?: boolean; clearDoubleBoxLoop?: boolean; clearClip?: boolean }
+	options?: {
+		clearCamera?: boolean
+		clearDoubleBoxLoop?: boolean
+		clearClip?: boolean
+		/** Take-relative EMPTY start (default 0). Used to hold opposite-slot clears under wipe cover. */
+		clearStartMs?: number
+	}
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
 	const clearCamera = options?.clearCamera !== false
 	const clearDoubleBoxLoop = options?.clearDoubleBoxLoop !== false
 	const clearClip = options?.clearClip !== false
+	const clearStartMs = options?.clearStartMs ?? 0
 	return [
-		...(clearClip ? [emptyLookMediaObject(layers.clip, clipClearMs)] : []),
-		...(clearCamera ? [emptyLookMediaObject(layers.camera)] : []),
-		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop)] : []),
+		...(clearClip ? [emptyLookMediaObject(layers.clip, clipClearMs, clearStartMs)] : []),
+		...(clearCamera ? [emptyLookMediaObject(layers.camera, undefined, clearStartMs)] : []),
+		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop, undefined, clearStartMs)] : []),
 	]
 }
 
