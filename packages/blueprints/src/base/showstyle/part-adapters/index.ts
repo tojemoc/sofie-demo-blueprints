@@ -53,8 +53,6 @@ import {
 	LookSlotSequence,
 	findWipeVideoObject,
 	getLookSlotSequenceForGeneration,
-	isDoubleBoxLook,
-	lookSlotForKind,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
@@ -83,25 +81,23 @@ function isLookBearingPartType(type: PartType | null): boolean {
 }
 
 /**
- * Semantic look channels: DoubleBox → BG A (ch3), Full → BG B (ch4).
- * Headlines / SYN / weather / fullscreen cam are always Full (`route://4`).
- * Wipe into DoubleBox PLAYs wipe on PGM 205 and hard-cuts MEDIA `route://3` at the cut point.
+ * Physical look channel for this Take: claim the **idle** opposite of peek so
+ * compose MEDIA always LOADBGs off-air before PGM `route://` flips. Editorial
+ * DoubleBox vs Full is {@link lookKindForPart} (FILL / db_loop) — not A/B lock.
  *
- * Floated / skipped parts must not update look-slot history — they never go on-air, so a
- * later DoubleBox should peek the last eligible look (DB→DB vs Full→DB).
+ * Floated / skipped parts must not update look-slot history — they never go on-air.
  */
 export function resolveLookSlotForPart(
 	type: PartType | null,
-	objects: SomeObject[],
+	_objects: SomeObject[],
 	lookSlots: LookSlotSequence,
-	rawType?: string,
+	_rawType?: string,
 	floatedOrSkipped = false
 ): LookSlot {
 	if (!isLookBearingPartType(type) || floatedOrSkipped) {
 		return lookSlots.peek()
 	}
-	const slot = lookSlotForKind(isDoubleBoxLook(rawType, objects) ? 'doublebox' : 'full')
-	return lookSlots.claim(slot)
+	return lookSlots.claimIdle()
 }
 
 export function generateParts(
@@ -129,9 +125,10 @@ export function generateParts(
 		// Editorial skip / float — never on-air; leave lookSlots unchanged for DB→DB peek.
 		const ingestPayload = rawPart.payload as { float?: boolean; skip?: boolean }
 		const floatedOrSkipped = Boolean(ingestPayload.float || ingestPayload.skip)
-		// Peek BEFORE claim. Default peek is Full (`B`) — baseline PGM is `route://4`, so the
-		// first DoubleBox still prebuilds on idle ch3. A later DoubleBox sees previous `A`.
-		const previousLookSlot = lookSlots.peek()
+		// Peek BEFORE claim. Default peek is B — baseline PGM is `route://4`, so the
+		// first look-bearing Take claims idle A and LOADBGs off-air before the route flips.
+		// Until the first claim, previousLookSlot is undefined (baseline underlay only).
+		const previousLookSlot = lookSlots.hasClaimed() ? lookSlots.peek() : undefined
 		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType, floatedOrSkipped)
 		let newPart: BlueprintResultPart
 
@@ -163,8 +160,8 @@ export function generateParts(
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
 				break
 			case PartType.Intro: {
-				// Intro overlay plays on PGM (210); keep Full underlay so route://4 stays beneath.
-				const introLook: LookSlot = floatedOrSkipped ? previousLookSlot : lookSlots.claim('B')
+				// Intro overlay on PGM (210); underlay claims idle so the next Take stays cross-slot.
+				const introLook: LookSlot = floatedOrSkipped ? (previousLookSlot ?? lookSlots.peek()) : lookSlots.claimIdle()
 				newPart = generateIntroPart(
 					partContext,
 					rawPart as unknown as PartProps<IntroProps>,

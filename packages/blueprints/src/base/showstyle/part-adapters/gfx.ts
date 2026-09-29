@@ -85,7 +85,8 @@ export function generateGfxPart(
 		part.objects,
 		result.pieces,
 		lookSlot,
-		previousLookSlot
+		previousLookSlot,
+		part.rawType
 	)
 	return result
 }

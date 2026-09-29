@@ -25,16 +25,10 @@ import {
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
-import {
-	createLookSlotSequence,
-	isDoubleBoxLook,
-	SAME_SLOT_WIPE_AIR_CUT_LEAD_MS,
-} from '../base/showstyle/helpers/pgmLook.js'
+import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
-/** Same-slot DB→DB cold PLAY leads the cover by this many ms. */
-const SAME_SLOT_WIPE_LOOK_CUT_MS = WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
 
 describe('DoubleBox PGM ILU above CAM', () => {
 	const exportData = loadSmokeRundownExport()
@@ -322,7 +316,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(headlineChrome).toBeUndefined()
 	})
 
-	it('DB→DB wipe holds outgoing ILU until wipeCutPointMs and PLAYs incoming then', () => {
+	it('DB→DB wipe LOADBGs incoming on idle look channel (ping-pong)', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
 		expect(template).toBeDefined()
@@ -396,15 +390,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(incoming).toBeDefined()
 		if (!outgoing || !incoming) return
 
+		const iluLayers = new Set([CasparCGLayers.CasparCGPgmIluPlayer, CasparCGLayers.CasparCGPgmIluPlayerB])
+		const camLayers = new Set([CasparCGLayers.CasparCGPgmCamera, CasparCGLayers.CasparCGPgmCameraB])
 		const iluOf = (pieces: typeof outgoing.pieces, file: string) =>
 			pieces
 				.flatMap((piece) => piece.content.timelineObjects ?? [])
-				.find(
-					(obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayer && (obj.content as { file?: string }).file === file
-				)
+				.find((obj) => iluLayers.has(obj.layer as CasparCGLayers) && (obj.content as { file?: string }).file === file)
 
-		// First DB is off-air ch3 (baseline route://4) — Full→DB preloads ILU (LOAD/PAUSE).
-		// It must still postroll through the next cut so the clip is the outgoing picture for DB→DB.
+		// First DB claims idle A (baseline peek B) — LOAD/PAUSE from Take.
 		const outgoingIlu = iluOf(outgoing.pieces, 'clips/ILU outgoing')
 		expect(outgoingIlu).toBeDefined()
 		expect(outgoingIlu?.enable).toEqual({ start: 0 })
@@ -415,43 +408,35 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		expect(outgoingIluPiece?.postrollDuration ?? 0).toBeGreaterThanOrEqual(WIPE_CUT_POINT_MS)
 
-		// Incoming DB→DB: delayed PLAY at look cut (air cut − 2f lead) — no pause/seek
-		// (would replace on-air). Route / wipe overlay keep the full air cut.
-		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(SAME_SLOT_WIPE_LOOK_CUT_MS)
+		// Second DB claims idle B — cross-slot LOAD/PAUSE from Take, hot PLAY at air cut.
+		expect(incoming.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
 		const incomingIlu = iluOf(incoming.pieces, 'clips/ILU incoming')
-		expect(incomingIlu?.enable).toEqual({ start: SAME_SLOT_WIPE_LOOK_CUT_MS })
+		expect(incomingIlu?.enable).toEqual({ start: 0 })
 		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
-		expect(incomingContent.playing).not.toBe(false)
-		expect(incomingContent.seek).toBeUndefined()
+		expect(incomingContent.playing).toBe(false)
+		expect(incomingContent.seek).toBe(0)
 		expect(
-			(incomingIlu?.keyframes ?? []).some((kf) => (kf.content as { playing?: boolean } | undefined)?.playing === false)
-		).toBe(false)
-		expect(
-			(incomingIlu?.keyframes ?? []).some((kf) => (kf.content as { playing?: boolean } | undefined)?.playing === true)
-		).toBe(false)
-
-		const earlyIluEmpty = incoming.pieces
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.filter((obj) => {
-				if (obj.layer !== CasparCGLayers.CasparCGPgmIluPlayer) return false
-				if ((obj.content as { file?: string }).file !== 'EMPTY') return false
-				const enable = obj.enable
-				if (!enable || Array.isArray(enable)) return true
-				return typeof enable.start !== 'number' || enable.start < SAME_SLOT_WIPE_LOOK_CUT_MS
-			})
-		expect(earlyIluEmpty).toHaveLength(0)
+			(incomingIlu?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 
 		const incomingCam = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
-		expect(incomingCam?.enable).toEqual({ start: SAME_SLOT_WIPE_LOOK_CUT_MS })
-		expect(incomingCam?.content).toMatchObject({ file: 'route://5' })
+			.find(
+				(obj) => camLayers.has(obj.layer as CasparCGLayers) && (obj.content as { file?: string }).file === 'route://5'
+			)
+		expect(incomingCam?.enable).toEqual({ start: 0 })
+		expect((incomingCam?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
 
 		const route = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		expect(route?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
-		expect(route?.content).toMatchObject({ file: 'route://3' })
+		expect(route?.content).toMatchObject({ file: 'route://4' })
 
 		const wipeOverlay = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -462,17 +447,17 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		expect(wipePiece?.pieceType).toBe(IBlueprintPieceType.InTransition)
 
-		// Same-file frame must not be EMPTIED on look A (that would black the box at Take).
+		// Incoming DoubleBox owns look B — do not EMPTY its db_loop at Take.
 		const dbLoopEmpty = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.filter(
 				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+					obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoopB && (obj.content as { file?: string }).file === 'EMPTY'
 			)
 		expect(dbLoopEmpty).toHaveLength(0)
 	})
 
-	it('floated Full between DoubleBoxes does not break DB→DB look-slot peek', () => {
+	it('floated Full between DoubleBoxes does not steal idle look claim', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const template = ingest.parts.find((p) => p.externalId === 'part-tema-1-db')
 		expect(template).toBeDefined()
@@ -572,19 +557,27 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(incoming).toBeDefined()
 		if (!incoming) return
 
-		// Without the fix, floated Full would claim look B and this Take would freeze ILU from 0
-		// (Full→DB). Last eligible look is still A → DB→DB hold until look cut (air − 2f).
+		// Floated Full must not claim a slot — second DB still peeks A and claims idle B
+		// (cross-slot LOAD/PAUSE + hot PLAY at air cut).
 		const incomingIlu = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find(
 				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
+					(obj.layer === CasparCGLayers.CasparCGPgmIluPlayer || obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB) &&
 					(obj.content as { file?: string }).file === 'clips/ILU incoming'
 			)
-		expect(incomingIlu?.enable).toEqual({ start: SAME_SLOT_WIPE_LOOK_CUT_MS })
+		expect(incomingIlu?.enable).toEqual({ start: 0 })
 		const incomingContent = incomingIlu?.content as TSR.TimelineContentCCGMedia
-		expect(incomingContent.playing).not.toBe(false)
-		expect(incomingContent.seek).toBeUndefined()
+		expect(incomingContent.playing).toBe(false)
+		expect(incomingContent.seek).toBe(0)
+		expect(
+			(incomingIlu?.keyframes ?? []).some(
+				(kf) =>
+					!Array.isArray(kf.enable) &&
+					kf.enable?.start === WIPE_AIR_CUT_MS &&
+					(kf.content as { playing?: boolean } | undefined)?.playing === true
+			)
+		).toBe(true)
 	})
 
 	it('selects DoubleBox camera path when gfx/doublebox-ilu clipName casing differs', () => {
