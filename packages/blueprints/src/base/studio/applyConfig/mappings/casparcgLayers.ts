@@ -25,11 +25,16 @@ export const LedChannelLayers = {
 
 /**
  * Relative Caspar layer numbers for a story look (BG A and BG B use the same stack).
- * Camera (115) sits under ILU (116) so the left ILU window covers CAM overhang without
+ * `bg_loop` (110) is sticky underlay — never CLEAR/replace it. SYN/VT clips sit on
+ * ClipPlayer (111) above it so clearing a clip cannot darken the CAM pane. Camera
+ * (115) sits under ILU (116) so the left ILU window covers CAM overhang without
  * needing a left cover-crop; both sit under DoubleBoxLoop (118); L3D (121).
  */
 export const BgChannelLayers = {
-	ClipPlayer: 110,
+	/** Sticky `loops/bg_loop` — shows through transparent CAM when the pane is empty. */
+	BgLoop: 110,
+	/** SYN / VT / weather clip (above bg_loop, below CAM). */
+	ClipPlayer: 111,
 	Camera: 115,
 	IluPlayer: 116,
 	/** DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
@@ -48,14 +53,22 @@ export const CamIngestChannelLayers = {
 
 /**
  * Caspar layer numbers on the PGM channel (route bus + persistent overlays).
- * Story looks compose on BG A/B; PGM routes the settled mix and keeps logo / intro above.
- * DoubleBox and Full-section wipes PLAY on EffectsPlayer (200) while
+ * Story looks compose on BG A/B; PGM keeps **both** look routes live and cuts by
+ * opacity/volume so a Take never recreates a `route://` producer (black-frame race).
+ * DoubleBox and Full-section wipes PLAY on EffectsPlayer (205–208) while
  * the route hard-cuts at {@link WIPE_CUT_POINT_MS} under the cover.
  */
 export const PgmChannelLayers = {
 	/** Mirrors LED L80 — same kolíska bed on the PGM channel output. */
 	AudioBed: 80,
-	/** Full-channel route from BG A or BG B (MEDIA route://N hard cut). */
+	/** Always-live full-channel route from BG A (`route://3`). Cut via opacity/volume. */
+	RouteA: 110,
+	/** Always-live full-channel route from BG B (`route://4`). Cut via opacity/volume. */
+	RouteB: 111,
+	/**
+	 * @deprecated Use {@link RouteA} / {@link RouteB}. Kept as alias of RouteA so older
+	 * docs that say “PGM 110” still point at a real layer.
+	 */
 	Route: 110,
 	/** Stack numbers shared with {@link BgChannelLayers} (look compose, not PGM mappings). */
 	Camera: BgChannelLayers.Camera,

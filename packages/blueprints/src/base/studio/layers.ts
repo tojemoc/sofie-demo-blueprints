@@ -15,9 +15,13 @@ export enum VMixLayers {
 
 export enum CasparCGLayers {
 	CasparCGClipPlayer1 = 'casparcg_clip_player1',
-	/** Look A (BG channel A) fullscreen clip / SYN / weather. */
+	/** Look A (BG channel A) sticky `loops/bg_loop` underlay (layer 110) — never CLEAR. */
+	CasparCGLookBgLoop = 'casparcg_look_bg_loop',
+	/** Look B (BG channel B) sticky `loops/bg_loop` underlay (layer 110). */
+	CasparCGLookBgLoopB = 'casparcg_look_bg_loop_b',
+	/** Look A (BG channel A) fullscreen clip / SYN / weather (layer 111, above bg_loop). */
 	CasparCGClipPlayer2 = 'casparcg_clip_player2',
-	/** Look B (BG channel B) fullscreen clip / SYN / weather. */
+	/** Look B (BG channel B) fullscreen clip / SYN / weather (layer 111). */
 	CasparCGClipPlayer2B = 'casparcg_clip_player2_b',
 	CasparCGClipPlayerPreview = 'casparcg_clip_player_preview',
 	/** Headline ILU media framed with MIXER FILL — must not share ClipPlayer1 with the bg loop. */
@@ -37,7 +41,16 @@ export enum CasparCGLayers {
 	CasparCGPgmEffectsPlayerSport = 'casparcg_effects_player_pgm_sport',
 	/** Themed Počasie wipe (`wipes/wipe_pocasie`) — PGM Caspar layer 208. */
 	CasparCGPgmEffectsPlayerPocasie = 'casparcg_effects_player_pgm_pocasie',
-	/** PGM route bus — PLAY MEDIA route://{bgA|bgB} (hard cut under wipe overlay). */
+	/**
+	 * PGM route from BG A — always-live MEDIA `route://bgA` on layer 110.
+	 * Takes cut by opacity/volume; never re-PLAY a fresh route producer.
+	 */
+	CasparCGPgmRouteA = 'casparcg_pgm_route_a',
+	/**
+	 * PGM route from BG B — always-live MEDIA `route://bgB` on layer 111.
+	 * Baseline defaults this layer visible (rehearsal / headlines underlay).
+	 * Sofie layer id kept as `casparcg_pgm_route` so existing studio mappings still resolve.
+	 */
 	CasparCGPgmRoute = 'casparcg_pgm_route',
 	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED; stays above the route. */
 	CasparCGPgmIntroPlayer = 'casparcg_intro_player_pgm',

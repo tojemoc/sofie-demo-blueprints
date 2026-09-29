@@ -21,6 +21,7 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 
 /** Smoke SYN parts are hard cuts — inject a wipe for wipe-routing unit tests. */
 function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, synExternalId?: string) {
@@ -96,8 +97,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/wipe',
 			seek: 0,
 			playing: false,
-			// Straight-alpha .mov → premul before Caspar composites (layer straightAlpha is a no-op).
-			videoFilter: 'premultiply=inplace=1',
+			// Premul FILTER only on the hot-PLAY keyframe (LOADBG must not emit `LOAD VF "…"`).
 			mixer: {
 				keyer: false,
 				blend: TSR.BlendMode.NORMAL,
@@ -106,22 +106,24 @@ describe('wipe piece type → PGM route / overlay', () => {
 				volume: 1,
 			},
 		})
+		expect((overlay?.content as TSR.TimelineContentCCGMedia).videoFilter).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.chroma).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
-		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs.
+		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs with premul FILTER.
 		expect(
 			(overlay?.keyframes ?? []).some(
 				(kf) =>
 					!Array.isArray(kf.enable) &&
 					kf.enable?.start === 0 &&
-					(kf.content as { playing?: boolean } | undefined)?.playing === true
+					(kf.content as { playing?: boolean; videoFilter?: string } | undefined)?.playing === true &&
+					(kf.content as { videoFilter?: string } | undefined)?.videoFilter === 'premultiply=inplace=1'
 			)
 		).toBe(true)
-		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const routeObj = findLivePgmRouteObj(result.pieces)
 		expect(routeObj).toBeDefined()
-		expect(routeObj?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		expect(routeSwitchStartMs(routeObj ?? {})).toBe(WIPE_AIR_CUT_MS)
 		expect(routeObj?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -175,9 +177,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(editorialAirCut).toBe(1120)
 		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(editorialAirCut)
 
-		const wipePiece = result.pieces.find((piece) => piece.name.startsWith('Wipe'))
-		const routeObj = wipePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(routeObj?.enable).toEqual({ start: editorialAirCut })
+		const routeObj = findLivePgmRouteObj(result.pieces)
+		expect(routeSwitchStartMs(routeObj ?? {})).toBe(editorialAirCut)
 
 		const lookClip = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
@@ -421,9 +422,9 @@ describe('wipe piece type → PGM route / overlay', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'wipes/360_wipe',
 		})
-		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const route = findLivePgmRouteObj([{ content: { timelineObjects: timeline } }])
 		// Non-classical wipe file (360_wipe) — no half-frame cover bias.
-		expect(route?.enable).toEqual({ start: resolveWipeAirCutMs(undefined, 2500, 'wipes/360_wipe') })
+		expect(routeSwitchStartMs(route ?? {})).toBe(resolveWipeAirCutMs(undefined, 2500, 'wipes/360_wipe'))
 		expect(route?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',

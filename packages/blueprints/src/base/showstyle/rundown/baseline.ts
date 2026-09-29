@@ -14,7 +14,11 @@ import {
 	createDoubleBoxBaselineCameraTimeline,
 	createFullLookBaselineCameraTimeline,
 } from '../helpers/pgmCamera.js'
-import { createFullChannelRouteContent, createStickyWipeBaselineTimeline } from '../helpers/pgmLook.js'
+import {
+	createFullChannelRouteContent,
+	createStickyWipeBaselineTimeline,
+	PGM_ROUTE_LAYERS,
+} from '../helpers/pgmLook.js'
 import { LED_POD_HEADLINE_FILE } from '../helpers/ledPodHeadline.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
@@ -50,17 +54,17 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			// Full (BG B) companion bg_loop under rehearsal / headlines / Privítanie.
-			// Story SYN/VT/weather override the same clip layer with WithinPart priority.
-			// DoubleBox bakes bg art into db_loop on ch3 — not a second bg_loop PLAY there.
-			// Live CAM opens once on the ingest helper (ch5); looks PLAY route://5 on layer 115.
+			// Sticky look bg_loop on BOTH BG A and BG B (layer 110). SYN/VT live on
+			// ClipPlayer (111) so CLEAR/EMPTY of a clip cannot darken the CAM pane —
+			// bg_loop shows through the transparent cam cutout (blue pane).
+			// Live CAM opens once on the ingest helper (ch5); looks PLAY route://5 on 115.
 			...(config.casparcg.hypercomposed
 				? [
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',
 							enable: { while: 1 },
 							priority: 0,
-							layer: CasparCGLayers.CasparCGClipPlayer2B,
+							layer: CasparCGLayers.CasparCGLookBgLoop,
 							content: {
 								deviceType: TSR.DeviceType.CASPARCG,
 								type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -72,11 +76,38 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 							id: '',
 							enable: { while: 1 },
 							priority: 0,
-							layer: CasparCGLayers.CasparCGPgmRoute,
-							content: createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
+							layer: CasparCGLayers.CasparCGLookBgLoopB,
+							content: {
+								deviceType: TSR.DeviceType.CASPARCG,
+								type: TSR.TimelineContentTypeCasparCg.MEDIA,
+								file: LED_BACKGROUND_LOOP_FILE,
+								loop: true,
+							},
 						}),
-						// Full-look CAM1 on BG B so Rehearsal / pre-Take already shows presenter
-						// under route://4 (ingest stays on ch5; this layer only routes it).
+						// Dual always-live PGM routes — never re-PLAY on Take (black-frame race).
+						// Baseline shows BG B (route://4); Takes swap opacity/volume only.
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+							id: '',
+							enable: { while: 1 },
+							priority: 0,
+							layer: PGM_ROUTE_LAYERS.A,
+							content: {
+								...createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelA),
+								mixer: { opacity: 0, volume: 0 },
+							},
+						}),
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+							id: '',
+							enable: { while: 1 },
+							priority: 0,
+							layer: PGM_ROUTE_LAYERS.B,
+							content: {
+								...createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
+								mixer: { opacity: 1, volume: 1 },
+							},
+						}),
+						// Pre-warm look CAM on both A (DoubleBox FILL) and B (fullscreen) so
+						// the first Take only RESUMEs — no cold PLAY of route://5 / bg_loop.
 						...([
 							createCameraIngestBaselineTimeline(config),
 							createFullLookBaselineCameraTimeline(config),

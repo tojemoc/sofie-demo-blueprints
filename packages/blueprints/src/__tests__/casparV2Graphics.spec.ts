@@ -407,12 +407,14 @@ describe('casparV2Graphics', () => {
 		expect(logo).toBeUndefined()
 	})
 
-	it('loops bg_loop on LED and Full (BG B); holds MEDIA route://4; baselines live CAM on ingest + Full look', () => {
+	it('loops bg_loop on LED + both look channels; dual always-live PGM routes; baselines live CAM on ingest + both looks', () => {
 		const baseline = getBaseline(mockRundownContext())
 		const ledLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer1)
-		const fullLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B)
+		const lookALoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGLookBgLoop)
+		const lookBLoop = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGLookBgLoopB)
 		const pgmClip2 = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2)
-		const route = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const routeA = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRouteA)
+		const routeB = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
 		const warmCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCamera)
 		const fullLookCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)
 		const ingestCam = baseline.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraIngest)
@@ -425,18 +427,34 @@ describe('casparV2Graphics', () => {
 			file: 'loops/bg_loop',
 			loop: true,
 		})
-		expect(fullLoop?.content).toMatchObject({
+		expect(lookALoop?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'loops/bg_loop',
 			loop: true,
 		})
-		expect(route?.content).toMatchObject({
+		expect(lookBLoop?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'loops/bg_loop',
+			loop: true,
+		})
+		expect(routeA?.content).toMatchObject({
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://3',
+			mixer: { opacity: 0, volume: 0 },
+		})
+		expect(routeB?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
+			mixer: { opacity: 1, volume: 1 },
 		})
-		expect(warmCam).toBeUndefined()
+		expect(warmCam?.enable).toEqual({ while: 1 })
+		expect(warmCam?.content).toMatchObject({
+			file: 'route://5',
+		})
 		expect(fullLookCam?.enable).toEqual({ while: 1 })
 		expect(fullLookCam?.content).toMatchObject({
 			deviceType: TSR.DeviceType.CASPARCG,
@@ -468,6 +486,7 @@ describe('casparV2Graphics', () => {
 				playing: false,
 				mixer: expect.objectContaining({ opacity: 0, volume: 0 }),
 			})
+			expect((wipe.content as TSR.TimelineContentCCGMedia).videoFilter).toBeUndefined()
 		}
 	})
 
@@ -609,20 +628,13 @@ describe('casparV2Graphics', () => {
 		expect(result.pieces.some((piece) => piece.externalId?.endsWith('_full_bg_loop'))).toBe(true)
 		const bgLoop = timeline.find(
 			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGClipPlayer2B &&
+				obj.layer === CasparCGLayers.CasparCGLookBgLoopB &&
 				(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/bg_loop'
 		)
 		expect(bgLoop).toBeDefined()
 		expect(bgLoop?.enable).toEqual({ start: 0 })
-		expect((bgLoop?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
-		expect(
-			(bgLoop?.keyframes ?? []).some(
-				(kf) =>
-					!Array.isArray(kf.enable) &&
-					kf.enable?.start === POCASIE_WIPE_AIR_CUT_MS &&
-					(kf.content as { playing?: boolean } | undefined)?.playing === true
-			)
-		).toBe(true)
+		// Sticky bg_loop layer — not compose MEDIA, so no LOAD/PAUSE hot-cue under the sting.
+		expect((bgLoop?.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
 		expect(bgLoop?.priority).toBeGreaterThanOrEqual(3)
 		expect(
 			timeline.some(
