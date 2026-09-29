@@ -32,6 +32,7 @@ import {
 	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
 	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
 	SAME_SLOT_WIPE_AIR_CUT_LEAD_MS,
+	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
 	LOOK_ILU_HARD_CUT_CLEAR_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
@@ -49,9 +50,6 @@ import {
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { ObjectType } from '../common/definitions/objects.js'
 
-const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
-/** Themed story wipes keep file-cut + latency only (no classical ½-frame cover bias). */
-const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_sjv')
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -59,6 +57,12 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
+/** Themed story wipes share classical cover-centre bias (same Resolve cover window). */
+const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_sjv')
+/** Leave-weather look/WX-hide cut = air + lag + 2f overlap under cover. */
+const LEAVE_WEATHER_HIDE_MS = WIPE_AIR_CUT_MS + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS + LOOK_HARD_CUT_OVERLAP_MS
 
 function pgmRouteChannel(
 	pieces: ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> } }>
@@ -826,9 +830,9 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Leave-weather: Full-look ILU EMPTY from cover-hide (air cut + 2f), open-ended
-		// for the ZAVER part — finite through wipe end flashed weather after sting CLEAR.
-		const leaveWeatherHideMs = WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS
+		// Leave-weather: Full-look ILU EMPTY from look cut + 2f (air + leave lag + overlap),
+		// open-ended for the ZAVER part — finite through wipe end flashed weather after sting CLEAR.
+		const leaveWeatherHideMs = LEAVE_WEATHER_HIDE_MS
 		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(leaveWeatherHideMs)
 		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.duration).toBeUndefined()
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
@@ -951,7 +955,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
 		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'zaver-wiped', objects as never, pieces, 'B')
 		const led = pieces[0].content.timelineObjects?.[0]
-		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS)
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
 	})
 
 	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
@@ -974,7 +978,7 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(zaver).toBeDefined()
 		if (!zaver) return
-		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS)
+		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(LEAVE_WEATHER_HIDE_MS)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const dbLoopEmpties = (clearPiece?.content.timelineObjects ?? []).filter(

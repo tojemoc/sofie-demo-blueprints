@@ -293,7 +293,7 @@
 		"wipePlayoutLatencyMs": {
 			"type": "integer",
 			"ui:title": "Wipe playout latency (ms)",
-			"ui:description": "Baseline Caspar PLAY→first-frame lag after LOADBG for PGM wipe overlays (added to RE cutPoint + classical ½-frame cover bias). Default 380. Same value for Full↔DB and same-slot wipes — tune here only if ALL wipes drift; do not pad RE cutPoint.",
+			"ui:description": "Open-loop Caspar PLAY→first-frame lag after LOADBG, added to RE cutPoint + ½-frame cover bias. Default 380 with cutPoint 380 snaps air cut to Resolve cover centre (~780 ms; source wipe frames 19–20 @25fps = 760–840 ms timeline). Same value for Full↔DB and same-slot wipes — tune here only if ALL wipes drift; do not pad RE cutPoint.",
 			"ui:category": "Playback",
 			"default": 380,
 			"min": 0

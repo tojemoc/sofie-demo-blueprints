@@ -105,8 +105,10 @@ export const LOOK_HARD_CUT_CASPAR_LATENCY_MS = WIPE_FRAME_MS * 14
  * Extra frames past the Caspar latency floor before cross-slot `route://` flips.
  * Abutting first-frame === route (#120/#122) still blinked black when Latency hit
  * the 14f ceiling after hot-PLAY at {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}.
+ * Capture audit (DB/ILU TARABA → SYN CLUSTER KOLIKOVA): +1f headroom removed the
+ * remaining single black frame after #123’s 2f pad.
  */
-export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 2
+export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 3
 
 /**
  * Hold previous look MEDIA this long into the next hard-cut Take.
@@ -127,11 +129,23 @@ export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_
 
 /**
  * Same-slot wiped Takes (DB→DB / Full→Full): cold PLAY of incoming look MEDIA at the
- * air cut lands ~2f late vs the classical cover centre (operator frame-by-frame on
- * ILU GABIKA AVIZO → ILU FERENCAK). Start the look cut this many ms earlier so the
- * first decoded frame meets the cover; wipe overlay / PGM route keep the full air cut.
+ * air cut lands late vs the classical cover centre. Operator frame-by-frame:
+ * GABIKA AVIZO→FERENCAK needed ~2f lead (#123); ESTOK→cifare still showed the cut
+ * **3f too late** under that lead — raise to **5f** so cold-PLAY first frame meets
+ * cover. Cover window is 4f @50fps (Resolve source frames 19–20), so a take that
+ * only needed 2f stays inside cover. Wipe overlay / PGM route keep the full air cut.
+ * Leave-weather Full→ZAVER skips this lead (see {@link LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS}).
  */
-export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 2
+export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 5
+
+/**
+ * Leave Počasie into wiped ZAVER / tip (Full→Full with `ilu-zaver`): weather stack
+ * teardown + classical wipe after `wipe_pocasie` made the look cut **6f early** vs
+ * cover (capture: Počasie → ILU AVIZO SAKOVA) when same-slot lead also advanced
+ * the cut. Skip the same-slot lead and lag the look / WX-hide cut by this many ms
+ * past the air cut so the switch stays under solid cover.
+ */
+export const LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS = WIPE_FRAME_MS * 4
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -836,30 +850,36 @@ export function finalizeHypercomposedPart(
 		wipeDurationMs,
 		Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
 	)
-	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
-	// Operator frame-by-frame (ILU GABIKA AVIZO → ILU FERENCAK): that PLAY lands ~2f
-	// after the classical cover centre — lead the look cut so the first frame meets cover.
-	// Wipe overlay / PGM route / countup keep the full air cut.
-	const wipeLookCutMs =
-		hasWipe && sameLookChannel ? Math.max(0, wipeCutPointMs - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS) : wipeCutPointMs
-	// Leave-weather into wiped ZAVER: detect early so keepalive / WX hide can wait for
-	// solid cover (not Take, not a bare air-cut while the sting is still incomplete).
+	// Leave-weather into wiped ZAVER: detect early so look cut / keepalive / WX hide
+	// can wait for solid cover (not Take, not a bare air-cut while the sting is still
+	// incomplete — and not same-slot lead, which made Počasie→AVIZO 6f early).
 	const leaveWeatherUnderWipe = Boolean(
 		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
 	)
-	/** Hide previous weather L3D/ILU this far into the Take (air cut + 2f under cover). */
+	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
+	// Lead the look cut so first frame meets cover — except leave-weather, which lags
+	// past the air cut instead (weather teardown + classical wipe after wipe_pocasie).
+	// Wipe overlay / PGM route / countup keep the full air cut (route unchanged on
+	// Full→Full ZAVER; countup uses wipeCutPointMs below).
+	const wipeLookCutMs = leaveWeatherUnderWipe
+		? Math.min(wipeDurationMs, wipeCutPointMs + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS)
+		: hasWipe && sameLookChannel
+			? Math.max(0, wipeCutPointMs - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS)
+			: wipeCutPointMs
+	/** Hide previous weather L3D/ILU this far into the Take (look cut + 2f under cover). */
 	const leaveWeatherHideMs = leaveWeatherUnderWipe
-		? Math.min(wipeDurationMs, wipeCutPointMs + LOOK_HARD_CUT_OVERLAP_MS)
+		? Math.min(wipeDurationMs, wipeLookCutMs + LOOK_HARD_CUT_OVERLAP_MS)
 		: wipeLookCutMs
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		// Keep previous look VIDEO only until the cover cut — not the full sting.
 		// Leave-weather extends keepalive to leaveWeatherHideMs so cities/map stay until
-		// the sting is actually covering (air cut alone was early when PRELOAD lagged).
-		// Same-slot uses wipeLookCutMs (air cut − lead) so the switch matches the early
-		// look PLAY. Full-sting keepalive left DB→DB / Full→Full switches until wipe CLEAR
-		// (new look could not win while the previous part still occupied the channel).
+		// the sting is actually covering (look cut = air + leave lag; hide = look + 2f).
+		// Same-slot non-weather uses wipeLookCutMs (air cut − lead) so the switch matches
+		// the early look PLAY. Full-sting keepalive left DB→DB / Full→Full switches until
+		// wipe CLEAR (new look could not win while the previous part still occupied the
+		// channel).
 		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
 		part.inTransition = {
 			blockTakeDuration: wipeDurationMs,
