@@ -56,7 +56,8 @@ export function generateLayeredVideoPart(
 		part.objects,
 		result.pieces,
 		lookSlot,
-		previousLookSlot
+		previousLookSlot,
+		part.rawType
 	)
 	return result
 }

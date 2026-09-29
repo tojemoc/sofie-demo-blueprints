@@ -61,12 +61,13 @@ export type VideoObjectAttributes = {
 	/** Operator-facing wipe direction label (does not change the media file). */
 	transition?: string
 	/**
-	 * Wipe cover-frame cut point in **milliseconds into the wipe file** (RE `cutPoint`,
-	 * Resolve frame time). Sofie schedules the on-air hard-cut at cutPoint + playout
-	 * latency (`resolveWipeAirCutMs`, default +380 ms + classical ½-frame cover bias;
-	 * studio Setting `wipePlayoutLatencyMs` overrides the latency) so Caspar
-	 * PLAY→first-frame lag does not make Resolve’s 380 ms land early.
-	 * Default file cut = 380 ms (frame 19 @ 50fps).
+	 * Wipe cover-frame cut point in **milliseconds into the wipe file** (RE `cutPoint`).
+	 * Resolve’s full cover on `wipe.mov` is source frames 19–20 @25fps (timeline
+	 * 760–840 ms @50fps). Sofie schedules the on-air hard-cut at cutPoint + playout
+	 * latency + ½-frame cover bias (`resolveWipeAirCutMs`; studio Setting
+	 * `wipePlayoutLatencyMs` overrides the latency) so the default 380+380+10 snaps
+	 * to ~780 ms — the cover centre — under PRELOAD. Do not treat 380 as “frame 19
+	 * @50fps” of the mov; that label was a historical open-loop calibration split.
 	 */
 	cutPoint?: number
 }

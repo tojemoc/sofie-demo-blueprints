@@ -69,7 +69,8 @@ export function generateIntroPart(
 		part.objects,
 		result.pieces,
 		lookSlot,
-		previousLookSlot
+		previousLookSlot,
+		part.rawType
 	)
 	return result
 }

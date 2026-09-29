@@ -450,6 +450,25 @@ describe('casparV2Graphics', () => {
 			file: 'dshow://video=OBS Virtual Camera',
 			noStarttime: true,
 		})
+		// Sticky opacity-0 wipe LOADBG on every EffectsPlayer — prevents LOADBG EMPTY eviction.
+		const stickyWipes = (baseline.timelineObjects ?? []).filter(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer ||
+				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerSjv ||
+				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerSport ||
+				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerPocasie
+		)
+		expect(stickyWipes).toHaveLength(4)
+		for (const wipe of stickyWipes) {
+			expect(wipe.enable).toEqual({ while: 1 })
+			expect(wipe.priority).toBe(0)
+			expect(wipe.content).toMatchObject({
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				playing: false,
+				mixer: expect.objectContaining({ opacity: 0, volume: 0 }),
+			})
+		}
 	})
 
 	it('excludes internal pieceName from Caspar data and templateData', () => {

@@ -39,8 +39,16 @@ import { createFullBgLoopPiece } from './fullBgLoop.js'
 
 export type LookSlot = 'A' | 'B'
 
+/** Editorial look layout: DoubleBox frame vs Full (independent of physical A/B channel). */
+export type LookKind = 'doublebox' | 'full'
+
 /** Default Take-relative air cut for classical `wipes/wipe` (cover-centre + latency). */
 const DEFAULT_WIPE_AIR_CUT_MS = resolveWipeAirCutMs(undefined, DEFAULT_WIPE_DURATION_MS, DEFAULT_WIPE_FILE)
+
+/** Opposite physical look channel (idle when `slot` is on PGM). */
+export function otherLookSlot(slot: LookSlot): LookSlot {
+	return slot === 'A' ? 'B' : 'A'
+}
 
 /**
  * Caspar channel format used when converting wipe cut-point ms → STING frames.
@@ -105,8 +113,10 @@ export const LOOK_HARD_CUT_CASPAR_LATENCY_MS = WIPE_FRAME_MS * 14
  * Extra frames past the Caspar latency floor before cross-slot `route://` flips.
  * Abutting first-frame === route (#120/#122) still blinked black when Latency hit
  * the 14f ceiling after hot-PLAY at {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}.
+ * Capture audit (DB/ILU TARABA → SYN CLUSTER KOLIKOVA): +1f headroom removed the
+ * remaining single black frame after #123’s 2f pad.
  */
-export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 2
+export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 3
 
 /**
  * Hold previous look MEDIA this long into the next hard-cut Take.
@@ -127,11 +137,23 @@ export const LOOK_HARD_CUT_POSTROLL_MS = LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_
 
 /**
  * Same-slot wiped Takes (DB→DB / Full→Full): cold PLAY of incoming look MEDIA at the
- * air cut lands ~2f late vs the classical cover centre (operator frame-by-frame on
- * ILU GABIKA AVIZO → ILU FERENCAK). Start the look cut this many ms earlier so the
- * first decoded frame meets the cover; wipe overlay / PGM route keep the full air cut.
+ * air cut lands late vs the classical cover centre. Operator frame-by-frame:
+ * GABIKA AVIZO→FERENCAK needed ~2f lead (#123); ESTOK→cifare still showed the cut
+ * **3f too late** under that lead — raise to **5f** so cold-PLAY first frame meets
+ * cover. Cover window is 4f @50fps (Resolve source frames 19–20), so a take that
+ * only needed 2f stays inside cover. Wipe overlay / PGM route keep the full air cut.
+ * Leave-weather Full→ZAVER skips this lead (see {@link LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS}).
  */
-export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 2
+export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 5
+
+/**
+ * Leave Počasie into wiped ZAVER / tip (Full→Full with `ilu-zaver`): weather stack
+ * teardown + classical wipe after `wipe_pocasie` made the look cut **6f early** vs
+ * cover (capture: Počasie → ILU AVIZO SAKOVA) when same-slot lead also advanced
+ * the cut. Skip the same-slot lead and lag the look / WX-hide cut by this many ms
+ * past the air cut so the switch stays under solid cover.
+ */
+export const LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS = WIPE_FRAME_MS * 4
 
 export const LOOK_A_LAYERS = {
 	clip: CasparCGLayers.CasparCGClipPlayer2,
@@ -175,20 +197,27 @@ export function isHypercomposedStudio(config: StudioConfig): boolean {
 }
 
 /**
- * Semantic look channels (not index ping-pong):
- * - DoubleBox → look `'A'` → `bgChannelA` (default Caspar **3**)
- * - Full (headlines / SYN / weather / fullscreen cam) → look `'B'` → `bgChannelB` (default **4**)
+ * Preferred physical slot for a look kind (docs / baseline underlay only).
+ * Live Takes **ping-pong** via {@link resolveLookSlotForPart} so every on-air
+ * cut builds on the idle channel (LOAD+RESUME) — kind no longer locks A/B.
+ * - DoubleBox preferred → `'A'` / `bgChannelA` (default Caspar **3**)
+ * - Full preferred → `'B'` / `bgChannelB` (default **4**)
  */
-export function lookSlotForKind(kind: 'doublebox' | 'full'): LookSlot {
+export function lookSlotForKind(kind: LookKind): LookSlot {
 	return kind === 'doublebox' ? 'A' : 'B'
 }
 
-/** True when this part should compose on the DoubleBox channel (BG A / ch3). */
+/** Editorial look kind from RE rawType / DoubleBox ILU graphic (not physical slot). */
+export function lookKindForPart(rawType: string | undefined, objects: SomeObject[]): LookKind {
+	return isDoubleBoxLook(rawType, objects) ? 'doublebox' : 'full'
+}
+
+/** True when this part should compose with the DoubleBox frame (FILL + db_loop). */
 export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/doublebox|double-box/i.test(rawType || '')) return true
 	// ZAVER / závěr avízo uses LED `ilu-zaver` + Full-look CAM/`l3d-odporucanie`
-	// (route://4 + route://5) — never DoubleBox / db_loop. Skip cam EMPTY when the
-	// part owns look CAM so Full CLEAR cannot kill 4-115.
+	// (route:// + route://5) — never DoubleBox / db_loop. Skip cam EMPTY when the
+	// part owns look CAM so Full CLEAR cannot kill the look camera layer.
 	return objects.some((obj) => {
 		if (obj.objectType !== ObjectType.Graphic) return false
 		const clip = String((obj as GraphicObject).clipName || '').toLowerCase()
@@ -197,26 +226,42 @@ export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject
 }
 
 /**
- * Tracks the last look-bearing slot so non-look parts (Remote / Titles / DVE)
- * can peek a stable underlay. Slot choice itself is look-kind based, not alternating.
+ * Tracks the last on-air look slot so non-look parts (Remote / Titles / DVE) can
+ * peek a stable underlay. Look-bearing Takes claim the **idle** opposite of peek
+ * (ping-pong) so compose MEDIA always LOADBGs off-air before `route://` flips.
  */
 export interface LookSlotSequence {
 	/** Remember the slot used by the latest look-bearing (or intro) part. */
 	claim(slot: LookSlot): LookSlot
-	/** Last claimed slot, or `'B'` (Full) if none yet — does not change state. */
+	/** Claim the idle channel (opposite of {@link peek}). */
+	claimIdle(): LookSlot
+	/** Last claimed slot, or `'B'` (baseline PGM `route://4`) if none yet — does not change state. */
 	peek(): LookSlot
+	/** True after at least one look-bearing / intro claim this generation. */
+	hasClaimed(): boolean
 }
 
 export function createLookSlotSequence(): LookSlotSequence {
 	let last: LookSlot | undefined
+	let claimed = false
 	return {
 		claim(slot: LookSlot): LookSlot {
 			last = slot
+			claimed = true
 			return slot
 		},
+		claimIdle(): LookSlot {
+			const idle = otherLookSlot(last ?? 'B')
+			last = idle
+			claimed = true
+			return idle
+		},
 		peek(): LookSlot {
-			// Default Full — smoke opens on headlines (`route://4`) before any DoubleBox.
+			// Default B — baseline PGM is `route://4`; first look-bearing claims idle A.
 			return last ?? 'B'
+		},
+		hasClaimed(): boolean {
+			return claimed
 		},
 	}
 }
@@ -546,6 +591,45 @@ export const PGM_WIPE_OVERLAY_MIXER: NonNullable<TSR.TimelineContentCCGMedia['mi
 export const PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER = 'premultiply=inplace=1'
 
 /**
+ * One sticky cue per wipe EffectsPlayer (205–208). Priority 0 + `while:1` keeps
+ * LOADBG alive when Sofie lookahead resolves to nothing — without this, TSR emits
+ * `LOADBG … "EMPTY"` and destroys the next Take's PRELOAD (cold PLAY 10–14f late).
+ * Opacity 0 / volume 0 so idle stings stay off PGM until a WithinPart wipe piece
+ * (priority 1) hot-PLAYs with full opacity.
+ */
+export const STICKY_PGM_WIPE_FILES: ReadonlyArray<{ file: string; layer: CasparCGLayers }> = [
+	{ file: DEFAULT_WIPE_FILE, layer: CasparCGLayers.CasparCGPgmEffectsPlayer },
+	{ file: 'wipes/wipe_sjv', layer: CasparCGLayers.CasparCGPgmEffectsPlayerSjv },
+	{ file: 'wipes/wipe_sport', layer: CasparCGLayers.CasparCGPgmEffectsPlayerSport },
+	{ file: 'wipes/wipe_pocasie', layer: CasparCGLayers.CasparCGPgmEffectsPlayerPocasie },
+]
+
+/** Baseline timeline: paused opacity-0 wipe cues on every PGM EffectsPlayer layer. */
+export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	return STICKY_PGM_WIPE_FILES.map(({ file, layer }) =>
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { while: 1 },
+			priority: 0,
+			layer,
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: toCasparPlayPath(file),
+				seek: 0,
+				playing: false,
+				videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
+				mixer: {
+					...PGM_WIPE_OVERLAY_MIXER,
+					opacity: 0,
+					volume: 0,
+				},
+			},
+		})
+	)
+}
+
+/**
  * Explicit LOADBG → hot PLAY: `playing: false` cues Caspar LOAD/PAUSE, then a
  * keyframe sets `playing: true` at `playAtMs` (object-relative). Sofie Lookahead
  * PRELOAD copies strip keyframes without `preserveForLookahead`, so EffectsPlayer
@@ -596,6 +680,8 @@ function createPgmWipeOverlayTimelineObject(
 	})
 	// LOADBG (playing:false) from object start; hot PLAY at Take (keyframe start 0).
 	// Sofie PRELOAD while Next strips this keyframe → paused LOADBG on EffectsPlayer.
+	// After duration ends, sticky baseline (opacity 0, playing false) resumes on this
+	// layer — never LOADBG EMPTY — so the next PRELOAD of this file stays hot.
 	applyCasparHotPlayCue(overlay, 0, { seekMs: 0 })
 	return overlay
 }
@@ -767,10 +853,12 @@ function attachRouteToWipePiece(
 }
 
 /**
- * Map story looks onto BG A (DoubleBox) / BG B (Full) and hold PGM on a full-channel route.
+ * Map story looks onto BG A / BG B (physical ping-pong) and hold PGM on a full-channel route.
  * Wiped Takes PLAY wipe on PGM EffectsPlayer and hard-cut MEDIA `route://N` at the wipe
- * cut point (DoubleBox → ch3, Full → ch4). Hard cuts re-assert `route://N` with no
- * transition. Logo / intro stay on PGM above the route.
+ * cut point. Look **kind** (DoubleBox vs Full) drives FILL / db_loop / clears; look
+ * **slot** is the idle channel claimed this Take so compose MEDIA always LOADBGs
+ * off-air before `route://` flips. Hard cuts re-assert `route://N` with no transition.
+ * Logo / intro stay on PGM above the route.
  *
  * During wipe SFX, mute Caspar mixer volume on SYN/ILU/look clip layers so only the wipe
  * bed is audible (Sisyfos ForceMute alone does not duck route:// clip audio).
@@ -783,10 +871,15 @@ export function finalizeHypercomposedPart(
 	objects: SomeObject[],
 	pieces: IBlueprintPiece[],
 	lookSlot: LookSlot = 'A',
-	/** Look claimed for the previous part. Same slot ⇒ this channel is still on-air (DB→DB). */
-	previousLookSlot?: LookSlot
+	/** Look claimed for the previous part. Same slot ⇒ this channel is still on-air (rare after ping-pong). */
+	previousLookSlot?: LookSlot,
+	/** Editorial layout; defaults from ingest objects / DoubleBox ILU graphic. */
+	rawType?: string
 ): void {
 	if (!isHypercomposedStudio(config)) return
+
+	const lookKind = lookKindForPart(rawType, objects)
+	const idleOtherSlot = otherLookSlot(lookSlot)
 
 	if (shouldClearLookCamera(pieces)) {
 		const clearObj = createLookCameraClearTimelineObject()
@@ -836,30 +929,37 @@ export function finalizeHypercomposedPart(
 		wipeDurationMs,
 		Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
 	)
-	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
-	// Operator frame-by-frame (ILU GABIKA AVIZO → ILU FERENCAK): that PLAY lands ~2f
-	// after the classical cover centre — lead the look cut so the first frame meets cover.
-	// Wipe overlay / PGM route / countup keep the full air cut.
-	const wipeLookCutMs =
-		hasWipe && sameLookChannel ? Math.max(0, wipeCutPointMs - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS) : wipeCutPointMs
-	// Leave-weather into wiped ZAVER: detect early so keepalive / WX hide can wait for
-	// solid cover (not Take, not a bare air-cut while the sting is still incomplete).
+	// Leave-weather into wiped ZAVER: detect early so look cut / keepalive / WX hide
+	// can wait for solid cover (not Take, not a bare air-cut while the sting is still
+	// incomplete — and not same-slot lead, which made Počasie→AVIZO 6f early).
 	const leaveWeatherUnderWipe = Boolean(
 		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
 	)
-	/** Hide previous weather L3D/ILU this far into the Take (air cut + 2f under cover). */
+	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
+	// After look ping-pong this path is rare — every look-bearing Take claims idle.
+	// Lead the look cut so first frame meets cover — except leave-weather, which lags
+	// past the air cut instead (weather teardown + classical wipe after wipe_pocasie).
+	// Wipe overlay / PGM route / countup keep the full air cut (route unchanged on
+	// Full→Full ZAVER; countup uses wipeCutPointMs below).
+	const wipeLookCutMs = leaveWeatherUnderWipe
+		? Math.min(wipeDurationMs, wipeCutPointMs + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS)
+		: hasWipe && sameLookChannel
+			? Math.max(0, wipeCutPointMs - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS)
+			: wipeCutPointMs
+	/** Hide previous weather L3D/ILU this far into the Take (look cut + 2f under cover). */
 	const leaveWeatherHideMs = leaveWeatherUnderWipe
-		? Math.min(wipeDurationMs, wipeCutPointMs + LOOK_HARD_CUT_OVERLAP_MS)
+		? Math.min(wipeDurationMs, wipeLookCutMs + LOOK_HARD_CUT_OVERLAP_MS)
 		: wipeLookCutMs
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		// Keep previous look VIDEO only until the cover cut — not the full sting.
 		// Leave-weather extends keepalive to leaveWeatherHideMs so cities/map stay until
-		// the sting is actually covering (air cut alone was early when PRELOAD lagged).
-		// Same-slot uses wipeLookCutMs (air cut − lead) so the switch matches the early
-		// look PLAY. Full-sting keepalive left DB→DB / Full→Full switches until wipe CLEAR
-		// (new look could not win while the previous part still occupied the channel).
+		// the sting is actually covering (look cut = air + leave lag; hide = look + 2f).
+		// Same-slot non-weather uses wipeLookCutMs (air cut − lead) so the switch matches
+		// the early look PLAY. Full-sting keepalive left DB→DB / Full→Full switches until
+		// wipe CLEAR (new look could not win while the previous part still occupied the
+		// channel).
 		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
 		part.inTransition = {
 			blockTakeDuration: wipeDurationMs,
@@ -933,14 +1033,14 @@ export function finalizeHypercomposedPart(
 		// the clear window while the sting/keepalive still covers.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
 	}
-	// Full wipe onto a *new* look channel (e.g. DoubleBox→Full): EMPTY stale CAM /
-	// db_loop on ch4 under the sting. EMPTY the clip layer only when this part has
+	// Full wipe onto a *new* look channel: EMPTY stale CAM / db_loop on the incoming
+	// Full channel under the sting. EMPTY the clip layer only when this part has
 	// no incoming clip MEDIA (clear leftover SYN) or for wipe_pocasie (prio-3 weather
 	// bg_loop). Story Takes with clip MEDIA must not EMPTY — prio-2 EMPTY evicts
 	// idle LOADBG (`preloadIdleLookMedia`) and lets baseline `loops/bg_loop` flash
 	// at the air cut (operator 2026-09-28). Full→Full must also not EMPTY the live
 	// clip (black blink). Never EMPTY look CAM when this part owns it.
-	if (hasWipe && lookSlot === 'B' && !sameLookChannel) {
+	if (hasWipe && lookKind === 'full' && !sameLookChannel) {
 		const clearClip = wipePocasie || !partHasLookClipMedia(pieces, lookSlot)
 		clearObjects.push(
 			...buildLookChannelClearObjects(
@@ -953,34 +1053,37 @@ export function finalizeHypercomposedPart(
 			)
 		)
 	}
-	// Any wiped Full Take: kill leftover DoubleBox frame on ch3. Sofie PRELOAD used
-	// to LOADBG `db_loop` during ZAVER preroll; even with lookahead NONE, OutOnSegmentEnd
-	// leftovers / mistaken route://3 must not leave a stray frame. When ch3 is still the
-	// outgoing PGM look (DB→Full), delay EMPTY to the route cut so the frame holds under
-	// the sting; when ch3 is off-air (Full→Full / ZAVER after Počasie), clear at Take.
-	// ZAVER also CLEARs look-A ILU/CAM/L3D (ilu-zaver is LED-only).
-	if (hasWipe && lookSlot === 'B') {
-		const dbLoopClearStartMs = previousLookSlot === 'A' ? wipeCutPointMs : 0
-		clearObjects.push(emptyLookMediaObject(LOOK_A_LAYERS.doubleBoxLoop, undefined, dbLoopClearStartMs))
+	// Any wiped Full Take: kill leftover DoubleBox frame on the *other* (idle /
+	// previous) channel. When that channel is still the outgoing PGM look, delay
+	// EMPTY to the route cut so the frame holds under the sting; when it is already
+	// off-air, clear at Take.
+	// ZAVER also CLEARs the other channel's ILU/CAM/L3D (ilu-zaver is LED-only).
+	if (hasWipe && lookKind === 'full') {
+		const dbLoopClearStartMs = previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeCutPointMs : 0
+		clearObjects.push(emptyLookMediaObject(getLookLayers(idleOtherSlot).doubleBoxLoop, undefined, dbLoopClearStartMs))
 	}
-	if (lookSlot === 'B' && partHasActiveIluZaver(pieces)) {
+	if (lookKind === 'full' && partHasActiveIluZaver(pieces)) {
 		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
-		// above — do not also EMPTY it at Take via the bulk look-A clear (that would kill
-		// the on-air frame under the sting before the route cut).
+		// above — do not also EMPTY it at Take via the bulk other-slot clear (that would kill
+		// the on-air frame under the sting before the route cut). Same delay for CAM / ILU /
+		// L3D when the other slot is still the outgoing PGM look.
+		const otherSlotClearStartMs =
+			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeCutPointMs : 0
 		clearObjects.push(
-			...buildLookChannelClearObjects('A', undefined, {
-				clearDoubleBoxLoop: !(hasWipe && previousLookSlot === 'A'),
+			...buildLookChannelClearObjects(idleOtherSlot, undefined, {
+				clearDoubleBoxLoop: !(hasWipe && previousLookSlot === idleOtherSlot),
+				clearStartMs: otherSlotClearStartMs,
 			}),
-			...buildLookIluClearObjects('A'),
-			...buildL3dLayerClearObjects('A')
+			...buildLookIluClearObjects(idleOtherSlot, undefined, otherSlotClearStartMs),
+			...buildL3dLayerClearObjects(idleOtherSlot, undefined, otherSlotClearStartMs)
 		)
 	}
 	// Leaving Počasie: clear bg_pocasie under wipe cover. Finite EMPTY through wipe end
 	// let weather postroll flash one frame after sting CLEAR — leave-weather ZAVER uses
 	// open-ended WithinPart EMPTY instead (safe: next Take is Outro, not weather).
 	// Leave-weather / non-ILU Takes: EMPTY look ILU so `bg_pocasie` cannot linger
-	// into ZAVER (Full) or the next story. DB Takes without look ILU also CLEAR
-	// Full ILU so a lingering ch4 weather map dies under the sting.
+	// into ZAVER (Full) or the next story. DoubleBox Takes without look ILU also CLEAR
+	// the other channel's ILU so a lingering weather map dies under the sting.
 	if (!partHasLookIluMedia(pieces, lookSlot)) {
 		if (hasWipe) {
 			if (leaveWeatherUnderWipe) {
@@ -989,9 +1092,9 @@ export function finalizeHypercomposedPart(
 				const leaveWeatherClearMs = Math.max(0, wipeDurationMs - wipeCutPointMs)
 				clearObjects.push(...buildLookIluClearObjects(lookSlot, leaveWeatherClearMs, wipeCutPointMs))
 			}
-			if (lookSlot === 'A') {
+			if (lookKind === 'doublebox') {
 				const leaveWeatherClearMs = Math.max(0, wipeDurationMs - wipeCutPointMs)
-				clearObjects.push(...buildLookIluClearObjects('B', leaveWeatherClearMs, wipeCutPointMs))
+				clearObjects.push(...buildLookIluClearObjects(idleOtherSlot, leaveWeatherClearMs, wipeCutPointMs))
 			}
 		} else {
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_ILU_HARD_CUT_CLEAR_MS))
@@ -1014,7 +1117,7 @@ export function finalizeHypercomposedPart(
 
 	applyL3dTakeOffsets(pieces, hasWipe ? wipeDurationMs : 0, wipePocasie, wipeLookCutMs, {
 		// Idle look channel under the sting: LOAD/PAUSE all compose MEDIA from Take so
-		// PLAY at the air cut is hot when route://N flips. Same-slot (DB→DB / Full→Full)
+		// PLAY at the air cut is hot when route://N flips. Same-slot (rare after ping-pong)
 		// must not early-LOAD (replaces on-air under the wipe); wipeLookCutMs leads the
 		// cold PLAY by SAME_SLOT_WIPE_AIR_CUT_LEAD_MS so cover centre meets first frame.
 		// Weather L3D / L3D CLEAR stay on the full air cut (wipeCutPointMs) — do not
@@ -1287,8 +1390,11 @@ function applyL3dTakeOffsets(
 			if (content.file === 'EMPTY') continue
 
 			// Continuous db_loop OutOnSegmentEnd — keep enable 0 so the frame never
-			// blinks off between DoubleBoxes in the same tema.
-			if (hasWipe && layer === (LOOK_A_LAYERS.doubleBoxLoop as string)) {
+			// blinks off between DoubleBoxes in the same tema (either physical slot).
+			if (
+				hasWipe &&
+				(layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string))
+			) {
 				continue
 			}
 
@@ -1451,16 +1557,23 @@ function buildL3dLayerClearObjects(
 function buildLookChannelClearObjects(
 	lookSlot: LookSlot,
 	clipClearMs?: number,
-	options?: { clearCamera?: boolean; clearDoubleBoxLoop?: boolean; clearClip?: boolean }
+	options?: {
+		clearCamera?: boolean
+		clearDoubleBoxLoop?: boolean
+		clearClip?: boolean
+		/** Take-relative EMPTY start (default 0). Used to hold opposite-slot clears under wipe cover. */
+		clearStartMs?: number
+	}
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const layers = getLookLayers(lookSlot)
 	const clearCamera = options?.clearCamera !== false
 	const clearDoubleBoxLoop = options?.clearDoubleBoxLoop !== false
 	const clearClip = options?.clearClip !== false
+	const clearStartMs = options?.clearStartMs ?? 0
 	return [
-		...(clearClip ? [emptyLookMediaObject(layers.clip, clipClearMs)] : []),
-		...(clearCamera ? [emptyLookMediaObject(layers.camera)] : []),
-		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop)] : []),
+		...(clearClip ? [emptyLookMediaObject(layers.clip, clipClearMs, clearStartMs)] : []),
+		...(clearCamera ? [emptyLookMediaObject(layers.camera, undefined, clearStartMs)] : []),
+		...(clearDoubleBoxLoop ? [emptyLookMediaObject(layers.doubleBoxLoop, undefined, clearStartMs)] : []),
 	]
 }
 

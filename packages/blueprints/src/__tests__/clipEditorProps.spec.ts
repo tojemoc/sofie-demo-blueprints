@@ -16,6 +16,8 @@ import {
 	WIPE_CUT_POINT_MS,
 	WIPE_PLAYOUT_LATENCY_MS,
 	WIPE_COVER_CENTER_OFFSET_MS,
+	WIPE_FILE_COVER_START_MS,
+	WIPE_FILE_COVER_CENTER_MS,
 	WIPE_FRAME_MS,
 	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
 } from '../base/showstyle/helpers/clips.js'
@@ -144,7 +146,7 @@ describe('getVideoPlayLayer', () => {
 })
 
 describe('resolveWipeCutPointMs', () => {
-	it('defaults to frame-19 cover (380 ms @ 50fps) — ms into the wipe file', () => {
+	it('defaults to open-loop cover calibration (380 ms) — pairs with playout latency', () => {
 		expect(WIPE_CUT_POINT_MS).toBe(380)
 		expect(resolveWipeCutPointMs(undefined)).toBe(380)
 		expect(resolveWipeCutPointMs({})).toBe(WIPE_CUT_POINT_MS)
@@ -161,12 +163,14 @@ describe('resolveWipeCutPointMs', () => {
 })
 
 describe('resolveWipeAirCutMs', () => {
-	it('lands classical wipe.mov in the middle of a 2-frame cover (±½ frame @ 50fps)', () => {
+	it('lands wipe.mov on Resolve cover centre (~780 ms = source frames 19–20 @25fps)', () => {
 		expect(WIPE_PLAYOUT_LATENCY_MS).toBe(380)
 		expect(WIPE_COVER_CENTER_OFFSET_MS).toBe(10)
+		expect(WIPE_FILE_COVER_START_MS).toBe(760)
+		expect(WIPE_FILE_COVER_CENTER_MS).toBe(800)
 		expect(isClassicalWipeFile('wipes/wipe.mov')).toBe(true)
 		expect(isClassicalWipeFile('wipes/wipe_sjv')).toBe(false)
-		// Resolve 380 + half-frame cover + latency 380 → 770 → snap to 780.
+		// Resolve calibration 380 + half-frame cover + latency 380 → 770 → snap to 780.
 		expect(resolveWipeAirCutMs(undefined)).toBe(780)
 		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe')).toBe(780)
 		expect(resolveWipeAirCutMs({ cutPoint: 500 })).toBe(900)
@@ -175,9 +179,10 @@ describe('resolveWipeAirCutMs', () => {
 		expect(resolveWipeAirCutMs({ cutPoint: 2400 }, 2500)).toBe(2500)
 	})
 
-	it('does not bias themed wipe cover frames (SJV / ŠPORT / Počasie)', () => {
-		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sjv')).toBe(760)
-		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sport.mov')).toBe(760)
+	it('applies the same cover-centre bias to themed SJV / ŠPORT / Počasie wipes', () => {
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sjv')).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_sport.mov')).toBe(780)
+		expect(resolveWipeAirCutMs({ cutPoint: 380 }, 2500, 'wipes/wipe_pocasie')).toBe(780)
 		expect(snapMsToFrame(770)).toBe(780)
 		expect(WIPE_FRAME_MS).toBe(20)
 	})

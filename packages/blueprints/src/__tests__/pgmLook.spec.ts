@@ -31,7 +31,7 @@ import {
 	LOOK_HARD_CUT_KEEPALIVE_MS,
 	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
 	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
-	SAME_SLOT_WIPE_AIR_CUT_LEAD_MS,
+	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
 	LOOK_ILU_HARD_CUT_CLEAR_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
@@ -49,9 +49,6 @@ import {
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { ObjectType } from '../common/definitions/objects.js'
 
-const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
-/** Themed story wipes keep file-cut + latency only (no classical ½-frame cover bias). */
-const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_sjv')
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -59,6 +56,12 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
+/** Themed story wipes share classical cover-centre bias (same Resolve cover window). */
+const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_sjv')
+/** Leave-weather look/WX-hide cut = air + lag + 2f overlap under cover. */
+const LEAVE_WEATHER_HIDE_MS = WIPE_AIR_CUT_MS + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS + LOOK_HARD_CUT_OVERLAP_MS
 
 function pgmRouteChannel(
 	pieces: ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> } }>
@@ -93,7 +96,7 @@ describe('pgmLook look-kind channels + route', () => {
 		resetLookSlotGenerationForTests()
 	})
 
-	it('maps DoubleBox → A and Full → B', () => {
+	it('maps preferred DoubleBox → A and Full → B (kind hint; Takes ping-pong idle)', () => {
 		expect(lookSlotForKind('doublebox')).toBe('A')
 		expect(lookSlotForKind('full')).toBe('B')
 		expect(isDoubleBoxLook('DoubleBox', [])).toBe(true)
@@ -126,23 +129,28 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 	})
 
-	it('LookSlotSequence claim/peek remembers last look; defaults to Full', () => {
+	it('LookSlotSequence claimIdle ping-pongs; defaults peek to B', () => {
 		const sequence = createLookSlotSequence()
 		expect(sequence.peek()).toBe('B')
-		expect(sequence.claim('B')).toBe('B')
+		expect(sequence.hasClaimed()).toBe(false)
+		expect(sequence.claimIdle()).toBe('A')
+		expect(sequence.hasClaimed()).toBe(true)
+		expect(sequence.peek()).toBe('A')
+		expect(sequence.claimIdle()).toBe('B')
 		expect(sequence.peek()).toBe('B')
 		expect(sequence.claim('A')).toBe('A')
 		expect(sequence.peek()).toBe('A')
 	})
 
-	it('resolveLookSlotForPart skips claim when floated or skipped', () => {
+	it('resolveLookSlotForPart claims idle; skips claim when floated or skipped', () => {
 		const sequence = createLookSlotSequence()
 		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('A')
 		expect(sequence.peek()).toBe('A')
-		// Floated Full must not overwrite A — later DoubleBox still peeks A for DB→DB.
+		// Floated Full must not overwrite A — later Take still peeks A then claims idle B.
 		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'Cam', true)).toBe('A')
 		expect(sequence.peek()).toBe('A')
-		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('A')
+		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('B')
+		expect(sequence.peek()).toBe('B')
 	})
 
 	it('maps look A to BG 3 and look B to BG 4', () => {
@@ -235,19 +243,20 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
 	})
 
-	it('keeps smoke headlines on Full (ch4) with MEDIA route://4', () => {
+	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
 
 		expect(generated.parts.map((part) => part.part.externalId)).toEqual(['part-hl-1', 'part-hl-2', 'part-hl-3'])
-		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(4)
+		// Baseline peek B → first idle A (ch3); then B (ch4); then A (ch3).
+		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3)
 		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(4)
-		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4)
-		expect(pgmRouteFile(generated.parts[0].pieces)).toBe('route://4')
+		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(3)
+		expect(pgmRouteFile(generated.parts[0].pieces)).toBe('route://3')
 		expect(pgmRouteFile(generated.parts[1].pieces)).toBe('route://4')
-		expect(pgmRouteFile(generated.parts[2].pieces)).toBe('route://4')
+		expect(pgmRouteFile(generated.parts[2].pieces)).toBe('route://3')
 
 		const hl2Timeline = generated.parts[1].pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.lowerThird)).toBe(true)
@@ -595,7 +604,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(parseRouteMediaChannel('loops/bg_loop')).toBeUndefined()
 	})
 
-	it('keeps DoubleBox on ch3 and Full on ch4 across segments (no index ping-pong)', () => {
+	it('ping-pongs look channels across segments (idle LOADBG every Take)', () => {
 		const exportData = loadSmokeRundownExport()
 		const lookSlots = createLookSlotSequence()
 
@@ -620,12 +629,21 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(tema4Db?.part.externalId).toBe('part-tema-4-db')
 		if (!tema3Syn || !tema3Db || !tema4Db) return
 
-		expect(pgmRouteChannel(tema3Syn.pieces)).toBe(4) // SYN Full
-		expect(pgmRouteChannel(tema3Db.pieces)).toBe(3) // DoubleBox
-		expect(pgmRouteChannel(tema4Db.pieces)).toBe(3) // next DoubleBox still ch3
+		const chSyn = pgmRouteChannel(tema3Syn.pieces)
+		const chDb = pgmRouteChannel(tema3Db.pieces)
+		const chTema4 = pgmRouteChannel(tema4Db.pieces)
+		expect(chSyn).toBeDefined()
+		expect(chDb).toBeDefined()
+		expect(chTema4).toBeDefined()
+		// Consecutive look-bearing Takes always flip physical channel.
+		expect(chSyn).not.toBe(chDb)
+		expect(chDb).not.toBe(chTema4)
+		expect([3, 4]).toContain(chSyn)
+		expect([3, 4]).toContain(chDb)
+		expect([3, 4]).toContain(chTema4)
 	})
 
-	it('keeps fullscreen Camera / Remote peeks on Full (ch4)', () => {
+	it('fullscreen Camera / Remote peeks idle look; next Cam claims opposite', () => {
 		const cameraPart = (externalId: string): PartProps<CameraProps> => ({
 			type: PartType.Camera,
 			rawType: 'Cam',
@@ -660,8 +678,9 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 
 		const generated = generateParts(mockSegmentContext(), segment, createCountupRevealClaim(), createLookSlotSequence())
-		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(4) // fullscreen Cam → Full
-		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(4) // Remote peeks Full
+		// Baseline peek B → cam-1 idle A (ch3); Remote peeks A; cam-2 claims idle B (ch4).
+		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3)
+		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3)
 		expect(pgmRouteChannel(generated.parts[2].pieces)).toBe(4)
 	})
 
@@ -757,7 +776,7 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 	})
 
-	it('ZAVER + AVIZO compose on Full look B with cam; no db_loop; EMPTYs Full ILU so bg_pocasie dies', () => {
+	it('ZAVER + AVIZO compose Full kind on idle look; no db_loop; EMPTYs look ILU so bg_pocasie dies', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -787,10 +806,10 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
 
 		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
-		// Full compose: PGM routes to ch4; look B cam keeps route://5 (never EMPTY / no live db_loop).
-		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.content).toMatchObject({ file: 'route://4' })
-		expect(pgmRouteChannel(zaver.pieces)).toBe(4)
+		// Fresh sequence: first look-bearing claims idle A → route://3. Full FILL + cam.
+		const routeChannel = pgmRouteChannel(zaver.pieces)
+		expect(routeChannel).toBe(3)
+		expect(pgmRouteFile(zaver.pieces)).toBe('route://3')
 		const liveDbLoop = (layer: CasparCGLayers) =>
 			timeline.some(
 				(obj) =>
@@ -801,38 +820,36 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(false)
 		expect(liveDbLoop(LOOK_B_LAYERS.doubleBoxLoop)).toBe(false)
-		const lookBCam = timeline.find((obj) => obj.layer === LOOK_B_LAYERS.camera)
-		expect(lookBCam?.content).toMatchObject({
+		const lookACam = timeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
+		expect(lookACam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
 		})
 		expect(
-			timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
+			timeline.some((obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
 		).toBe(false)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
-		const lookADbEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		// Other slot (B) db_loop cleared — stray DoubleBox cannot survive into závěr.
+		const lookBDbEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(lookADbEmpty, 'ZAVER must EMPTY look A db_loop (stray DoubleBox)').toBeDefined()
-		// After Počasie (Full): ch3 off PGM — clear at Take.
-		expect(lookADbEmpty?.enable).toEqual({ start: 0 })
-		const lookACamEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+		expect(lookBDbEmpty, 'ZAVER must EMPTY other-slot db_loop (stray DoubleBox)').toBeDefined()
+		expect(lookBDbEmpty?.enable).toEqual({ start: 0 })
+		const lookBCamEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(lookACamEmpty).toBeDefined()
+		expect(lookBCamEmpty).toBeDefined()
 		const iluEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+			(obj) => obj.layer === LOOK_A_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
-		// Leave-weather: Full-look ILU EMPTY from cover-hide (air cut + 2f), open-ended
-		// for the ZAVER part — finite through wipe end flashed weather after sting CLEAR.
-		const leaveWeatherHideMs = WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS
+		const leaveWeatherHideMs = LEAVE_WEATHER_HIDE_MS
 		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(leaveWeatherHideMs)
 		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.duration).toBeUndefined()
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+			(obj) => obj.layer === LOOK_A_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(!Array.isArray(l3dEmpty?.enable) && l3dEmpty?.enable.start).toBe(leaveWeatherHideMs)
 		const ledZaver = timeline.find(
@@ -951,10 +968,10 @@ describe('pgmLook look-kind channels + route', () => {
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
 		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'zaver-wiped', objects as never, pieces, 'B')
 		const led = pieces[0].content.timelineObjects?.[0]
-		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS)
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
 	})
 
-	it('wiped ZAVER after DoubleBox delays db_loop EMPTY until wipe cut (no early clear)', () => {
+	it('wiped ZAVER after DoubleBox delays other-slot clears until wipe cut (no early clear)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -974,21 +991,29 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(zaver).toBeDefined()
 		if (!zaver) return
-		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS)
+		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(LEAVE_WEATHER_HIDE_MS)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
-		const dbLoopEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
-			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
-		)
-		expect(dbLoopEmpties.length).toBeGreaterThanOrEqual(1)
-		for (const obj of dbLoopEmpties) {
-			const enable = obj.enable
-			expect(Array.isArray(enable)).toBe(false)
-			if (Array.isArray(enable) || !enable) continue
-			expect(typeof enable.start).toBe('number')
-			expect(enable.start, 'no db_loop EMPTY before wipe cut').toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
+		const otherSlotLayers = [
+			LOOK_A_LAYERS.doubleBoxLoop,
+			LOOK_A_LAYERS.camera,
+			LOOK_A_LAYERS.ilu,
+			LOOK_A_LAYERS.lowerThird,
+		]
+		for (const layer of otherSlotLayers) {
+			const empties = (clearPiece?.content.timelineObjects ?? []).filter(
+				(obj) => obj.layer === layer && (obj.content as { file?: string }).file === 'EMPTY'
+			)
+			expect(empties.length, `${layer} EMPTY`).toBeGreaterThanOrEqual(1)
+			for (const obj of empties) {
+				const enable = obj.enable
+				expect(Array.isArray(enable)).toBe(false)
+				if (Array.isArray(enable) || !enable) continue
+				expect(typeof enable.start).toBe('number')
+				expect(enable.start, `no ${layer} EMPTY before wipe cut`).toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
+			}
+			expect(empties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
 		}
-		expect(dbLoopEmpties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
 	})
 
 	it('wiped L3D enable is Take-relative (wipe end); CLEAR EMPTY has no preroll', () => {
@@ -1105,7 +1130,9 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const clearPiece = sportVo.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const iluEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+			(obj) =>
+				(obj.layer === LOOK_A_LAYERS.ilu || obj.layer === LOOK_B_LAYERS.ilu) &&
+				(obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(iluEmpty).toBeDefined()
 		const sportIluClearMs =
@@ -1125,23 +1152,24 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!sportFirst) return
 
 		expect(sportFirst.part.autoNext).toBe(true)
-		// Full→Full same-slot: keepalive / look MEDIA at air cut − 2f lead.
-		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(
-			THEMED_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
-		)
+		// Ping-pong idle channel: keepalive at full air cut (not same-slot lead).
+		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(THEMED_WIPE_AIR_CUT_MS)
 
-		// Full→Full: do not EMPTY the live clip (black blink under wipe). Kill stray db_loop on ch3.
+		// Full wipe: do not EMPTY the live clip (black blink under wipe). Kill stray db_loop on other slot.
 		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
-		const lookBClipEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'EMPTY'
+		const lookClipEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) =>
+				(obj.layer === LOOK_A_LAYERS.clip || obj.layer === LOOK_B_LAYERS.clip) &&
+				(obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(lookBClipEmpty).toBeUndefined()
-		const lookADbEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
+		expect(lookClipEmpty).toBeUndefined()
+		const otherDbEmpty = clearPiece?.content.timelineObjects?.find(
+			(obj) =>
+				(obj.layer === LOOK_A_LAYERS.doubleBoxLoop || obj.layer === LOOK_B_LAYERS.doubleBoxLoop) &&
+				(obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(lookADbEmpty, 'wiped Full must EMPTY look A db_loop').toBeDefined()
-		// Full→Full: ch3 off PGM — clear stray db_loop at Take.
-		expect(lookADbEmpty?.enable).toEqual({ start: 0 })
+		expect(otherDbEmpty, 'wiped Full must EMPTY other-slot db_loop').toBeDefined()
+		expect(otherDbEmpty?.enable).toEqual({ start: 0 })
 
 		const voPiece = sportFirst.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.VO as string))
 		expect(voPiece).toBeDefined()
@@ -1157,7 +1185,7 @@ describe('pgmLook look-kind channels + route', () => {
 			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
 			.find(
 				({ obj }) =>
-					obj.layer === LOOK_B_LAYERS.lowerThird &&
+					(obj.layer === LOOK_A_LAYERS.lowerThird || obj.layer === LOOK_B_LAYERS.lowerThird) &&
 					(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 			)
 		expect(l3d).toBeDefined()
@@ -1169,7 +1197,9 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(!Array.isArray(l3d.obj.enable) && l3d.obj.enable.start).toBe(wipeDurationMs - objectTimeMs)
 
 		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+			(obj) =>
+				(obj.layer === LOOK_A_LAYERS.lowerThird || obj.layer === LOOK_B_LAYERS.lowerThird) &&
+				(obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: Math.max(wipeDurationMs, objectTimeMs) })
 
@@ -1182,7 +1212,7 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(true)
 	})
 
-	it('smoke CSV contract: headlines/privítanie→4, tema ILU↔SYN→3/4, SJV wipe overlay on Full', () => {
+	it('smoke CSV contract: look ping-pong, tema wipe overlay, SJV themed EffectsPlayer', () => {
 		const exportData = loadSmokeRundownExport()
 		const lookSlots = createLookSlotSequence()
 		const countup = createCountupRevealClaim()
@@ -1196,23 +1226,28 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 
 		const headlines = gen('seg-headlines')
+		const hlChannels = headlines.parts.map((part) => pgmRouteChannel(part.pieces))
+		expect(hlChannels).toEqual([3, 4, 3])
 		for (const part of headlines.parts) {
-			expect(pgmRouteChannel(part.pieces)).toBe(4)
 			expect(part.pieces.some((piece) => piece.externalId.endsWith('_full_bg_loop'))).toBe(true)
 		}
 
 		const introSeg = gen('seg-intro')
 		const intro = introSeg.parts.find((part) => part.part.externalId === 'part-intro')
 		const privitanie = introSeg.parts.find((part) => part.part.externalId === 'part-intro-mod')
+		// After headlines ended on A: Intro claims idle B; Privítanie claims idle A.
 		expect(pgmRouteChannel(intro?.pieces ?? [])).toBe(4)
-		expect(pgmRouteChannel(privitanie?.pieces ?? [])).toBe(4)
+		expect(pgmRouteChannel(privitanie?.pieces ?? [])).toBe(3)
 		expect(privitanie?.pieces.some((piece) => piece.externalId.endsWith('_full_bg_loop'))).toBe(true)
 
 		const tema1 = gen('seg-tema-1')
 		const db = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-db')
 		const syn = tema1.parts.find((part) => part.part.externalId === 'part-tema-1-syn-1')
-		expect(pgmRouteChannel(db?.pieces ?? [])).toBe(3)
-		expect(pgmRouteChannel(syn?.pieces ?? [])).toBe(4)
+		const dbCh = pgmRouteChannel(db?.pieces ?? [])
+		const synCh = pgmRouteChannel(syn?.pieces ?? [])
+		expect(dbCh).toBeDefined()
+		expect(synCh).toBeDefined()
+		expect(dbCh).not.toBe(synCh)
 		const dbRoute = (db?.pieces ?? [])
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
@@ -1228,7 +1263,7 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const sjv = gen('seg-sjv')
 		const sjvSyn = sjv.parts.find((part) => part.part.externalId === 'part-sjv-syn-1')
-		expect(pgmRouteChannel(sjvSyn?.pieces ?? [])).toBe(4)
+		expect([3, 4]).toContain(pgmRouteChannel(sjvSyn?.pieces ?? []))
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerSjv)).toBe(true)
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)

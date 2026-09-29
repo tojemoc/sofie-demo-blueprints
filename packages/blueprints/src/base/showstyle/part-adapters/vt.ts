@@ -111,7 +111,8 @@ export function generateVTPart(
 		part.objects,
 		result.pieces,
 		lookSlot,
-		previousLookSlot
+		previousLookSlot,
+		part.rawType
 	)
 	return result
 }

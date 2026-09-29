@@ -38,18 +38,34 @@ export const DEFAULT_BG_LOOP_FILE = 'loops/bg_loop'
 export const DEFAULT_WIPE_DURATION_MS = 2500
 
 /**
- * Editorial cover frame within the wipe file — ms from the start of `wipes/wipe*.mov`
- * (Resolve frame-by-frame). Frame 19 @ 50fps = 380 ms. Override per wipe via RE
- * `attributes.cutPoint` (**milliseconds into the file**, not seconds like piece.duration).
+ * Editorial cover reference within the wipe file — ms used with
+ * {@link WIPE_PLAYOUT_LATENCY_MS} so the **air cut** lands on Resolve’s cover.
  *
- * Sofie/TSR cannot ACK “frame N is on PGM” from Caspar — timing is open-loop. Classical
- * `wipes/wipe` therefore lands the air cut in the **middle of a 2-frame cover window**
- * ({@link WIPE_COVER_CENTER_OFFSET_MS}) and snaps to the 50fps grid so ±½-frame jitter
- * still falls on one of those two cover frames. Still lags PLAY→first-frame after PRELOAD
- * LOADBG — see {@link WIPE_PLAYOUT_LATENCY_MS}. Per-file EffectsPlayer layers (205–208)
- * keep Take hot so this latency stays stable.
+ * Media (DaVinci / Caspar `|0/102|` @50fps, duration 2.04s): source `wipe.mov` is
+ * 51 frames @25fps; full cover is source frames **19–20** (= timeline **760–840 ms**,
+ * four 50fps frames). 30fps PGM captures show the same window at capture frames 23–24.
+ * Cover centre ≈ **800 ms** into the file. Open-loop Sofie cannot ACK Caspar’s on-screen
+ * frame, so the default RE cutPoint stays **380 ms** and baseline
+ * {@link WIPE_PLAYOUT_LATENCY_MS} **380 ms** (+ classical {@link WIPE_COVER_CENTER_OFFSET_MS})
+ * snaps air cut to **780–800 ms** — the cover centre — without rewriting every studio’s
+ * stored latency Setting. Override per wipe via RE `attributes.cutPoint` (**ms into the
+ * file**, not seconds like piece.duration). Per-file EffectsPlayer layers (205–208) keep
+ * Take hot so that latency stays stable.
  */
 export const WIPE_CUT_POINT_MS = 380
+
+/**
+ * Timeline ms of the first fully covering source frame (25fps frame 19) when the
+ * mov plays in Caspar 1080p5000. Useful for docs / capture audits — air cut still
+ * comes from {@link resolveWipeAirCutMs}, not this alone.
+ */
+export const WIPE_FILE_COVER_START_MS = 760
+
+/** Cover window length: 2 source frames @25fps = 80 ms = 4 frames @50fps. */
+export const WIPE_FILE_COVER_DURATION_MS = 80
+
+/** Centre of {@link WIPE_FILE_COVER_START_MS}…+{@link WIPE_FILE_COVER_DURATION_MS}. */
+export const WIPE_FILE_COVER_CENTER_MS = WIPE_FILE_COVER_START_MS + WIPE_FILE_COVER_DURATION_MS / 2
 
 /** Studio / wipe editorial frame rate (Caspar 1080p5000). */
 export const WIPE_FRAME_RATE = 50
@@ -58,12 +74,13 @@ export const WIPE_FRAME_RATE = 50
 export const WIPE_FRAME_MS = 1000 / WIPE_FRAME_RATE
 
 /**
- * Classical `wipes/wipe` keeps two fully covering frames at the Resolve cut
- * (frame 19 + 20). Air cut targets the centre so ±½ frame still hits cover.
+ * Classical `wipes/wipe` (and themed SJV/ŠPORT/Počasie — same cover structure) keeps
+ * two fully covering **source** frames (25fps 19+20). Air cut targets the centre of
+ * that window on the 50fps grid so ±2 frames still hit cover.
  */
 export const WIPE_COVER_FRAMES = 2
 
-/** Half-frame bias into the 2-frame cover (= 10 ms @ 50fps). */
+/** Half-frame bias into the classical 2-frame @50fps cover pad (= 10 ms). */
 export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
 
 /**
@@ -71,9 +88,10 @@ export const WIPE_COVER_CENTER_OFFSET_MS = WIPE_FRAME_MS / 2
  * frame 0 is actually on PGM. `route://` and look MEDIA switch instantly at their
  * enable times, so the air cut must be editorial file-ms + this latency.
  *
- * Tuned for LOADBG'd `wipes/wipe` on quiet Takes (~19f). Cold PLAY without LOADBG
- * is 40–60f and cannot be absorbed by the 2-frame cover — wipe overlay uses
- * explicit playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
+ * With default {@link WIPE_CUT_POINT_MS} 380, baseline **380 ms** lands Resolve’s
+ * cover centre (~780–800 ms wall) under PRELOAD. Cold PLAY without LOADBG is 40–60f
+ * and cannot be absorbed by the cover window — wipe overlay uses explicit
+ * playing:false + Sofie EffectsPlayer PRELOAD so Take is always a hot PLAY.
  * Adjust via studio Setting `wipePlayoutLatencyMs` if the baseline stack drifts —
  * not by padding RE cutPoint. Each wipe file has its own PGM EffectsPlayer layer
  * (205–208) so PRELOAD of a different sting cannot force a cold PLAY.
@@ -188,21 +206,23 @@ export function resolveWipeCutPointMs(
  * Take-relative ms when PGM should hard-cut under the sting (route / look / countup /
  * keepalive).
  *
- * Classical `wipes/wipe`: editorial file cut + half-frame cover centre + playout
- * latency, snapped to {@link WIPE_FRAME_MS}, so the hard-cut lands in the middle of
- * the 2-frame cover (380 ± ½ frame when PRELOAD latency is stable).
+ * All hypercomposed wipes (classical + themed SJV/ŠPORT/Počasie): editorial file cut
+ * + half-frame cover centre + playout latency, snapped to {@link WIPE_FRAME_MS}, so
+ * the hard-cut lands in the middle of the source cover window (Resolve frames 19–20
+ * @25fps ≈ 760–840 ms timeline; default air ≈ 780 ms when PRELOAD latency is stable).
  *
- * Themed wipes keep file cut + latency only (their cover frames differ per asset).
- * Clamped to the wipe duration so the switch cannot land after CLEAR.
+ * Themed files share the same cover structure as `wipes/wipe` — do not skip the
+ * cover-centre bias. Clamped to the wipe duration so the switch cannot land after CLEAR.
  */
 export function resolveWipeAirCutMs(
 	attributes?: { cutPoint?: unknown } | null,
 	wipeDurationMs: number = DEFAULT_WIPE_DURATION_MS,
-	wipeFile?: string,
+	_wipeFile?: string,
 	playoutLatencyMs: number = WIPE_PLAYOUT_LATENCY_MS
 ): number {
 	const fileCutMs = resolveWipeCutPointMs(attributes, wipeDurationMs)
-	const coverBiasMs = isClassicalWipeFile(wipeFile) ? WIPE_COVER_CENTER_OFFSET_MS : 0
+	// Cover bias applies to every wipe file — themed stingers match classical cover.
+	const coverBiasMs = WIPE_COVER_CENTER_OFFSET_MS
 	const latencyMs =
 		typeof playoutLatencyMs === 'number' && Number.isFinite(playoutLatencyMs) && playoutLatencyMs >= 0
 			? Math.floor(playoutLatencyMs)
