@@ -30,6 +30,8 @@ import {
 	LOOK_HARD_CUT_INCOMING_DELAY_MS,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
 	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
+	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
+	SAME_SLOT_WIPE_AIR_CUT_LEAD_MS,
 	LOOK_ILU_HARD_CUT_CLEAR_MS,
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
@@ -362,7 +364,9 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(lookClip).toBeDefined()
 		expect(!Array.isArray(lookClip?.enable) && lookClip?.enable.start).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBeGreaterThan(LOOK_HARD_CUT_INCOMING_DELAY_MS)
-		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK_HARD_CUT_CASPAR_LATENCY_MS)
+		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBe(
+			LOOK_HARD_CUT_INCOMING_DELAY_MS + LOOK_HARD_CUT_CASPAR_LATENCY_MS + LOOK_HARD_CUT_ROUTE_HEADROOM_MS
+		)
 		expect(LOOK_HARD_CUT_POSTROLL_MS).toBeGreaterThanOrEqual(LOOK_HARD_CUT_KEEPALIVE_MS)
 		expect(LOOK_HARD_CUT_POSTROLL_MS).toBe(LOOK_ILU_HARD_CUT_CLEAR_MS + LOOK_HARD_CUT_KEEPALIVE_MS)
 		expect(LOOK_HARD_CUT_OVERLAP_MS).toBe(LOOK_HARD_CUT_INCOMING_DELAY_MS)
@@ -392,13 +396,15 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 		const camPiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.Camera as string))
-		expect(camPiece?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		// No look preroll on hard cuts — Sofie toPartDelay would hold Camera/ILU past
+		// keepalive (~1.5s black / bg_loop hole). Idle LOADBG is Take-relative.
+		expect(camPiece?.prerollDuration ?? 0).toBeLessThan(DEFAULT_LOOK_PREROLL_MS)
 		const iluObj = result.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === LOOK_A_LAYERS.ilu && (obj.content as { file?: string }).file !== 'EMPTY')
 		expect(iluObj).toBeDefined()
 		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
-		expect(iluHost?.prerollDuration ?? 0).toBeGreaterThanOrEqual(DEFAULT_LOOK_PREROLL_MS)
+		expect(iluHost?.prerollDuration ?? 0).toBeLessThan(DEFAULT_LOOK_PREROLL_MS)
 		// Idle look: LOAD from Take (enable 0), hot PLAY before route:// flips.
 		expect(!Array.isArray(iluObj?.enable) && iluObj?.enable.start).toBe(0)
 		expect((iluObj?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
@@ -1119,7 +1125,10 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!sportFirst) return
 
 		expect(sportFirst.part.autoNext).toBe(true)
-		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(THEMED_WIPE_AIR_CUT_MS)
+		// Full→Full same-slot: keepalive / look MEDIA at air cut − 2f lead.
+		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(
+			THEMED_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
+		)
 
 		// Full→Full: do not EMPTY the live clip (black blink under wipe). Kill stray db_loop on ch3.
 		const clearPiece = sportFirst.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
