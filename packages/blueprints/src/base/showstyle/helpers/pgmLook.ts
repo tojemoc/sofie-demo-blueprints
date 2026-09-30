@@ -722,11 +722,7 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
  * Idle look layers (lookahead NONE) use the same pattern with `playAtMs` = air cut
  * so LOAD runs from Take under the sting and PLAY is hot when `route://` flips.
  */
-function applyCasparHotPlayCue(
-	obj: TimelineBlueprintExt,
-	playAtMs: number,
-	options?: { seekMs?: number }
-): void {
+function applyCasparHotPlayCue(obj: TimelineBlueprintExt, playAtMs: number, options?: { seekMs?: number }): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.playing = false
 	if (options?.seekMs !== undefined) {
