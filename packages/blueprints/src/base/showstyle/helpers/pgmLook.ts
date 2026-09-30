@@ -698,10 +698,12 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
 				file: toCasparPlayPath(file),
 				seek: 0,
 				playing: false,
-				// No videoFilter on the paused LOADBG cue — casparcg-state emits a broken
-				// `LOAD … VF "premultiply=…"` (VF as the clip name → File not found) and
-				// every re-LOADBG destroys the next Take's PRELOAD. Premul FILTER is
-				// applied only on the WithinPart hot PLAY keyframe.
+				// Premul on the paused LOADBG so WithinPart hot PLAY stays a bare
+				// `PLAY 2-20x` promote. Filter only on the PLAY keyframe makes TSR emit
+				// `PLAY … "wipes/…" … VF "premultiply=…"` and rebuild the producer cold
+				// (self-keyed flash). A cosmetic `LOAD … VF "…"` / File not found from
+				// casparcg-state is harmless and must not "fix" this away.
+				videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 				mixer: {
 					...PGM_WIPE_OVERLAY_MIXER,
 					opacity: 0,
@@ -720,11 +722,7 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
  * Idle look layers (lookahead NONE) use the same pattern with `playAtMs` = air cut
  * so LOAD runs from Take under the sting and PLAY is hot when `route://` flips.
  */
-function applyCasparHotPlayCue(
-	obj: TimelineBlueprintExt,
-	playAtMs: number,
-	options?: { seekMs?: number; videoFilter?: string }
-): void {
+function applyCasparHotPlayCue(obj: TimelineBlueprintExt, playAtMs: number, options?: { seekMs?: number }): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.playing = false
 	if (options?.seekMs !== undefined) {
@@ -740,7 +738,6 @@ function applyCasparHotPlayCue(
 				deviceType: TSR.DeviceType.CASPARCG,
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				playing: true,
-				...(options?.videoFilter ? { videoFilter: options.videoFilter } : {}),
 			},
 		},
 	]
@@ -762,15 +759,16 @@ function createPgmWipeOverlayTimelineObject(
 			file: toCasparPlayPath(wipeFile),
 			// Frame 0 for Sofie PRELOAD LOADBG + Take hot-PLAY (same decoder cue).
 			seek: 0,
-			// videoFilter only on the PLAY keyframe — LOADBG must not emit `LOAD VF "…"`.
+			// Premul on LOADBG so Take emits bare `PLAY 2-20x` (not PLAY with clip+VF).
+			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
 	})
-	// LOADBG (playing:false) from object start; hot PLAY + premul FILTER at Take.
+	// LOADBG (playing:false) from object start; hot PLAY at Take (keyframe start 0).
 	// Sofie PRELOAD while Next strips this keyframe → paused LOADBG on EffectsPlayer.
 	// After duration ends, sticky baseline (opacity 0, playing false) resumes on this
 	// layer — never LOADBG EMPTY — so the next PRELOAD of this file stays hot.
-	applyCasparHotPlayCue(overlay, 0, { seekMs: 0, videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER })
+	applyCasparHotPlayCue(overlay, 0, { seekMs: 0 })
 	return overlay
 }
 

@@ -97,7 +97,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/wipe',
 			seek: 0,
 			playing: false,
-			// Premul FILTER only on the hot-PLAY keyframe (LOADBG must not emit `LOAD VF "…"`).
+			// Premul on LOADBG so Take promotes with bare `PLAY 2-205` (no clip rebuild).
+			videoFilter: 'premultiply=inplace=1',
 			mixer: {
 				keyer: false,
 				blend: TSR.BlendMode.NORMAL,
@@ -106,21 +107,21 @@ describe('wipe piece type → PGM route / overlay', () => {
 				volume: 1,
 			},
 		})
-		expect((overlay?.content as TSR.TimelineContentCCGMedia).videoFilter).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.chroma).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
-		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs with premul FILTER.
-		expect(
-			(overlay?.keyframes ?? []).some(
-				(kf) =>
-					!Array.isArray(kf.enable) &&
-					kf.enable?.start === 0 &&
-					(kf.content as { playing?: boolean; videoFilter?: string } | undefined)?.playing === true &&
-					(kf.content as { videoFilter?: string } | undefined)?.videoFilter === 'premultiply=inplace=1'
-			)
-		).toBe(true)
+		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs (playing only —
+		// no file / videoFilter on the keyframe, or TSR rebuilds the producer cold).
+		const hotPlayKf = (overlay?.keyframes ?? []).find(
+			(kf) =>
+				!Array.isArray(kf.enable) &&
+				kf.enable?.start === 0 &&
+				(kf.content as { playing?: boolean } | undefined)?.playing === true
+		)
+		expect(hotPlayKf).toBeDefined()
+		expect((hotPlayKf?.content as { file?: string } | undefined)?.file).toBeUndefined()
+		expect((hotPlayKf?.content as { videoFilter?: string } | undefined)?.videoFilter).toBeUndefined()
 		const routeObj = findLivePgmRouteObj(result.pieces)
 		expect(routeObj).toBeDefined()
 		expect(routeSwitchStartMs(routeObj ?? {})).toBe(WIPE_AIR_CUT_MS)
