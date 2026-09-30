@@ -75,14 +75,18 @@ def parse_log(path):
 
 
 def pick_session(entries, video_start):
-    """Entries of the Caspar session that was running when the recording started."""
+    """Entries of the Caspar session that was running when the recording started.
+
+    Returns (session, session_start) or (None, None) when no banner falls at or
+    before the recording start (plus a small clock skew allowance).
+    """
     idx = [i for i, e in enumerate(entries) if BANNER in e[2]]
-    if not idx:
-        return entries, None
-    chosen = idx[-1]
+    chosen = None
     for i in idx:
         if entries[i][0] <= video_start + 5:
             chosen = i
+    if chosen is None:
+        return None, None
     nxt = [i for i in idx if i > chosen]
     end = nxt[0] if nxt else len(entries)
     return entries[chosen:end], entries[chosen][0]
@@ -194,21 +198,35 @@ def extract(video, prog_crop, logo_crop, tmp):
           f'[a]crop={prog_crop},scale={PW}:{PH},format=gray[p];'
           f'[b]crop={logo_crop},scale={LW}:{LH},format=gray[l]')
     base = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', video, '-an', '-filter_complex', fc]
-    outs = ['-map', '[p]', '-f', 'rawvideo', prog, '-map', '[l]', '-f', 'rawvideo', logo]
-    for passthru in (['-fps_mode', 'passthrough'], ['-vsync', '0']):
-        r = subprocess.run(base + passthru + outs, capture_output=True, text=True)
+    # -fps_mode before each raw output so both streams keep source timestamps;
+    # fall back to a single global -vsync 0 if the host ffmpeg rejects fps_mode.
+    attempts = (
+        ['-fps_mode', 'passthrough', '-map', '[p]', '-f', 'rawvideo', prog,
+         '-fps_mode', 'passthrough', '-map', '[l]', '-f', 'rawvideo', logo],
+        ['-vsync', '0', '-map', '[p]', '-f', 'rawvideo', prog, '-map', '[l]', '-f', 'rawvideo', logo],
+    )
+    for outs in attempts:
+        r = subprocess.run(base + outs, capture_output=True, text=True)
         if r.returncode == 0:
             break
     else:
         sys.exit('ffmpeg failed:\n' + r.stderr)
     P = np.fromfile(prog, dtype=np.uint8)
     L = np.fromfile(logo, dtype=np.uint8)
-    n = min(P.size // (PW * PH), L.size // (LW * LH))
+    nP, nL = P.size // (PW * PH), L.size // (LW * LH)
+    if nP != nL:
+        sys.exit(f'ffmpeg produced unequal frame counts: prog={nP} logo={nL} (refusing to truncate)')
+    n = nP
     return P[:n * PW * PH].reshape(n, PH, PW), L[:n * LW * LH].reshape(n, LH, LW)
 
 
 def calibrate(P, fps, video_start, cmds, search):
-    """Offset so that video_time = log_time - video_start + offset. Match cut commands to picture spikes."""
+    """Offset so that video_time = log_time - video_start + offset. Match cut commands to picture spikes.
+
+    Returns (offset, matched, total_cuts, ambiguous). When maximum-score offsets
+    form more than one separated cluster, offset is None and ambiguous is True
+    so the caller can require an explicit --offset.
+    """
     f = P.astype(np.float32)
     d = np.zeros(len(f), dtype=np.float32)
     d[1:] = np.abs(f[1:] - f[:-1]).mean(axis=(1, 2))
@@ -223,7 +241,7 @@ def calibrate(P, fps, video_start, cmds, search):
                 cut_t.append(t)
     cut_t = np.array(cut_t)
     if len(cut_t) == 0 or len(spike_t) == 0:
-        return None, 0, len(cut_t)
+        return None, 0, len(cut_t), False
     best = []
     for off in np.arange(-search, search, 0.01):
         vt = cut_t - video_start + off
@@ -232,8 +250,17 @@ def calibrate(P, fps, video_start, cmds, search):
                           np.abs(spike_t[np.clip(j - 1, 0, len(spike_t) - 1)] - vt))
         best.append(((near < 0.03).sum(), off))
     top = max(b[0] for b in best)
-    tied = [o for s, o in best if s == top]
-    return float(np.median(tied)), int(top), len(cut_t)
+    tied = sorted(o for s, o in best if s == top)
+    # Contiguous plateau: successive 0.01 search steps. Gaps ⇒ multiple maxima.
+    step = 0.01 + 1e-9
+    clusters = 1
+    for a, b in zip(tied, tied[1:]):
+        if b - a > step:
+            clusters += 1
+    if clusters > 1:
+        return None, int(top), len(cut_t), True
+    # Middle tested offset of the plateau — always a max-score candidate.
+    return float(tied[len(tied) // 2]), int(top), len(cut_t), False
 
 
 def black_runs(P, mean_thr, max_thr):
@@ -300,7 +327,23 @@ def main():
               if args.video_start else parse_video_start(args.video))
     entries = parse_log(args.log)
     session, sess_start = pick_session(entries, vstart)
+    if session is None:
+        print(f'recording: {args.video}  (start {clock(vstart)})')
+        print(f'log:       {args.log}')
+        print()
+        print('[FAIL] Caspar session: no server-start banner at or before recording start '
+              f'(+5s); cannot select a session for {clock(vstart)}')
+        print('\nRESULT: FAIL')
+        sys.exit(1)
     cmds = commands(session)
+    if not cmds:
+        print(f'recording: {args.video}  (start {clock(vstart)})')
+        print(f'log:       {args.log}  (session started {clock(sess_start)}, 0 commands)')
+        print()
+        print('[FAIL] AMCP evidence: session has no Received-message commands; '
+              'refusing to PASS cold-PLAY / route / EMPTY checks without AMCP')
+        print('\nRESULT: FAIL')
+        sys.exit(1)
     results = log_checks(session, cmds, args.allowed_route_plays)
     wipes = wipe_plays(session, cmds)
 
@@ -314,7 +357,11 @@ def main():
     if args.offset is not None:
         off, conf = args.offset, 'given'
     else:
-        off, matched, total = calibrate(P, fps, vstart, cmds, args.search)
+        off, matched, total, ambiguous = calibrate(P, fps, vstart, cmds, args.search)
+        if ambiguous:
+            print(f'ERROR: clock calibration ambiguous ({matched}/{total} cuts matched at '
+                  'multiple separated offsets). Re-run with --offset.', file=sys.stderr)
+            sys.exit(1)
         if off is None or matched < 3:
             print(f'WARNING: clock calibration failed ({matched if off is not None else 0}/{total} cuts matched). '
                   'Re-run with --offset. Video checks below may be misaligned.', file=sys.stderr)
