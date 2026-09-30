@@ -484,9 +484,10 @@ describe('casparV2Graphics', () => {
 				deviceType: TSR.DeviceType.CASPARCG,
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				playing: false,
+				// Premul on sticky LOADBG so WithinPart promote stays bare `PLAY 2-20x`.
+				videoFilter: 'premultiply=inplace=1',
 				mixer: expect.objectContaining({ opacity: 0, volume: 0 }),
 			})
-			expect((wipe.content as TSR.TimelineContentCCGMedia).videoFilter).toBeUndefined()
 		}
 	})
 

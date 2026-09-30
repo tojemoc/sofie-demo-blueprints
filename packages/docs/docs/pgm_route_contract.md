@@ -52,9 +52,11 @@ keepalive cannot stack two templates and same-name SJV/ŠPORT Takes do not CG UP
 Retired `l3d-predstavovak` → `l3d-syn` (opening → `l3d-mod`).
 
 **Wipe overlay:** PGM 205–208 mixer `keyer:false` (no chroma / no layer `straightAlpha`).
-Straight-alpha `wipe.mov` applies MEDIA `videoFilter: premultiply=inplace=1` **only on the
-hot PLAY keyframe** — never on the paused LOADBG / sticky cue (that produced malformed
-`LOAD … VF "premultiply=…"` / File not found and destroyed preloads).
+Straight-alpha `wipe.mov` applies MEDIA `videoFilter: premultiply=inplace=1` on sticky
+baseline and WithinPart LOADBG/lookahead wipe objects so Take promotes with bare
+`PLAY 2-20x`. Do **not** put the filter only on the hot-PLAY keyframe — that emits
+`PLAY … "wipes/…" … VF "…"` and rebuilds the producer cold (self-keyed flash). A
+cosmetic `LOAD … VF "…"` / File not found from casparcg-state is harmless.
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
@@ -73,5 +75,6 @@ bundle and Reset Rundown. `caspar.config` needs **≥5** channels.
 **Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).
 
 **Regression AMCP checks:** no `PLAY 2-110 "route://` / `PLAY 2-111 "route://` after Activate
-(only MIXER opacity/volume); no `CLEAR [34]-110`; no `File not found` from wipe VF; sticky
-bg_loop on 3-110 / 4-110 for the whole rundown.
+(only MIXER opacity/volume); no `CLEAR [34]-110`; zero `PLAY 2-20x "wipes/` (only bare
+`PLAY 2-20x`); zero `LOADBG 2-20x "EMPTY"`; sticky bg_loop on 3-110 / 4-110 for the
+whole rundown.
