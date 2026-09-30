@@ -97,7 +97,6 @@ describe('wipe piece type → PGM route / overlay', () => {
 			file: 'wipes/wipe',
 			seek: 0,
 			playing: false,
-			// Premul on LOADBG so Take promotes with bare `PLAY 2-205` (no clip rebuild).
 			videoFilter: 'premultiply=inplace=1',
 			mixer: {
 				keyer: false,
@@ -111,8 +110,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
-		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs (playing only —
-		// no file / videoFilter on the keyframe, or TSR rebuilds the producer cold).
+		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs (playing only).
 		const hotPlayKf = (overlay?.keyframes ?? []).find(
 			(kf) =>
 				!Array.isArray(kf.enable) &&

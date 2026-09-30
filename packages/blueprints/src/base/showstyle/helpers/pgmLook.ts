@@ -671,50 +671,6 @@ export const PGM_WIPE_OVERLAY_MIXER: NonNullable<TSR.TimelineContentCCGMedia['mi
 export const PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER = 'premultiply=inplace=1'
 
 /**
- * One sticky cue per wipe EffectsPlayer (205–208). Priority 0 + `while:1` keeps
- * LOADBG alive when Sofie lookahead resolves to nothing — without this, TSR emits
- * `LOADBG … "EMPTY"` and destroys the next Take's PRELOAD (cold PLAY 10–14f late).
- * Opacity 0 / volume 0 so idle stings stay off PGM until a WithinPart wipe piece
- * (priority 1) hot-PLAYs with full opacity.
- */
-export const STICKY_PGM_WIPE_FILES: ReadonlyArray<{ file: string; layer: CasparCGLayers }> = [
-	{ file: DEFAULT_WIPE_FILE, layer: CasparCGLayers.CasparCGPgmEffectsPlayer },
-	{ file: 'wipes/wipe_sjv', layer: CasparCGLayers.CasparCGPgmEffectsPlayerSjv },
-	{ file: 'wipes/wipe_sport', layer: CasparCGLayers.CasparCGPgmEffectsPlayerSport },
-	{ file: 'wipes/wipe_pocasie', layer: CasparCGLayers.CasparCGPgmEffectsPlayerPocasie },
-]
-
-/** Baseline timeline: paused opacity-0 wipe cues on every PGM EffectsPlayer layer. */
-export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	return STICKY_PGM_WIPE_FILES.map(({ file, layer }) =>
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			enable: { while: 1 },
-			priority: 0,
-			layer,
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: toCasparPlayPath(file),
-				seek: 0,
-				playing: false,
-				// Premul on the paused LOADBG so WithinPart hot PLAY stays a bare
-				// `PLAY 2-20x` promote. Filter only on the PLAY keyframe makes TSR emit
-				// `PLAY … "wipes/…" … VF "premultiply=…"` and rebuild the producer cold
-				// (self-keyed flash). A cosmetic `LOAD … VF "…"` / File not found from
-				// casparcg-state is harmless and must not "fix" this away.
-				videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
-				mixer: {
-					...PGM_WIPE_OVERLAY_MIXER,
-					opacity: 0,
-					volume: 0,
-				},
-			},
-		})
-	)
-}
-
-/**
  * Explicit LOADBG → hot PLAY: `playing: false` cues Caspar LOAD/PAUSE, then a
  * keyframe sets `playing: true` at `playAtMs` (object-relative). Sofie Lookahead
  * PRELOAD copies strip keyframes without `preserveForLookahead`, so EffectsPlayer
@@ -759,15 +715,12 @@ function createPgmWipeOverlayTimelineObject(
 			file: toCasparPlayPath(wipeFile),
 			// Frame 0 for Sofie PRELOAD LOADBG + Take hot-PLAY (same decoder cue).
 			seek: 0,
-			// Premul on LOADBG so Take emits bare `PLAY 2-20x` (not PLAY with clip+VF).
 			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
 	})
 	// LOADBG (playing:false) from object start; hot PLAY at Take (keyframe start 0).
 	// Sofie PRELOAD while Next strips this keyframe → paused LOADBG on EffectsPlayer.
-	// After duration ends, sticky baseline (opacity 0, playing false) resumes on this
-	// layer — never LOADBG EMPTY — so the next PRELOAD of this file stays hot.
 	applyCasparHotPlayCue(overlay, 0, { seekMs: 0 })
 	return overlay
 }
