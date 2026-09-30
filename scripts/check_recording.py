@@ -14,8 +14,9 @@ LOG CHECKS (only the Caspar session that was running during the recording)
   FAIL  PLAY 2-110 / 2-111 "route://..." beyond the allowed baseline count
         (dual always-live routes: cuts must be MIXER opacity/volume only)
   FAIL  CLEAR 3-110 / CLEAR 4-110            (sticky bg_loop must never be cleared)
-  FAIL  sticky wipe LOADBG missing / EMPTY   (each of 205–208 must arm its wipe file
-        and never receive LOADBG … "EMPTY")
+  FAIL  sticky wipe LOADBG missing / EMPTY   (hypercomposed only: each of 205–208 must
+        arm its wipe file and never receive LOADBG … "EMPTY"; skipped when
+        --no-hypercomposed)
   FAIL  PLAY 2-205..208 "wipes/..."          (full-path PLAY = cold producer, not a hot promote)
   WARN  "Check syntax" errors and LOAD commands with SEEK > int32
   INFO  "File not found" count; per-wipe PLAY form and measured first-frame delay
@@ -115,7 +116,13 @@ def clock(ts):
     return datetime.fromtimestamp(ts, timezone.utc).strftime('%H:%M:%S.%f')[:-3]
 
 
-def log_checks(session, cmds, allowed_route_plays):
+def log_checks(session, cmds, allowed_route_plays, hypercomposed=True):
+    """Log-side regression checks.
+
+    Sticky wipe LOADBG (205–208) is emitted only when studio
+    ``casparcg.hypercomposed`` is set — pass ``hypercomposed=False`` to skip that
+    contract entirely (missing arms / LOADBG EMPTY must not FAIL).
+    """
     res = []
 
     def add(status, name, detail, evidence=None):
@@ -141,26 +148,27 @@ def log_checks(session, cmds, allowed_route_plays):
         f'{len(clr)} x CLEAR 3-110/4-110' + (f' ({ignored} more ignored: part of an end-of-rundown CLEAR burst)' if ignored else ''),
         [f'{clock(t)} {c}' for t, c in clr[:5]])
 
-    emp = [(t, c) for t, c in cmds if re.match(r'LOADBG 2-20[5-8] "EMPTY"', c)]
-    armed = {}
-    missing = []
-    for layer, file in STICKY_WIPE_LOADBG.items():
-        hits = [(t, c) for t, c in cmds if re.match(rf'LOADBG 2-{layer} "{re.escape(file)}"', c)]
-        armed[layer] = hits
-        if not hits:
-            missing.append(f'2-{layer} "{file}"')
-    # Retained = armed with the contract file and never cleared via LOADBG EMPTY.
-    if emp or missing:
-        ev = [f'missing sticky LOADBG: {m}' for m in missing]
-        ev += [f'{clock(t)} {c}' for t, c in emp[:5]]
-        add('FAIL', 'wipe sticky preload',
-            (f'{len(missing)} layer(s) never armed; ' if missing else '')
-            + f'{len(emp)} x LOADBG 2-205..208 "EMPTY"',
-            ev)
-    else:
-        add('PASS', 'wipe sticky preload',
-            'armed 205–208 with sticky wipe LOADBG; 0 x EMPTY',
-            [f'{clock(armed[layer][0][0])} {armed[layer][0][1][:100]}' for layer in STICKY_WIPE_LOADBG])
+    if hypercomposed:
+        emp = [(t, c) for t, c in cmds if re.match(r'LOADBG 2-20[5-8] "EMPTY"', c)]
+        armed = {}
+        missing = []
+        for layer, file in STICKY_WIPE_LOADBG.items():
+            hits = [(t, c) for t, c in cmds if re.match(rf'LOADBG 2-{layer} "{re.escape(file)}"', c)]
+            armed[layer] = hits
+            if not hits:
+                missing.append(f'2-{layer} "{file}"')
+        # Retained = armed with the contract file and never cleared via LOADBG EMPTY.
+        if emp or missing:
+            ev = [f'missing sticky LOADBG: {m}' for m in missing]
+            ev += [f'{clock(t)} {c}' for t, c in emp[:5]]
+            add('FAIL', 'wipe sticky preload',
+                (f'{len(missing)} layer(s) never armed; ' if missing else '')
+                + f'{len(emp)} x LOADBG 2-205..208 "EMPTY"',
+                ev)
+        else:
+            add('PASS', 'wipe sticky preload',
+                'armed 205–208 with sticky wipe LOADBG; 0 x EMPTY',
+                [f'{clock(armed[layer][0][0])} {armed[layer][0][1][:100]}' for layer in STICKY_WIPE_LOADBG])
 
     full = [(t, c) for t, c in cmds if re.match(r'PLAY 2-20[5-8] "wipes/', c)]
     bare = [(t, c) for t, c in cmds if re.match(r'PLAY 2-20[5-8]\s*$', c)]
@@ -346,6 +354,9 @@ def main():
     ap.add_argument('--still', type=float, default=0.02, help='max frame-to-frame diff to count as frozen')
     ap.add_argument('--min-frozen', type=int, default=5, help='frozen frames that fail a wipe')
     ap.add_argument('--allowed-route-plays', type=int, default=2, help='baseline PLAY 2-110/111 route:// commands allowed')
+    ap.add_argument('--hypercomposed', action=argparse.BooleanOptionalAction, default=True,
+                    help='studio casparcg.hypercomposed (default: on). Sticky wipe LOADBG on '
+                         '205–208 is only required when enabled; use --no-hypercomposed to skip.')
     ap.add_argument('--json', help='write results here')
     args = ap.parse_args()
 
@@ -370,7 +381,7 @@ def main():
               'refusing to PASS cold-PLAY / route / EMPTY checks without AMCP')
         print('\nRESULT: FAIL')
         sys.exit(1)
-    results = log_checks(session, cmds, args.allowed_route_plays)
+    results = log_checks(session, cmds, args.allowed_route_plays, args.hypercomposed)
     wipes = wipe_plays(session, cmds)
 
     fps = probe_fps(args.video)
