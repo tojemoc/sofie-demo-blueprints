@@ -101,16 +101,16 @@ describe('wipe piece type → PGM route / overlay', () => {
 			mixer: {
 				keyer: false,
 				blend: TSR.BlendMode.NORMAL,
-				opacity: 1,
+				opacity: 0,
 				fill: { x: 0, y: 0, xScale: 1, yScale: 1 },
-				volume: 1,
+				volume: 0,
 			},
 		})
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.chroma).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.straightAlpha).toBeUndefined()
 		expect((overlay?.content as TSR.TimelineContentCCGMedia).mixer?.keyer).toBe(false)
 		expect(overlay?.enable).toEqual({ start: 0, duration: 2500 })
-		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs (playing only).
+		// Sofie PRELOAD strips this keyframe → paused LOADBG; Take hot-PLAYs + reveals.
 		const hotPlayKf = (overlay?.keyframes ?? []).find(
 			(kf) =>
 				!Array.isArray(kf.enable) &&
@@ -120,6 +120,10 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(hotPlayKf).toBeDefined()
 		expect((hotPlayKf?.content as { file?: string } | undefined)?.file).toBeUndefined()
 		expect((hotPlayKf?.content as { videoFilter?: string } | undefined)?.videoFilter).toBeUndefined()
+		expect((hotPlayKf?.content as { mixer?: { opacity?: number; volume?: number } } | undefined)?.mixer).toEqual({
+			opacity: 1,
+			volume: 1,
+		})
 		const routeObj = findLivePgmRouteObj(result.pieces)
 		expect(routeObj).toBeDefined()
 		expect(routeSwitchStartMs(routeObj ?? {})).toBe(WIPE_AIR_CUT_MS)

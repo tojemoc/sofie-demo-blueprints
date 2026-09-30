@@ -291,12 +291,17 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
 		expect((wipeOverlay?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect((wipeOverlay?.content as TSR.TimelineContentCCGMedia).mixer).toMatchObject({
+			opacity: 0,
+			volume: 0,
+		})
 		expect(
 			(wipeOverlay?.keyframes ?? []).some(
 				(kf) =>
 					!Array.isArray(kf.enable) &&
 					kf.enable?.start === 0 &&
-					(kf.content as { playing?: boolean } | undefined)?.playing === true
+					(kf.content as { playing?: boolean } | undefined)?.playing === true &&
+					(kf.content as { mixer?: { opacity?: number } } | undefined)?.mixer?.opacity === 1
 			)
 		).toBe(true)
 		// Overlay from Take; countup hot-PLAY + route share the cover instant.

@@ -14,7 +14,11 @@ import {
 	createDoubleBoxBaselineCameraTimeline,
 	createFullLookBaselineCameraTimeline,
 } from '../helpers/pgmCamera.js'
-import { createFullChannelRouteContent, PGM_ROUTE_LAYERS } from '../helpers/pgmLook.js'
+import {
+	createFullChannelRouteContent,
+	createStickyWipeBaselineTimeline,
+	PGM_ROUTE_LAYERS,
+} from '../helpers/pgmLook.js'
 import { LED_POD_HEADLINE_FILE } from '../helpers/ledPodHeadline.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
@@ -111,6 +115,10 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 						].filter(
 							(obj): obj is NonNullable<ReturnType<typeof createCameraIngestBaselineTimeline>> => obj !== undefined
 						) as TimelineBlueprintExt[]),
+						// Sticky opacity-0 wipe LOADBG on every EffectsPlayer (205–208).
+						// Without these, idle layers resolve to nothing and TSR emits
+						// LOADBG … "EMPTY", destroying the next Take's PRELOAD.
+						...createStickyWipeBaselineTimeline(),
 						// LED pod underlay for opening headlines — visible from Activate/Rehearsal
 						// (not only after first Take). Cleared on first DoubleBox Take.
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({

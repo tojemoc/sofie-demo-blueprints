@@ -52,9 +52,9 @@ keepalive cannot stack two templates and same-name SJV/ŠPORT Takes do not CG UP
 Retired `l3d-predstavovak` → `l3d-syn` (opening → `l3d-mod`).
 
 **Wipe overlay:** PGM 205–208 mixer `keyer:false` (no chroma / no layer `straightAlpha`).
-Straight-alpha `wipe.mov` applies MEDIA `videoFilter: premultiply=inplace=1` on the
-WithinPart LOADBG cue (pre-#125 wipe PLAY — no sticky baseline on 205–208). Take
-promotes with bare `PLAY 2-20x` after Sofie EffectsPlayer PRELOAD.
+Baseline sticky opacity-0 LOADBG (with `videoFilter: premultiply=inplace=1`) arms each
+EffectsPlayer so idle layers never emit `LOADBG … "EMPTY"`. WithinPart cues match that
+arming (opacity 0) and Take promotes with bare `PLAY 2-20x` plus opacity/volume reveal.
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
@@ -74,5 +74,5 @@ bundle and Reset Rundown. `caspar.config` needs **≥5** channels.
 
 **Regression AMCP checks:** no `PLAY 2-110 "route://` / `PLAY 2-111 "route://` after Activate
 (only MIXER opacity/volume); no `CLEAR [34]-110`; zero `PLAY 2-20x "wipes/` (only bare
-`PLAY 2-20x`); sticky bg_loop on 3-110 / 4-110 for the whole rundown. Idle wipe layers
-may emit `LOADBG 2-20x "EMPTY"` between Takes (no sticky wipe baseline — pre-#125).
+`PLAY 2-20x`); zero `LOADBG 2-20x "EMPTY"` on wipe layers; sticky bg_loop on 3-110 /
+4-110 and sticky wipe LOADBG on 2-205..208 for the whole rundown.

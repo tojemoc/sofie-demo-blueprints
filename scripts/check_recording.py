@@ -14,17 +14,18 @@ LOG CHECKS (only the Caspar session that was running during the recording)
   FAIL  PLAY 2-110 / 2-111 "route://..." beyond the allowed baseline count
         (dual always-live routes: cuts must be MIXER opacity/volume only)
   FAIL  CLEAR 3-110 / CLEAR 4-110            (sticky bg_loop must never be cleared)
+  FAIL  LOADBG 2-205..208 "EMPTY"            (evicts the wipe preload)
   FAIL  PLAY 2-205..208 "wipes/..."          (full-path PLAY = cold producer, not a hot promote)
-  WARN  LOADBG 2-205..208 "EMPTY"            (idle wipe layers; no sticky wipe baseline)
   WARN  "Check syntax" errors and LOAD commands with SEEK > int32
   INFO  "File not found" count; per-wipe PLAY form and measured first-frame delay
 
 RECORDING CHECKS
   FAIL  black frames in the program window (with the nearest Caspar commands)
   FAIL  frozen wipe card: the same bright frame held for >= --min-frozen frames
-        after a wipe PLAY. LIMITS: it only sees a card that is pixel-identical
-        frame to frame, so a wipe over MOVING video can slip through. PASS here
-        does not prove the wipe was hot — "wipe started cold" is authoritative.
+        after a wipe PLAY (the paused preload showing before the wipe plays).
+        LIMITS: it only sees a card that is pixel-identical frame to frame, so a wipe
+        over MOVING video can slip through. PASS here does not prove the wipe was hot.
+        The log check "wipe started cold" is the authoritative one.
 
 CALIBRATION - read this before trusting the video checks
   * Screen geometry defaults are for the OBS multiview used so far: program
@@ -131,8 +132,7 @@ def log_checks(session, cmds, allowed_route_plays):
         [f'{clock(t)} {c}' for t, c in clr[:5]])
 
     emp = [(t, c) for t, c in cmds if re.match(r'LOADBG 2-20[5-8] "EMPTY"', c)]
-    # No sticky wipe baseline (pre-#125): idle EffectsPlayers may resolve to EMPTY.
-    add('WARN' if emp else 'PASS', 'wipe layer LOADBG EMPTY (idle, no sticky wipe)',
+    add('FAIL' if emp else 'PASS', 'wipe preload evicted',
         f'{len(emp)} x LOADBG 2-205..208 "EMPTY"', [f'{clock(t)} {c}' for t, c in emp[:5]])
 
     full = [(t, c) for t, c in cmds if re.match(r'PLAY 2-20[5-8] "wipes/', c)]
