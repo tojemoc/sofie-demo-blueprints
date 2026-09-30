@@ -14,7 +14,8 @@ LOG CHECKS (only the Caspar session that was running during the recording)
   FAIL  PLAY 2-110 / 2-111 "route://..." beyond the allowed baseline count
         (dual always-live routes: cuts must be MIXER opacity/volume only)
   FAIL  CLEAR 3-110 / CLEAR 4-110            (sticky bg_loop must never be cleared)
-  FAIL  LOADBG 2-205..208 "EMPTY"            (evicts the wipe preload)
+  FAIL  sticky wipe LOADBG missing / EMPTY   (each of 205–208 must arm its wipe file
+        and never receive LOADBG … "EMPTY")
   FAIL  PLAY 2-205..208 "wipes/..."          (full-path PLAY = cold producer, not a hot promote)
   WARN  "Check syntax" errors and LOAD commands with SEEK > int32
   INFO  "File not found" count; per-wipe PLAY form and measured first-frame delay
@@ -52,6 +53,15 @@ LINE = re.compile(r'^\[(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2}):(\d{2}\.\d+)\] \[(\w+
 RECV = re.compile(r'^Received message from [\d.]+: REQ \w+ (.*)$')
 BANNER = 'Starting CasparCG Video and Graphics Playout Server'
 EPOCH = datetime(1970, 1, 1)
+
+# Baseline sticky wipe LOADBG cues (one Sofie EffectsPlayer layer per file).
+# Matches STICKY_PGM_WIPE_FILES / pgm_route_contract.md.
+STICKY_WIPE_LOADBG = {
+    205: 'wipes/wipe',
+    206: 'wipes/wipe_sjv',
+    207: 'wipes/wipe_sport',
+    208: 'wipes/wipe_pocasie',
+}
 
 
 # ----------------------------------------------------------------------------- log
@@ -132,8 +142,25 @@ def log_checks(session, cmds, allowed_route_plays):
         [f'{clock(t)} {c}' for t, c in clr[:5]])
 
     emp = [(t, c) for t, c in cmds if re.match(r'LOADBG 2-20[5-8] "EMPTY"', c)]
-    add('FAIL' if emp else 'PASS', 'wipe preload evicted',
-        f'{len(emp)} x LOADBG 2-205..208 "EMPTY"', [f'{clock(t)} {c}' for t, c in emp[:5]])
+    armed = {}
+    missing = []
+    for layer, file in STICKY_WIPE_LOADBG.items():
+        hits = [(t, c) for t, c in cmds if re.match(rf'LOADBG 2-{layer} "{re.escape(file)}"', c)]
+        armed[layer] = hits
+        if not hits:
+            missing.append(f'2-{layer} "{file}"')
+    # Retained = armed with the contract file and never cleared via LOADBG EMPTY.
+    if emp or missing:
+        ev = [f'missing sticky LOADBG: {m}' for m in missing]
+        ev += [f'{clock(t)} {c}' for t, c in emp[:5]]
+        add('FAIL', 'wipe sticky preload',
+            (f'{len(missing)} layer(s) never armed; ' if missing else '')
+            + f'{len(emp)} x LOADBG 2-205..208 "EMPTY"',
+            ev)
+    else:
+        add('PASS', 'wipe sticky preload',
+            'armed 205–208 with sticky wipe LOADBG; 0 x EMPTY',
+            [f'{clock(armed[layer][0][0])} {armed[layer][0][1][:100]}' for layer in STICKY_WIPE_LOADBG])
 
     full = [(t, c) for t, c in cmds if re.match(r'PLAY 2-20[5-8] "wipes/', c)]
     bare = [(t, c) for t, c in cmds if re.match(r'PLAY 2-20[5-8]\s*$', c)]
