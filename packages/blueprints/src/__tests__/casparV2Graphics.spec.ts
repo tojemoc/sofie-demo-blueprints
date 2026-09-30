@@ -468,7 +468,8 @@ describe('casparV2Graphics', () => {
 			file: 'dshow://video=OBS Virtual Camera',
 			noStarttime: true,
 		})
-		// Sticky opacity-0 wipe LOADBG on every EffectsPlayer — prevents LOADBG EMPTY eviction.
+		// No sticky wipe baseline — WithinPart PRELOAD LOADBG owns EffectsPlayer 205–208
+		// (pre-#125 wipe PLAY). Idle layers may resolve to LOADBG EMPTY between Takes.
 		const stickyWipes = (baseline.timelineObjects ?? []).filter(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer ||
@@ -476,19 +477,7 @@ describe('casparV2Graphics', () => {
 				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerSport ||
 				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerPocasie
 		)
-		expect(stickyWipes).toHaveLength(4)
-		for (const wipe of stickyWipes) {
-			expect(wipe.enable).toEqual({ while: 1 })
-			expect(wipe.priority).toBe(0)
-			expect(wipe.content).toMatchObject({
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				playing: false,
-				// Premul on sticky LOADBG so WithinPart promote stays bare `PLAY 2-20x`.
-				videoFilter: 'premultiply=inplace=1',
-				mixer: expect.objectContaining({ opacity: 0, volume: 0 }),
-			})
-		}
+		expect(stickyWipes).toHaveLength(0)
 	})
 
 	it('excludes internal pieceName from Caspar data and templateData', () => {
