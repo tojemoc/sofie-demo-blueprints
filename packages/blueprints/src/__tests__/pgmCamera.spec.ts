@@ -56,8 +56,14 @@ describe('pgmCamera helpers', () => {
 		})
 	})
 
-	it('baselines live dshow on CAM ingest ch5 — not on DoubleBox look A', () => {
-		expect(createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)).toBeUndefined()
+	it('baselines live dshow on CAM ingest ch5 and pre-warms DoubleBox look A via route://5', () => {
+		const lookA = createDoubleBoxBaselineCameraTimeline(hybridCasparConfig)
+		expect(lookA?.layer).toBe(CasparCGLayers.CasparCGPgmCamera)
+		expect(lookA?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://5',
+			noStarttime: true,
+		})
 		const ingest = createCameraIngestBaselineTimeline(hybridCasparConfig)
 		expect(ingest?.layer).toBe(CasparCGLayers.CasparCGPgmCameraIngest)
 		expect(ingest?.enable).toEqual({ while: 1 })
@@ -130,7 +136,12 @@ describe('pgmCamera helpers', () => {
 			},
 		} as StudioConfig
 
-		expect(createDoubleBoxBaselineCameraTimeline(config)).toBeUndefined()
+		const lookA = createDoubleBoxBaselineCameraTimeline(config)
+		expect(lookA?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'route://5',
+			noStarttime: true,
+		})
 		const ingest = createCameraIngestBaselineTimeline(config)
 		expect(ingest?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.INPUT,

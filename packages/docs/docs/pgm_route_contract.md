@@ -6,18 +6,40 @@ sidebar_position: 9
 
 Canonical Take → Caspar routing for the four-channel studio (LED=1, PGM=2, DoubleBox=3, Full=4). Use this when reading CCG AMCP logs.
 
+## Dual always-live PGM routes (no black-frame race)
+
+PGM keeps **both** look routes live from Activate:
+
+| PGM layer | Always playing | Baseline mixer |
+|-----------|----------------|----------------|
+| **2-110** | `route://3` (BG A) | opacity 0 / volume 0 |
+| **2-111** | `route://4` (BG B) | opacity 1 / volume 1 |
+
+A look cut **never** re-`PLAY`s `route://`. It enables the target layer first (opacity+volume 1), then disables the other — so a one-tick skew cannot leave a black hole on channel 2. Route carries audio, so volume swaps with opacity.
+
+## Look compose stack (BG A / BG B)
+
+| Layer | Role |
+|-------|------|
+| **110** | Sticky `loops/bg_loop` — never CLEAR/replace (shows through transparent CAM pane → blue) |
+| **111** | SYN / VT / weather clip |
+| **115** | CAM (`route://5`) |
+| **116** | ILU |
+| **118** | `db_loop` (DoubleBox) |
+| **121** | L3D |
+
+Baseline pre-warms **both** look channels with `bg_loop` + `route://5` so the first Take is RESUME-only.
+
 | Part | Compose | PGM route | Transition | Notes |
 |------|---------|-----------|------------|-------|
-| Rehearsal Ready | Full (4) | `route://4` | — | Baseline: LED + Full `bg_loop`; PGM holds Full route |
-| Headline 1–3 | Full (4) | `route://4` | hard cut | Full companion `bg_loop` + cam + L3D |
-| Intro | Full underlay (4) | `route://4` | `intro.mov` on PGM 210 | Overlay on PGM; no `4→3` under intro |
-| Privítanie (Cam) | Full (4) | `route://4` | — | Fullscreen cam + `l3d-predstavovak` |
-| Tema N ILU (open) | DoubleBox (3) | `route://3` | wipe on **PGM 205** from Take | Overlay at 0; route hard-cuts at air cut (`cutPoint` file-ms + playout latency); previous look keepalive **until the air cut** (not the full sting). **Full→DB:** ILU LOAD/PAUSE from Take, PLAY at air cut (no black window). **DB→DB:** incoming ILU PLAY at that instant — do not LOAD/PAUSE 3-116 early. `db_loop` + cam; **countup** also at the air cut (under wipe) |
-| Tema N SYN | Full (4) | `route://4` | hard cut | L3D ADD after short `L3D_OUT_MS` |
-| Tema N ILU (return) | DoubleBox (3) | `route://3` | hard cut | |
-| SJV / ŠPORT / Počasie / tip open | Full (4) | `route://4` | themed wipe on **PGM 205** from Take | L3D layer EMPTYed at 0 then ADD at cut; `wipe_pocasie` also EMPTYs ch4 clip/CAM/`db_loop`; weather MEDIA/L3D at cut |
-| SYN avízo / last words | Full (4) | `route://4` | hard cut / wipe | LED: windowed `ilu-zaver` (~60–68%) over `bg_loop`; PGM: CAM + L3DO; **EMPTY look A** (`db_loop`/ILU/CAM) so no stray DoubleBox |
-| Outro | Full (4) | `route://4` | `outro.mov` on PGM 210 | beds/SFX muted **OutOnRundownEnd**; freeze last frame |
+| Rehearsal Ready | Full (4) | `route://4` visible | — | Baseline: LED + both-look `bg_loop`; PGM shows Full route |
+| Headline 1–3 | idle ping-pong | opacity swap | hard cut | companion `bg_loop` + cam + L3D |
+| Intro | Full underlay | hold underlay | `intro.mov` on PGM 210 | Overlay on PGM |
+| Privítanie (Cam) | idle look | opacity swap | — | Fullscreen cam + L3D |
+| Tema N ILU (open) | DoubleBox | opacity→`route://N` at air cut | wipe on **PGM 205–208** from Take | Overlay at 0; route mixer swaps at air cut |
+| Tema N SYN | Full | opacity swap | hard cut | L3D ADD after short `L3D_OUT_MS`; clip on **111** (bg_loop stays on **110**) |
+| ZAVER + AVIZO | Full | opacity swap | hard cut / wipe | LED: windowed `ilu-zaver`; PGM: CAM + L3DO |
+| Outro | Full | hold | `outro.mov` on PGM 210 | beds muted OutOnRundownEnd |
 
 **LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a
 right-shifted FILL+CROP (`FILL -0.5425 -0.27125 1.5425 1.5425` — vMix shift 1.085 where
@@ -29,7 +51,10 @@ return to fullscreen. Headlines also PLAY `assets/pod_headline` on LED layer **1
 keepalive cannot stack two templates and same-name SJV/ŠPORT Takes do not CG UPDATE.
 Retired `l3d-predstavovak` → `l3d-syn` (opening → `l3d-mod`).
 
-**Wipe overlay:** PGM 205 mixer `keyer:false` (no chroma / no layer `straightAlpha`). Straight-alpha `wipe.mov` uses MEDIA `videoFilter: premultiply=inplace=1` so Caspar’s premul compositor is correct.
+**Wipe overlay:** PGM 205–208 mixer `keyer:false` (no chroma / no layer `straightAlpha`).
+Straight-alpha `wipe.mov` applies MEDIA `videoFilter: premultiply=inplace=1` **only on the
+hot PLAY keyframe** — never on the paused LOADBG / sticky cue (that produced malformed
+`LOAD … VF "premultiply=…"` / File not found and destroyed preloads).
 
 **Countup:** PGM layer 123 (above the route), not a look-compose layer.
 
@@ -46,3 +71,7 @@ use blueprints ≥ #89 and Reset Rundown. If AMCP still lacks `DEVICE`, upgrade/
 bundle and Reset Rundown. `caspar.config` needs **≥5** channels.
 
 **Never:** `route://N-0` (empty layer → black PGM). Emit full-channel underlay as MEDIA `file: route://N` (casparcg-state coerces TSR ROUTE `layer: null` → `0`).
+
+**Regression AMCP checks:** no `PLAY 2-110 "route://` / `PLAY 2-111 "route://` after Activate
+(only MIXER opacity/volume); no `CLEAR [34]-110`; no `File not found` from wipe VF; sticky
+bg_loop on 3-110 / 4-110 for the whole rundown.

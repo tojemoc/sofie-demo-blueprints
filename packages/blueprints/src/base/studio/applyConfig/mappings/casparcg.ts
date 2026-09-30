@@ -62,6 +62,7 @@ function lookStackMappings(
 	channel: number
 ): Pick<
 	BlueprintMappings,
+	| CasparCGLayers.CasparCGLookBgLoop
 	| CasparCGLayers.CasparCGClipPlayer2
 	| CasparCGLayers.CasparCGPgmIluPlayer
 	| CasparCGLayers.CasparCGPgmCamera
@@ -73,6 +74,7 @@ function lookStackMappings(
 	// DB→DB ILU cutting under the wipe, Full→Full black blinks, and stray `db_loop`
 	// LOADBG during ZAVER while PGM is still `route://4`. Camera was already NONE.
 	return {
+		[CasparCGLayers.CasparCGLookBgLoop]: casparLayerMapping(channel, BgChannelLayers.BgLoop, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGClipPlayer2]: casparLayerMapping(channel, BgChannelLayers.ClipPlayer, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmIluPlayer]: casparLayerMapping(channel, BgChannelLayers.IluPlayer, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmCamera]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
@@ -95,6 +97,7 @@ function lookStackMappingsB(
 	channel: number
 ): Pick<
 	BlueprintMappings,
+	| CasparCGLayers.CasparCGLookBgLoopB
 	| CasparCGLayers.CasparCGClipPlayer2B
 	| CasparCGLayers.CasparCGPgmIluPlayerB
 	| CasparCGLayers.CasparCGPgmCameraB
@@ -102,6 +105,7 @@ function lookStackMappingsB(
 	| CasparCGLayers.CasparCGGraphicsPgmLowerThirdB
 > {
 	return {
+		[CasparCGLayers.CasparCGLookBgLoopB]: casparLayerMapping(channel, BgChannelLayers.BgLoop, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGClipPlayer2B]: casparLayerMapping(channel, BgChannelLayers.ClipPlayer, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparLayerMapping(channel, BgChannelLayers.IluPlayer, LookaheadMode.NONE),
 		[CasparCGLayers.CasparCGPgmCameraB]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
@@ -175,7 +179,11 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGGraphicsStrap]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsStrap),
 		[CasparCGLayers.CasparCGAudioBed]: casparLayerMapping(ledChannel, LedChannelLayers.AudioBed),
 
-		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.Route),
+		// Dual always-live PGM routes (A=110 route://3, B=111 route://4). Takes never
+		// re-PLAY a route producer — they only swap opacity/volume so a one-tick skew
+		// cannot leave a black hole on channel 2.
+		[CasparCGLayers.CasparCGPgmRouteA]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteA),
+		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB),
 		// PRELOAD + explicit hot-PLAY cue on the wipe overlay (playing:false LOADBG,
 		// keyframe playing:true at Take). Sofie PRELOAD while Next strips the PLAY
 		// keyframe so Caspar LOADBGs the paused sting; Take applies hot PLAY. NONE

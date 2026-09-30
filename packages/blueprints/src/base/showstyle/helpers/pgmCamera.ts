@@ -175,8 +175,9 @@ export function createCameraIngestBaselineTimeline(
 }
 
 /**
- * Optional non-live CAM still/file on DoubleBox (BG A / ch3 layer 115) for the rundown.
- * Live producers use {@link createCameraIngestBaselineTimeline} instead.
+ * Live CAM1 on DoubleBox look A (BG A / ch3 layer 115) from Activate — pre-warms
+ * `route://5` so the first DoubleBox Take only RESUMEs. Full look uses
+ * {@link createFullLookBaselineCameraTimeline}.
  */
 export function createDoubleBoxBaselineCameraTimeline(
 	config: StudioConfig
@@ -184,14 +185,14 @@ export function createDoubleBoxBaselineCameraTimeline(
 	if (!config.casparcg.hypercomposed) return undefined
 	const producer = getPgmCameraProducer(config)
 	if (!producer) return undefined
-	if (isLivePgmCameraProducer(producer)) return undefined
 
+	// Live: route://ingest with DoubleBox FILL. File/still: play on look A directly.
 	return literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({
 		id: '',
 		enable: { while: 1 },
 		priority: 0,
 		layer: CasparCGLayers.CasparCGPgmCamera,
-		content: createPgmCameraTimelineContent(config, producer, {
+		content: createLookCameraTimelineContent(config, producer, {
 			fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
 		}),
 	})

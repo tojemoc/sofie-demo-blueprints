@@ -56,6 +56,7 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 /** Themed story wipes share classical cover-centre bias (same Resolve cover window). */
@@ -64,31 +65,27 @@ const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS
 const LEAVE_WEATHER_HIDE_MS = WIPE_AIR_CUT_MS + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS + LOOK_HARD_CUT_OVERLAP_MS
 
 function pgmRouteChannel(
-	pieces: ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> } }>
-): number | undefined {
-	for (const piece of pieces) {
-		for (const obj of piece.content?.timelineObjects ?? []) {
-			if (obj.layer === CasparCGLayers.CasparCGPgmRoute) {
-				const content = obj.content as { channel?: number; file?: string } | undefined
-				if (typeof content?.channel === 'number') return content.channel
-				return parseRouteMediaChannel(content?.file)
-			}
+	pieces: ReadonlyArray<{
+		content?: {
+			timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown; keyframes?: unknown; enable?: unknown }>
 		}
-	}
-	return undefined
+	}>
+): number | undefined {
+	const routeObj = findLivePgmRouteObj(pieces)
+	const content = routeObj?.content as { channel?: number; file?: string } | undefined
+	if (typeof content?.channel === 'number') return content.channel
+	return parseRouteMediaChannel(content?.file)
 }
 
 function pgmRouteFile(
-	pieces: ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> } }>
-): string | undefined {
-	for (const piece of pieces) {
-		for (const obj of piece.content?.timelineObjects ?? []) {
-			if (obj.layer === CasparCGLayers.CasparCGPgmRoute) {
-				return (obj.content as { file?: string } | undefined)?.file
-			}
+	pieces: ReadonlyArray<{
+		content?: {
+			timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown; keyframes?: unknown; enable?: unknown }>
 		}
-	}
-	return undefined
+	}>
+): string | undefined {
+	const routeObj = findLivePgmRouteObj(pieces)
+	return (routeObj?.content as { file?: string } | undefined)?.file
 }
 
 describe('pgmLook look-kind channels + route', () => {
@@ -338,7 +335,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		const routePiece = result.pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmRoute as string))
-		const routeObj = routePiece?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const routeObj = findLivePgmRouteObj(result.pieces)
 
 		expect(routePiece).toBeDefined()
 		expect(routeObj?.content).toMatchObject({
@@ -425,11 +422,9 @@ describe('pgmLook look-kind channels + route', () => {
 					(kf.content as { playing?: boolean } | undefined)?.playing === true
 			)
 		).toBe(true)
-		const route = result.pieces
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
-		// Route waits for keepalive so PLAY has Caspar latency headroom before PGM flips.
-		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
+		const route = findLivePgmRouteObj(result.pieces)
+		// Dual-route opacity swap waits for keepalive so idle LOADBG→PLAY has Caspar latency headroom.
+		expect(routeSwitchStartMs(route ?? {})).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 		expect(LOOK_HARD_CUT_KEEPALIVE_MS).toBeGreaterThan(LOOK_HARD_CUT_INCOMING_DELAY_MS)
 		expect(
 			result.pieces
@@ -470,13 +465,11 @@ describe('pgmLook look-kind channels + route', () => {
 					(kf.content as { playing?: boolean } | undefined)?.playing === true
 			)
 		).toBe(true)
-		const route = result.pieces
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.find((obj) => obj.layer === (CasparCGLayers.CasparCGPgmRoute as string))
-		expect(!Array.isArray(route?.enable) && route?.enable.start).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
+		const route = findLivePgmRouteObj(result.pieces)
+		expect(routeSwitchStartMs(route ?? {})).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 	})
 
-	it('clears Full-look CAM (EMPTY) so SYN on 4-110 is not covered by baseline route://5', () => {
+	it('clears Full-look CAM (EMPTY) so SYN on 4-111 is not covered by baseline route://5', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const segment = convertIngestData(mockIngestContext, ingest)
@@ -509,7 +502,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(timeline.some((obj) => obj.layer === LOOK_B_LAYERS.clip)).toBe(true)
 		expect(timeline.some((obj) => obj.layer === LOOK_A_LAYERS.clip)).toBe(false)
 
-		const routeObj = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const routeObj = findLivePgmRouteObj(result.pieces)
 		expect(routeObj?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -563,8 +556,8 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		).toBe(false)
 
-		const dbRoute = dbTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		const dbRoute = findLivePgmRouteObj([{ content: { timelineObjects: dbTimeline } }])
+		expect(routeSwitchStartMs(dbRoute ?? {})).toBe(WIPE_AIR_CUT_MS)
 		expect(dbRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://3',
@@ -580,8 +573,8 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(synL3d, 'SYN L3D must pre-build on Full (ch4), not on DoubleBox').toBeDefined()
 		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
 
-		const synRoute = synTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(synRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		const synRoute = findLivePgmRouteObj([{ content: { timelineObjects: synTimeline } }])
+		expect(routeSwitchStartMs(synRoute ?? {})).toBe(WIPE_AIR_CUT_MS)
 		expect(synRoute?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://4',
@@ -1248,10 +1241,8 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(dbCh).toBeDefined()
 		expect(synCh).toBeDefined()
 		expect(dbCh).not.toBe(synCh)
-		const dbRoute = (db?.pieces ?? [])
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(dbRoute?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		const dbRoute = findLivePgmRouteObj(db?.pieces ?? [])
+		expect(routeSwitchStartMs(dbRoute ?? {})).toBe(WIPE_AIR_CUT_MS)
 		expect((dbRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 		expect(
 			(db?.pieces ?? [])
@@ -1267,8 +1258,8 @@ describe('pgmLook look-kind channels + route', () => {
 		const sjvTimeline = (sjvSyn?.pieces ?? []).flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayerSjv)).toBe(true)
 		expect(sjvTimeline.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)).toBe(false)
-		const sjvRoute = sjvTimeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(sjvRoute?.enable).toEqual({ start: THEMED_WIPE_AIR_CUT_MS })
+		const sjvRoute = findLivePgmRouteObj(sjvSyn?.pieces ?? [])
+		expect(routeSwitchStartMs(sjvRoute ?? {})).toBe(THEMED_WIPE_AIR_CUT_MS)
 		expect((sjvRoute?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toBeUndefined()
 	})
 })

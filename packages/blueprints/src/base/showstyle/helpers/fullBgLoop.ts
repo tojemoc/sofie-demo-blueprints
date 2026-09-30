@@ -7,14 +7,15 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 
-/** Same media as LED baseline — companion underlay on the Full look clip layer (ch4 / 110). */
+/** Same media as LED baseline — sticky underlay on look bg_loop layer (ch3/4 · 110). */
 export const FULL_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
 
 /**
- * Full-look (BG B) companion `loops/bg_loop` under fullscreen cam (headlines / Privítanie).
- * Uses look clip layer {@link CasparCGLayers.CasparCGClipPlayer2} so
- * {@link remapLookLayers} sends it to ClipPlayer2B on Full. WithinPart so SYN/VT
- * can take the same clip layer for story media without fighting an OutOnRundownEnd loop.
+ * Look companion `loops/bg_loop` on the dedicated bg_loop layer (110), under SYN clips
+ * (111) and CAM (115). Uses {@link CasparCGLayers.CasparCGLookBgLoop} so
+ * {@link remapLookLayers} sends it to LookBgLoopB on Full. Baseline already PLAYs
+ * sticky loops on both looks; this WithinPart piece re-asserts under weather /
+ * headlines when a higher-priority EMPTY would otherwise win.
  */
 export function createFullBgLoopPiece(
 	context: ICommonContext,
@@ -36,7 +37,7 @@ export function createFullBgLoopPiece(
 				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 					id: '',
 					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGClipPlayer2,
+					layer: CasparCGLayers.CasparCGLookBgLoop,
 					priority: 1,
 					content: {
 						deviceType: TSR.DeviceType.CASPARCG,
@@ -48,7 +49,7 @@ export function createFullBgLoopPiece(
 			],
 		},
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, FULL_BG_LOOP_FILE, [CasparCGLayers.CasparCGClipPlayer2], {
+			createMediaFileExpectedPackage(context, FULL_BG_LOOP_FILE, [CasparCGLayers.CasparCGLookBgLoop], {
 				includeSideEffects: true,
 			}),
 		],

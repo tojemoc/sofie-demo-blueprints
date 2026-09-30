@@ -159,13 +159,19 @@ describe('casparcgMappings', () => {
 		})
 	})
 
-	it('routes PGM bus to channel 2 (route + logo above wipe)', () => {
+	it('routes PGM bus to channel 2 (dual always-live routes + logo above wipe)', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmRouteA)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.RouteA,
+		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmRoute)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 2,
-			layer: PgmChannelLayers.Route,
+			layer: PgmChannelLayers.RouteB,
 		})
-		expect(PgmChannelLayers.GraphicsLogo).toBeGreaterThan(PgmChannelLayers.Route)
+		expect(PgmChannelLayers.RouteB).toBeGreaterThan(PgmChannelLayers.RouteA)
+		expect(PgmChannelLayers.GraphicsLogo).toBeGreaterThan(PgmChannelLayers.RouteB)
 		expect(PgmChannelLayers.IntroOverlay).toBeGreaterThan(PgmChannelLayers.GraphicsLogo)
 	})
 
@@ -178,11 +184,17 @@ describe('casparcgMappings', () => {
 	})
 
 	it('routes look A compose stack to BG channel 3', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGLookBgLoop)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 3,
+			layer: BgChannelLayers.BgLoop,
+		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 3,
 			layer: BgChannelLayers.ClipPlayer,
 		})
+		expect(BgChannelLayers.ClipPlayer).toBeGreaterThan(BgChannelLayers.BgLoop)
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmCamera)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 3,
@@ -206,6 +218,11 @@ describe('casparcgMappings', () => {
 	})
 
 	it('routes look B compose stack to BG channel 4 with the same relative layers', () => {
+		expect(getMappingOptions(CasparCGLayers.CasparCGLookBgLoopB)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 4,
+			layer: BgChannelLayers.BgLoop,
+		})
 		expect(getMappingOptions(CasparCGLayers.CasparCGClipPlayer2B)).toEqual({
 			mappingType: TSR.MappingCasparCGType.Layer,
 			channel: 4,

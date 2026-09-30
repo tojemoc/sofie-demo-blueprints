@@ -24,6 +24,7 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
@@ -284,9 +285,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 		expect(result.pieces.some((piece) => piece.externalId.endsWith('_led_pod_headline_clear'))).toBe(true)
 
-		const wipe = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const wipe = findLivePgmRouteObj([{ content: { timelineObjects: timeline } }])
 		expect(wipe, 'wipe must hard-cut MEDIA route://3 under the PGM overlay').toBeDefined()
-		expect(wipe?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		expect(routeSwitchStartMs(wipe ?? {})).toBe(WIPE_AIR_CUT_MS)
 		const wipeOverlay = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)
 		expect(wipeOverlay?.enable).toEqual({ start: 0, duration: expect.any(Number) })
 		expect((wipeOverlay?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
@@ -300,7 +301,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		).toBe(true)
 		// Overlay from Take; countup hot-PLAY + route share the cover instant.
 		expect(countupTl?.keyframes?.[0]?.enable).toEqual({
-			start: wipe?.enable && !Array.isArray(wipe.enable) ? wipe.enable.start : undefined,
+			start: routeSwitchStartMs(wipe ?? {}),
 		})
 		expect(wipe?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
@@ -432,10 +433,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(incomingCam?.enable).toEqual({ start: 0 })
 		expect((incomingCam?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
 
-		const route = incoming.pieces
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
-		expect(route?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		const route = findLivePgmRouteObj(incoming.pieces)
+		expect(routeSwitchStartMs(route ?? {})).toBe(WIPE_AIR_CUT_MS)
 		expect(route?.content).toMatchObject({ file: 'route://4' })
 
 		const wipeOverlay = incoming.pieces
@@ -756,7 +755,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					(obj.content as TSR.TimelineContentCCGTemplate).name === 'gfx/l3d-odporucanie'
 			)
 		).toBe(true)
-		const route = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmRoute)
+		const route = findLivePgmRouteObj([{ content: { timelineObjects: timeline } }])
 		expect(route?.content).toMatchObject({ file: 'route://4' })
 
 		// Stray DoubleBox kill: EMPTY look A db_loop / ILU / CAM / L3D for the part.

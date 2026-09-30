@@ -156,6 +156,8 @@ export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 5
 export const LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS = WIPE_FRAME_MS * 4
 
 export const LOOK_A_LAYERS = {
+	/** Sticky bg_loop underlay — remapped with the look; never hot-cued / EMPTYed. */
+	bgLoop: CasparCGLayers.CasparCGLookBgLoop,
 	clip: CasparCGLayers.CasparCGClipPlayer2,
 	camera: CasparCGLayers.CasparCGPgmCamera,
 	ilu: CasparCGLayers.CasparCGPgmIluPlayer,
@@ -164,6 +166,7 @@ export const LOOK_A_LAYERS = {
 } as const
 
 export const LOOK_B_LAYERS = {
+	bgLoop: CasparCGLayers.CasparCGLookBgLoopB,
 	clip: CasparCGLayers.CasparCGClipPlayer2B,
 	camera: CasparCGLayers.CasparCGPgmCameraB,
 	ilu: CasparCGLayers.CasparCGPgmIluPlayerB,
@@ -172,6 +175,7 @@ export const LOOK_B_LAYERS = {
 } as const
 
 export type LookLayers = {
+	bgLoop: CasparCGLayers
 	clip: CasparCGLayers
 	camera: CasparCGLayers
 	ilu: CasparCGLayers
@@ -180,6 +184,7 @@ export type LookLayers = {
 }
 
 const LOOK_A_TO_B: Readonly<Record<string, CasparCGLayers>> = {
+	[LOOK_A_LAYERS.bgLoop]: LOOK_B_LAYERS.bgLoop,
 	[LOOK_A_LAYERS.clip]: LOOK_B_LAYERS.clip,
 	[LOOK_A_LAYERS.camera]: LOOK_B_LAYERS.camera,
 	[LOOK_A_LAYERS.ilu]: LOOK_B_LAYERS.ilu,
@@ -187,10 +192,29 @@ const LOOK_A_TO_B: Readonly<Record<string, CasparCGLayers>> = {
 	[LOOK_A_LAYERS.lowerThird]: LOOK_B_LAYERS.lowerThird,
 }
 
+/** Compose MEDIA that Takes LOADBG / hot-PLAY / EMPTY — excludes sticky bg_loop. */
 const LOOK_COMPOSE_LAYERS = new Set<string>([
-	...Object.values<CasparCGLayers>(LOOK_A_LAYERS),
-	...Object.values<CasparCGLayers>(LOOK_B_LAYERS),
+	LOOK_A_LAYERS.clip,
+	LOOK_A_LAYERS.camera,
+	LOOK_A_LAYERS.ilu,
+	LOOK_A_LAYERS.doubleBoxLoop,
+	LOOK_A_LAYERS.lowerThird,
+	LOOK_B_LAYERS.clip,
+	LOOK_B_LAYERS.camera,
+	LOOK_B_LAYERS.ilu,
+	LOOK_B_LAYERS.doubleBoxLoop,
+	LOOK_B_LAYERS.lowerThird,
 ])
+
+/** Sofie layers for the dual always-live PGM routes (A=bgA, B=bgB). */
+export const PGM_ROUTE_LAYERS = {
+	A: CasparCGLayers.CasparCGPgmRouteA,
+	B: CasparCGLayers.CasparCGPgmRoute,
+} as const
+
+export function isPgmRouteLayer(layer: string): boolean {
+	return layer === (PGM_ROUTE_LAYERS.A as string) || layer === (PGM_ROUTE_LAYERS.B as string)
+}
 
 export function isHypercomposedStudio(config: StudioConfig): boolean {
 	return Boolean(config.casparcg.hypercomposed)
@@ -488,19 +512,6 @@ function applyHardCutIdleLookHotCue(pieces: IBlueprintPiece[], playAtMs: number)
 	}
 }
 
-/** Delay PGM `route://` hard-cut flip so previous route keepalive covers the seam. */
-function delayHardCutPgmRoute(pieces: IBlueprintPiece[], delayMs: number): void {
-	if (delayMs <= 0) return
-	for (const piece of pieces) {
-		for (const obj of piece.content.timelineObjects ?? []) {
-			if (String(obj.layer) !== (CasparCGLayers.CasparCGPgmRoute as string)) continue
-			const content = obj.content as { type?: string; file?: string }
-			if (!isCasparMedia(content)) continue
-			shiftEnableStartIfAtTake(obj, delayMs)
-		}
-	}
-}
-
 /**
  * Full-channel underlay as MEDIA `route://N` (not TSR ROUTE).
  * casparcg-state `setDefaultValue` coerces ROUTE `layer` null/undefined → 0, so AMCP
@@ -513,13 +524,15 @@ function delayHardCutPgmRoute(pieces: IBlueprintPiece[], delayMs: number): void 
 export function createFullChannelRouteContent(
 	channel: number,
 	stingFile?: string,
-	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
+	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
+	mixer?: TSR.Mixer
 ): TSR.TimelineContentCCGMedia {
 	return {
 		deviceType: TSR.DeviceType.CASPARCG,
 		type: TSR.TimelineContentTypeCasparCg.MEDIA,
 		file: `route://${channel}`,
 		noStarttime: true,
+		...(mixer ? { mixer } : {}),
 		...(stingFile
 			? {
 					transitions: {
@@ -543,25 +556,92 @@ export function parseRouteMediaChannel(file: unknown): number | undefined {
 	return Number(match[1])
 }
 
+/** Mixer for a dual PGM route layer — visible carries picture + audio. */
+function pgmRouteMixer(visible: boolean): TSR.Mixer {
+	return {
+		opacity: visible ? 1 : 0,
+		volume: visible ? 1 : 0,
+	}
+}
+
+/**
+ * Dual always-live PGM routes: layer A always `route://bgA`, layer B always `route://bgB`.
+ * A cut enables the target first (opacity/volume 1), then disables the other — never
+ * re-PLAYs a route producer (Caspar black-frame race on channel 2).
+ *
+ * Until `routeStartMs`, the previous slot stays visible so wiped Takes keep the old
+ * look under the sting; at `routeStartMs` the mixer swaps under cover.
+ */
+export function createPgmRouteTimelineObjects(
+	config: StudioConfig,
+	slot: LookSlot,
+	options?: { routeStartMs?: number; previousSlot?: LookSlot }
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+	const channels = getHypercomposedChannels({ studio: config })
+	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
+	// Before the switch, keep the previous look on PGM (wipe cover / hard-cut keepalive).
+	// Default previous = B (baseline) when unset.
+	const holdSlot: LookSlot = options?.previousSlot ?? (routeStartMs > 0 ? otherLookSlot(slot) : slot)
+	const holdA = holdSlot === 'A'
+	const liveA = slot === 'A'
+
+	const makeRoute = (
+		channel: number,
+		layer: CasparCGLayers,
+		holdVisible: boolean,
+		liveVisible: boolean
+	): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> => {
+		const obj = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer,
+			priority: 1,
+			content: createFullChannelRouteContent(channel, undefined, DEFAULT_WIPE_AIR_CUT_MS, pgmRouteMixer(holdVisible)),
+		})
+		if (routeStartMs > 0 && holdVisible !== liveVisible) {
+			obj.keyframes = [
+				{
+					id: '',
+					enable: { start: routeStartMs },
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						mixer: pgmRouteMixer(liveVisible),
+					},
+				},
+			]
+		}
+		return obj
+	}
+
+	// Order: enable target first, then disable the other (AMCP order ≈ timeline order).
+	return slot === 'A'
+		? [
+				makeRoute(channels.bgChannelA, PGM_ROUTE_LAYERS.A, holdA, liveA),
+				makeRoute(channels.bgChannelB, PGM_ROUTE_LAYERS.B, !holdA, !liveA),
+			]
+		: [
+				makeRoute(channels.bgChannelB, PGM_ROUTE_LAYERS.B, !holdA, !liveA),
+				makeRoute(channels.bgChannelA, PGM_ROUTE_LAYERS.A, holdA, liveA),
+			]
+}
+
+/**
+ * @deprecated Prefer {@link createPgmRouteTimelineObjects}. Returns the **live** slot's
+ * route object only (tests / call sites that still expect a single timeline object).
+ */
 export function createPgmRouteTimelineObject(
 	config: StudioConfig,
 	slot: LookSlot,
-	wipeFile?: string,
-	options?: { sting?: boolean; routeStartMs?: number; cutPointMs?: number }
+	_wipeFile?: string,
+	options?: { sting?: boolean; routeStartMs?: number; cutPointMs?: number; previousSlot?: LookSlot }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
-	const channel = getLookCasparChannel(config, slot)
-	const useSting = Boolean(wipeFile) && options?.sting !== false
-	const stingFile = useSting && wipeFile ? toCasparPlayPath(wipeFile) : undefined
-	const routeStartMs = options?.routeStartMs ?? 0
-	const cutPointMs = options?.cutPointMs ?? DEFAULT_WIPE_AIR_CUT_MS
-
-	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-		id: '',
-		enable: { start: routeStartMs },
-		layer: CasparCGLayers.CasparCGPgmRoute,
-		priority: 1,
-		content: createFullChannelRouteContent(channel, stingFile, cutPointMs),
+	const objs = createPgmRouteTimelineObjects(config, slot, {
+		routeStartMs: options?.routeStartMs ?? 0,
+		previousSlot: options?.previousSlot,
 	})
+	const liveLayer = slot === 'A' ? PGM_ROUTE_LAYERS.A : PGM_ROUTE_LAYERS.B
+	return objs.find((obj) => obj.layer === liveLayer) ?? objs[0]
 }
 
 /**
@@ -618,7 +698,10 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
 				file: toCasparPlayPath(file),
 				seek: 0,
 				playing: false,
-				videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
+				// No videoFilter on the paused LOADBG cue — casparcg-state emits a broken
+				// `LOAD … VF "premultiply=…"` (VF as the clip name → File not found) and
+				// every re-LOADBG destroys the next Take's PRELOAD. Premul FILTER is
+				// applied only on the WithinPart hot PLAY keyframe.
 				mixer: {
 					...PGM_WIPE_OVERLAY_MIXER,
 					opacity: 0,
@@ -637,7 +720,11 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
  * Idle look layers (lookahead NONE) use the same pattern with `playAtMs` = air cut
  * so LOAD runs from Take under the sting and PLAY is hot when `route://` flips.
  */
-function applyCasparHotPlayCue(obj: TimelineBlueprintExt, playAtMs: number, options?: { seekMs?: number }): void {
+function applyCasparHotPlayCue(
+	obj: TimelineBlueprintExt,
+	playAtMs: number,
+	options?: { seekMs?: number; videoFilter?: string }
+): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.playing = false
 	if (options?.seekMs !== undefined) {
@@ -653,6 +740,7 @@ function applyCasparHotPlayCue(obj: TimelineBlueprintExt, playAtMs: number, opti
 				deviceType: TSR.DeviceType.CASPARCG,
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				playing: true,
+				...(options?.videoFilter ? { videoFilter: options.videoFilter } : {}),
 			},
 		},
 	]
@@ -674,15 +762,15 @@ function createPgmWipeOverlayTimelineObject(
 			file: toCasparPlayPath(wipeFile),
 			// Frame 0 for Sofie PRELOAD LOADBG + Take hot-PLAY (same decoder cue).
 			seek: 0,
-			videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER,
+			// videoFilter only on the PLAY keyframe — LOADBG must not emit `LOAD VF "…"`.
 			mixer: { ...PGM_WIPE_OVERLAY_MIXER },
 		},
 	})
-	// LOADBG (playing:false) from object start; hot PLAY at Take (keyframe start 0).
+	// LOADBG (playing:false) from object start; hot PLAY + premul FILTER at Take.
 	// Sofie PRELOAD while Next strips this keyframe → paused LOADBG on EffectsPlayer.
 	// After duration ends, sticky baseline (opacity 0, playing false) resumes on this
 	// layer — never LOADBG EMPTY — so the next PRELOAD of this file stays hot.
-	applyCasparHotPlayCue(overlay, 0, { seekMs: 0 })
+	applyCasparHotPlayCue(overlay, 0, { seekMs: 0, videoFilter: PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER })
 	return overlay
 }
 
@@ -707,7 +795,10 @@ function createPgmRoutePiece(
 	slot: LookSlot,
 	wipe: VideoObject | undefined,
 	wipeFile: string | undefined,
-	wipeCutPointMsOverride?: number
+	wipeCutPointMsOverride?: number,
+	previousSlot?: LookSlot,
+	/** Hard-cut cross-slot delay; wiped Takes use wipeCutPointMs instead. */
+	hardCutRouteStartMs: number = 0
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
 	const overlayWipe = hasWipe && wipeUsesPgmOverlay(slot)
@@ -720,26 +811,18 @@ function createPgmRoutePiece(
 			? wipe.attributes.transition.trim()
 			: undefined
 
+	const routeStartMs = hasWipe ? wipeCutPointMs : hardCutRouteStartMs
 	const timelineObjects: TimelineBlueprintExt[] = []
 	if (overlayWipe && wipeFile) {
 		// Overlay from Take (0) — never leave a naked hard-cut window before the sting.
 		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0))
-		timelineObjects.push(
-			createPgmRouteTimelineObject(config, slot, wipeFile, {
-				sting: false,
-				routeStartMs: wipeCutPointMs,
-				cutPointMs: wipeCutPointMs,
-			})
-		)
-	} else {
-		timelineObjects.push(
-			createPgmRouteTimelineObject(config, slot, wipeFile, {
-				sting: hasWipe,
-				routeStartMs: 0,
-				cutPointMs: wipeCutPointMs,
-			})
-		)
 	}
+	timelineObjects.push(
+		...createPgmRouteTimelineObjects(config, slot, {
+			routeStartMs,
+			previousSlot: previousSlot ?? (routeStartMs > 0 ? otherLookSlot(slot) : undefined),
+		})
+	)
 
 	if (hasWipe) {
 		const wipeMutes = getWipeForceMuteChannels(config)
@@ -753,6 +836,8 @@ function createPgmRoutePiece(
 			})
 		}
 	}
+
+	const routeLayers = [PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B]
 
 	return literal<IBlueprintPiece>({
 		enable: {
@@ -777,9 +862,7 @@ function createPgmRoutePiece(
 					createMediaFileExpectedPackage(
 						context,
 						wipeFile,
-						overlayWipe
-							? [pgmWipeEffectsLayerForFile(wipeFile), CasparCGLayers.CasparCGPgmRoute]
-							: [CasparCGLayers.CasparCGPgmRoute],
+						overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers,
 						{
 							includeSideEffects: true,
 						}
@@ -801,7 +884,8 @@ function attachRouteToWipePiece(
 	slot: LookSlot,
 	wipeFile: string,
 	wipeDurationMs: number,
-	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS
+	wipeCutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
+	previousSlot?: LookSlot
 ): void {
 	const mutes = (wipePiece.content.timelineObjects ?? []).filter(
 		(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
@@ -811,24 +895,15 @@ function attachRouteToWipePiece(
 		mute.enable = { start: 0, duration: wipeDurationMs }
 	}
 	const overlayWipe = wipeUsesPgmOverlay(slot)
-	wipePiece.content.timelineObjects = overlayWipe
-		? [
-				createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0),
-				createPgmRouteTimelineObject(config, slot, wipeFile, {
-					sting: false,
-					routeStartMs: wipeCutPointMs,
-					cutPointMs: wipeCutPointMs,
-				}),
-				...mutes,
-			]
-		: [
-				createPgmRouteTimelineObject(config, slot, wipeFile, {
-					sting: true,
-					routeStartMs: 0,
-					cutPointMs: wipeCutPointMs,
-				}),
-				...mutes,
-			]
+	const routeLayers = [PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B]
+	wipePiece.content.timelineObjects = [
+		...(overlayWipe ? [createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0)] : []),
+		...createPgmRouteTimelineObjects(config, slot, {
+			routeStartMs: wipeCutPointMs,
+			previousSlot: previousSlot ?? otherLookSlot(slot),
+		}),
+		...mutes,
+	]
 	wipePiece.enable = { start: 0 }
 	wipePiece.pieceType = IBlueprintPieceType.InTransition
 	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
@@ -838,9 +913,7 @@ function attachRouteToWipePiece(
 		createMediaFileExpectedPackage(
 			context,
 			wipeFile,
-			overlayWipe
-				? [pgmWipeEffectsLayerForFile(wipeFile), CasparCGLayers.CasparCGPgmRoute]
-				: [CasparCGLayers.CasparCGPgmRoute],
+			overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers,
 			{
 				includeSideEffects: true,
 			}
@@ -1134,15 +1207,24 @@ export function finalizeHypercomposedPart(
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
-		(piece.content.timelineObjects ?? []).some(
-			(obj) => String(obj.layer) === (CasparCGLayers.CasparCGPgmRoute as string)
-		)
+		(piece.content.timelineObjects ?? []).some((obj) => isPgmRouteLayer(String(obj.layer)))
 	)
 	if (!alreadyRouted) {
 		const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 		if (wipePiece && wipeFile) {
-			attachRouteToWipePiece(context, config, wipePiece, lookSlot, wipeFile, wipeDurationMs, wipeCutPointMs)
+			attachRouteToWipePiece(
+				context,
+				config,
+				wipePiece,
+				lookSlot,
+				wipeFile,
+				wipeDurationMs,
+				wipeCutPointMs,
+				previousLookSlot
+			)
 		} else {
+			const hardCutRouteStartMs =
+				!hasWipe && previousLookSlot !== undefined && !sameLookChannel ? LOOK_HARD_CUT_KEEPALIVE_MS : 0
 			pieces.push(
 				createPgmRoutePiece(
 					context,
@@ -1151,17 +1233,12 @@ export function finalizeHypercomposedPart(
 					lookSlot,
 					wipe,
 					wipe ? wipeFile : undefined,
-					hasWipe ? wipeCutPointMs : undefined
+					hasWipe ? wipeCutPointMs : undefined,
+					previousLookSlot,
+					hardCutRouteStartMs
 				)
 			)
 		}
-	}
-
-	// Cross-slot hard cut: delay route:// until keepalive so idle LOADBG→PLAY
-	// (at LOOK_HARD_CUT_INCOMING_DELAY_MS) has LOOK_HARD_CUT_CASPAR_LATENCY_MS to
-	// produce a first frame before PGM leaves the previous channel.
-	if (!hasWipe && previousLookSlot !== undefined && !sameLookChannel) {
-		delayHardCutPgmRoute(pieces, LOOK_HARD_CUT_KEEPALIVE_MS)
 	}
 
 	if (partHasOutroOverlay(objects)) {
@@ -1628,7 +1705,7 @@ export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: nu
 		const keepPicture = objects.some((obj) => {
 			const layer = String(obj.layer)
 			const content = obj.content as { type?: string; file?: string }
-			if (layer === (CasparCGLayers.CasparCGPgmRoute as string) && isCasparMedia(content)) return true
+			if (isPgmRouteLayer(layer) && isCasparMedia(content)) return true
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) return false
 			if (!isCasparMedia(content)) return false
 			if (content.file === 'EMPTY') return false
