@@ -1036,6 +1036,14 @@ export function finalizeHypercomposedPart(
 	const leaveWeatherHideMs = leaveWeatherUnderWipe
 		? Math.min(wipeDurationMs, wipeLookCutMs + LOOK_HARD_CUT_OVERLAP_MS)
 		: wipeLookCutMs
+	// On-air wipe air cut. Leave-weather into a wiped Full (ZAVER) must hold the
+	// outgoing weather picture under the sting until cover is solid — the PGM route
+	// switch, the outgoing-weather clear, the idle look hot-PLAY and the countup must
+	// all land at leaveWeatherHideMs, not the bare air cut. Without this the route
+	// flips at the air cut (~780) a frame before the wipe fully covers and the weather
+	// map/cities visibly drop out of PGM early (leave-weather lag was previously only
+	// reflected in keepalive + an idle-slot clear, never the actual on-screen cut).
+	const wipeRouteCutMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : wipeCutPointMs
 
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
@@ -1057,7 +1065,8 @@ export function finalizeHypercomposedPart(
 		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
-		delayCountupRevealToWipeCut(pieces, wipeCutPointMs)
+		// Leave-weather uses wipeRouteCutMs so the countup appears with the (lagged) route.
+		delayCountupRevealToWipeCut(pieces, wipeRouteCutMs)
 	} else if (previousLookSlot !== undefined) {
 		// Hard cut (same-slot or cross-slot): hold previous look past the incoming
 		// delay so Caspar cold-PLAY cannot open a black / bg_loop seam. Keepalive
@@ -1145,16 +1154,18 @@ export function finalizeHypercomposedPart(
 	// off-air, clear at Take.
 	// ZAVER also CLEARs the other channel's ILU/CAM/L3D (ilu-zaver is LED-only).
 	if (hasWipe && lookKind === 'full') {
-		const dbLoopClearStartMs = previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeCutPointMs : 0
+		const dbLoopClearStartMs = previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : 0
 		clearObjects.push(emptyLookMediaObject(getLookLayers(idleOtherSlot).doubleBoxLoop, undefined, dbLoopClearStartMs))
 	}
 	if (lookKind === 'full' && partHasActiveIluZaver(pieces)) {
-		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeCutPointMs
+		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeRouteCutMs
 		// above — do not also EMPTY it at Take via the bulk other-slot clear (that would kill
 		// the on-air frame under the sting before the route cut). Same delay for CAM / ILU /
-		// L3D when the other slot is still the outgoing PGM look.
+		// L3D when the other slot is still the outgoing PGM look. Leave-weather uses
+		// wipeRouteCutMs (cover-solid hold) so the outgoing weather is not cleared at the
+		// bare air cut while the sting is still incomplete.
 		const otherSlotClearStartMs =
-			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeCutPointMs : 0
+			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : 0
 		clearObjects.push(
 			...buildLookChannelClearObjects(idleOtherSlot, undefined, {
 				clearDoubleBoxLoop: !(hasWipe && previousLookSlot === idleOtherSlot),
@@ -1206,10 +1217,10 @@ export function finalizeHypercomposedPart(
 		// PLAY at the air cut is hot when route://N flips. Same-slot (rare after ping-pong)
 		// must not early-LOAD (replaces on-air under the wipe); wipeLookCutMs leads the
 		// cold PLAY by SAME_SLOT_WIPE_AIR_CUT_LEAD_MS so cover centre meets first frame.
-		// Weather L3D / L3D CLEAR stay on the full air cut (wipeCutPointMs) — do not
+		// Weather L3D / L3D CLEAR stay on the full air cut (wipeRouteCutMs) — do not
 		// advance gfx/pocasie with the same-slot look lead.
 		preloadIdleLookMedia: hasWipe && !sameLookChannel,
-		wipeAirCutMs: wipeCutPointMs,
+		wipeAirCutMs: wipeRouteCutMs,
 	})
 
 	// Wiped ZAVER: LED `ilu-zaver` must land with WX hide under cover — not at Take
@@ -1232,7 +1243,7 @@ export function finalizeHypercomposedPart(
 				lookSlot,
 				wipeFile,
 				wipeDurationMs,
-				wipeCutPointMs,
+				wipeRouteCutMs,
 				previousLookSlot
 			)
 		} else {
@@ -1246,7 +1257,7 @@ export function finalizeHypercomposedPart(
 					lookSlot,
 					wipe,
 					wipe ? wipeFile : undefined,
-					hasWipe ? wipeCutPointMs : undefined,
+					hasWipe ? wipeRouteCutMs : undefined,
 					previousLookSlot,
 					hardCutRouteStartMs
 				)
