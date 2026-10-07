@@ -964,7 +964,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
 	})
 
-	it('wiped ZAVER after DoubleBox delays other-slot clears until wipe cut (no early clear)', () => {
+	it('wiped ZAVER after DoubleBox holds other-slot clears + route until cover (no early clear)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -986,6 +986,14 @@ describe('pgmLook look-kind channels + route', () => {
 		if (!zaver) return
 		expect(zaver.part.inTransition?.previousPartKeepaliveDuration).toBe(LEAVE_WEATHER_HIDE_MS)
 
+		// Leave-weather ZAVER holds the outgoing (other-slot) picture under solid cover:
+		// the PGM route switch and the other-slot clears both land at LEAVE_WEATHER_HIDE_MS,
+		// not the bare air cut — otherwise the outgoing frame is cut a frame before the
+		// wipe fully covers.
+		const routeFlip = (findLivePgmRouteObj(zaver.pieces)?.keyframes?.[0]?.enable as { start?: number } | undefined)
+			?.start
+		expect(routeFlip).toBe(LEAVE_WEATHER_HIDE_MS)
+
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const otherSlotLayers = [
 			LOOK_A_LAYERS.doubleBoxLoop,
@@ -1003,9 +1011,14 @@ describe('pgmLook look-kind channels + route', () => {
 				expect(Array.isArray(enable)).toBe(false)
 				if (Array.isArray(enable) || !enable) continue
 				expect(typeof enable.start).toBe('number')
-				expect(enable.start, `no ${layer} EMPTY before wipe cut`).toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
+				expect(enable.start, `no ${layer} EMPTY before cover cut`).toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
 			}
-			expect(empties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(true)
+			// Held under solid cover with the route — none may still clear at the bare air cut.
+			expect(empties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(false)
+			expect(
+				empties.length > 0 &&
+					empties.every((obj) => !Array.isArray(obj.enable) && obj.enable?.start === LEAVE_WEATHER_HIDE_MS)
+			).toBe(true)
 		}
 	})
 
