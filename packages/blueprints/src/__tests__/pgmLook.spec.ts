@@ -17,6 +17,7 @@ import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { PartContext } from '../common/context.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
+import { StudioConfig } from '../base/studio/helpers/config.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { SourceType } from '../base/studio/helpers/config.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
@@ -36,15 +37,18 @@ import {
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
+	createStingRouteTimelineObjects,
 	finalizeHypercomposedPart,
 	getLookCasparChannel,
 	isDoubleBoxLook,
 	lookSlotForKind,
 	parseRouteMediaChannel,
+	PGM_ROUTE_LAYERS,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 	resetLookSlotGenerationForTests,
 	wipeStingDelayFrames,
+	wipeUseStingRouteTransition,
 } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { ObjectType } from '../common/definitions/objects.js'
@@ -237,6 +241,49 @@ describe('pgmLook look-kind channels + route', () => {
 				},
 			},
 		})
+		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
+	})
+
+	function stingTrialConfig(): StudioConfig {
+		// Cloning hypercomposed via spread widens required fields to `| undefined`, so
+		// re-declare them explicitly from the fixture via a locally-typed reference.
+		const hyper = hybridCasparConfig.casparcg.hypercomposed as NonNullable<StudioConfig['casparcg']['hypercomposed']>
+		return {
+			...hybridCasparConfig,
+			casparcg: {
+				...hybridCasparConfig.casparcg,
+				hypercomposed: {
+					...hyper,
+					wipeUseStingRouteTransition: true,
+				},
+			},
+		}
+	}
+
+	it('wipeUseStingRouteTransition reflects the trial config flag (off by default)', () => {
+		expect(wipeUseStingRouteTransition(hybridCasparConfig)).toBe(false)
+		expect(wipeUseStingRouteTransition(stingTrialConfig())).toBe(true)
+	})
+
+	it('STING-route trial emits a single canonical-layer route re-PLAYed with a STING inTransition', () => {
+		const on = stingTrialConfig()
+		// Slot A → bgChannelA (3); single canonical route layer + STING delay = air cut.
+		const objs = createStingRouteTimelineObjects(on, 'A', { routeStartMs: WIPE_AIR_CUT_MS, stingFile: 'wipes/wipe' })
+
+		expect(objs).toHaveLength(1)
+		const route = objs[0]
+		expect(route.layer).toBe(PGM_ROUTE_LAYERS.B)
+		expect(route.enable).toEqual({ start: 0 })
+		expect(route.keyframes).toBeUndefined() // re-PLAY path carries no mixer-opacity keyframe swap
+		const content = route.content as TSR.TimelineContentCCGMedia
+		expect(content.file).toBe('route://3')
+		expect(content.transitions?.inTransition).toMatchObject({
+			type: TSR.Transition.STING,
+			maskFile: 'wipes/wipe',
+			overlayFile: 'wipes/wipe',
+			delay: WIPE_AIR_CUT_MS,
+		})
+		// casparcg-state maps delay (ms) → STING frames; never the stale 38-frame value.
 		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
 	})
 
