@@ -287,6 +287,20 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
 	})
 
+	it('STING-route trial hard-cut re-PLAYs start at the keepalive cut (no STING hold)', () => {
+		// Cross-slot hard cut under the trial flag: no stingFile, nonzero routeStartMs.
+		// Without a STING transition there is nothing to hold the cover, so the plain
+		// re-PLAY must switch at routeStartMs (keepalive cut), not at Take (0).
+		const on = stingTrialConfig()
+		const objs = createStingRouteTimelineObjects(on, 'A', {
+			routeStartMs: LOOK_HARD_CUT_KEEPALIVE_MS,
+		})
+		expect(objs).toHaveLength(1)
+		const route = objs[0]
+		expect(route.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS })
+		expect((route.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+	})
+
 	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')

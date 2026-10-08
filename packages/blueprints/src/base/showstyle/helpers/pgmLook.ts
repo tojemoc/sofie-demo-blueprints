@@ -689,7 +689,11 @@ export function createStingRouteTimelineObjects(
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
-			enable: { start: 0 },
+			// STING-wrapped re-PLAY starts at Take (0): STING holds the leading producer as
+			// its source until the transition's trigger point, which handles the cover. A
+			// plain (non-STING) re-PLAY has no transition to hold cover, so it must start at
+			// `routeStartMs` to switch at the keepalive cut like the default dual-route path.
+			enable: { start: stingFile ? 0 : routeStartMs },
 			layer,
 			priority: 1,
 			content: createFullChannelRouteContent(
