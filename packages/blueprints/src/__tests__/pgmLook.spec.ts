@@ -37,6 +37,7 @@ import {
 	DEFAULT_LOOK_PREROLL_MS,
 	createFullChannelRouteContent,
 	createLookSlotSequence,
+	createPgmRouteTimelineObjects,
 	createStingRouteTimelineObjects,
 	finalizeHypercomposedPart,
 	getLookCasparChannel,
@@ -49,6 +50,8 @@ import {
 	resetLookSlotGenerationForTests,
 	wipeStingDelayFrames,
 	wipeUseStingRouteTransition,
+	wipeUsesPgmOverlay,
+	wipeUsesPgmSting,
 } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { ObjectType } from '../common/definitions/objects.js'
@@ -299,6 +302,56 @@ describe('pgmLook look-kind channels + route', () => {
 		const route = objs[0]
 		expect(route.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS })
 		expect((route.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+	})
+
+	it('STING-route trial is scoped to the classical wipes/wipe only', () => {
+		const on = stingTrialConfig()
+		const off = hybridCasparConfig
+		// Under the flag only the stringer uses STING; themed wipes / hard cuts stay overlay.
+		expect(wipeUsesPgmSting(on, 'wipes/wipe')).toBe(true)
+		expect(wipeUsesPgmSting(on, 'wipes/wipe_sjv')).toBe(false)
+		expect(wipeUsesPgmSting(on, 'wipes/wipe_sport')).toBe(false)
+		expect(wipeUsesPgmSting(on, 'wipes/wipe_pocasie')).toBe(false)
+		expect(wipeUsesPgmSting(on, undefined)).toBe(false) // hard cut
+		// Flag off: never STING, always overlay.
+		expect(wipeUsesPgmSting(off, 'wipes/wipe')).toBe(false)
+		expect(wipeUsesPgmOverlay(off, 'wipes/wipe')).toBe(true)
+		// Overlay is the complement: themed + hard cuts overlay even under the flag.
+		expect(wipeUsesPgmOverlay(on, 'wipes/wipe')).toBe(false)
+		expect(wipeUsesPgmOverlay(on, 'wipes/wipe_sjv')).toBe(true)
+		expect(wipeUsesPgmOverlay(on, 'wipes/wipe_pocasie')).toBe(true)
+		expect(wipeUsesPgmOverlay(on, undefined)).toBe(true)
+	})
+
+	it('STING-route trial: themed wipes fall back to the dual-route default (not STING)', () => {
+		const on = stingTrialConfig()
+		const objs = createPgmRouteTimelineObjects(on, 'A', {
+			routeStartMs: THEMED_WIPE_AIR_CUT_MS,
+			wipeFile: 'wipes/wipe_sjv',
+		})
+		// Themed wipe → default dual-route path: two layers, mixer-opacity keyframes.
+		expect(objs).toHaveLength(2)
+		for (const obj of objs) {
+			expect((obj.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		}
+	})
+
+	it('STING-route trial: classical wipes/wipe dispatch to the STING single-layer route', () => {
+		const on = stingTrialConfig()
+		const objs = createPgmRouteTimelineObjects(on, 'A', {
+			routeStartMs: WIPE_AIR_CUT_MS,
+			wipeFile: 'wipes/wipe',
+			stingFile: 'wipes/wipe',
+		})
+		// Classical stringer → single canonical-layer STING route (dual-route is bypassed).
+		expect(objs).toHaveLength(1)
+		expect(objs[0].layer).toBe(PGM_ROUTE_LAYERS.B)
+		const content = objs[0].content as TSR.TimelineContentCCGMedia
+		expect(content.transitions?.inTransition).toMatchObject({
+			type: TSR.Transition.STING,
+			maskFile: 'wipes/wipe',
+			overlayFile: 'wipes/wipe',
+		})
 	})
 
 	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {
