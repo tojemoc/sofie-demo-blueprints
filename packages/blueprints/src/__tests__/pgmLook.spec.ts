@@ -323,17 +323,19 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(wipeUsesPgmOverlay(on, undefined)).toBe(true)
 	})
 
-	it('STING-route trial: themed wipes fall back to the dual-route default (not STING)', () => {
+	it('STING-route trial: themed wipes re-PLAY on the canonical route layer (no STING)', () => {
 		const on = stingTrialConfig()
 		const objs = createPgmRouteTimelineObjects(on, 'A', {
 			routeStartMs: THEMED_WIPE_AIR_CUT_MS,
 			wipeFile: 'wipes/wipe_sjv',
 		})
-		// Themed wipe → default dual-route path: two layers, mixer-opacity keyframes.
-		expect(objs).toHaveLength(2)
-		for (const obj of objs) {
-			expect((obj.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
-		}
+		// Themed wipe → same canonical single layer B as the classical STING, so route
+		// ownership stays consistent across consecutive Takes (a STING after it finds the
+		// outgoing picture on 111). No STING transition — the themed graphic plays as the
+		// 205 overlay instead.
+		expect(objs).toHaveLength(1)
+		expect(objs[0].layer).toBe(PGM_ROUTE_LAYERS.B)
+		expect((objs[0].content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
 	})
 
 	it('STING-route trial: classical wipes/wipe dispatch to the STING single-layer route', () => {

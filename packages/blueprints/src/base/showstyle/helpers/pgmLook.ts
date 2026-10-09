@@ -581,22 +581,27 @@ export function createPgmRouteTimelineObjects(
 		routeStartMs?: number
 		previousSlot?: LookSlot
 		/**
-		 * Experimental STING-route trial (`wipeUseStingRouteTransition`): the classical
-		 * `wipes/wipe` (the stringer) is emitted as a **single** always-live layer re-PLAYed
-		 * through a Caspar STING transition instead of the dual-layer mixer-opacity flip. See
-		 * {@link createStingRouteTimelineObject}. Themed wipes / hard cuts stay on the default
-		 * dual-route path (see {@link wipeUsesPgmSting}).
+		 * Experimental STING-route trial (`wipeUseStingRouteTransition`): when set, the
+		 * classical `wipes/wipe` (the stringer) re-PLAYs the route on the single canonical
+		 * layer through a Caspar STING transition instead of the dual-layer mixer-opacity
+		 * flip. See {@link createStingRouteTimelineObject}. Themed wipes / hard cuts also
+		 * re-PLAY that canonical layer (only the wipe *graphic* differs via
+		 * {@link wipeUsesPgmSting}).
 		 */
 		stingFile?: string
 		/** The wipe file for this Take; drives whether STING (classical) or overlay (themed) applies. */
 		wipeFile?: string
 	}
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	if (wipeUsesPgmSting(config, options?.wipeFile)) {
+	if (wipeUseStingRouteTransition(config)) {
 		// Faithful single-layer STING route (trial). Under the flag this is the *only*
-		// route emission path — wipes re-PLAY through a STING transition, hard cuts
-		// re-PLAY plainly — so the on-air route always lives on the one canonical layer
-		// and the outgoing picture can be held by the part keepalive as STING's source.
+		// route emission path for every Take — classical wipes re-PLAY through a STING
+		// transition, themed wipes (205 overlay) and hard cuts re-PLAY plainly — so the
+		// on-air route always lives on the one canonical layer and the outgoing picture
+		// can be held by the part keepalive as STING's source. Deliberately **not** the
+		// per-file `wipeUsesPgmSting` gate: mixing the dual A/B overlay route with the
+		// canonical-layer STING would leave the outgoing route on the wrong channel for
+		// the next STING's `src` (black flash / wrong source under the wipe mask).
 		return createStingRouteTimelineObjects(config, slot, options)
 	}
 	const channels = getHypercomposedChannels({ studio: config })
