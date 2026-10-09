@@ -27,6 +27,7 @@ import {
 	pgmWipeEffectsLayerForFile,
 	isPgmWipeEffectsLayer,
 	applyCrossSlotWipeAirCutBias,
+	isClassicalWipeFile,
 	isWipePocasieFile,
 	partHasOutroOverlay,
 } from './clips.js'
@@ -581,18 +582,26 @@ export function createPgmRouteTimelineObjects(
 		previousSlot?: LookSlot
 		/**
 		 * Experimental STING-route trial (`wipeUseStingRouteTransition`): when set, the
-		 * route is emitted as a **single** always-live layer re-PLAYed through a Caspar
-		 * STING transition instead of the dual-layer mixer-opacity flip. See
-		 * {@link createStingRouteTimelineObject}.
+		 * classical `wipes/wipe` (the stringer) re-PLAYs the route on the single canonical
+		 * layer through a Caspar STING transition instead of the dual-layer mixer-opacity
+		 * flip. See {@link createStingRouteTimelineObject}. Themed wipes / hard cuts also
+		 * re-PLAY that canonical layer (only the wipe *graphic* differs via
+		 * {@link wipeUsesPgmSting}).
 		 */
 		stingFile?: string
+		/** The wipe file for this Take; drives whether STING (classical) or overlay (themed) applies. */
+		wipeFile?: string
 	}
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	if (wipeUseStingRouteTransition(config)) {
 		// Faithful single-layer STING route (trial). Under the flag this is the *only*
-		// route emission path — wipes re-PLAY through a STING transition, hard cuts
-		// re-PLAY plainly — so the on-air route always lives on the one canonical layer
-		// and the outgoing picture can be held by the part keepalive as STING's source.
+		// route emission path for every Take — classical wipes re-PLAY through a STING
+		// transition, themed wipes (205 overlay) and hard cuts re-PLAY plainly — so the
+		// on-air route always lives on the one canonical layer and the outgoing picture
+		// can be held by the part keepalive as STING's source. Deliberately **not** the
+		// per-file `wipeUsesPgmSting` gate: mixing the dual A/B overlay route with the
+		// canonical-layer STING would leave the outgoing route on the wrong channel for
+		// the next STING's `src` (black flash / wrong source under the wipe mask).
 		return createStingRouteTimelineObjects(config, slot, options)
 	}
 	const channels = getHypercomposedChannels({ studio: config })
@@ -878,17 +887,33 @@ function createPgmWipeOverlayTimelineObject(
  * the working Full-section path (SJV / ŠPORT / Počasie / tip).
  */
 /**
- * Experimental trial: run wiped Takes as a Caspar STING transition on the incoming
- * full-channel PGM route instead of the PGM 205 alpha-overlay + delayed mixer cut.
- * Opt in per studio via `HypercomposedChannels.wipeUseStingRouteTransition`.
+ * Experimental trial: run the classical `wipes/wipe` (the one wipe with a stringer) as a
+ * Caspar STING transition on the incoming full-channel PGM route, so the cut is locked to
+ * the wipe's real on-air frame. Opt in per studio via
+ * `HypercomposedChannels.wipeUseStingRouteTransition`. Themed wipes (`_sjv`/`_sport`/
+ * `_pocasie`) have no stringer and cover the full screen from frame 0 — they stay on the
+ * 205 overlay under the flag.
  */
 export function wipeUseStingRouteTransition(config: StudioConfig): boolean {
 	return Boolean(config.casparcg.hypercomposed?.wipeUseStingRouteTransition)
 }
 
-export function wipeUsesPgmOverlay(config: StudioConfig, _slot: LookSlot): boolean {
-	// STING-route trial replaces the 205 overlay + mixer cut with a Caspar STING.
-	return !wipeUseStingRouteTransition(config)
+/**
+ * True when a wiped Take runs the wipe as a Caspar STING on the route instead of the 205
+ * overlay. Only the classical stringer wipe (`wipes/wipe`) qualifies; themed wipes and
+ * hard cuts (no `wipeFile`) never use STING, even when the trial flag is on.
+ */
+export function wipeUsesPgmSting(config: StudioConfig, wipeFile?: string): boolean {
+	// `isClassicalWipeFile` treats an absent file as classical — guard on it being set.
+	return Boolean(wipeFile) && wipeUseStingRouteTransition(config) && isClassicalWipeFile(wipeFile)
+}
+
+/**
+ * True when a wiped Take should PLAY the wipe as a PGM 205–208 alpha overlay (the proven
+ * path). False only for the classical `wipes/wipe` under the STING-route trial.
+ */
+export function wipeUsesPgmOverlay(config: StudioConfig, wipeFile?: string): boolean {
+	return !wipeUsesPgmSting(config, wipeFile)
 }
 
 function createPgmRoutePiece(
@@ -904,7 +929,7 @@ function createPgmRoutePiece(
 	hardCutRouteStartMs: number = 0
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
-	const overlayWipe = hasWipe && wipeUsesPgmOverlay(config, slot)
+	const overlayWipe = hasWipe && wipeUsesPgmOverlay(config, wipeFile)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
 	const wipeCutPointMs =
 		wipeCutPointMsOverride ??
@@ -923,9 +948,11 @@ function createPgmRoutePiece(
 	timelineObjects.push(
 		...createPgmRouteTimelineObjects(config, slot, {
 			routeStartMs,
-			// STING-route trial: pass the wipe as the STING mask/overlay so the incoming
-			// route re-PLAY wraps in a Caspar STING transition (delay = air cut in ms).
-			stingFile: hasWipe && wipeFile && wipeUseStingRouteTransition(config) ? wipeFile : undefined,
+			wipeFile,
+			// STING-route trial: pass the classical `wipes/wipe` as the STING mask/overlay so
+			// the incoming route re-PLAY wraps in a Caspar STING transition (delay = air cut
+			// in ms). Themed wipes are ignored here — they keep the 205 overlay.
+			stingFile: hasWipe && wipeFile && wipeUsesPgmSting(config, wipeFile) ? wipeFile : undefined,
 			previousSlot: previousSlot ?? (routeStartMs > 0 ? otherLookSlot(slot) : undefined),
 		})
 	)
@@ -1000,13 +1027,14 @@ function attachRouteToWipePiece(
 	for (const mute of mutes) {
 		mute.enable = { start: 0, duration: wipeDurationMs }
 	}
-	const overlayWipe = wipeUsesPgmOverlay(config, slot)
+	const overlayWipe = wipeUsesPgmOverlay(config, wipeFile)
 	const routeLayers = [PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B]
 	wipePiece.content.timelineObjects = [
 		...(overlayWipe ? [createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0)] : []),
 		...createPgmRouteTimelineObjects(config, slot, {
 			routeStartMs: wipeCutPointMs,
-			stingFile: wipeUseStingRouteTransition(config) ? wipeFile : undefined,
+			wipeFile,
+			stingFile: wipeUsesPgmSting(config, wipeFile) ? wipeFile : undefined,
 			previousSlot: previousSlot ?? otherLookSlot(slot),
 		}),
 		...mutes,
