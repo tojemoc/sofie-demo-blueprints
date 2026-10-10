@@ -115,9 +115,11 @@ export const LOOK_HARD_CUT_CASPAR_LATENCY_MS = WIPE_FRAME_MS * 14
  * Abutting first-frame === route (#120/#122) still blinked black when Latency hit
  * the 14f ceiling after hot-PLAY at {@link LOOK_HARD_CUT_INCOMING_DELAY_MS}.
  * Capture audit (DB/ILU TARABA → SYN CLUSTER KOLIKOVA): +1f headroom removed the
- * remaining single black frame after #123’s 2f pad.
+ * remaining single black frame after #123’s 2f pad. Hold an extra frame (3f→4f) so
+ * the incoming look still owns the last frame under cover when Caspar's hot-PLAY
+ * lands at the latency ceiling — one-frame-longer overlap at the cut.
  */
-export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 3
+export const LOOK_HARD_CUT_ROUTE_HEADROOM_MS = WIPE_FRAME_MS * 4
 
 /**
  * Hold previous look MEDIA this long into the next hard-cut Take.
@@ -539,7 +541,14 @@ export function createFullChannelRouteContent(
 					transitions: {
 						inTransition: {
 							type: TSR.Transition.STING,
-							maskFile: stingFile,
+							// Caspar STING consumes the mask and overlay differently: the mask
+							// must be a clean B/W luma matte (drives the dissolver between the
+							// outgoing src and incoming dst), while the overlay carries the colour
+							// wipe graphic with alpha. One file cannot be both — the previous
+							// same-file mask+overlay made Caspar key the colour wipe against its
+							// own alpha ("half-transparent" cover). Deliver `wipes/{stem}_mask`
+							// (B/W luma) alongside the colour `wipes/{stem}`.
+							maskFile: `${stingFile}_mask`,
 							overlayFile: stingFile,
 							delay: cutPointMs,
 						},

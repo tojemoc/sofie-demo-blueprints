@@ -239,7 +239,7 @@ describe('pgmLook look-kind channels + route', () => {
 			transitions: {
 				inTransition: {
 					type: TSR.Transition.STING,
-					maskFile: 'wipes/wipe',
+					maskFile: 'wipes/wipe_mask',
 					delay: WIPE_AIR_CUT_MS,
 				},
 			},
@@ -282,7 +282,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(content.file).toBe('route://3')
 		expect(content.transitions?.inTransition).toMatchObject({
 			type: TSR.Transition.STING,
-			maskFile: 'wipes/wipe',
+			maskFile: 'wipes/wipe_mask',
 			overlayFile: 'wipes/wipe',
 			delay: WIPE_AIR_CUT_MS,
 		})
@@ -351,7 +351,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const content = objs[0].content as TSR.TimelineContentCCGMedia
 		expect(content.transitions?.inTransition).toMatchObject({
 			type: TSR.Transition.STING,
-			maskFile: 'wipes/wipe',
+			maskFile: 'wipes/wipe_mask',
 			overlayFile: 'wipes/wipe',
 		})
 	})
