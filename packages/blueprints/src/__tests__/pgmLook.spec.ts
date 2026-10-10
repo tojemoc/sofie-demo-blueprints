@@ -48,6 +48,7 @@ import {
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 	resetLookSlotGenerationForTests,
+	STING_WIPE_AIR_CUT_OFFSET_MS,
 	wipeStingDelayFrames,
 	wipeUseStingRouteTransition,
 	wipeUsesPgmOverlay,
@@ -354,6 +355,51 @@ describe('pgmLook look-kind channels + route', () => {
 			maskFile: 'wipes/wipe_mask',
 			overlayFile: 'wipes/wipe',
 		})
+	})
+
+	it('STING-route trial delays the whole cut +1 frame onto the wipe cover centre', () => {
+		// End-to-end through finalizeHypercomposedPart (via generateVOPart): the STING
+		// delay and the outgoing-picture keepalive both shift 780 → 800 ms so no 20 ms gap
+		// opens under the later cut. The default 205-overlay path stays at 780 ms.
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
+		const synIngest = ingest.parts.find((part) => {
+			const payload = part.payload as {
+				type?: string
+				pieces?: Array<{ objectType: string }>
+			}
+			return (
+				/^(vo|syn)$/i.test(payload.type || '') ||
+				(payload.pieces ?? []).some((piece) => /^(video|vo)$/i.test(piece.objectType))
+			)
+		})
+		const payload = synIngest?.payload as {
+			pieces: Array<{ id: string; objectType: string; attributes: Record<string, unknown> }>
+		}
+		if (payload && !payload.pieces.some((piece) => piece.objectType.toLowerCase() === 'wipe')) {
+			payload.pieces.push({
+				id: `${synIngest?.externalId}-wipe`,
+				objectType: 'wipe',
+				attributes: { fileName: 'wipes/wipe', transition: 'ILU TO SYN' },
+			})
+		}
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const synPart = segment.parts.find((part) => part.type === PartType.VO)
+		expect(synPart).toBeDefined()
+		if (!synPart) return
+
+		const base = mockSegmentContext()
+		base.getStudioConfig = () => ({ studio: stingTrialConfig() })
+		const result = generateVOPart(new PartContext(base, synPart.payload.externalId), synPart as PartProps<VOProps>, 'B')
+		const sting = result.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find((obj) => (obj.content as TSR.TimelineContentCCGMedia).transitions?.inTransition)
+		expect(sting).toBeDefined()
+		expect(
+			((sting?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition as { delay?: number } | undefined)
+				?.delay
+		).toBe(WIPE_AIR_CUT_MS + STING_WIPE_AIR_CUT_OFFSET_MS)
+		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS + STING_WIPE_AIR_CUT_OFFSET_MS)
 	})
 
 	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {

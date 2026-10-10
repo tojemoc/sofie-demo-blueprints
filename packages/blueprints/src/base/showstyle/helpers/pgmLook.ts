@@ -918,6 +918,17 @@ export function wipeUsesPgmSting(config: StudioConfig, wipeFile?: string): boole
 }
 
 /**
+ * Extra ms the STING-route trial delays the whole cut stack (route re-PLAY trigger and
+ * outgoing-picture keepalive) past the base air cut. Caspar's wipe.mov cover window is
+ * 760–840 ms (source frames 19–20 @25fps), centre 800 ms; the default air cut of 780 ms
+ * lands a half-frame early of centre, which read as "cut too soon" on the STING path
+ * where Caspar samples both producers per-frame. +1 frame (@50fps) moves the cut onto the
+ * cover centre. Only applied when the classical `wipes/wipe` uses the STING transition —
+ * the default 205-overlay path and themed wipes keep the 780 ms base.
+ */
+export const STING_WIPE_AIR_CUT_OFFSET_MS = WIPE_FRAME_MS
+
+/**
  * True when a wiped Take should PLAY the wipe as a PGM 205–208 alpha overlay (the proven
  * path). False only for the classical `wipes/wipe` under the STING-route trial.
  */
@@ -1141,11 +1152,16 @@ export function finalizeHypercomposedPart(
 	// Air cut = editorial cutPoint + cover centre + PRELOAD latency. Cross-slot
 	// bias is a no-op (early ADEL→GUBIK was cold PLAY after wrong-file PRELOAD
 	// on shared 205 — fixed by per-file layers 205–208).
-	const wipeCutPointMs = applyCrossSlotWipeAirCutBias(
-		resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config)),
-		wipeDurationMs,
-		Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
-	)
+	// STING-route trial only: +1 frame so the route re-PLAY / keepalive land on the
+	// cover centre (800 ms) instead of a half-frame early (780 ms). Folded into the
+	// shared base so every downstream consumer (wipeLookCutMs / wipeRouteCutMs /
+	// leaveWeatherHideMs / countup / keepalive) moves together.
+	const wipeCutPointMs =
+		applyCrossSlotWipeAirCutBias(
+			resolveWipeAirCutMs(wipe?.attributes, wipeDurationMs, wipeFile, wipePlayoutLatencyFromConfig(config)),
+			wipeDurationMs,
+			Boolean(hasWipe && previousLookSlot !== undefined && !sameLookChannel)
+		) + (wipeUsesPgmSting(config, wipeFile) ? STING_WIPE_AIR_CUT_OFFSET_MS : 0)
 	// Leave-weather into wiped ZAVER: detect early so look cut / keepalive / WX hide
 	// can wait for solid cover (not Take, not a bare air-cut while the sting is still
 	// incomplete — and not same-slot lead, which made Počasie→AVIZO 6f early).
