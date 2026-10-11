@@ -1,4 +1,4 @@
-import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
 	PartType,
@@ -277,17 +277,25 @@ describe('pgmLook look-kind channels + route', () => {
 		const route = objs[0]
 		expect(route.layer).toBe(PGM_ROUTE_LAYERS.B)
 		expect(route.enable).toEqual({ start: 0 })
-		expect(route.keyframes).toBeUndefined() // re-PLAY path carries no mixer-opacity keyframe swap
 		const content = route.content as TSR.TimelineContentCCGMedia
 		expect(content.file).toBe('route://3')
 		expect(content.transitions?.inTransition).toMatchObject({
 			type: TSR.Transition.STING,
 			maskFile: 'wipes/wipe_mask',
-			overlayFile: 'wipes/wipe',
+			// STING carries no FILTER, so the overlay points at the premultiplied copy
+			// (`wipes/wipe_pm`) instead of the straight-alpha `wipes/wipe`.
+			overlayFile: 'wipes/wipe_pm',
 			delay: WIPE_AIR_CUT_MS,
 		})
 		// casparcg-state maps delay (ms) → STING frames; never the stale 38-frame value.
 		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
+		// PRELOAD hot-cue: base playing:false (LOADBG route+STING while Next) + keyframe
+		// raising playing:true at Take (bare `PLAY 2-111 … STING`). No mixer-opacity keyframe.
+		expect(content.playing).toBe(false)
+		const kf = route.keyframes?.[0]
+		expect(kf?.enable).toEqual({ start: 0 })
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.playing).toBe(true)
+		expect(route.keyframes).toHaveLength(1)
 	})
 
 	it('STING-route trial hard-cut re-PLAYs start at the keepalive cut (no STING hold)', () => {
@@ -352,8 +360,80 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(content.transitions?.inTransition).toMatchObject({
 			type: TSR.Transition.STING,
 			maskFile: 'wipes/wipe_mask',
-			overlayFile: 'wipes/wipe',
+			overlayFile: 'wipes/wipe_pm',
 		})
+	})
+
+	it('STING-route expectedPackages include the luma mask and premultiplied overlay files', () => {
+		const on = stingTrialConfig()
+		const context = mockSegmentContext()
+		const part = { externalId: 'sting-wiped', title: 'STING' }
+		const pieces: IBlueprintPiece[] = []
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+		]
+		finalizeHypercomposedPart(context, on, part as never, 'sting-wiped', objects as never, pieces, 'A')
+		const routePiece = pieces.find((p) => p.sourceLayerId === (SourceLayer.PgmWipe as string))
+		expect(routePiece).toBeDefined()
+		// The STING command consumes `wipes/wipe_mask` (luma) + `wipes/wipe_pm` (premul
+		// overlay) on the canonical route layer — both must be expected packages so Package
+		// Manager verifies them. The straight-alpha `wipes/wipe` itself is not the STING
+		// overlay, and the 205 overlay is not used under the trial.
+		if (!routePiece) return
+		const filePaths = routePiece.expectedPackages
+			?.map((p) => (p.content as { filePath?: string })?.filePath)
+			.filter(Boolean)
+		expect(filePaths).toContain('wipes/wipe_mask.mov')
+		expect(filePaths).toContain('wipes/wipe_pm.mov')
+		// The straight-alpha `wipes/wipe` is not consumed by the STING command (the 205
+		// overlay is bypassed under the trial), so it is not an expected package here.
+		expect(filePaths).not.toContain('wipes/wipe.mov')
+		const pmPkg = routePiece.expectedPackages?.find(
+			(p) => (p.content as { filePath?: string })?.filePath === 'wipes/wipe_pm.mov'
+		)
+		expect(pmPkg?.layers).toContain(PGM_ROUTE_LAYERS.B)
+		expect(pmPkg?.layers).not.toContain(CasparCGLayers.CasparCGPgmEffectsPlayer)
+	})
+
+	it('STING-route trial does not add the premultiplied overlay to the 205-overlay path', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'overlay-wiped', title: 'overlay' }
+		const pieces: IBlueprintPiece[] = []
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+		]
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part as never,
+			'overlay-wiped',
+			objects as never,
+			pieces,
+			'A'
+		)
+		const routePiece = pieces.find((p) => p.sourceLayerId === (SourceLayer.PgmWipe as string))
+		expect(routePiece).toBeDefined()
+		if (!routePiece) return
+		const filePaths = routePiece.expectedPackages
+			?.map((p) => (p.content as { filePath?: string })?.filePath)
+			.filter(Boolean)
+		expect(filePaths).toContain('wipes/wipe.mov')
+		expect(filePaths).not.toContain('wipes/wipe_pm.mov')
+		expect(filePaths).not.toContain('wipes/wipe_mask.mov')
 	})
 
 	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {

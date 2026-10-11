@@ -1,4 +1,5 @@
 import {
+	ExpectedPackage,
 	IBlueprintPart,
 	IBlueprintPiece,
 	IBlueprintPieceType,
@@ -57,6 +58,21 @@ export function otherLookSlot(slot: LookSlot): LookSlot {
  * `time2Frames` itself — do not pre-convert when setting `inTransition.delay`.
  */
 export const WIPE_STING_FRAME_RATE = 50
+
+/**
+ * Suffix of the premultiplied-alpha copy of a sting wipe file used as the STING
+ * `overlayFile`. Caspar's STING command carries no `FILTER`, so a straight-alpha
+ * `wipes/wipe` (same source the 205-overlay path premultiplies with
+ * {@link PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER}) composites half-transparent under
+ * the STING. The overlay instead points at a pre-premultiplied copy
+ * (`ffmpeg -i wipe.mov -vf "format=yuva444p12le,premultiply=inplace=1" … wipe_pm.mov`).
+ */
+export const STING_OVERLAY_PREMUL_SUFFIX = '_pm'
+
+/** Color wipe used as the STING `overlayFile` — the premultiplied copy of `stingFile`. */
+export function stingPremulOverlayFile(stingFile: string): string {
+	return `${stingFile}${STING_OVERLAY_PREMUL_SUFFIX}`
+}
 
 /** Default wait so CEF + clips can cue on the idle BG channel before a wiped Take. */
 export const DEFAULT_LOOK_PREROLL_MS = 1500
@@ -549,7 +565,10 @@ export function createFullChannelRouteContent(
 							// own alpha ("half-transparent" cover). Deliver `wipes/{stem}_mask`
 							// (B/W luma) alongside the colour `wipes/{stem}`.
 							maskFile: `${stingFile}_mask`,
-							overlayFile: stingFile,
+							// STING carries no `FILTER`, so the straight-alpha colour wipe
+							// composites half-transparent — point the overlay at the premultiplied
+							// copy (`wipes/{stem}_pm`) so it looks as solid as the 205-overlay path.
+							overlayFile: stingPremulOverlayFile(stingFile),
 							delay: cutPointMs,
 						},
 					},
@@ -705,22 +724,35 @@ export function createStingRouteTimelineObjects(
 	const routeChannel = getLookCasparChannel(config, slot)
 
 	return [
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			// STING-wrapped re-PLAY starts at Take (0): STING holds the leading producer as
-			// its source until the transition's trigger point, which handles the cover. A
-			// plain (non-STING) re-PLAY has no transition to hold cover, so it must start at
-			// `routeStartMs` to switch at the keepalive cut like the default dual-route path.
-			enable: { start: stingFile ? 0 : routeStartMs },
-			layer,
-			priority: 1,
-			content: createFullChannelRouteContent(
-				routeChannel,
-				stingFile,
-				routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS,
-				pgmRouteMixer(true)
-			),
-		}),
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>(
+			(() => {
+				const obj = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+					id: '',
+					// STING-wrapped re-PLAY starts at Take (0): STING holds the leading producer as
+					// its source until the transition's trigger point, which handles the cover. A
+					// plain (non-STING) re-PLAY has no transition to hold cover, so it must start at
+					// `routeStartMs` to switch at the keepalive cut like the default dual-route path.
+					enable: { start: stingFile ? 0 : routeStartMs },
+					layer,
+					priority: 1,
+					content: createFullChannelRouteContent(
+						routeChannel,
+						stingFile,
+						routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS,
+						pgmRouteMixer(true)
+					),
+				})
+				// STING-route trial only: PRELOAD the canonical route layer (mapping
+				// `CasparCGPgmRoute` is switched to LookaheadMode.PRELOAD). A `playing:false`
+				// base LOADBGs `route://` + STING while Next; the keyframe raises playing:true
+				// at Take (bare `PLAY 2-111 … STING`). Sofie PRELOAD strips the PLAY keyframe,
+				// so Caspar sees a paused LOADBG + STING ahead of Take and the route producer
+				// never cold-starts under the wipe cover. Non-STING re-PLAYs (themed / hard-cut)
+				// keep a plain PLAY at routeStartMs — no preload needed on those.
+				if (stingFile) applyCasparHotPlayCue(obj, 0)
+				return obj
+			})()
+		),
 	]
 }
 
@@ -925,6 +957,28 @@ export function wipeUsesPgmOverlay(config: StudioConfig, wipeFile?: string): boo
 	return !wipeUsesPgmSting(config, wipeFile)
 }
 
+/**
+ * ExpectedPackages for a wipe route piece. Overlay/dual-route path: the wipe file on
+ * the overlay (205–208) + both route layers. STING-route trial: the incoming STING's
+ * `maskFile` (`wipes/{stem}_mask`) and premultiplied `overlayFile` (`wipes/{stem}_pm`)
+ * are the MEDIA Caspar actually consumes on the canonical route layer
+ * (`PGM_ROUTE_LAYERS.B`) — without them Package Manager reports "cannot be found" and
+ * Caspar won't build the transition. The straight-alpha colour `wipes/{stem}` is not
+ * part of the STING command (the 205 overlay is bypassed under the trial), so it is
+ * NOT an expected package here.
+ */
+function expectedWipePackages(
+	context: ICommonContext,
+	config: StudioConfig,
+	wipeFile: string,
+	overlayWipe: boolean,
+	routeLayers: CasparCGLayers[]
+): ExpectedPackage.ExpectedPackageMediaFile[] {
+	const files = wipeUsesPgmSting(config, wipeFile) ? [`${wipeFile}_mask`, stingPremulOverlayFile(wipeFile)] : [wipeFile]
+	const layers = overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers
+	return files.map((file) => createMediaFileExpectedPackage(context, file, layers))
+}
+
 function createPgmRoutePiece(
 	context: ICommonContext,
 	config: StudioConfig,
@@ -999,18 +1053,7 @@ function createPgmRoutePiece(
 			ignoreMediaObjectStatus: true,
 			timelineObjects,
 		},
-		expectedPackages: wipeFile
-			? [
-					createMediaFileExpectedPackage(
-						context,
-						wipeFile,
-						overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers,
-						{
-							includeSideEffects: true,
-						}
-					),
-				]
-			: undefined,
+		expectedPackages: wipeFile ? expectedWipePackages(context, config, wipeFile, overlayWipe, routeLayers) : undefined,
 		// Wipe overlay needs a long LOADBG window. Sofie excludes InTransition preroll
 		// from toPartDelay — do not put this preroll on Normal look pieces.
 		prerollDuration: hasWipe
@@ -1053,16 +1096,7 @@ function attachRouteToWipePiece(
 	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 	wipePiece.content.ignoreAudioFormat = true
 	wipePiece.content.ignoreMediaObjectStatus = true
-	wipePiece.expectedPackages = [
-		createMediaFileExpectedPackage(
-			context,
-			wipeFile,
-			overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers,
-			{
-				includeSideEffects: true,
-			}
-		),
-	]
+	wipePiece.expectedPackages = expectedWipePackages(context, config, wipeFile, overlayWipe, routeLayers)
 	const channel = getLookCasparChannel(config, slot)
 	if (!wipePiece.name.includes('route://')) {
 		wipePiece.name = `${wipePiece.name.replace(/\s*\|\s*[\w./-]+$/, '')} | route://${channel}`

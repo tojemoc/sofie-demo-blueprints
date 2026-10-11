@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { getCasparCGMappings, getHypercomposedChannels } from '../base/studio/applyConfig/mappings/casparcg.js'
+import { applyConfig } from '../base/studio/applyConfig/index.js'
 import {
 	BgChannelLayers,
 	CamIngestChannelLayers,
@@ -326,6 +327,38 @@ describe('casparcgMappings', () => {
 			PgmChannelLayers.EffectsPlayerPocasie,
 		]
 		expect(new Set(wipeLayers).size).toBe(4)
+	})
+
+	it('STING-route trial PRELOADs the canonical PGM route layer (111) for a hot re-PLAY', () => {
+		const trial: StudioConfig = {
+			...baseStudioConfig,
+			casparcg: {
+				host: 'localhost',
+				port: 5250,
+				hypercomposed: {
+					ledChannel: 1,
+					pgmChannel: 2,
+					bgChannelA: 3,
+					bgChannelB: 4,
+					wipeUseStingRouteTransition: true,
+				},
+			},
+		}
+		const mappings = getCasparCGMappings({ studio: trial })
+		// Canonical re-PLAY layer (B / 111) must LOOKAHEAD so the STING re-PLAY is LOADBG'd
+		// while Next and only hot-PLAYed at Take. Route A (never re-PLAYed) stays NONE.
+		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmRouteA]?.lookahead).toBe(LookaheadMode.NONE)
+	})
+
+	it('configures the CasparCG device at 1080p5000 (fps: 50) so casparcg-state time2Frames is correct', () => {
+		// TSR defaults Caspar device fps to 25; a 50fps channel would then halve every
+		// ms→frame conversion (STING TRIGGER_POINT 19/20 instead of 38/40), cutting the
+		// wipe early. `applyConfig` must carry fps: 50 on the playout device.
+		const result = applyConfig({} as never, baseStudioConfig, {} as never)
+		const caspar = result.playoutDevices.casparcg0
+		expect(caspar.options.type).toBe(TSR.DeviceType.CASPARCG)
+		expect((caspar.options as { options: { fps?: number } }).options.fps).toBe(50)
 	})
 
 	it('routes 360° sekúnd logo-bug to PGM (not LED, not BG look)', () => {
