@@ -83,6 +83,13 @@ function generatePlayoutDevices(config: BlueprintConfig): BlueprintResultApplySt
 				options: {
 					host: config.studio.casparcg.host,
 					port: config.studio.casparcg.port || 5250,
+					// 1080p5000: TSR / casparcg-state convert ms→frames via `initOptions.fps
+					// || 25`, so without this every `time2Frames` (STING TRIGGER_POINT,
+					// seek, keyframes) counts frames at 25fps on a 50fps channel. The
+					// STING-route wipe trial needs TRIGGER_POINT ~40 (800 ms @50fps) not
+					// ~20 (the 25fps half) to cut under the wipe cover. Keep it on the
+					// device so both A/B routes and every layer share one frame grid.
+					fps: 50,
 				},
 			}),
 		},

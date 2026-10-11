@@ -183,7 +183,14 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		// re-PLAY a route producer — they only swap opacity/volume so a one-tick skew
 		// cannot leave a black hole on channel 2.
 		[CasparCGLayers.CasparCGPgmRouteA]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteA),
-		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB),
+		// STING-route trial: the canonical route layer (B) is *re-PLAYed* each Take
+		// through a Caspar STING transition, so it must PRELOAD hot (LOOKBG the paused
+		// `route://` + STING while Next, bare `PLAY` at Take) to avoid cold-starting the
+		// route producer under the wipe cover. Route A keeps NONE — the trial never
+		// re-PLAYs it and PRELOAD could LOADBG a stale producer onto the live layer.
+		[CasparCGLayers.CasparCGPgmRoute]: config.studio.casparcg.hypercomposed?.wipeUseStingRouteTransition
+			? casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB, LookaheadMode.PRELOAD)
+			: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB),
 		// PRELOAD + explicit hot-PLAY cue on the wipe overlay (playing:false LOADBG,
 		// keyframe playing:true at Take). Sofie PRELOAD while Next strips the PLAY
 		// keyframe so Caspar LOADBGs the paused sting; Take applies hot PLAY. NONE
