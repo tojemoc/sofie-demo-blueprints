@@ -16,7 +16,7 @@ export function autoNextFromRe(
 		payload.autoNext === true &&
 		typeof expectedDuration === 'number' &&
 		Number.isFinite(expectedDuration) &&
-		expectedDuration > 0
+		expectedDuration > 1000
 	)
 }
 
