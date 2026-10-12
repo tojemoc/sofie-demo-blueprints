@@ -19,6 +19,7 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { getAudioObjectOnLayer } from '../helpers/audio.js'
 import { getHostForceMuteChannels } from '../helpers/backgroundMusic.js'
 import { SisyfosLayers } from '../../studio/layers.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 
 export function generateVOPart(
 	context: PartContext,
@@ -95,15 +96,14 @@ export function generateVOPart(
 	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
 	if (layeredVideos.length) pieces.push(...layeredVideos)
 
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : playback.durationMs
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration > 0 ? part.payload.duration : playback.durationMs,
-			// Timed SYN / SJV / ŠPORT AUTO when expectedDuration is set (RE timed+auto).
-			// Weather GFX remains auto via generateGfxPart; untimed VO stays manual.
-			autoNext: part.payload.duration > 0,
+			expectedDuration,
+			autoNext: autoNextFromRe(part.payload, expectedDuration),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces],

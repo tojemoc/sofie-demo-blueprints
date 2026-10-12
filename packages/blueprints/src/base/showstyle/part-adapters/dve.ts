@@ -15,6 +15,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 
 const SUPER_SOURCE_LATENCY = 80
 const SUPER_SOURCE_INPUT = 6000
@@ -224,13 +225,15 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
 
 	return {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
+			expectedDuration,
+			autoNext: autoNextFromRe(part.payload, expectedDuration),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],

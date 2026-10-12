@@ -1255,7 +1255,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B')
 		expect(result.part.inTransition?.previousPartKeepaliveDuration).toBe(WIPE_AIR_CUT_MS)
-		expect(result.part.autoNext).toBe(true)
+		expect(result.part.autoNext).toBe(false)
 		const l3d = result.pieces
 			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
 			.find(
@@ -1353,7 +1353,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sportFirst).toBeDefined()
 		if (!sportFirst) return
 
-		expect(sportFirst.part.autoNext).toBe(true)
+		expect(sportFirst.part.autoNext).toBe(false)
 		// Ping-pong idle channel: keepalive at full air cut (not same-slot lead).
 		expect(sportFirst.part.inTransition?.previousPartKeepaliveDuration).toBe(THEMED_WIPE_AIR_CUT_MS)
 

@@ -7,6 +7,7 @@ import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
+import { autoNextForced, autoNextPublicData, FORCE_INTRO_AUTO_NEXT } from '../helpers/autoNext.js'
 
 /**
  * Intro part: overlay video on PGM IntroOverlay (layer 210) — above wipe / compose.
@@ -49,13 +50,21 @@ export function generateIntroPart(
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
+	const expectedDuration =
+		part.payload.duration > 0
+			? part.payload.duration
+			: part.payload.clipProps.duration && part.payload.clipProps.duration > 0
+				? part.payload.clipProps.duration
+				: undefined
+	const autoNext = FORCE_INTRO_AUTO_NEXT ? autoNextForced(expectedDuration) : false
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration || part.payload.clipProps.duration || undefined,
-			autoNext: true,
+			expectedDuration,
+			autoNext,
+			publicData: autoNextPublicData(part.payload, autoNext),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],

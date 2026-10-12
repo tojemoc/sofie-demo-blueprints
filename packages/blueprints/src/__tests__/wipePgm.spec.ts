@@ -265,7 +265,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const partContext = new PartContext(mockSegmentContext(), synPart.payload.externalId)
 		// previousLookSlot A = DoubleBox→Full cross-slot wipe (real transition that used to EMPTY clip).
 		const result = generateVOPart(partContext, synPart as PartProps<VOProps>, 'B', 'A')
-		expect(result.part.autoNext).toBe(true)
+		expect(result.part.autoNext).toBe(false)
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const clipEmpty = clearPiece?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'EMPTY'

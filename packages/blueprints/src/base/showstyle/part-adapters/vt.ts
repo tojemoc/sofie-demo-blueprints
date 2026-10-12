@@ -18,6 +18,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 
 export function generateVTPart(
 	context: PartContext,
@@ -91,13 +92,14 @@ export function generateVTPart(
 	const layeredVideos = parseLayeredVideosFromObjects(context, config, part.objects)
 	if (layeredVideos.length) pieces.push(...layeredVideos)
 
+	const expectedDuration = playback.durationMs ?? (part.payload.duration > 0 ? part.payload.duration : undefined)
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: playback.durationMs ?? (part.payload.duration > 0 ? part.payload.duration : undefined),
-			autoNext: true,
+			expectedDuration,
+			autoNext: autoNextFromRe(part.payload, expectedDuration),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces],
