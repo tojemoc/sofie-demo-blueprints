@@ -6,6 +6,7 @@ import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart, findWipeVideoObject } from '../helpers/pgmLook.js'
 import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 
 /**
  * Video-only wipe / bg-loop parts (no graphic, no take-over VT/VO clip).
@@ -37,12 +38,13 @@ export function generateLayeredVideoPart(
 		)
 	}
 
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
-			expectedDuration: part.payload.duration || undefined,
-			autoNext: true,
+			expectedDuration,
+			autoNext: autoNextFromRe(part.payload, expectedDuration),
 		},
 		pieces,
 		adLibPieces: [],

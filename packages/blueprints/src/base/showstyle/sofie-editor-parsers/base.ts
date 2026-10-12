@@ -10,6 +10,7 @@ export function parseBaseProps(part: EditorIngestPart): PartBaseProps {
 		duration: (part.duration || 0) * 1000,
 		name: part.name,
 		script,
+		...(part.autoNext === true ? { autoNext: true } : {}),
 		...(float ? { float: true, skip: Boolean((part as { skip?: boolean }).skip) } : {}),
 	}
 }

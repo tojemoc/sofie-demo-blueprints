@@ -98,7 +98,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 			expect(result.pieces.length).toBeGreaterThan(0)
 			expect(result.pieces.some((piece) => piece.content.timelineObjects?.length)).toBe(true)
-			// Only Počasie/weather GFX auto-Takes — Mod / téma stay manual.
+			// Smoke ingest has no payload.autoNext — RE AUTO off must not auto-take.
 			expect(result.part.autoNext).toBe(false)
 
 			const externalIds = result.pieces.map((piece) => piece.externalId)

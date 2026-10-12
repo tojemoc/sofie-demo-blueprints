@@ -12,6 +12,7 @@ import { getShowStyleVariantId } from './getShowStyleVariantId.js'
 import { ShowStyleConfig } from './helpers/config.js'
 import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getRundown } from './rundown/index.js'
+import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
 import { validateConfig } from './validateConfig.js'
 import { applyConfig } from './applyconfig/index.js'
 import * as ConfigSchema from '../../$schemas/main-showstyle-config.json'
@@ -39,6 +40,8 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 	getRundown,
 	/** Generate segment from ingest data */
 	getSegment,
+	/** Push autoNext / expectedDuration onto current and next PartInstances after ingest */
+	syncIngestUpdateToPartInstance,
 	/** Generate adlib piece from ingest data */
 	getAdlibItem,
 	/** Execute an action defined by an IBlueprintActionManifest */

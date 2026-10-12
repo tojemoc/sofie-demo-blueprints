@@ -62,6 +62,11 @@ export interface PartBaseProps {
 	duration: number
 	name: string
 	script?: string
+	/**
+	 * Rundown Editor AUTO: Sofie may auto-take after expectedDuration.
+	 * Copied from ingest `payload.autoNext`. Absent/false means never auto-take.
+	 */
+	autoNext?: boolean
 	/** Editorial float from Rundown Editor — part must not play in Sofie. */
 	float?: boolean
 	/** Editorial skip (RE) — treated like float for Sofie playout. */

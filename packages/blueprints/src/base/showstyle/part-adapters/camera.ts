@@ -29,6 +29,7 @@ import {
 	PgmCameraTimelineContent,
 } from '../helpers/pgmCamera.js'
 import { LookSlot, finalizeHypercomposedPart, isDoubleBoxLook } from '../helpers/pgmLook.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
@@ -126,12 +127,14 @@ export function generateCameraPart(
 		pieces.push(addGuest(config, guestObj.attributes.count))
 	}
 
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
+			expectedDuration,
+			autoNext: autoNextFromRe(part.payload, expectedDuration),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],

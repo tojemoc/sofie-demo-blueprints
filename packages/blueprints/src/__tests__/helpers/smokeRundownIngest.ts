@@ -38,7 +38,7 @@ export type SmokeRundownExport = {
 		duration?: number
 		script?: string
 		fromPreset?: boolean
-		payload: { type: string; duration?: number; script?: string }
+		payload: { type: string; duration?: number; script?: string; autoNext?: boolean }
 	}>
 	pieces: Array<{
 		id: string
@@ -123,6 +123,9 @@ export function smokeExportToIngestSegment(
 				skip: Boolean((part as { skip?: boolean }).skip),
 				script: part.script ?? part.payload.script ?? '',
 				duration: part.duration ?? part.payload.duration ?? 0,
+				...((part as { autoNext?: boolean }).autoNext === true || part.payload.autoNext === true
+					? { autoNext: true as const }
+					: {}),
 				pieces: exportData.pieces
 					.filter((piece) => piece.partId === part.id)
 					.map((piece) => ({

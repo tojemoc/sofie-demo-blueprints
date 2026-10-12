@@ -29,6 +29,11 @@ export interface EditorIngestPart {
 	name: string
 	type: string //  Assume we want this
 	duration?: number
+	/**
+	 * RE AUTO. True only when durationMode === 'auto'. Absent/false = never auto-take.
+	 * Copied onto PartBaseProps — adapters must not infer AUTO from duration alone.
+	 */
+	autoNext?: boolean
 	// type: string
 	float: boolean
 	/** Editorial skip — omit from Sofie playout (same as float). */

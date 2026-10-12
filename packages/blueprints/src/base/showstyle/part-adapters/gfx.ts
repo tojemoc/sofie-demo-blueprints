@@ -8,6 +8,7 @@ import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { autoNextForced, autoNextFromRe, autoNextPublicData, FORCE_WEATHER_AUTO_NEXT } from '../helpers/autoNext.js'
 
 function normalizeDiacritics(value: string): string {
 	return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
@@ -60,18 +61,23 @@ export function generateGfxPart(
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
-	// ILU parts are timed for Take (expectedDuration) but must not AUTO — operators
-	// click Take. Only Počasie/weather GFX auto-Takes (SYN never does).
+	// ILU never uses the weather force — operators Take ILU.
 	const isIlu = /ilu/i.test(part.rawType ?? '')
 	const isWeather = partHasWeatherGraphic(part)
-
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
+	const autoNext = Boolean(
+		FORCE_WEATHER_AUTO_NEXT && isWeather && !isIlu
+			? autoNextForced(expectedDuration)
+			: autoNextFromRe(part.payload, expectedDuration)
+	)
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
-			autoNext: isWeather && !isIlu,
+			expectedDuration,
+			autoNext,
+			publicData: autoNextPublicData(part.payload, autoNext),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],

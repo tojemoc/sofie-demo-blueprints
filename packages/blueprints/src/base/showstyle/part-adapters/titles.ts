@@ -15,6 +15,7 @@ import { createVisionMixerObjects } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { parseConfig } from '../helpers/config.js'
+import { autoNextForced, autoNextPublicData, FORCE_TITLES_AUTO_NEXT } from '../helpers/autoNext.js'
 
 export function generateOpenerPart(context: PartContext, part: PartProps<TitlesProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio
@@ -154,13 +155,16 @@ export function generateOpenerPart(context: PartContext, part: PartProps<TitlesP
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
+	const autoNext = FORCE_TITLES_AUTO_NEXT ? autoNextForced(expectedDuration) : false
 	return {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
-			autoNext: true,
+			expectedDuration,
+			autoNext,
+			publicData: autoNextPublicData(part.payload, autoNext),
 		},
 		pieces,
 		adLibPieces: [],

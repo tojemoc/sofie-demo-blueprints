@@ -12,6 +12,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { ObjectType } from '../../../common/definitions/objects.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 
 export function generateRemotePart(
 	context: PartContext,
@@ -59,12 +60,14 @@ export function generateRemotePart(
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
+	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
 			title: part.payload.name,
 
-			expectedDuration: part.payload.duration,
+			expectedDuration,
+			autoNext: autoNextFromRe(part.payload, expectedDuration),
 		},
 		pieces,
 		adLibPieces: [...graphics.adLibPieces, ...clips],
