@@ -37,12 +37,6 @@ export const FORCE_INTRO_AUTO_NEXT = true
 /** The titles opener always auto-takes once timed; RE labels this on read-back. */
 export const FORCE_TITLES_AUTO_NEXT = true
 
-/**
- * Počasie / weather GFX always auto-takes once timed. ILU is never forced
- * (operators Take ILU). RE labels this exception using Core's read-back.
- */
-export const FORCE_WEATHER_AUTO_NEXT = true
-
 /** Forced AUTO still requires a duration Core can use. */
 export function autoNextForced(expectedDuration: number | undefined): boolean {
 	return Number(expectedDuration) > 0

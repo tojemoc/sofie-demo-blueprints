@@ -580,7 +580,8 @@ describe('casparV2Graphics', () => {
 
 		const partContext = new PartContext(mockSegmentContext(), weatherPart.payload.externalId)
 		const result = generateGfxPart(partContext, weatherPart as never, 'B')
-		expect(result.part.autoNext).toBe(true)
+		expect(result.part.autoNext).toBe(false)
+
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 
 		const bg = timeline.find(

@@ -8,22 +8,7 @@ import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
-import { autoNextForced, autoNextFromRe, autoNextPublicData, FORCE_WEATHER_AUTO_NEXT } from '../helpers/autoNext.js'
-
-function normalizeDiacritics(value: string): string {
-	return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
-}
-
-/** True when this GFX part is Počasie / weather (AUTO-take allowed). */
-function partHasWeatherGraphic(part: PartProps<GfxProps>): boolean {
-	const name = normalizeDiacritics(part.payload.name ?? '')
-	const raw = normalizeDiacritics(part.rawType ?? '')
-	if (/pocasie|weather/.test(name) || /pocasie|weather/.test(raw)) return true
-	return part.objects.some((obj) => {
-		const clip = normalizeDiacritics(String((obj as { clipName?: string }).clipName ?? ''))
-		return clip === 'gfx/pocasie' || clip === 'gfx/weather'
-	})
-}
+import { autoNextFromRe, autoNextPublicData } from '../helpers/autoNext.js'
 
 export function generateGfxPart(
 	context: PartContext,
@@ -61,15 +46,8 @@ export function generateGfxPart(
 
 	const clips = parseClipsFromObjects(context, config, part.objects)
 
-	// ILU never uses the weather force — operators Take ILU.
-	const isIlu = /ilu/i.test(part.rawType ?? '')
-	const isWeather = partHasWeatherGraphic(part)
 	const expectedDuration = part.payload.duration > 0 ? part.payload.duration : undefined
-	const autoNext = Boolean(
-		FORCE_WEATHER_AUTO_NEXT && isWeather && !isIlu
-			? autoNextForced(expectedDuration)
-			: autoNextFromRe(part.payload, expectedDuration)
-	)
+	const autoNext = autoNextFromRe(part.payload, expectedDuration)
 	const result: BlueprintResultPart = {
 		part: {
 			externalId: part.payload.externalId,
