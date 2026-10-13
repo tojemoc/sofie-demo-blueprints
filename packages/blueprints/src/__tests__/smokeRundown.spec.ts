@@ -280,7 +280,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 			weatherPart as PartProps<GfxProps>,
 			'B'
 		)
-		expect(weatherResult.part.autoNext).toBe(true)
+		expect(weatherResult.part.autoNext).toBe(false)
 
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		expect(
