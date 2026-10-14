@@ -52,6 +52,12 @@ export enum CasparCGLayers {
 	 * Sofie layer id kept as `casparcg_pgm_route` so existing studio mappings still resolve.
 	 */
 	CasparCGPgmRoute = 'casparcg_pgm_route',
+	/**
+	 * Dedicated PGM layer (124) for the classical wipe's STING route transition. Empty
+	 * outside the sting window, so the outgoing look stays visible on the dual routes
+	 * (110/111) underneath. Above countup (123), below the 205+ overlays.
+	 */
+	CasparCGPgmRouteSting = 'casparcg_pgm_route_sting',
 	/** PGM intro / znelka overlay (channel 2 layer 210) — never LED; stays above the route. */
 	CasparCGPgmIntroPlayer = 'casparcg_intro_player_pgm',
 	/** Look A DoubleBox story ILU (BG A layer 116) — left window; not headline chrome. */
