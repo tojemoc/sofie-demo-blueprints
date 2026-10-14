@@ -112,6 +112,9 @@ export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
  */
 export const LOOK_HARD_CUT_INCOMING_DELAY_MS = WIPE_FRAME_MS * 2
 
+/** CUT hold on non-STING PGM route PLAYs; covers the stale frames queued by the lookahead LOADBG. */
+export const LOOK_ROUTE_STALE_FRAME_HOLD_MS = WIPE_FRAME_MS * 3
+
 /**
  * @deprecated Prefer {@link LOOK_HARD_CUT_INCOMING_DELAY_MS} / {@link LOOK_HARD_CUT_KEEPALIVE_MS}.
  * Kept as an alias of the incoming delay for leave-weather (+2f under cover) call sites.
@@ -544,7 +547,9 @@ export function createFullChannelRouteContent(
 	channel: number,
 	stingFile?: string,
 	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
-	mixer?: TSR.Mixer
+	mixer?: TSR.Mixer,
+	/** Hard cuts only: CUT hold (ms) that drains stale frames queued in the LOADBG'd route. */
+	cutHoldMs: number = 0
 ): TSR.TimelineContentCCGMedia {
 	return {
 		deviceType: TSR.DeviceType.CASPARCG,
@@ -552,6 +557,9 @@ export function createFullChannelRouteContent(
 		file: `route://${channel}`,
 		noStarttime: true,
 		...(mixer ? { mixer } : {}),
+		...(!stingFile && cutHoldMs > 0
+			? { transitions: { inTransition: { type: TSR.Transition.CUT, duration: cutHoldMs } } }
+			: {}),
 		...(stingFile
 			? {
 					transitions: {
@@ -716,6 +724,11 @@ export function createStingRouteTimelineObjects(
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
 	const stingFile = options?.stingFile
+	// The route is LOADBG'd by lookahead while its look channel still shows the previous look;
+	// Caspar's route queue keeps that oldest frame and airs it first on PLAY. PLAY earlier with a
+	// CUT hold so the stale frames are consumed while the outgoing route stays on air — the net
+	// cut stays at routeStartMs.
+	const cutHoldMs = stingFile ? 0 : Math.min(LOOK_ROUTE_STALE_FRAME_HOLD_MS, routeStartMs)
 	// Single canonical PGM route layer. Both the outgoing (kept alive by the part
 	// keepalive) and the incoming re-PLAY share this layer so STING can transition
 	// between them. Layer B (`CasparCGPgmRoute` / 111) is the baseline-visible route
@@ -732,14 +745,15 @@ export function createStingRouteTimelineObjects(
 					// its source until the transition's trigger point, which handles the cover. A
 					// plain (non-STING) re-PLAY has no transition to hold cover, so it must start at
 					// `routeStartMs` to switch at the keepalive cut like the default dual-route path.
-					enable: { start: stingFile ? 0 : routeStartMs },
+					enable: { start: stingFile ? 0 : routeStartMs - cutHoldMs },
 					layer,
 					priority: 1,
 					content: createFullChannelRouteContent(
 						routeChannel,
 						stingFile,
 						routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS,
-						pgmRouteMixer(true)
+						pgmRouteMixer(true),
+						cutHoldMs
 					),
 				})
 				// STING-route trial only: PRELOAD the canonical route layer (mapping
