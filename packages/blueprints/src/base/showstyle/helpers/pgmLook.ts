@@ -232,10 +232,16 @@ const LOOK_COMPOSE_LAYERS = new Set<string>([
 export const PGM_ROUTE_LAYERS = {
 	A: CasparCGLayers.CasparCGPgmRouteA,
 	B: CasparCGLayers.CasparCGPgmRoute,
+	/** Classical-wipe STING transition only (empty otherwise). */
+	STING: CasparCGLayers.CasparCGPgmRouteSting,
 } as const
 
 export function isPgmRouteLayer(layer: string): boolean {
-	return layer === (PGM_ROUTE_LAYERS.A as string) || layer === (PGM_ROUTE_LAYERS.B as string)
+	return (
+		layer === (PGM_ROUTE_LAYERS.A as string) ||
+		layer === (PGM_ROUTE_LAYERS.B as string) ||
+		layer === (PGM_ROUTE_LAYERS.STING as string)
+	)
 }
 
 export function isHypercomposedStudio(config: StudioConfig): boolean {
@@ -609,6 +615,9 @@ function pgmRouteMixer(visible: boolean): TSR.Mixer {
  *
  * Until `routeStartMs`, the previous slot stays visible so wiped Takes keep the old
  * look under the sting; at `routeStartMs` the mixer swaps under cover.
+ *
+ * With `wipeUseStingRouteTransition`, a classical-wipe Take additionally gets the
+ * STING object from {@link createStingRouteTimelineObjects} on its own layer.
  */
 export function createPgmRouteTimelineObjects(
 	config: StudioConfig,
@@ -618,28 +627,33 @@ export function createPgmRouteTimelineObjects(
 		previousSlot?: LookSlot
 		/**
 		 * Experimental STING-route trial (`wipeUseStingRouteTransition`): when set, the
-		 * classical `wipes/wipe` (the stringer) re-PLAYs the route on the single canonical
-		 * layer through a Caspar STING transition instead of the dual-layer mixer-opacity
-		 * flip. See {@link createStingRouteTimelineObject}. Themed wipes / hard cuts also
-		 * re-PLAY that canonical layer (only the wipe *graphic* differs via
-		 * {@link wipeUsesPgmSting}).
+		 * classical `wipes/wipe` additionally PLAYs the incoming route through a Caspar
+		 * STING transition on the dedicated sting layer (see
+		 * {@link createStingRouteTimelineObjects}); the dual-route flip still happens.
 		 */
 		stingFile?: string
 		/** The wipe file for this Take; drives whether STING (classical) or overlay (themed) applies. */
 		wipeFile?: string
+		/** Wipe length; bounds how long the STING layer stays up before it is cleared. */
+		stingDurationMs?: number
 	}
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	if (wipeUseStingRouteTransition(config)) {
-		// Faithful single-layer STING route (trial). Under the flag this is the *only*
-		// route emission path for every Take — classical wipes re-PLAY through a STING
-		// transition, themed wipes (205 overlay) and hard cuts re-PLAY plainly — so the
-		// on-air route always lives on the one canonical layer and the outgoing picture
-		// can be held by the part keepalive as STING's source. Deliberately **not** the
-		// per-file `wipeUsesPgmSting` gate: mixing the dual A/B overlay route with the
-		// canonical-layer STING would leave the outgoing route on the wrong channel for
-		// the next STING's `src` (black flash / wrong source under the wipe mask).
-		return createStingRouteTimelineObjects(config, slot, options)
+	// Dual always-live routes (110/111) ALWAYS carry the switch: hard cuts and themed wipes
+	// flip opacity/volume (never re-PLAY / LOADBG a route://). A classical STING Take
+	// additionally runs its transition on its own layer on top of the same flip — the
+	// outgoing look stays visible underneath until the flip lands under the sting cover.
+	const dual = createDualRouteTimelineObjects(config, slot, options)
+	if (wipeUseStingRouteTransition(config) && options?.stingFile) {
+		return [...dual, ...createStingRouteTimelineObjects(config, slot, options)]
 	}
+	return dual
+}
+
+function createDualRouteTimelineObjects(
+	config: StudioConfig,
+	slot: LookSlot,
+	options?: { routeStartMs?: number; previousSlot?: LookSlot }
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const channels = getHypercomposedChannels({ studio: config })
 	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
 	// Before the switch, keep the previous look on PGM (wipe cover / hard-cut keepalive).
@@ -697,17 +711,12 @@ export function createPgmRouteTimelineObjects(
  * holds that layer's leading producer as `src` until the transition's trigger point,
  * then starts pulling the new producer (`dst`) while the wipe mask composites the two
  * (see `sting_producer.cpp`: `started_dst = current_frame_ >= info_.trigger_point`).
- * So a wipe between two different on-air pictures requires both channels' routes on
- * the **same** layer, with the incoming route re-PLAYed through the STING and the
- * outgoing route held as the leading source (via the part's
- * `previousPartKeepaliveDuration`).
- *
- * This deliberately re-PLAYs the route producer on a single canonical PGM route layer
- * each Take — the exact thing the default dual-route path avoids. It replaces the PGM
- * 205 alpha-overlay + delayed mixer-opacity flip for wiped Takes only when the flag is
- * on. Caspar samples both producers per-frame and cuts at `trigger_point`, so the cut
- * tracks the wipe's real on-air position and never lands before the cover (no black
- * PGM), which is the robustness the 205-overlay model cannot reach.
+ * The STING lives on its own PGM layer ({@link PGM_ROUTE_LAYERS.STING}, 124), which is
+ * empty before/after the wipe. Its source is therefore transparent: Caspar keys the
+ * (empty) source with the inverted mask and the incoming route with the mask, so the
+ * outgoing look simply stays visible on the dual routes (110/111) underneath. The dual
+ * routes flip under the cover at the cut point, and the sting layer is cleared when the
+ * wipe ends — hard cuts and themed wipes never touch this layer.
  *
  * It depends on the two fixed config invariants: `createFullChannelRouteContent` must
  * serialize `layer: null` (AMCP `route://N`, never `route://N-0`) and `delay` must be
@@ -720,54 +729,27 @@ export function createStingRouteTimelineObjects(
 		routeStartMs?: number
 		previousSlot?: LookSlot
 		stingFile?: string
+		stingDurationMs?: number
 	}
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
 	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
-	const stingFile = options?.stingFile
-	// The route is LOADBG'd by lookahead while its look channel still shows the previous look;
-	// Caspar's route queue keeps that oldest frame and airs it first on PLAY. PLAY earlier with a
-	// CUT hold so the stale frames are consumed while the outgoing route stays on air — the net
-	// cut stays at routeStartMs.
-	const cutHoldMs = stingFile ? 0 : Math.min(LOOK_ROUTE_STALE_FRAME_HOLD_MS, routeStartMs)
-	// Single canonical PGM route layer. Both the outgoing (kept alive by the part
-	// keepalive) and the incoming re-PLAY share this layer so STING can transition
-	// between them. Layer B (`CasparCGPgmRoute` / 111) is the baseline-visible route
-	// layer, which keeps the rehearsal / headlines underlay behaviour intact.
-	const layer = PGM_ROUTE_LAYERS.B
-	const routeChannel = getLookCasparChannel(config, slot)
-
-	return [
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>(
-			(() => {
-				const obj = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					// STING-wrapped re-PLAY starts at Take (0): STING holds the leading producer as
-					// its source until the transition's trigger point, which handles the cover. A
-					// plain (non-STING) re-PLAY has no transition to hold cover, so it must start at
-					// `routeStartMs` to switch at the keepalive cut like the default dual-route path.
-					enable: { start: stingFile ? 0 : routeStartMs - cutHoldMs },
-					layer,
-					priority: 1,
-					content: createFullChannelRouteContent(
-						routeChannel,
-						stingFile,
-						routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS,
-						pgmRouteMixer(true),
-						cutHoldMs
-					),
-				})
-				// STING-route trial only: PRELOAD the canonical route layer (mapping
-				// `CasparCGPgmRoute` is switched to LookaheadMode.PRELOAD). A `playing:false`
-				// base LOADBGs `route://` + STING while Next; the keyframe raises playing:true
-				// at Take (bare `PLAY 2-111 … STING`). Sofie PRELOAD strips the PLAY keyframe,
-				// so Caspar sees a paused LOADBG + STING ahead of Take and the route producer
-				// never cold-starts under the wipe cover. Non-STING re-PLAYs (themed / hard-cut)
-				// keep a plain PLAY at routeStartMs — no preload needed on those.
-				if (stingFile) applyCasparHotPlayCue(obj, 0)
-				return obj
-			})()
+	const stingDurationMs = Math.max(0, Math.floor(options?.stingDurationMs ?? 0))
+	const obj = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		// Take (0) → end of the wipe; afterwards the layer is empty again (CLEAR).
+		enable: stingDurationMs > 0 ? { start: 0, duration: stingDurationMs } : { start: 0 },
+		layer: PGM_ROUTE_LAYERS.STING,
+		priority: 1,
+		content: createFullChannelRouteContent(
+			getLookCasparChannel(config, slot),
+			options?.stingFile,
+			routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS,
+			pgmRouteMixer(true)
 		),
-	]
+	})
+	// PRELOAD hot cue: paused LOADBG route+STING while Next, bare PLAY at Take.
+	applyCasparHotPlayCue(obj, 0)
+	return [obj]
 }
 
 /**
@@ -989,7 +971,8 @@ function expectedWipePackages(
 	routeLayers: CasparCGLayers[]
 ): ExpectedPackage.ExpectedPackageMediaFile[] {
 	const files = wipeUsesPgmSting(config, wipeFile) ? [`${wipeFile}_mask`, stingPremulOverlayFile(wipeFile)] : [wipeFile]
-	const layers = overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers
+	const stingLayers = wipeUsesPgmSting(config, wipeFile) ? [...routeLayers, PGM_ROUTE_LAYERS.STING] : routeLayers
+	const layers = overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...stingLayers] : stingLayers
 	return files.map((file) => createMediaFileExpectedPackage(context, file, layers))
 }
 
@@ -1030,6 +1013,7 @@ function createPgmRoutePiece(
 			// the incoming route re-PLAY wraps in a Caspar STING transition (delay = air cut
 			// in ms). Themed wipes are ignored here — they keep the 205 overlay.
 			stingFile: hasWipe && wipeFile && wipeUsesPgmSting(config, wipeFile) ? wipeFile : undefined,
+			stingDurationMs: wipeDurationMs,
 			previousSlot: previousSlot ?? (routeStartMs > 0 ? otherLookSlot(slot) : undefined),
 		})
 	)
@@ -1101,6 +1085,7 @@ function attachRouteToWipePiece(
 			routeStartMs: wipeCutPointMs,
 			wipeFile,
 			stingFile: wipeUsesPgmSting(config, wipeFile) ? wipeFile : undefined,
+			stingDurationMs: wipeDurationMs,
 			previousSlot: previousSlot ?? otherLookSlot(slot),
 		}),
 		...mutes,

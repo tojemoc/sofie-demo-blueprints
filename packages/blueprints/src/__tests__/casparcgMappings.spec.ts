@@ -345,9 +345,10 @@ describe('casparcgMappings', () => {
 			},
 		}
 		const mappings = getCasparCGMappings({ studio: trial })
-		// Canonical re-PLAY layer (B / 111) must LOOKAHEAD so the STING re-PLAY is LOADBG'd
-		// while Next and only hot-PLAYed at Take. Route A (never re-PLAYed) stays NONE.
-		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		// Only the dedicated sting layer PRELOADs; 110/111 must never LOADBG a route://
+		// (a background route captures stale frames that air first on PLAY).
+		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRouteA]?.lookahead).toBe(LookaheadMode.NONE)
 	})
 

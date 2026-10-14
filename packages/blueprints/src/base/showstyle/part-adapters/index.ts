@@ -56,7 +56,7 @@ import {
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
-import { normalizeLayeredVideoFileName, resolveWipeDurationMs } from '../helpers/clips.js'
+import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlinePiece,
@@ -95,6 +95,11 @@ export function resolveLookSlotForPart(
 	floatedOrSkipped = false
 ): LookSlot {
 	if (!isLookBearingPartType(type) || floatedOrSkipped) {
+		return lookSlots.peek()
+	}
+	// Outro.mov (PGM 210) brings no look of its own. Claiming the idle channel would flip the
+	// route to a channel that still holds an older look (Počasie) and flash it under the jingle.
+	if (partHasOutroOverlay(_objects)) {
 		return lookSlots.peek()
 	}
 	return lookSlots.claimIdle()

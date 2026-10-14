@@ -30,7 +30,6 @@ import {
 	LOOK_HARD_CUT_OVERLAP_MS,
 	LOOK_HARD_CUT_INCOMING_DELAY_MS,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
-	LOOK_ROUTE_STALE_FRAME_HOLD_MS,
 	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
 	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
 	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
@@ -55,7 +54,7 @@ import {
 	wipeUsesPgmSting,
 } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
-import { ObjectType } from '../common/definitions/objects.js'
+import { ObjectType, SomeObject } from '../common/definitions/objects.js'
 
 import {
 	hybridCasparConfig,
@@ -156,6 +155,18 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sequence.peek()).toBe('A')
 		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('B')
 		expect(sequence.peek()).toBe('B')
+	})
+
+	it('resolveLookSlotForPart does not claim a slot for outro.mov parts (no weather flash)', () => {
+		const sequence = createLookSlotSequence()
+		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'Zaver')).toBe('A')
+		const outro = {
+			objectType: ObjectType.Video,
+			clipName: 'assets/outro',
+			attributes: { playLayer: 'effects', fileName: 'assets/outro' },
+		} as unknown as SomeObject
+		expect(resolveLookSlotForPart(PartType.GFX, [outro], sequence, 'gfx')).toBe('A')
+		expect(sequence.peek()).toBe('A')
 	})
 
 	it('maps look A to BG 3 and look B to BG 4', () => {
@@ -276,8 +287,7 @@ describe('pgmLook look-kind channels + route', () => {
 
 		expect(objs).toHaveLength(1)
 		const route = objs[0]
-		expect(route.layer).toBe(PGM_ROUTE_LAYERS.B)
-		expect(route.enable).toEqual({ start: 0 })
+		expect(route.layer).toBe(PGM_ROUTE_LAYERS.STING)
 		const content = route.content as TSR.TimelineContentCCGMedia
 		expect(content.file).toBe('route://3')
 		expect(content.transitions?.inTransition).toMatchObject({
@@ -299,22 +309,10 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(route.keyframes).toHaveLength(1)
 	})
 
-	it('STING-route trial hard-cut re-PLAYs start at the keepalive cut (no STING hold)', () => {
-		// Cross-slot hard cut under the trial flag: no stingFile, nonzero routeStartMs.
-		// Without a STING transition there is nothing to hold the cover, so the plain
-		// re-PLAY must switch at routeStartMs (keepalive cut), not at Take (0).
+	it('STING layer is a no-op hard cut guard: createStingRouteTimelineObjects without stingFile is not used', () => {
 		const on = stingTrialConfig()
-		const objs = createStingRouteTimelineObjects(on, 'A', {
-			routeStartMs: LOOK_HARD_CUT_KEEPALIVE_MS,
-		})
-		expect(objs).toHaveLength(1)
-		const route = objs[0]
-		expect(route.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS - LOOK_ROUTE_STALE_FRAME_HOLD_MS })
-		// CUT hold drains the stale LOADBG frame; PLAY starts early so the net cut stays at the keepalive cut.
-		expect((route.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toEqual({
-			type: TSR.Transition.CUT,
-			duration: LOOK_ROUTE_STALE_FRAME_HOLD_MS,
-		})
+		const objs = createPgmRouteTimelineObjects(on, 'A', { routeStartMs: LOOK_HARD_CUT_KEEPALIVE_MS })
+		expect(objs.every((o) => o.layer !== PGM_ROUTE_LAYERS.STING)).toBe(true)
 	})
 
 	it('STING-route trial is scoped to the classical wipes/wipe only', () => {
@@ -336,38 +334,52 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(wipeUsesPgmOverlay(on, undefined)).toBe(true)
 	})
 
-	it('STING-route trial: themed wipes re-PLAY on the canonical route layer (no STING)', () => {
+	it('themed wipes under the flag use the dual routes only (no STING layer, no re-PLAY)', () => {
 		const on = stingTrialConfig()
 		const objs = createPgmRouteTimelineObjects(on, 'A', {
 			routeStartMs: THEMED_WIPE_AIR_CUT_MS,
 			wipeFile: 'wipes/wipe_sjv',
 		})
-		// Themed wipe → same canonical single layer B as the classical STING, so route
-		// ownership stays consistent across consecutive Takes (a STING after it finds the
-		// outgoing picture on 111). No STING transition — only the stale-frame CUT hold.
-		expect(objs).toHaveLength(1)
-		expect(objs[0].layer).toBe(PGM_ROUTE_LAYERS.B)
-		const themedIn = (objs[0].content as TSR.TimelineContentCCGMedia).transitions?.inTransition
-		expect(themedIn?.type).toBe(TSR.Transition.CUT)
-		expect(objs[0].enable).toEqual({ start: THEMED_WIPE_AIR_CUT_MS - LOOK_ROUTE_STALE_FRAME_HOLD_MS })
+		expect(objs.map((o) => o.layer)).not.toContain(PGM_ROUTE_LAYERS.STING)
+		for (const o of objs) {
+			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		}
 	})
 
-	it('STING-route trial: classical wipes/wipe dispatch to the STING single-layer route', () => {
+	it('hard cuts under the flag never emit a sting object or a hot-cue on 110/111', () => {
+		const on = stingTrialConfig()
+		const objs = createPgmRouteTimelineObjects(on, 'A', { routeStartMs: LOOK_HARD_CUT_KEEPALIVE_MS })
+		expect(objs.map((o) => o.layer).sort()).toEqual([PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B].sort())
+		for (const o of objs) {
+			expect((o.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
+			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		}
+	})
+
+	it('classical wipes/wipe add the STING on its own layer on top of the dual routes', () => {
 		const on = stingTrialConfig()
 		const objs = createPgmRouteTimelineObjects(on, 'A', {
 			routeStartMs: WIPE_AIR_CUT_MS,
 			wipeFile: 'wipes/wipe',
 			stingFile: 'wipes/wipe',
+			stingDurationMs: 2500,
 		})
-		// Classical stringer → single canonical-layer STING route (dual-route is bypassed).
-		expect(objs).toHaveLength(1)
-		expect(objs[0].layer).toBe(PGM_ROUTE_LAYERS.B)
-		const content = objs[0].content as TSR.TimelineContentCCGMedia
+		expect(objs.map((o) => o.layer)).toEqual(
+			expect.arrayContaining([PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B, PGM_ROUTE_LAYERS.STING])
+		)
+		const sting = objs.find((o) => o.layer === PGM_ROUTE_LAYERS.STING)
+		expect(sting).toBeDefined()
+		expect(sting?.enable).toEqual({ start: 0, duration: 2500 })
+		const content = sting?.content as TSR.TimelineContentCCGMedia
 		expect(content.transitions?.inTransition).toMatchObject({
 			type: TSR.Transition.STING,
 			maskFile: 'wipes/wipe_mask',
 			overlayFile: 'wipes/wipe_pm',
 		})
+		// 110/111 carry no transition.
+		for (const o of objs.filter((x) => x.layer !== PGM_ROUTE_LAYERS.STING)) {
+			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		}
 	})
 
 	it('STING-route expectedPackages include the luma mask and premultiplied overlay files', () => {
