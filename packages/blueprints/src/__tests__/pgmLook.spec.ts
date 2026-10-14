@@ -30,6 +30,7 @@ import {
 	LOOK_HARD_CUT_OVERLAP_MS,
 	LOOK_HARD_CUT_INCOMING_DELAY_MS,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
+	LOOK_ROUTE_STALE_FRAME_HOLD_MS,
 	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
 	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
 	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
@@ -308,8 +309,12 @@ describe('pgmLook look-kind channels + route', () => {
 		})
 		expect(objs).toHaveLength(1)
 		const route = objs[0]
-		expect(route.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS })
-		expect((route.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		expect(route.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS - LOOK_ROUTE_STALE_FRAME_HOLD_MS })
+		// CUT hold drains the stale LOADBG frame; PLAY starts early so the net cut stays at the keepalive cut.
+		expect((route.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toEqual({
+			type: TSR.Transition.CUT,
+			duration: LOOK_ROUTE_STALE_FRAME_HOLD_MS,
+		})
 	})
 
 	it('STING-route trial is scoped to the classical wipes/wipe only', () => {
@@ -339,11 +344,12 @@ describe('pgmLook look-kind channels + route', () => {
 		})
 		// Themed wipe → same canonical single layer B as the classical STING, so route
 		// ownership stays consistent across consecutive Takes (a STING after it finds the
-		// outgoing picture on 111). No STING transition — the themed graphic plays as the
-		// 205 overlay instead.
+		// outgoing picture on 111). No STING transition — only the stale-frame CUT hold.
 		expect(objs).toHaveLength(1)
 		expect(objs[0].layer).toBe(PGM_ROUTE_LAYERS.B)
-		expect((objs[0].content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
+		const themedIn = (objs[0].content as TSR.TimelineContentCCGMedia).transitions?.inTransition
+		expect(themedIn?.type).toBe(TSR.Transition.CUT)
+		expect(objs[0].enable).toEqual({ start: THEMED_WIPE_AIR_CUT_MS - LOOK_ROUTE_STALE_FRAME_HOLD_MS })
 	})
 
 	it('STING-route trial: classical wipes/wipe dispatch to the STING single-layer route', () => {
