@@ -323,7 +323,7 @@ describe('RE autoNext is the source of truth', () => {
 		expect(generateGfxPart(ctx(), part).part.autoNext).toBe(false)
 	})
 
-	it('Weather GFX is forced AUTO when timed, even without RE autoNext', () => {
+	it('Weather GFX is not forced AUTO; it follows RE autoNext', () => {
 		const part: PartProps<GfxProps> = {
 			type: PartType.GFX,
 			rawType: 'GFX',
@@ -337,10 +337,12 @@ describe('RE autoNext is the source of truth', () => {
 			objects: [{ ...graphic, clipName: 'gfx/pocasie' } as never],
 		}
 		const result = generateGfxPart(ctx(), part)
-		expect(result.part.autoNext).toBe(true)
-		expect(result.part.publicData).toEqual({ autoNextSource: 'blueprint' })
-		part.payload.duration = 0
-		expect(generateGfxPart(ctx(), part).part.autoNext).toBe(false)
+		expect(result.part.autoNext).toBe(false)
+		expect(result.part.publicData).toBeUndefined()
+		part.payload.autoNext = true
+		const withRe = generateGfxPart(ctx(), part)
+		expect(withRe.part.autoNext).toBe(true)
+		expect(withRe.part.publicData).toBeUndefined()
 	})
 
 	it('Intro / titles force AUTO when a duration is present', () => {

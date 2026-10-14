@@ -112,6 +112,9 @@ export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
  */
 export const LOOK_HARD_CUT_INCOMING_DELAY_MS = WIPE_FRAME_MS * 2
 
+/** CUT hold on non-STING PGM route PLAYs; covers the stale frames queued by the lookahead LOADBG. */
+export const LOOK_ROUTE_STALE_FRAME_HOLD_MS = WIPE_FRAME_MS * 3
+
 /**
  * @deprecated Prefer {@link LOOK_HARD_CUT_INCOMING_DELAY_MS} / {@link LOOK_HARD_CUT_KEEPALIVE_MS}.
  * Kept as an alias of the incoming delay for leave-weather (+2f under cover) call sites.
@@ -550,7 +553,9 @@ export function createFullChannelRouteContent(
 	channel: number,
 	stingFile?: string,
 	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
-	mixer?: TSR.Mixer
+	mixer?: TSR.Mixer,
+	/** Hard cuts only: CUT hold (ms) that drains stale frames queued in the LOADBG'd route. */
+	cutHoldMs: number = 0
 ): TSR.TimelineContentCCGMedia {
 	return {
 		deviceType: TSR.DeviceType.CASPARCG,
@@ -558,6 +563,9 @@ export function createFullChannelRouteContent(
 		file: `route://${channel}`,
 		noStarttime: true,
 		...(mixer ? { mixer } : {}),
+		...(!stingFile && cutHoldMs > 0
+			? { transitions: { inTransition: { type: TSR.Transition.CUT, duration: cutHoldMs } } }
+			: {}),
 		...(stingFile
 			? {
 					transitions: {
