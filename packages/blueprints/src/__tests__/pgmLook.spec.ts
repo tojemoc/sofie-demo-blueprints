@@ -54,7 +54,7 @@ import {
 	wipeUsesPgmSting,
 } from '../base/showstyle/helpers/pgmLook.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
-import { ObjectType } from '../common/definitions/objects.js'
+import { ObjectType, SomeObject } from '../common/definitions/objects.js'
 
 import {
 	hybridCasparConfig,
@@ -155,6 +155,18 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(sequence.peek()).toBe('A')
 		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'DoubleBox')).toBe('B')
 		expect(sequence.peek()).toBe('B')
+	})
+
+	it('resolveLookSlotForPart does not claim a slot for outro.mov parts (no weather flash)', () => {
+		const sequence = createLookSlotSequence()
+		expect(resolveLookSlotForPart(PartType.Camera, [], sequence, 'Zaver')).toBe('A')
+		const outro = {
+			objectType: ObjectType.Video,
+			clipName: 'assets/outro',
+			attributes: { playLayer: 'effects', fileName: 'assets/outro' },
+		} as unknown as SomeObject
+		expect(resolveLookSlotForPart(PartType.GFX, [outro], sequence, 'gfx')).toBe('A')
+		expect(sequence.peek()).toBe('A')
 	})
 
 	it('maps look A to BG 3 and look B to BG 4', () => {
