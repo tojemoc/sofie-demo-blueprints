@@ -971,7 +971,8 @@ function expectedWipePackages(
 	routeLayers: CasparCGLayers[]
 ): ExpectedPackage.ExpectedPackageMediaFile[] {
 	const files = wipeUsesPgmSting(config, wipeFile) ? [`${wipeFile}_mask`, stingPremulOverlayFile(wipeFile)] : [wipeFile]
-	const layers = overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers] : routeLayers
+	const stingLayers = wipeUsesPgmSting(config, wipeFile) ? [...routeLayers, PGM_ROUTE_LAYERS.STING] : routeLayers
+	const layers = overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...stingLayers] : stingLayers
 	return files.map((file) => createMediaFileExpectedPackage(context, file, layers))
 }
 
