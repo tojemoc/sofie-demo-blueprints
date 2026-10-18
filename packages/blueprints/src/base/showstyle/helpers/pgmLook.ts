@@ -749,12 +749,15 @@ export function createStingRouteTimelineObjects(
 	})
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	// PRELOAD hot cue: paused LOADBG route+STING while Next, PLAY at Take. The PLAY
-	// keyframe re-arms the STING transition on the producer this Take actually plays —
-	// the lookahead LOADBG can arm a different slot's route (or none at all), and a
-	// bare PLAY would then swap producers and drop the sting into a hard cut. Routes
-	// are live sources, so re-arming at Take is cheap (no ffmpeg cold start).
+	// keyframe re-states whatever transition this producer's own content carries (the
+	// STING, when a sting is armed), so the Take re-arms the wipe on the route it
+	// actually plays — a lookahead LOADBG may have armed a different slot's route (or
+	// none at all), and a bare PLAY would then swap producers and drop the sting into
+	// a hard cut. Never gate that selection on a type check: the point is that the
+	// route-B Take always emits a transition-bearing PLAY, even after a route-A preload.
+	// Routes are live sources, so re-arming at Take is cheap (no ffmpeg cold start).
 	applyCasparHotPlayCue(obj, 0, {
-		transitions: content.transitions?.inTransition?.type === TSR.Transition.STING ? content.transitions : undefined,
+		transitions: content.transitions,
 	})
 	return [obj]
 }
