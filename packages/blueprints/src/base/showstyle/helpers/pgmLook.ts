@@ -747,8 +747,18 @@ export function createStingRouteTimelineObjects(
 			pgmRouteMixer(true)
 		),
 	})
-	// PRELOAD hot cue: paused LOADBG route+STING while Next, bare PLAY at Take.
-	applyCasparHotPlayCue(obj, 0)
+	const content = obj.content as TSR.TimelineContentCCGMedia
+	// PRELOAD hot cue: paused LOADBG route+STING while Next, PLAY at Take. The PLAY
+	// keyframe re-states whatever transition this producer's own content carries (the
+	// STING, when a sting is armed), so the Take re-arms the wipe on the route it
+	// actually plays — a lookahead LOADBG may have armed a different slot's route (or
+	// none at all), and a bare PLAY would then swap producers and drop the sting into
+	// a hard cut. Never gate that selection on a type check: the point is that the
+	// route-B Take always emits a transition-bearing PLAY, even after a route-A preload.
+	// Routes are live sources, so re-arming at Take is cheap (no ffmpeg cold start).
+	applyCasparHotPlayCue(obj, 0, {
+		transitions: content.transitions,
+	})
 	return [obj]
 }
 
@@ -851,11 +861,16 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
  * Pass `revealMixer: true` when the object arms at opacity 0 (wipe overlay + sticky
  * baseline) so Take raises opacity/volume with the PLAY — never MIXER OPACITY 1
  * while still paused (that ghost-flashed wipe frame 0 on Take).
+ *
+ * Pass `transitions` to re-specify the in-transition on the PLAY keyframe itself.
+ * The STING layer uses this to re-arm its wipe on whichever producer the Take
+ * actually PLAYes — a lookahead LOADBG may have armed a different slot's route, and
+ * a bare PLAY would then swap producers and drop the sting into a hard cut.
  */
 function applyCasparHotPlayCue(
 	obj: TimelineBlueprintExt,
 	playAtMs: number,
-	options?: { seekMs?: number; revealMixer?: boolean }
+	options?: { seekMs?: number; revealMixer?: boolean; transitions?: TSR.TimelineContentCCGMedia['transitions'] }
 ): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.playing = false
@@ -873,6 +888,7 @@ function applyCasparHotPlayCue(
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				playing: true,
 				...(options?.revealMixer ? { mixer: { opacity: 1, volume: 1 } } : {}),
+				...(options?.transitions ? { transitions: options.transitions } : {}),
 			},
 		},
 	]
