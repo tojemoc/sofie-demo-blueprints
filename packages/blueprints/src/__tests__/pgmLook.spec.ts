@@ -301,12 +301,36 @@ describe('pgmLook look-kind channels + route', () => {
 		// casparcg-state maps delay (ms) → STING frames; never the stale 38-frame value.
 		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
 		// PRELOAD hot-cue: base playing:false (LOADBG route+STING while Next) + keyframe
-		// raising playing:true at Take (bare `PLAY 2-111 … STING`). No mixer-opacity keyframe.
+		// raising playing:true at Take. The keyframe re-arms the STING inTransition on the
+		// producer the Take actually PLAYes, so a lookahead LOADBG of a different slot's
+		// route can never drop the sting into a hard cut. No mixer-opacity keyframe.
 		expect(content.playing).toBe(false)
 		const kf = route.keyframes?.[0]
 		expect(kf?.enable).toEqual({ start: 0 })
 		expect((kf?.content as TSR.TimelineContentCCGMedia)?.playing).toBe(true)
 		expect(route.keyframes).toHaveLength(1)
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions?.inTransition).toMatchObject({
+			type: TSR.Transition.STING,
+			maskFile: 'wipes/wipe_mask',
+			overlayFile: 'wipes/wipe_pm',
+		})
+	})
+
+	it('STING hot-cue re-arms on the played route: a mismatched lookahead LOADBG cannot drop the sting', () => {
+		const on = stingTrialConfig()
+		// Take PLAYes slot B (route://4) while the lookahead armed slot A (route://3) —
+		// the exact mismatch that used to swap the producer on a bare PLAY and hard-cut.
+		const objs = createStingRouteTimelineObjects(on, 'B', { routeStartMs: WIPE_AIR_CUT_MS, stingFile: 'wipes/wipe' })
+		const route = objs[0]
+		expect((route.content as TSR.TimelineContentCCGMedia).file).toBe('route://4')
+		const kf = route.keyframes?.[0]
+		expect(kf).toBeDefined()
+		// The PLAY keyframe must carry the STING transition on its own content so Caspar
+		// arms the wipe on `route://4` regardless of what the LOADBG preloaded.
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions?.inTransition).toMatchObject({
+			type: TSR.Transition.STING,
+		})
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.file).toBeUndefined()
 	})
 
 	it('STING layer is a no-op hard cut guard: createStingRouteTimelineObjects without stingFile is not used', () => {
