@@ -185,11 +185,15 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGPgmRouteA]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteA),
 		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB),
 		// STING route transition runs on its own layer so 110/111 keep hard-cutting by
-		// opacity flips (never a lookahead LOADBG route:// that airs stale frames). It must
-		// PRELOAD hot (paused `route://` + STING while Next, bare `PLAY` at Take).
-		[CasparCGLayers.CasparCGPgmRouteSting]: config.studio.casparcg.hypercomposed?.wipeUseStingRouteTransition
-			? casparLayerMapping(pgmChannel, PgmChannelLayers.RouteSting, LookaheadMode.PRELOAD)
-			: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteSting),
+		// opacity flips (never a lookahead LOADBG route:// that airs stale frames).
+		// Deliberately **not** PRELOAD: lookahead on this layer arms the producer for a
+		// part one-or-more takes ahead (its route alternates per slot), so at the imminent
+		// Take the armed producer differs and casparcg-state emits `PLAY "route://Y"`
+		// (a producer swap) with no STING — the wipe is dropped into a hard cut. With
+		// NONE lookahead each Take LOADBGs its own `route://N`+STING then bare-PLAYs it,
+		// so the armed producer is always the played producer. The mask/overlay files are
+		// small and cached (Package Manager pre-fetches them); the route producer is live.
+		[CasparCGLayers.CasparCGPgmRouteSting]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteSting),
 		// PRELOAD + explicit hot-PLAY cue on the wipe overlay (playing:false LOADBG,
 		// keyframe playing:true at Take). Sofie PRELOAD while Next strips the PLAY
 		// keyframe so Caspar LOADBGs the paused sting; Take applies hot PLAY. NONE
