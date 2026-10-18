@@ -747,10 +747,11 @@ export function createStingRouteTimelineObjects(
 			pgmRouteMixer(true)
 		),
 	})
-	// PRELOAD hot cue: paused LOADBG route+STING while Next, bare `PLAY` at Take.
-	// casparcg-state attaches the STING transition to the producer's LOAD (the LOADBG
-	// above); the Take promotes it with a bare PLAY — re-specifying transitions on the
-	// PLAY keyframe made Promoter not emit the PLAY at all (regression, #140).
+	// Lookahead NONE on this layer (see the mapping): each Take LOADBGs its own paused
+	// `route://N`+STING from this object, then the bare PLAY keyframe promotes it — the
+	// armed and played producers are one and the same. PRELOAD instead armed a part
+	// one-or-more takes ahead (routes alternate per slot) and the producer-swapping PLAY
+	// casparcg-state then emitted carried no STING (hard cut, #139 regression).
 	applyCasparHotPlayCue(obj, 0)
 	return [obj]
 }

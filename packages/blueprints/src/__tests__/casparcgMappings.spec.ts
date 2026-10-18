@@ -329,7 +329,7 @@ describe('casparcgMappings', () => {
 		expect(new Set(wipeLayers).size).toBe(4)
 	})
 
-	it('STING-route trial PRELOADs the canonical PGM route layer (111) for a hot re-PLAY', () => {
+	it('STING-route trial does NOT lookahead the sting layer (Take arms its own producer)', () => {
 		const trial: StudioConfig = {
 			...baseStudioConfig,
 			casparcg: {
@@ -345,9 +345,13 @@ describe('casparcgMappings', () => {
 			},
 		}
 		const mappings = getCasparCGMappings({ studio: trial })
-		// Only the dedicated sting layer PRELOADs; 110/111 must never LOADBG a route://
-		// (a background route captures stale frames that air first on PLAY).
-		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		// The sting layer must NOT lookahead: PRELOAD armed the producer of a part one-or-
+		// more takes ahead (routes alternate per slot), so at the imminent Take the armed
+		// producer differed and casparcg-state emitted `PLAY "route://Y"` (swap, no STING)
+		// — the wipe dropped. NONE → the Take LOADBGs its own route://N+STING then bare-
+		// PLAYs it (armed == played). 110/111 never LOADBG a route:// either (a background
+		// route captures stale frames that air first on PLAY).
+		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRouteA]?.lookahead).toBe(LookaheadMode.NONE)
 	})
