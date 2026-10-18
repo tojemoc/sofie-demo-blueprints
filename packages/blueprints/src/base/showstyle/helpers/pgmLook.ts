@@ -747,18 +747,11 @@ export function createStingRouteTimelineObjects(
 			pgmRouteMixer(true)
 		),
 	})
-	const content = obj.content as TSR.TimelineContentCCGMedia
-	// PRELOAD hot cue: paused LOADBG route+STING while Next, PLAY at Take. The PLAY
-	// keyframe re-states whatever transition this producer's own content carries (the
-	// STING, when a sting is armed), so the Take re-arms the wipe on the route it
-	// actually plays — a lookahead LOADBG may have armed a different slot's route (or
-	// none at all), and a bare PLAY would then swap producers and drop the sting into
-	// a hard cut. Never gate that selection on a type check: the point is that the
-	// route-B Take always emits a transition-bearing PLAY, even after a route-A preload.
-	// Routes are live sources, so re-arming at Take is cheap (no ffmpeg cold start).
-	applyCasparHotPlayCue(obj, 0, {
-		transitions: content.transitions,
-	})
+	// PRELOAD hot cue: paused LOADBG route+STING while Next, bare `PLAY` at Take.
+	// casparcg-state attaches the STING transition to the producer's LOAD (the LOADBG
+	// above); the Take promotes it with a bare PLAY — re-specifying transitions on the
+	// PLAY keyframe made Promoter not emit the PLAY at all (regression, #140).
+	applyCasparHotPlayCue(obj, 0)
 	return [obj]
 }
 
@@ -862,15 +855,14 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
  * baseline) so Take raises opacity/volume with the PLAY — never MIXER OPACITY 1
  * while still paused (that ghost-flashed wipe frame 0 on Take).
  *
- * Pass `transitions` to re-specify the in-transition on the PLAY keyframe itself.
- * The STING layer uses this to re-arm its wipe on whichever producer the Take
- * actually PLAYes — a lookahead LOADBG may have armed a different slot's route, and
- * a bare PLAY would then swap producers and drop the sting into a hard cut.
+ * Keep the PLAY keyframe bare (playing only). casparcg-state attaches transitions to
+ * the producer's LOAD; a transition-bearing PLAY keyframe made Promoter not emit the
+ * PLAY at all (see {@link createStingRouteTimelineObjects}).
  */
 function applyCasparHotPlayCue(
 	obj: TimelineBlueprintExt,
 	playAtMs: number,
-	options?: { seekMs?: number; revealMixer?: boolean; transitions?: TSR.TimelineContentCCGMedia['transitions'] }
+	options?: { seekMs?: number; revealMixer?: boolean }
 ): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.playing = false
@@ -888,7 +880,6 @@ function applyCasparHotPlayCue(
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				playing: true,
 				...(options?.revealMixer ? { mixer: { opacity: 1, volume: 1 } } : {}),
-				...(options?.transitions ? { transitions: options.transitions } : {}),
 			},
 		},
 	]
