@@ -44,19 +44,23 @@ describe('sting contract (end-to-end smoke rundown, STING-trial flag on)', () =>
 				stingTakes++
 				const route = Number(/route:\/\/(\d+)/.exec(String((sting.content as { file?: string }).file))?.[1])
 
-				// The route the dual flip brings live at the cut: the 110/111 object whose
-				// base (or cut keyframe) raises OPACITY 1 is the incoming slot.
-				const liveFor = (layer: (typeof PGM_ROUTE_LAYERS)['A' | 'B']) => {
+				// The incoming slot is the dual-route object that flips OPACITY to 1 at the
+				// cut (the outgoing holds opacity 1 in its base instead). Evaluate both
+				// routes and require exactly one to flip — a broken flip would silently
+				// pick the wrong route below.
+				const flipsLive = (layer: (typeof PGM_ROUTE_LAYERS)['A' | 'B']) => {
 					const o = objs.find((x) => String(x.layer) === (layer as string))
-					if (!o) return false
-					const content = o.content as { mixer?: { opacity?: number } }
-					const kf = (o.keyframes ?? []) as Array<{ content?: { mixer?: { opacity?: number } } }>
-					return content.mixer?.opacity === 1 || kf.some((k) => k.content?.mixer?.opacity === 1)
+					const kf = (o?.keyframes ?? []) as Array<{ content?: { mixer?: { opacity?: number } } }>
+					return kf.some((k) => k.content?.mixer?.opacity === 1)
 				}
-				const live = liveFor(PGM_ROUTE_LAYERS.A) ? getLookCasparChannel(tri, 'A') : getLookCasparChannel(tri, 'B')
-				// The sting must reveal the same route the PGM flip reveals (armed == played
-				// by construction): a per-take producer mismatch is what dropped the sting.
-				expect({ part: p.part.externalId, route, live }).toMatchObject({ route, live })
+				const flipsA = flipsLive(PGM_ROUTE_LAYERS.A)
+				const flipsB = flipsLive(PGM_ROUTE_LAYERS.B)
+				expect({ part: p.part.externalId, flipsA, flipsB }).toMatchObject({ flipsA: !flipsB, flipsB: !flipsA })
+				const live = flipsA ? getLookCasparChannel(tri, 'A') : getLookCasparChannel(tri, 'B')
+				// The sting must reveal the same route the PGM flip brings live (armed ==
+				// played by construction): a per-take producer mismatch is what dropped the
+				// sting. Keep the part id in the message so a mismatch names the take.
+				expect(route, `part ${p.part.externalId}: sting producer must equal the live route`).toBe(live)
 				// One sting producer on 124 for this take.
 				expect(objs.filter((o) => String(o.layer) === (PGM_ROUTE_LAYERS.STING as string))).toHaveLength(1)
 			}
