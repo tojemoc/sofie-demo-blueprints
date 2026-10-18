@@ -301,53 +301,53 @@ describe('pgmLook look-kind channels + route', () => {
 		// casparcg-state maps delay (ms) → STING frames; never the stale 38-frame value.
 		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
 		// PRELOAD hot-cue: base playing:false (LOADBG route+STING while Next) + keyframe
-		// raising playing:true at Take. The keyframe re-arms the STING inTransition on the
-		// producer the Take actually PLAYes, so a lookahead LOADBG of a different slot's
-		// route can never drop the sting into a hard cut. No mixer-opacity keyframe.
+		// raising playing:true at Take. The keyframe must stay BARE (playing only) —
+		// casparcg-state attaches the STING to the producer's LOAD, and a PLAY keyframe
+		// carrying file/transitions/seek made Promoter stop emitting the PLAY (#140). No
+		// mixer-opacity keyframe.
 		expect(content.playing).toBe(false)
 		const kf = route.keyframes?.[0]
 		expect(kf?.enable).toEqual({ start: 0 })
 		expect((kf?.content as TSR.TimelineContentCCGMedia)?.playing).toBe(true)
 		expect(route.keyframes).toHaveLength(1)
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions?.inTransition).toMatchObject({
-			type: TSR.Transition.STING,
-			maskFile: 'wipes/wipe_mask',
-			overlayFile: 'wipes/wipe_pm',
-		})
+		// Bare promote: the PLAY keyframe names no file, no seek, no transition of its own.
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.file).toBeUndefined()
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.seek).toBeUndefined()
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions).toBeUndefined()
 	})
 
-	it('route-A preload then route-B Take: the Take PLAY is transition-bearing so a producer swap cannot suppress the sting', () => {
+	it('STING drop (open): the armed producer must be the played producer — a bare PLAY cannot transplant the sting', () => {
 		const on = stingTrialConfig()
 		// The failing on-air pattern: lookahead LOADBG arms route A (route://3) on the
-		// sting layer while Next, but the Take actually PLAYes route B (route://4).
+		// sting layer while Next, but the Take actually PLAYes route B (route://4). The
+		// STING transition lives on the LOADBG'd producer only (load-attached); a bare
+		// PLAY promotes the armed producer, so it fires only when the armed and played
+		// routes match. This test pins that contract: producers differ ⇒ the sting is
+		// armed on a producer that is replaced, and Caspar hard-cuts.
 		const preload = createStingRouteTimelineObjects(on, 'A', {
 			routeStartMs: WIPE_AIR_CUT_MS,
 			stingFile: 'wipes/wipe',
 		})[0]
 		expect((preload.content as TSR.TimelineContentCCGMedia).file).toBe('route://3')
-		// The preload arms paused (LOADBG) so the layer holds route A's armed producer.
+		// The LOADBG arm: paused producer whose content carries the STING transition.
 		expect((preload.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
+		expect((preload.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toMatchObject({
+			type: TSR.Transition.STING,
+		})
 
 		const take = createStingRouteTimelineObjects(on, 'B', {
 			routeStartMs: WIPE_AIR_CUT_MS,
 			stingFile: 'wipes/wipe',
 		})[0]
+		// The Take's own hot-cue is a bare PLAY of ITS producer (route://4) — it cannot
+		// carry the STING (load-attached), so arming route A and playing route B drops it.
 		expect((take.content as TSR.TimelineContentCCGMedia).file).toBe('route://4')
-		// The route-B Take hot-cue must carry the STING transition on its own keyframe
-		// (a transition-bearing PLAY of route://4), so Caspar arms the wipe on the route
-		// it actually plays — never suppressed by the route-A preload on the same layer.
+		expect((take.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
 		const kf = take.keyframes?.[0]
 		expect(kf).toBeDefined()
 		expect((kf?.content as TSR.TimelineContentCCGMedia)?.playing).toBe(true)
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions?.inTransition).toMatchObject({
-			type: TSR.Transition.STING,
-			maskFile: 'wipes/wipe_mask',
-			overlayFile: 'wipes/wipe_pm',
-			delay: WIPE_AIR_CUT_MS,
-		})
-		// The keyframe names no file itself — the played producer is the object's base
-		// content (route://4); the transition rides the PLAY of that producer.
 		expect((kf?.content as TSR.TimelineContentCCGMedia)?.file).toBeUndefined()
+		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions).toBeUndefined()
 	})
 
 	it('STING layer is a no-op hard cut guard: createStingRouteTimelineObjects without stingFile is not used', () => {
