@@ -186,14 +186,25 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB),
 		// STING route transition runs on its own layer so 110/111 keep hard-cutting by
 		// opacity flips (never a lookahead LOADBG route:// that airs stale frames).
-		// Deliberately **not** PRELOAD: lookahead on this layer arms the producer for a
-		// part one-or-more takes ahead (its route alternates per slot), so at the imminent
-		// Take the armed producer differs and casparcg-state emits `PLAY "route://Y"`
-		// (a producer swap) with no STING — the wipe is dropped into a hard cut. With
-		// NONE lookahead each Take LOADBGs its own `route://N`+STING then bare-PLAYs it,
-		// so the armed producer is always the played producer. The mask/overlay files are
-		// small and cached (Package Manager pre-fetches them); the route producer is live.
-		[CasparCGLayers.CasparCGPgmRouteSting]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteSting),
+		// PRELOAD keeps the route+STING (and its mask/overlay producers) warm before the
+		// Take — without it the wipe cold-starts and the cover-cut lands before the sting
+		// is on screen. The search distance is deliberately shallow (1): this layer carries
+		// per-take ROUTE producers (route://3 / route://4 alternate by slot), so a deep
+		// search would arm a producer for a part one-or-more takes ahead; the imminent Take
+		// would then swap producers on a transition-less PLAY (sting dropped, hard cut).
+		// Depth 1 + distance 1 => Sofie can only arm the imminent take's producer.
+		[CasparCGLayers.CasparCGPgmRouteSting]: literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+			device: TSR.DeviceType.CASPARCG,
+			deviceId: 'casparcg0',
+			lookahead: LookaheadMode.PRELOAD,
+			lookaheadDepth: 1,
+			lookaheadMaxSearchDistance: 1,
+			options: {
+				mappingType: TSR.MappingCasparCGType.Layer,
+				channel: pgmChannel,
+				layer: PgmChannelLayers.RouteSting,
+			},
+		}),
 		// PRELOAD + explicit hot-PLAY cue on the wipe overlay (playing:false LOADBG,
 		// keyframe playing:true at Take). Sofie PRELOAD while Next strips the PLAY
 		// keyframe so Caspar LOADBGs the paused sting; Take applies hot PLAY. NONE

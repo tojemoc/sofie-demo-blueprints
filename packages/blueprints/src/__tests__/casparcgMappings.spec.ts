@@ -329,7 +329,7 @@ describe('casparcgMappings', () => {
 		expect(new Set(wipeLayers).size).toBe(4)
 	})
 
-	it('STING-route trial does NOT lookahead the sting layer (Take arms its own producer)', () => {
+	it('STING-route trial PRELOADs the sting layer with a shallow search (warm but no far-ahead arm)', () => {
 		const trial: StudioConfig = {
 			...baseStudioConfig,
 			casparcg: {
@@ -345,13 +345,16 @@ describe('casparcgMappings', () => {
 			},
 		}
 		const mappings = getCasparCGMappings({ studio: trial })
-		// The sting layer must NOT lookahead: PRELOAD armed the producer of a part one-or-
-		// more takes ahead (routes alternate per slot), so at the imminent Take the armed
-		// producer differed and casparcg-state emitted `PLAY "route://Y"` (swap, no STING)
-		// — the wipe dropped. NONE → the Take LOADBGs its own route://N+STING then bare-
-		// PLAYs it (armed == played). 110/111 never LOADBG a route:// either (a background
-		// route captures stale frames that air first on PLAY).
-		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookahead).toBe(LookaheadMode.NONE)
+		// The sting layer keeps PRELOAD so the route+STING (and its mask/overlay) stay warm
+		// before the Take — a cold start makes the wipe late and the cover-cut early. But
+		// the search distance is deliberately shallow (1): this layer carries per-take ROUTE
+		// producers (route://3 / route://4 alternate per slot), so a deep search arms a part
+		// one-or-more takes ahead; the imminent Take then swaps producers on a transition-
+		// less PLAY and the sting drops into a hard cut. 110/111 never LOADBG a route://
+		// either (a background route captures stale frames that air first on PLAY).
+		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookaheadDepth).toBe(1)
+		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookaheadMaxSearchDistance).toBe(1)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRouteA]?.lookahead).toBe(LookaheadMode.NONE)
 	})

@@ -747,11 +747,11 @@ export function createStingRouteTimelineObjects(
 			pgmRouteMixer(true)
 		),
 	})
-	// Lookahead NONE on this layer (see the mapping): each Take LOADBGs its own paused
-	// `route://N`+STING from this object, then the bare PLAY keyframe promotes it — the
-	// armed and played producers are one and the same. PRELOAD instead armed a part
-	// one-or-more takes ahead (routes alternate per slot) and the producer-swapping PLAY
-	// casparcg-state then emitted carried no STING (hard cut, #139 regression).
+	// PRELOAD hot cue (mapping: shallow search distance 1, see the mapping): Sofie keeps
+	// this paused `route://N`+STING warm and bare-PLAYs it at Take. The bare PLAY fires
+	// the armed STING only when the armed producer IS the played producer — the shallow
+	// search stops it arming a part one-or-more takes ahead (routes alternate per slot,
+	// and casparcg-state drops a transition on a producer-swap PLAY, hard cut).
 	applyCasparHotPlayCue(obj, 0)
 	return [obj]
 }
