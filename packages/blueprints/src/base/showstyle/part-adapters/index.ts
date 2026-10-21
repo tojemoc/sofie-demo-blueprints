@@ -36,6 +36,7 @@ import { generateVOPart } from './vo.js'
 import { generateVTPart } from './vt.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
 import {
+	casparOwnsMusicBeds,
 	createSportBackgroundMusicPiece,
 	duckAudioBedPieceDuringWipe,
 	isSportSegmentName,
@@ -350,7 +351,7 @@ export function generateParts(
 	// on-air part through a full sting so cross-segment wiped Takes keep picture.
 	raiseLookMediaPostrollForCrossSegmentWipe(parts)
 
-	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
+	if (casparOwnsMusicBeds(studioConfig) && isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
 		// Prefer the wipe-entrance Take (first VO / wipe host), not a skipped open GFX shell.
 		const sportEntranceIdx = Math.max(
 			0,

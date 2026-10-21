@@ -1,6 +1,6 @@
 import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../../common/util.js'
-import { BlueprintConfig } from '../../helpers/config.js'
+import { BlueprintConfig, VisionMixerDevice } from '../../helpers/config.js'
 import { CasparCGLayers } from '../../layers.js'
 import {
 	BgChannelLayers,
@@ -59,7 +59,8 @@ function casparLayerMapping(
 }
 
 function lookStackMappings(
-	channel: number
+	channel: number,
+	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird }
 ): Pick<
 	BlueprintMappings,
 	| CasparCGLayers.CasparCGLookBgLoop
@@ -86,15 +87,16 @@ function lookStackMappings(
 		// NONE: PRELOAD of the next L3D on the same CEF layer becomes CG UPDATE
 		// (text swap, no in/out animation). Takes must STOP then ADD instead.
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: casparLayerMapping(
-			channel,
-			BgChannelLayers.GraphicsLowerThird,
+			lowerThird.channel,
+			lowerThird.layer,
 			LookaheadMode.NONE
 		),
 	}
 }
 
 function lookStackMappingsB(
-	channel: number
+	channel: number,
+	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird }
 ): Pick<
 	BlueprintMappings,
 	| CasparCGLayers.CasparCGLookBgLoopB
@@ -115,8 +117,8 @@ function lookStackMappingsB(
 			LookaheadMode.NONE
 		),
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]: casparLayerMapping(
-			channel,
-			BgChannelLayers.GraphicsLowerThird,
+			lowerThird.channel,
+			lowerThird.layer,
 			LookaheadMode.NONE
 		),
 	}
@@ -165,8 +167,23 @@ function pgmWipeEffectsMappings(
 	}
 }
 
+/** Caspar program-switch + cam-ingest layers that vMix replaces (input switch, stingers, decklink). */
+export const VMIX_RETIRED_CASPAR_LAYERS: ReadonlyArray<CasparCGLayers> = [
+	CasparCGLayers.CasparCGPgmRouteA,
+	CasparCGLayers.CasparCGPgmRoute,
+	CasparCGLayers.CasparCGPgmEffectsPlayer,
+	CasparCGLayers.CasparCGPgmEffectsPlayerSjv,
+	CasparCGLayers.CasparCGPgmEffectsPlayerSport,
+	CasparCGLayers.CasparCGPgmEffectsPlayerPocasie,
+	CasparCGLayers.CasparCGPgmCameraIngest,
+	CasparCGLayers.CasparCGDebugLabelCamIngest,
+]
+
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
 	const { ledChannel, pgmChannel, bgChannelA, bgChannelB, camIngestChannel } = getHypercomposedChannels(config)
+	// vMix switches program: the PGM channel carries clean GFX only, and look L3Ds move
+	// onto it so they key over the vMix program instead of riding the look feeds.
+	const vmixProgram = config.studio.visionMixer.type === VisionMixerDevice.VMix
 
 	const mappings: BlueprintMappings = {
 		[CasparCGLayers.CasparCGClipPlayer1]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPlayer),
@@ -184,16 +201,6 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		// cannot leave a black hole on channel 2.
 		[CasparCGLayers.CasparCGPgmRouteA]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteA),
 		[CasparCGLayers.CasparCGPgmRoute]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteB),
-		// STING route transition runs on its own layer so 110/111 keep hard-cutting by
-		// opacity flips (never a lookahead LOADBG route:// that airs stale frames).
-		// Deliberately **not** PRELOAD: lookahead on this layer arms the producer for a
-		// part one-or-more takes ahead (its route alternates per slot), so at the imminent
-		// Take the armed producer differs and casparcg-state emits `PLAY "route://Y"`
-		// (a producer swap) with no STING — the wipe is dropped into a hard cut. With
-		// NONE lookahead each Take LOADBGs its own `route://N`+STING then bare-PLAYs it,
-		// so the armed producer is always the played producer. The mask/overlay files are
-		// small and cached (Package Manager pre-fetches them); the route producer is live.
-		[CasparCGLayers.CasparCGPgmRouteSting]: casparLayerMapping(pgmChannel, PgmChannelLayers.RouteSting),
 		// PRELOAD + explicit hot-PLAY cue on the wipe overlay (playing:false LOADBG,
 		// keyframe playing:true at Take). Sofie PRELOAD while Next strips the PLAY
 		// keyframe so Caspar LOADBGs the paused sting; Take applies hot PLAY. NONE
@@ -218,14 +225,26 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 			LookaheadMode.NONE
 		),
 
-		...lookStackMappings(bgChannelA),
-		...lookStackMappingsB(bgChannelB),
+		...lookStackMappings(
+			bgChannelA,
+			vmixProgram ? { channel: pgmChannel, layer: PgmChannelLayers.GraphicsLowerThird } : undefined
+		),
+		...lookStackMappingsB(
+			bgChannelB,
+			vmixProgram ? { channel: pgmChannel, layer: PgmChannelLayers.GraphicsLowerThirdB } : undefined
+		),
 
 		[CasparCGLayers.CasparCGDebugLabelLed]: casparLayerMapping(ledChannel, DEBUG_CHANNEL_LABEL_LAYER),
 		[CasparCGLayers.CasparCGDebugLabelPgm]: casparLayerMapping(pgmChannel, DEBUG_CHANNEL_LABEL_LAYER),
 		[CasparCGLayers.CasparCGDebugLabelDoubleBox]: casparLayerMapping(bgChannelA, DEBUG_CHANNEL_LABEL_LAYER),
 		[CasparCGLayers.CasparCGDebugLabelFull]: casparLayerMapping(bgChannelB, DEBUG_CHANNEL_LABEL_LAYER),
 		[CasparCGLayers.CasparCGDebugLabelCamIngest]: casparLayerMapping(camIngestChannel, DEBUG_CHANNEL_LABEL_LAYER),
+	}
+
+	if (vmixProgram) {
+		for (const layer of VMIX_RETIRED_CASPAR_LAYERS) {
+			delete mappings[layer]
+		}
 	}
 
 	return mappings

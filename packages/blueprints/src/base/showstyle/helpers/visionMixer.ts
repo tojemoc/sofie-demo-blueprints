@@ -1,7 +1,8 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
+import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
+import { VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { AtemLayers, VMixLayers } from '../../studio/layers.js'
 
 export function createAtemInputTimelineObjects(
@@ -140,4 +141,84 @@ export function createVisionMixerObjects(
 		assertUnreachable(config.visionMixer.type)
 		return []
 	}
+}
+
+/**
+ * `vmixSources` keys for the hypercomposed vMix program bus: the two Caspar look feeds that
+ * alternate on Takes and the clean-GFX feed keyed over program. Camera is the first
+ * `SourceType.Camera` entry.
+ */
+export const VMIX_LOOK_SOURCE_KEYS = { A: 'lookA', B: 'lookB' } as const
+export const VMIX_CLEAN_GFX_SOURCE_KEY = 'cleanGfx'
+
+/** vMix stinger slot per wipe file — slots are loaded with the matching wipe in vMix. */
+const VMIX_STINGER_BY_WIPE: ReadonlyArray<{ match: RegExp; stinger: TSR.VMixTransitionType }> = [
+	{ match: /wipe_sjv/i, stinger: TSR.VMixTransitionType.Stinger2 },
+	{ match: /wipe_sport/i, stinger: TSR.VMixTransitionType.Stinger3 },
+	{ match: /wipe_pocasie/i, stinger: TSR.VMixTransitionType.Stinger4 },
+]
+
+/** True when vMix (not Caspar PGM) switches the hypercomposed look program. */
+export function usesVmixProgram(config: StudioConfig): boolean {
+	return config.visionMixer.type === VisionMixerDevice.VMix && Boolean(config.casparcg.hypercomposed)
+}
+
+export function getVmixLookInput(config: StudioConfig, slot: 'A' | 'B'): number | undefined {
+	return config.vmixSources[VMIX_LOOK_SOURCE_KEYS[slot]]?.input
+}
+
+export function getVmixCleanGfxInput(config: StudioConfig): number | undefined {
+	return config.vmixSources[VMIX_CLEAN_GFX_SOURCE_KEY]?.input
+}
+
+export function getVmixCameraInput(config: StudioConfig): number | undefined {
+	return Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.Camera)?.input
+}
+
+/** Classical `wipes/wipe` → Stinger1; themed SJV / ŠPORT / Počasie → Stinger2–4. */
+export function vmixStingerForWipeFile(wipeFile: string | undefined): TSR.VMixTransitionType {
+	return (
+		VMIX_STINGER_BY_WIPE.find(({ match }) => match.test(wipeFile ?? ''))?.stinger ?? TSR.VMixTransitionType.Stinger1
+	)
+}
+
+/**
+ * Take-shaped vMix program switch: PROGRAM moves to the incoming look input at `start`
+ * (stinger from Take, or CUT after the hard-cut keepalive) and PREVIEW follows to the
+ * outgoing input — the idle channel the next look composes on.
+ */
+export function createVMixTakeTimelineObjects(
+	input: number,
+	options: { start: number; transition: TSR.VMixTransition; previewInput?: number }
+): TimelineBlueprintExt<TSR.TimelineContentVMixAny>[] {
+	const objects: TimelineBlueprintExt<TSR.TimelineContentVMixAny>[] = [
+		literal<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>>({
+			id: '',
+			enable: { start: options.start },
+			layer: VMixLayers.VMixMeProgram,
+			content: {
+				deviceType: TSR.DeviceType.VMIX,
+				type: TSR.TimelineContentTypeVMix.PROGRAM,
+				input,
+				transition: options.transition,
+			},
+			priority: 1,
+		}),
+	]
+	if (options.previewInput !== undefined) {
+		objects.push(
+			literal<TimelineBlueprintExt<TSR.TimelineContentVMixPreview>>({
+				id: '',
+				enable: { start: options.start + options.transition.duration + 40 },
+				layer: VMixLayers.VMixMePreview,
+				content: {
+					deviceType: TSR.DeviceType.VMIX,
+					type: TSR.TimelineContentTypeVMix.PREVIEW,
+					input: options.previewInput,
+				},
+				priority: 1,
+			})
+		)
+	}
+	return objects
 }

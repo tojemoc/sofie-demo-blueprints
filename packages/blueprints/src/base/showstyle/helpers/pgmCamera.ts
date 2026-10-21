@@ -1,7 +1,9 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
-import { CasparCGLayers } from '../../studio/layers.js'
+import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
+import { getVmixCameraInput } from './visionMixer.js'
+import { DEFAULT_BG_LOOP_FILE } from './clips.js'
 import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_FULLSCREEN_CAMERA_FILL,
@@ -238,4 +240,54 @@ export function createLookCameraClearTimelineObject(): TimelineBlueprintExt<TSR.
 			file: 'EMPTY',
 		},
 	})
+}
+
+/** Caspar FILL (top-left origin, 0–1) → vMix layer zoom / pan (centre origin, ±2 = one screen). */
+export function vmixLayerTransformFromFill(fill: TSR.Mixer['fill']): Pick<TSR.VMixLayer, 'zoom' | 'panX' | 'panY'> {
+	const { x, y, xScale } = fill && 'xScale' in fill ? fill : { x: 0, y: 0, xScale: 1 }
+	return {
+		zoom: xScale,
+		panX: 2 * (x + xScale / 2 - 0.5),
+		panY: 2 * (0.5 - (y + xScale / 2)),
+	}
+}
+
+/**
+ * vMix studios: vMix owns the live camera. Look CAM is layer 1 of the look's vMix input
+ * (under the Caspar feed), placed from the Caspar FILL; the look `bg_loop` drops to opacity 0
+ * for the same window so the camera shows through the look's transparent pane. Look A layer
+ * ids — {@link remapLookLayers} moves both to look B.
+ */
+export function createVMixLookCameraTimelineObjects(
+	config: StudioConfig,
+	fill: TSR.Mixer['fill'],
+	base: Pick<TimelineBlueprintExt, 'enable' | 'priority'> = { enable: { start: 0 }, priority: 1 }
+): TimelineBlueprintExt[] {
+	const cameraInput = getVmixCameraInput(config)
+	if (cameraInput === undefined) return []
+	return [
+		literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+			id: '',
+			...base,
+			layer: VMixLayers.VMixLookInputA,
+			content: {
+				deviceType: TSR.DeviceType.VMIX,
+				type: TSR.TimelineContentTypeVMix.INPUT,
+				layers: { 1: { input: cameraInput, ...vmixLayerTransformFromFill(fill) } },
+			},
+		}),
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			...base,
+			priority: Math.max(1, base.priority ?? 0),
+			layer: CasparCGLayers.CasparCGLookBgLoop,
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: DEFAULT_BG_LOOP_FILE,
+				loop: true,
+				mixer: { opacity: 0 },
+			},
+		}),
+	]
 }

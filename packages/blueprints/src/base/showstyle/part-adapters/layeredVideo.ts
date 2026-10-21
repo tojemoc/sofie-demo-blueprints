@@ -5,7 +5,7 @@ import { parseLayeredVideosFromObjects, partHasOutroOverlay } from '../helpers/c
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart, findWipeVideoObject } from '../helpers/pgmLook.js'
-import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { casparOwnsMusicBeds, createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { autoNextFromRe } from '../helpers/autoNext.js'
 
 /**
@@ -28,7 +28,7 @@ export function generateLayeredVideoPart(
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 
-	if (partHasOutroOverlay(part.objects)) {
+	if (casparOwnsMusicBeds(config) && partHasOutroOverlay(part.objects)) {
 		pieces.push(
 			createOutroBackgroundMusicMutePiece(
 				config,

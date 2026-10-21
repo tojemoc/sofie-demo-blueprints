@@ -329,37 +329,15 @@ describe('casparcgMappings', () => {
 		expect(new Set(wipeLayers).size).toBe(4)
 	})
 
-	it('STING-route trial does NOT lookahead the sting layer (Take arms its own producer)', () => {
-		const trial: StudioConfig = {
-			...baseStudioConfig,
-			casparcg: {
-				host: 'localhost',
-				port: 5250,
-				hypercomposed: {
-					ledChannel: 1,
-					pgmChannel: 2,
-					bgChannelA: 3,
-					bgChannelB: 4,
-					wipeUseStingRouteTransition: true,
-				},
-			},
-		}
-		const mappings = getCasparCGMappings({ studio: trial })
-		// The sting layer must NOT lookahead: PRELOAD armed the producer of a part one-or-
-		// more takes ahead (routes alternate per slot), so at the imminent Take the armed
-		// producer differed and casparcg-state emitted `PLAY "route://Y"` (swap, no STING)
-		// — the wipe dropped. NONE → the Take LOADBGs its own route://N+STING then bare-
-		// PLAYs it (armed == played). 110/111 never LOADBG a route:// either (a background
-		// route captures stale frames that air first on PLAY).
-		expect(mappings[CasparCGLayers.CasparCGPgmRouteSting]?.lookahead).toBe(LookaheadMode.NONE)
+	it('dual PGM routes never lookahead (a background route:// airs stale frames on PLAY)', () => {
+		const mappings = getCasparCGMappings({ studio: baseStudioConfig })
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRouteA]?.lookahead).toBe(LookaheadMode.NONE)
 	})
 
 	it('configures the CasparCG device at 1080p5000 (fps: 50) so casparcg-state time2Frames is correct', () => {
 		// TSR defaults Caspar device fps to 25; a 50fps channel would then halve every
-		// ms→frame conversion (STING TRIGGER_POINT 19/20 instead of 38/40), cutting the
-		// wipe early. `applyConfig` must carry fps: 50 on the playout device.
+		// ms→frame conversion (seek / keyframes land at half time). `applyConfig` must carry fps: 50 on the playout device.
 		const result = applyConfig({} as never, baseStudioConfig, {} as never)
 		const caspar = result.playoutDevices.casparcg0
 		expect(caspar.options.type).toBe(TSR.DeviceType.CASPARCG)

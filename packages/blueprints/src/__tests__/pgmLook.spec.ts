@@ -17,7 +17,6 @@ import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { PartContext } from '../common/context.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
-import { StudioConfig } from '../base/studio/helpers/config.js'
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { SourceType } from '../base/studio/helpers/config.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
@@ -35,30 +34,17 @@ import {
 	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
 	LOOK_ILU_HARD_CUT_CLEAR_MS,
 	DEFAULT_LOOK_PREROLL_MS,
-	createFullChannelRouteContent,
 	createLookSlotSequence,
-	createPgmRouteTimelineObjects,
-	createStingRouteTimelineObjects,
 	finalizeHypercomposedPart,
 	getLookCasparChannel,
 	isDoubleBoxLook,
 	lookSlotForKind,
 	parseRouteMediaChannel,
-	PGM_ROUTE_LAYERS,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 	resetLookSlotGenerationForTests,
-	wipeStingDelayFrames,
-	wipeUseStingRouteTransition,
-	wipeUsesPgmOverlay,
-	wipeUsesPgmSting,
 } from '../base/showstyle/helpers/pgmLook.js'
-import {
-	resolveWipeAirCutMs,
-	resolveWipeDurationMs,
-	WIPE_CUT_POINT_MS,
-	WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS,
-} from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { ObjectType, SomeObject } from '../common/definitions/objects.js'
 
 import {
@@ -179,8 +165,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(getLookCasparChannel(hybridCasparConfig, 'B')).toBe(4)
 	})
 
-	it('converts wipe cut-point ms to frames at 50fps (docs helper; casparcg-state wants ms)', () => {
-		expect(wipeStingDelayFrames(WIPE_CUT_POINT_MS)).toBe(19)
+	it('reserves a full default sting of postroll and keeps the 380 ms editorial cut point', () => {
 		// Postroll reserves a full default sting so the *next* wipe's editorial cutPoint can hold.
 		expect(LOOK_MEDIA_POSTROLL_MS).toBe(2500)
 		expect(WIPE_CUT_POINT_MS).toBe(380)
@@ -248,248 +233,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(lookClipPiece.postrollDuration).toBeGreaterThanOrEqual(LOOK_MEDIA_POSTROLL_MS)
 	})
 
-	it('STING escape hatch passes delay in ms (casparcg-state time2Frames)', () => {
-		const content = createFullChannelRouteContent(3, 'wipes/wipe')
-		expect(content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'route://3',
-			transitions: {
-				inTransition: {
-					type: TSR.Transition.STING,
-					maskFile: 'wipes/wipe_mask',
-					delay: WIPE_AIR_CUT_MS,
-				},
-			},
-		})
-		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
-	})
-
-	function stingTrialConfig(): StudioConfig {
-		// Cloning hypercomposed via spread widens required fields to `| undefined`, so
-		// re-declare them explicitly from the fixture via a locally-typed reference.
-		const hyper = hybridCasparConfig.casparcg.hypercomposed as NonNullable<StudioConfig['casparcg']['hypercomposed']>
-		return {
-			...hybridCasparConfig,
-			casparcg: {
-				...hybridCasparConfig.casparcg,
-				hypercomposed: {
-					...hyper,
-					wipeUseStingRouteTransition: true,
-				},
-			},
-		}
-	}
-
-	it('wipeUseStingRouteTransition reflects the trial config flag (off by default)', () => {
-		expect(wipeUseStingRouteTransition(hybridCasparConfig)).toBe(false)
-		expect(wipeUseStingRouteTransition(stingTrialConfig())).toBe(true)
-	})
-
-	it('STING-route trial emits a single canonical-layer route re-PLAYed with a STING inTransition', () => {
-		const on = stingTrialConfig()
-		// Slot A → bgChannelA (3); single canonical route layer + STING delay = air cut.
-		const objs = createStingRouteTimelineObjects(on, 'A', { routeStartMs: WIPE_AIR_CUT_MS, stingFile: 'wipes/wipe' })
-
-		expect(objs).toHaveLength(1)
-		const route = objs[0]
-		expect(route.layer).toBe(PGM_ROUTE_LAYERS.STING)
-		const content = route.content as TSR.TimelineContentCCGMedia
-		expect(content.file).toBe('route://3')
-		expect(content.transitions?.inTransition).toMatchObject({
-			type: TSR.Transition.STING,
-			maskFile: 'wipes/wipe_mask',
-			// STING carries no FILTER, so the overlay points at the premultiplied copy
-			// (`wipes/wipe_pm`) instead of the straight-alpha `wipes/wipe`.
-			overlayFile: 'wipes/wipe_pm',
-			delay: WIPE_AIR_CUT_MS,
-		})
-		// casparcg-state maps delay (ms) → STING frames; never the stale 38-frame value.
-		expect(content.transitions?.inTransition).not.toMatchObject({ delay: 38 })
-		// PRELOAD hot-cue: base playing:false (LOADBG route+STING while Next) + keyframe
-		// raising playing:true at Take. The keyframe must stay BARE (playing only) —
-		// casparcg-state attaches the STING to the producer's LOAD, and a PLAY keyframe
-		// carrying file/transitions/seek made Promoter stop emitting the PLAY (#140). No
-		// mixer-opacity keyframe.
-		expect(content.playing).toBe(false)
-		const kf = route.keyframes?.[0]
-		expect(kf?.enable).toEqual({ start: 0 })
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.playing).toBe(true)
-		expect(route.keyframes).toHaveLength(1)
-		// Bare promote: the PLAY keyframe names no file, no seek, no transition of its own.
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.file).toBeUndefined()
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.seek).toBeUndefined()
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions).toBeUndefined()
-	})
-
-	it('STING drop (open): the armed producer must be the played producer — a bare PLAY cannot transplant the sting', () => {
-		const on = stingTrialConfig()
-		// The failing on-air pattern: lookahead LOADBG arms route A (route://3) on the
-		// sting layer while Next, but the Take actually PLAYes route B (route://4). The
-		// STING transition lives on the LOADBG'd producer only (load-attached); a bare
-		// PLAY promotes the armed producer, so it fires only when the armed and played
-		// routes match. This test pins that contract: producers differ ⇒ the sting is
-		// armed on a producer that is replaced, and Caspar hard-cuts.
-		const preload = createStingRouteTimelineObjects(on, 'A', {
-			routeStartMs: WIPE_AIR_CUT_MS,
-			stingFile: 'wipes/wipe',
-		})[0]
-		expect((preload.content as TSR.TimelineContentCCGMedia).file).toBe('route://3')
-		// The LOADBG arm: paused producer whose content carries the STING transition.
-		expect((preload.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
-		expect((preload.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toMatchObject({
-			type: TSR.Transition.STING,
-		})
-
-		const take = createStingRouteTimelineObjects(on, 'B', {
-			routeStartMs: WIPE_AIR_CUT_MS,
-			stingFile: 'wipes/wipe',
-		})[0]
-		// The Take's own hot-cue is a bare PLAY of ITS producer (route://4) — it cannot
-		// carry the STING (load-attached), so arming route A and playing route B drops it.
-		expect((take.content as TSR.TimelineContentCCGMedia).file).toBe('route://4')
-		expect((take.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
-		const kf = take.keyframes?.[0]
-		expect(kf).toBeDefined()
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.playing).toBe(true)
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.file).toBeUndefined()
-		expect((kf?.content as TSR.TimelineContentCCGMedia)?.transitions).toBeUndefined()
-	})
-
-	it('STING layer is a no-op hard cut guard: createStingRouteTimelineObjects without stingFile is not used', () => {
-		const on = stingTrialConfig()
-		const objs = createPgmRouteTimelineObjects(on, 'A', { routeStartMs: LOOK_HARD_CUT_KEEPALIVE_MS })
-		expect(objs.every((o) => o.layer !== PGM_ROUTE_LAYERS.STING)).toBe(true)
-	})
-
-	it('STING-route trial is scoped to the classical wipes/wipe only', () => {
-		const on = stingTrialConfig()
-		const off = hybridCasparConfig
-		// Under the flag only the stringer uses STING; themed wipes / hard cuts stay overlay.
-		expect(wipeUsesPgmSting(on, 'wipes/wipe')).toBe(true)
-		expect(wipeUsesPgmSting(on, 'wipes/wipe_sjv')).toBe(false)
-		expect(wipeUsesPgmSting(on, 'wipes/wipe_sport')).toBe(false)
-		expect(wipeUsesPgmSting(on, 'wipes/wipe_pocasie')).toBe(false)
-		expect(wipeUsesPgmSting(on, undefined)).toBe(false) // hard cut
-		// Flag off: never STING, always overlay.
-		expect(wipeUsesPgmSting(off, 'wipes/wipe')).toBe(false)
-		expect(wipeUsesPgmOverlay(off, 'wipes/wipe')).toBe(true)
-		// Overlay is the complement: themed + hard cuts overlay even under the flag.
-		expect(wipeUsesPgmOverlay(on, 'wipes/wipe')).toBe(false)
-		expect(wipeUsesPgmOverlay(on, 'wipes/wipe_sjv')).toBe(true)
-		expect(wipeUsesPgmOverlay(on, 'wipes/wipe_pocasie')).toBe(true)
-		expect(wipeUsesPgmOverlay(on, undefined)).toBe(true)
-	})
-
-	it('themed wipes under the flag use the dual routes only (no STING layer, no re-PLAY)', () => {
-		const on = stingTrialConfig()
-		const objs = createPgmRouteTimelineObjects(on, 'A', {
-			routeStartMs: THEMED_WIPE_AIR_CUT_MS,
-			wipeFile: 'wipes/wipe_sjv',
-		})
-		expect(objs.map((o) => o.layer)).not.toContain(PGM_ROUTE_LAYERS.STING)
-		for (const o of objs) {
-			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
-		}
-	})
-
-	it('hard cuts under the flag never emit a sting object or a hot-cue on 110/111', () => {
-		const on = stingTrialConfig()
-		const objs = createPgmRouteTimelineObjects(on, 'A', { routeStartMs: LOOK_HARD_CUT_KEEPALIVE_MS })
-		expect(objs.map((o) => o.layer).sort()).toEqual([PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B].sort())
-		for (const o of objs) {
-			expect((o.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
-			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
-		}
-	})
-
-	it('classical wipes/wipe add the STING on its own layer on top of the dual routes', () => {
-		const on = stingTrialConfig()
-		const objs = createPgmRouteTimelineObjects(on, 'A', {
-			routeStartMs: WIPE_AIR_CUT_MS,
-			wipeFile: 'wipes/wipe',
-			stingFile: 'wipes/wipe',
-			stingDurationMs: 2500,
-		})
-		expect(objs.map((o) => o.layer)).toEqual(
-			expect.arrayContaining([PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B, PGM_ROUTE_LAYERS.STING])
-		)
-		const sting = objs.find((o) => o.layer === PGM_ROUTE_LAYERS.STING)
-		expect(sting).toBeDefined()
-		expect(sting?.enable).toEqual({ start: 0, duration: 2500 })
-		const content = sting?.content as TSR.TimelineContentCCGMedia
-		expect(content.transitions?.inTransition).toMatchObject({
-			type: TSR.Transition.STING,
-			maskFile: 'wipes/wipe_mask',
-			overlayFile: 'wipes/wipe_pm',
-		})
-		// 110/111 carry no transition.
-		for (const o of objs.filter((x) => x.layer !== PGM_ROUTE_LAYERS.STING)) {
-			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
-		}
-	})
-
-	it('STING path delays the dual-route flip past mask cover (transparent src leak)', () => {
-		const on = stingTrialConfig()
-		const objs = createPgmRouteTimelineObjects(on, 'A', {
-			routeStartMs: WIPE_AIR_CUT_MS,
-			wipeFile: 'wipes/wipe',
-			stingFile: 'wipes/wipe',
-			stingDurationMs: 2500,
-		})
-		// The sting layer's src is empty, so the un-wiped region shows the routes straight
-		// through — the flip must land after the mask has fully covered, not at the air cut
-		// (the "cut before the wipe covers" leak). The STING trigger itself stays at the cut.
-		const dual = objs.filter((o) => o.layer === PGM_ROUTE_LAYERS.A || o.layer === PGM_ROUTE_LAYERS.B)
-		// 6f @50fps — independently pinned so a silent constant change fails here.
-		expect(WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS).toBe(120)
-		for (const o of dual) {
-			expect(o.keyframes?.[0]?.enable).toEqual({ start: WIPE_AIR_CUT_MS + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS })
-		}
-		const sting = objs.find((o) => o.layer === PGM_ROUTE_LAYERS.STING)
-		expect((sting?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toMatchObject({
-			delay: WIPE_AIR_CUT_MS,
-		})
-	})
-
-	it('STING-route expectedPackages include the luma mask and premultiplied overlay files', () => {
-		const on = stingTrialConfig()
-		const context = mockSegmentContext()
-		const part = { externalId: 'sting-wiped', title: 'STING' }
-		const pieces: IBlueprintPiece[] = []
-		const objects = [
-			{
-				id: 'wipe',
-				objectType: ObjectType.Video,
-				clipName: 'wipes/wipe',
-				objectTime: 0,
-				duration: 2500,
-				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
-			},
-		]
-		finalizeHypercomposedPart(context, on, part as never, 'sting-wiped', objects as never, pieces, 'A')
-		const routePiece = pieces.find((p) => p.sourceLayerId === (SourceLayer.PgmWipe as string))
-		expect(routePiece).toBeDefined()
-		// The STING command consumes `wipes/wipe_mask` (luma) + `wipes/wipe_pm` (premul
-		// overlay) on the canonical route layer — both must be expected packages so Package
-		// Manager verifies them. The straight-alpha `wipes/wipe` itself is not the STING
-		// overlay, and the 205 overlay is not used under the trial.
-		if (!routePiece) return
-		const filePaths = routePiece.expectedPackages
-			?.map((p) => (p.content as { filePath?: string })?.filePath)
-			.filter(Boolean)
-		expect(filePaths).toContain('wipes/wipe_mask.mov')
-		expect(filePaths).toContain('wipes/wipe_pm.mov')
-		// The straight-alpha `wipes/wipe` is not consumed by the STING command (the 205
-		// overlay is bypassed under the trial), so it is not an expected package here.
-		expect(filePaths).not.toContain('wipes/wipe.mov')
-		const pmPkg = routePiece.expectedPackages?.find(
-			(p) => (p.content as { filePath?: string })?.filePath === 'wipes/wipe_pm.mov'
-		)
-		expect(pmPkg?.layers).toContain(PGM_ROUTE_LAYERS.B)
-		expect(pmPkg?.layers).not.toContain(CasparCGLayers.CasparCGPgmEffectsPlayer)
-	})
-
-	it('STING-route trial does not add the premultiplied overlay to the 205-overlay path', () => {
+	it('205-overlay wipe expects only the straight-alpha wipe file', () => {
 		const context = mockSegmentContext()
 		const part = { externalId: 'overlay-wiped', title: 'overlay' }
 		const pieces: IBlueprintPiece[] = []

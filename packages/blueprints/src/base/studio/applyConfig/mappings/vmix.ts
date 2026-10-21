@@ -3,19 +3,20 @@ import { literal } from '../../../../common/util.js'
 import { SourceType, StudioConfig } from '../../helpers/config.js'
 import { VMixLayers } from '../../layers.js'
 import { VmixInputConfig } from '../../../../$schemas/generated/main-studio-config.js'
+import { VMIX_LOOK_SOURCE_KEYS } from '../../../showstyle/helpers/visionMixer.js'
 
-export function getVMixMappings(vmixSources: StudioConfig['vmixSources']): BlueprintMappings {
+export function getVMixMappings(vmixSources: StudioConfig['vmixSources'], deviceId = 'vmix0'): BlueprintMappings {
 	const mappings: BlueprintMappings = {
 		[VMixLayers.VMixMeProgram]: literal<BlueprintMapping<TSR.MappingVmixProgram>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.NONE,
 
 			options: { mappingType: TSR.MappingVmixType.Program, index: 1 },
 		}),
 		[VMixLayers.VMixMePreview]: literal<BlueprintMapping<TSR.MappingVmixPreview>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 
 			lookahead: LookaheadMode.WHEN_CLEAR,
 			lookaheadMaxSearchDistance: 1,
@@ -25,11 +26,25 @@ export function getVMixMappings(vmixSources: StudioConfig['vmixSources']): Bluep
 		}),
 		[VMixLayers.VMixOverlayGraphics]: literal<BlueprintMapping<TSR.MappingVmixOverlay>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.NONE,
 
 			options: { mappingType: TSR.MappingVmixType.Overlay, index: 1 },
 		}),
+	}
+
+	for (const [layer, key] of [
+		[VMixLayers.VMixLookInputA, VMIX_LOOK_SOURCE_KEYS.A],
+		[VMixLayers.VMixLookInputB, VMIX_LOOK_SOURCE_KEYS.B],
+	] as const) {
+		const source = vmixSources[key] as VmixInputConfig | undefined
+		if (!source) continue
+		mappings[layer] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
+			device: TSR.DeviceType.VMIX,
+			deviceId,
+			lookahead: LookaheadMode.NONE,
+			options: { mappingType: TSR.MappingVmixType.Input, index: '' + source.input },
+		})
 	}
 
 	const multiviewSource = Object.values<VmixInputConfig>(vmixSources).find(
@@ -43,7 +58,7 @@ export function getVMixMappings(vmixSources: StudioConfig['vmixSources']): Bluep
 		 */
 		mappings[VMixLayers.VMixDVEMultiView] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
 			device: TSR.DeviceType.VMIX,
-			deviceId: 'vmix0',
+			deviceId,
 			lookahead: LookaheadMode.WHEN_CLEAR,
 			lookaheadMaxSearchDistance: 1,
 

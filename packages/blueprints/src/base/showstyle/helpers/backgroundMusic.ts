@@ -1,7 +1,7 @@
 import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { ICommonContext } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
-import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
+import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
@@ -19,6 +19,11 @@ export const BG_MUSIC_C_FILE = 'loops/bg_music_c'
 export const KOLISKA_HIT_DURATION_MS = 2000
 export const KOLISKA_HIT_VOLUME = 1
 export const KOLISKA_BED_VOLUME = 0.45
+
+/** vMix studios play the kolíska beds (and their ducks) inside vMix — Caspar stays silent. */
+export function casparOwnsMusicBeds(config: StudioConfig): boolean {
+	return config.visionMixer.type !== VisionMixerDevice.VMix
+}
 
 function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
 	return [
