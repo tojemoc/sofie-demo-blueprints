@@ -1,7 +1,8 @@
-import { IBlueprintPiece, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
-import { createLookSlotSequence } from '../base/showstyle/helpers/pgmLook.js'
+import { createLookSlotSequence, finalizeHypercomposedPart } from '../base/showstyle/helpers/pgmLook.js'
+import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import { vmixStingerForWipeFile } from '../base/showstyle/helpers/visionMixer.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
@@ -11,9 +12,10 @@ import { applyConfig } from '../base/studio/applyConfig/index.js'
 import { VMIX_RETIRED_CASPAR_LAYERS, getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
 import { PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
-import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
-import { CasparCGLayers, VMixLayers } from '../base/studio/layers.js'
+import { AudioSourceType, SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../base/studio/layers.js'
 import { TimelineBlueprintExt } from '../base/studio/customTypes.js'
+import { ObjectType, VideoObject } from '../common/definitions/objects.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -78,6 +80,79 @@ function programObjects(pieces: IBlueprintPiece[]): Array<TimelineBlueprintExt<T
 		TimelineBlueprintExt<TSR.TimelineContentVMixProgram>
 	>
 }
+
+describe('vMix wipe ForceMute', () => {
+	it.each(['existing mutes', 'existing piece without mutes', 'new piece'])(
+		'mutes configured playback and host channels for the wipe window (%s)',
+		(branch) => {
+			const config: StudioConfig = {
+				...vmixStudioConfig,
+				sisyfosSources: {
+					playback0: { source: 10, type: AudioSourceType.Playback },
+					host0: { source: 1, type: AudioSourceType.Host },
+					guest0: { source: 2, type: AudioSourceType.Guest },
+				},
+			}
+			const existingMutes =
+				branch === 'existing mutes'
+					? [AudioSourceType.Playback, AudioSourceType.Host].map((type, index) => ({
+							...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, [{ type, index: 0, isOn: false }]),
+							id: `mute-${index}`,
+							enable: { start: 100 },
+							priority: 2,
+						}))
+					: []
+			const pieces: IBlueprintPiece[] =
+				branch === 'new piece'
+					? []
+					: [
+							{
+								externalId: 'wipe-piece',
+								name: 'Wipe',
+								enable: { start: 0 },
+								lifespan: PieceLifespan.WithinPart,
+								sourceLayerId: SourceLayer.PgmWipe,
+								outputLayerId: 'gfx',
+								content: { timelineObjects: existingMutes },
+							},
+						]
+			const wipe: VideoObject = {
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				objectTime: 0,
+				duration: 1800,
+				clipName: 'wipes/wipe',
+				attributes: { playLayer: 'wipe' },
+			}
+			const part = { externalId: 'vmix-wipe-mute', title: 'Wipe' }
+			finalizeHypercomposedPart(vmixContext(), config, part, part.externalId, [wipe], pieces, 'A')
+
+			const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
+			const mutes = wipePiece?.content.timelineObjects?.filter((obj) => obj.layer === SisyfosLayers.ForceMute)
+			expect(mutes).toHaveLength(existingMutes.length || 1)
+			expect(mutes?.map((obj) => obj.enable)).toEqual(mutes?.map(() => ({ start: 0, duration: 1800 })))
+			expect(mutes?.flatMap((obj) => (obj.content as TSR.TimelineContentSisyfosChannels).channels)).toEqual([
+				{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
+				{ mappedLayer: 'sisyfos_source_host0', isPgm: 0 },
+			])
+			existingMutes.forEach((mute, index) => {
+				expect(mutes?.[index]).toBe(mute)
+				expect(mute.priority).toBe(2)
+			})
+			expect(programObjects(pieces)[0]).toMatchObject({
+				enable: { start: 0 },
+				content: {
+					input: LOOK_A_INPUT,
+					transition: { effect: TSR.VMixTransitionType.Stinger1, duration: 1800 },
+				},
+			})
+			expect(objectsOf(pieces).find((obj) => obj.layer === VMixLayers.VMixMePreview)).toMatchObject({
+				enable: { start: 1840 },
+				content: { input: LOOK_B_INPUT },
+			})
+		}
+	)
+})
 
 describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 	const parts = generateSmokeRundown()

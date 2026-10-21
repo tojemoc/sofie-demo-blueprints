@@ -1318,7 +1318,7 @@ function attachVmixTake(
 	const transition: TSR.VMixTransition = wipeFile
 		? { effect: vmixStingerForWipeFile(wipeFile), duration: wipeDurationMs }
 		: { effect: TSR.VMixTransitionType.Cut, duration: 0 }
-	const timelineObjects = createVMixTakeTimelineObjects(input, {
+	const timelineObjects: IBlueprintPiece['content']['timelineObjects'] = createVMixTakeTimelineObjects(input, {
 		start: wipeFile ? 0 : hardCutStartMs,
 		transition,
 		previewInput: getVmixLookInput(config, otherLookSlot(slot)),
@@ -1328,6 +1328,21 @@ function attachVmixTake(
 	const wipePiece = wipeFile
 		? pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 		: undefined
+	if (wipeFile) {
+		const mutes = (wipePiece?.content.timelineObjects ?? []).filter(
+			(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
+		)
+		if (mutes.length === 0) {
+			const wipeMutes = getWipeForceMuteChannels(config)
+			if (wipeMutes.length > 0) {
+				mutes.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes))
+			}
+		}
+		for (const mute of mutes) {
+			mute.enable = { start: 0, duration: wipeDurationMs }
+		}
+		timelineObjects.push(...mutes)
+	}
 	if (wipePiece) {
 		wipePiece.content.timelineObjects = timelineObjects
 		wipePiece.enable = { start: 0 }
