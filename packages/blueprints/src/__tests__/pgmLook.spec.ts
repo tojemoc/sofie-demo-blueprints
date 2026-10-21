@@ -53,7 +53,12 @@ import {
 	wipeUsesPgmOverlay,
 	wipeUsesPgmSting,
 } from '../base/showstyle/helpers/pgmLook.js'
-import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import {
+	resolveWipeAirCutMs,
+	resolveWipeDurationMs,
+	WIPE_CUT_POINT_MS,
+	WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS,
+} from '../base/showstyle/helpers/clips.js'
 import { ObjectType, SomeObject } from '../common/definitions/objects.js'
 
 import {
@@ -421,6 +426,29 @@ describe('pgmLook look-kind channels + route', () => {
 		for (const o of objs.filter((x) => x.layer !== PGM_ROUTE_LAYERS.STING)) {
 			expect((o.content as TSR.TimelineContentCCGMedia).transitions).toBeUndefined()
 		}
+	})
+
+	it('STING path delays the dual-route flip past mask cover (transparent src leak)', () => {
+		const on = stingTrialConfig()
+		const objs = createPgmRouteTimelineObjects(on, 'A', {
+			routeStartMs: WIPE_AIR_CUT_MS,
+			wipeFile: 'wipes/wipe',
+			stingFile: 'wipes/wipe',
+			stingDurationMs: 2500,
+		})
+		// The sting layer's src is empty, so the un-wiped region shows the routes straight
+		// through — the flip must land after the mask has fully covered, not at the air cut
+		// (the "cut before the wipe covers" leak). The STING trigger itself stays at the cut.
+		const dual = objs.filter((o) => o.layer === PGM_ROUTE_LAYERS.A || o.layer === PGM_ROUTE_LAYERS.B)
+		// 6f @50fps — independently pinned so a silent constant change fails here.
+		expect(WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS).toBe(120)
+		for (const o of dual) {
+			expect(o.keyframes?.[0]?.enable).toEqual({ start: WIPE_AIR_CUT_MS + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS })
+		}
+		const sting = objs.find((o) => o.layer === PGM_ROUTE_LAYERS.STING)
+		expect((sting?.content as TSR.TimelineContentCCGMedia).transitions?.inTransition).toMatchObject({
+			delay: WIPE_AIR_CUT_MS,
+		})
 	})
 
 	it('STING-route expectedPackages include the luma mask and premultiplied overlay files', () => {

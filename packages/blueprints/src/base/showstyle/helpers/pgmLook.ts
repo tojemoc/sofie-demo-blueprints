@@ -20,6 +20,7 @@ import {
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_CUT_POINT_MS,
 	WIPE_FRAME_MS,
+	WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
 	resolveWipeAirCutMs,
@@ -642,8 +643,21 @@ export function createPgmRouteTimelineObjects(
 	// flip opacity/volume (never re-PLAY / LOADBG a route://). A classical STING Take
 	// additionally runs its transition on its own layer on top of the same flip — the
 	// outgoing look stays visible underneath until the flip lands under the sting cover.
-	const dual = createDualRouteTimelineObjects(config, slot, options)
-	if (wipeUseStingRouteTransition(config) && options?.stingFile) {
+	const stingRoute = Boolean(wipeUseStingRouteTransition(config) && options?.stingFile)
+	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
+	const dual = createDualRouteTimelineObjects(config, slot, {
+		previousSlot: options?.previousSlot,
+		// STING path: the sting layer's src is empty, so the un-wiped region is transparent
+		// and shows the routes straight through. Flip only once the mask has fully covered
+		// (air cut + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS); `routeStartMs` itself stays the
+		// STING trigger point — resolve the same DEFAULT_WIPE_AIR_CUT_MS fallback as
+		// createStingRouteTimelineObjects when no explicit cut is given. Overlay/hard-cut
+		// paths keep the flip at the cut.
+		routeStartMs: stingRoute
+			? (routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS) + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS
+			: routeStartMs,
+	})
+	if (stingRoute) {
 		return [...dual, ...createStingRouteTimelineObjects(config, slot, options)]
 	}
 	return dual
