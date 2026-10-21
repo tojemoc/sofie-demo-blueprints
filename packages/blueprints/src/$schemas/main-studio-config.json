@@ -118,7 +118,7 @@
 							"minimum": 1,
 							"default": 2,
 							"ui:title": "PGM channel",
-							"ui:description": "CasparCG channel with the route bus + persistent overlays (logo-bug, intro). Story looks are composed on BG A/B, not here."
+							"ui:description": "CasparCG channel with the route bus + persistent overlays (logo-bug, intro). Story looks are composed on BG A/B, not here. vMix studios: clean-GFX channel only (logo, countup, intro/outro, look L3Ds) keyed over the vMix program — no routes or wipes."
 						},
 						"bgChannelA": {
 							"type": "integer",
@@ -139,7 +139,7 @@
 							"minimum": 1,
 							"default": 5,
 							"ui:title": "CAM ingest channel",
-							"ui:description": "Render-only helper that permanently holds DeckLink / dshow (sole EnableVideoInput). Look A/B camera layers PLAY route://N from this channel. caspar.config needs ≥5 channels or PLAY/LOADBG on this index returns 400."
+							"ui:description": "Render-only helper that permanently holds DeckLink / dshow (sole EnableVideoInput). Look A/B camera layers PLAY route://N from this channel. caspar.config needs ≥5 channels or PLAY/LOADBG on this index returns 400. Unused on vMix studios (vMix owns the camera)."
 						},
 						"lookPrerollMs": {
 							"type": "integer",
@@ -163,12 +163,6 @@
 							"default": false,
 							"ui:title": "Debug channel labels",
 							"ui:description": "Testing only: burn-in labels on layer 990 of each Caspar channel (1. LED / 2. PGM / 3. DoubleBox / 4. Full / 5. CAM) via gfx/debug-channel-label. Copy the megarepo template into Caspar template-path before enabling."
-						},
-						"wipeUseStingRouteTransition": {
-							"type": "boolean",
-							"default": false,
-							"ui:title": "Wipe via Caspar STING route transition (trial)",
-							"ui:description": "EXPERIMENTAL. When true, the classical `wipes/wipe` (the one wipe with a stringer) runs as a Caspar STING transition on the incoming full-channel PGM route://N (mask/overlay = wipe, delay = wipe air-cut in ms) instead of the PGM 205 alpha-overlay + delayed mixer-opacity flip. Caspar holds the outgoing route as STING's leading source until the trigger point, so the cut is synchronized to the wipe's real on-air frame (robust to late wipe start) with no black PGM. Themed wipes (`_sjv`/`_sport`/`_pocasie`) have no stringer and cover the full screen from frame 0, so they keep the 205-208 alpha overlay. Requires the two fixed config invariants — PGM route must serialize `layer: null` (AMCP `route://N`, never `route://N-0`) and `delay` must be ms (casparcg-state time2Frames). Only turn on for a supervised studio validation of the trial; see the wipe STING trial notes."
 						}
 					},
 					"required": ["ledChannel", "pgmChannel"],
@@ -231,7 +225,7 @@
 		"vmixSources": {
 			"type": "object",
 			"ui:title": "vMix Sources",
-			"ui:description": "Description of vMix inputs i.e. cameras, remotes etc.",
+			"ui:description": "Description of vMix inputs i.e. cameras, remotes etc. Hypercomposed vMix studios use the keys lookA / lookB (Caspar BG A / BG B feeds), cleanGfx (Caspar PGM channel, overlay 1) and the first camera-type entry (camera layer under the look).",
 			"ui:category": "Inputs",
 			"additionalProperties": {
 				"type": "object",

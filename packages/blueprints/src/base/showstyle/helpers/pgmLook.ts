@@ -10,17 +10,16 @@ import {
 import { GraphicObject, SomeObject, VideoObject, ObjectType } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
-import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
+import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import {
+	DEFAULT_BG_LOOP_FILE,
 	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
-	WIPE_CUT_POINT_MS,
 	WIPE_FRAME_MS,
-	WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS,
 	getVideoPlayLayer,
 	normalizeLayeredVideoFileName,
 	resolveWipeAirCutMs,
@@ -29,7 +28,6 @@ import {
 	pgmWipeEffectsLayerForFile,
 	isPgmWipeEffectsLayer,
 	applyCrossSlotWipeAirCutBias,
-	isClassicalWipeFile,
 	isWipePocasieFile,
 	partHasOutroOverlay,
 } from './clips.js'
@@ -37,8 +35,15 @@ import { getAudioObjectOnLayer } from './audio.js'
 import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
 import { delayCountupRevealToWipeCut } from './countupReveal.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
-import { createLookCameraClearTimelineObject } from './pgmCamera.js'
+import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
+import {
+	VMIX_LOOK_SOURCE_KEYS,
+	createVMixTakeTimelineObjects,
+	getVmixLookInput,
+	usesVmixProgram,
+	vmixStingerForWipeFile,
+} from './visionMixer.js'
 
 export type LookSlot = 'A' | 'B'
 
@@ -51,28 +56,6 @@ const DEFAULT_WIPE_AIR_CUT_MS = resolveWipeAirCutMs(undefined, DEFAULT_WIPE_DURA
 /** Opposite physical look channel (idle when `slot` is on PGM). */
 export function otherLookSlot(slot: LookSlot): LookSlot {
 	return slot === 'A' ? 'B' : 'A'
-}
-
-/**
- * Caspar channel format used when converting wipe cut-point ms → STING frames.
- * Note: casparcg-state `Transition.delay` expects **milliseconds** and calls
- * `time2Frames` itself — do not pre-convert when setting `inTransition.delay`.
- */
-export const WIPE_STING_FRAME_RATE = 50
-
-/**
- * Suffix of the premultiplied-alpha copy of a sting wipe file used as the STING
- * `overlayFile`. Caspar's STING command carries no `FILTER`, so a straight-alpha
- * `wipes/wipe` (same source the 205-overlay path premultiplies with
- * {@link PGM_WIPE_STRAIGHT_TO_PREMUL_FILTER}) composites half-transparent under
- * the STING. The overlay instead points at a pre-premultiplied copy
- * (`ffmpeg -i wipe.mov -vf "format=yuva444p12le,premultiply=inplace=1" … wipe_pm.mov`).
- */
-export const STING_OVERLAY_PREMUL_SUFFIX = '_pm'
-
-/** Color wipe used as the STING `overlayFile` — the premultiplied copy of `stingFile`. */
-export function stingPremulOverlayFile(stingFile: string): string {
-	return `${stingFile}${STING_OVERLAY_PREMUL_SUFFIX}`
 }
 
 /** Default wait so CEF + clips can cue on the idle BG channel before a wiped Take. */
@@ -113,7 +96,7 @@ export const LOOK_ILU_HARD_CUT_CLEAR_MS = 380
  */
 export const LOOK_HARD_CUT_INCOMING_DELAY_MS = WIPE_FRAME_MS * 2
 
-/** CUT hold on non-STING PGM route PLAYs; covers the stale frames queued by the lookahead LOADBG. */
+/** CUT hold on PGM route PLAYs; covers the stale frames queued by the lookahead LOADBG. */
 export const LOOK_ROUTE_STALE_FRAME_HOLD_MS = WIPE_FRAME_MS * 3
 
 /**
@@ -206,7 +189,8 @@ export type LookLayers = {
 	lowerThird: CasparCGLayers
 }
 
-const LOOK_A_TO_B: Readonly<Record<string, CasparCGLayers>> = {
+const LOOK_A_TO_B: Readonly<Record<string, string>> = {
+	[VMixLayers.VMixLookInputA]: VMixLayers.VMixLookInputB,
 	[LOOK_A_LAYERS.bgLoop]: LOOK_B_LAYERS.bgLoop,
 	[LOOK_A_LAYERS.clip]: LOOK_B_LAYERS.clip,
 	[LOOK_A_LAYERS.camera]: LOOK_B_LAYERS.camera,
@@ -233,16 +217,10 @@ const LOOK_COMPOSE_LAYERS = new Set<string>([
 export const PGM_ROUTE_LAYERS = {
 	A: CasparCGLayers.CasparCGPgmRouteA,
 	B: CasparCGLayers.CasparCGPgmRoute,
-	/** Classical-wipe STING transition only (empty otherwise). */
-	STING: CasparCGLayers.CasparCGPgmRouteSting,
 } as const
 
 export function isPgmRouteLayer(layer: string): boolean {
-	return (
-		layer === (PGM_ROUTE_LAYERS.A as string) ||
-		layer === (PGM_ROUTE_LAYERS.B as string) ||
-		layer === (PGM_ROUTE_LAYERS.STING as string)
-	)
+	return layer === (PGM_ROUTE_LAYERS.A as string) || layer === (PGM_ROUTE_LAYERS.B as string)
 }
 
 export function isHypercomposedStudio(config: StudioConfig): boolean {
@@ -369,11 +347,6 @@ export function getLookPrerollMs(config: StudioConfig): number {
 
 export function isLookComposeLayer(layer: string): boolean {
 	return LOOK_COMPOSE_LAYERS.has(layer)
-}
-
-/** Convert wipe cut-point ms → frames at {@link WIPE_STING_FRAME_RATE} (docs / tests only). */
-export function wipeStingDelayFrames(cutPointMs: number = WIPE_CUT_POINT_MS): number {
-	return Math.max(0, Math.round((cutPointMs / 1000) * WIPE_STING_FRAME_RATE))
 }
 
 export function findWipeVideoObject(objects: SomeObject[]): VideoObject | undefined {
@@ -545,15 +518,9 @@ function applyHardCutIdleLookHotCue(pieces: IBlueprintPiece[], playAtMs: number)
  * Full-channel underlay as MEDIA `route://N` (not TSR ROUTE).
  * casparcg-state `setDefaultValue` coerces ROUTE `layer` null/undefined → 0, so AMCP
  * becomes `route://N-0` (empty layer → black PGM) instead of the full mix `route://N`.
- *
- * Story-block wipes prefer EffectsPlayer overlay + delayed hard-cut (see
- * {@link wipeUsesPgmOverlay}) — STING on the route is kept only as an optional escape
- * hatch. When used, `delay` must be **ms** (casparcg-state converts to frames).
  */
 export function createFullChannelRouteContent(
 	channel: number,
-	stingFile?: string,
-	cutPointMs: number = DEFAULT_WIPE_AIR_CUT_MS,
 	mixer?: TSR.Mixer,
 	/** Hard cuts only: CUT hold (ms) that drains stale frames queued in the LOADBG'd route. */
 	cutHoldMs: number = 0
@@ -564,31 +531,7 @@ export function createFullChannelRouteContent(
 		file: `route://${channel}`,
 		noStarttime: true,
 		...(mixer ? { mixer } : {}),
-		...(!stingFile && cutHoldMs > 0
-			? { transitions: { inTransition: { type: TSR.Transition.CUT, duration: cutHoldMs } } }
-			: {}),
-		...(stingFile
-			? {
-					transitions: {
-						inTransition: {
-							type: TSR.Transition.STING,
-							// Caspar STING consumes the mask and overlay differently: the mask
-							// must be a clean B/W luma matte (drives the dissolver between the
-							// outgoing src and incoming dst), while the overlay carries the colour
-							// wipe graphic with alpha. One file cannot be both — the previous
-							// same-file mask+overlay made Caspar key the colour wipe against its
-							// own alpha ("half-transparent" cover). Deliver `wipes/{stem}_mask`
-							// (B/W luma) alongside the colour `wipes/{stem}`.
-							maskFile: `${stingFile}_mask`,
-							// STING carries no `FILTER`, so the straight-alpha colour wipe
-							// composites half-transparent — point the overlay at the premultiplied
-							// copy (`wipes/{stem}_pm`) so it looks as solid as the 205-overlay path.
-							overlayFile: stingPremulOverlayFile(stingFile),
-							delay: cutPointMs,
-						},
-					},
-				}
-			: {}),
+		...(cutHoldMs > 0 ? { transitions: { inTransition: { type: TSR.Transition.CUT, duration: cutHoldMs } } } : {}),
 	}
 }
 
@@ -616,51 +559,13 @@ function pgmRouteMixer(visible: boolean): TSR.Mixer {
  *
  * Until `routeStartMs`, the previous slot stays visible so wiped Takes keep the old
  * look under the sting; at `routeStartMs` the mixer swaps under cover.
- *
- * With `wipeUseStingRouteTransition`, a classical-wipe Take additionally gets the
- * STING object from {@link createStingRouteTimelineObjects} on its own layer.
  */
 export function createPgmRouteTimelineObjects(
 	config: StudioConfig,
 	slot: LookSlot,
-	options?: {
-		routeStartMs?: number
-		previousSlot?: LookSlot
-		/**
-		 * Experimental STING-route trial (`wipeUseStingRouteTransition`): when set, the
-		 * classical `wipes/wipe` additionally PLAYs the incoming route through a Caspar
-		 * STING transition on the dedicated sting layer (see
-		 * {@link createStingRouteTimelineObjects}); the dual-route flip still happens.
-		 */
-		stingFile?: string
-		/** The wipe file for this Take; drives whether STING (classical) or overlay (themed) applies. */
-		wipeFile?: string
-		/** Wipe length; bounds how long the STING layer stays up before it is cleared. */
-		stingDurationMs?: number
-	}
+	options?: { routeStartMs?: number; previousSlot?: LookSlot }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	// Dual always-live routes (110/111) ALWAYS carry the switch: hard cuts and themed wipes
-	// flip opacity/volume (never re-PLAY / LOADBG a route://). A classical STING Take
-	// additionally runs its transition on its own layer on top of the same flip — the
-	// outgoing look stays visible underneath until the flip lands under the sting cover.
-	const stingRoute = Boolean(wipeUseStingRouteTransition(config) && options?.stingFile)
-	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
-	const dual = createDualRouteTimelineObjects(config, slot, {
-		previousSlot: options?.previousSlot,
-		// STING path: the sting layer's src is empty, so the un-wiped region is transparent
-		// and shows the routes straight through. Flip only once the mask has fully covered
-		// (air cut + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS); `routeStartMs` itself stays the
-		// STING trigger point — resolve the same DEFAULT_WIPE_AIR_CUT_MS fallback as
-		// createStingRouteTimelineObjects when no explicit cut is given. Overlay/hard-cut
-		// paths keep the flip at the cut.
-		routeStartMs: stingRoute
-			? (routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS) + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS
-			: routeStartMs,
-	})
-	if (stingRoute) {
-		return [...dual, ...createStingRouteTimelineObjects(config, slot, options)]
-	}
-	return dual
+	return createDualRouteTimelineObjects(config, slot, options)
 }
 
 function createDualRouteTimelineObjects(
@@ -687,7 +592,7 @@ function createDualRouteTimelineObjects(
 			enable: { start: 0 },
 			layer,
 			priority: 1,
-			content: createFullChannelRouteContent(channel, undefined, DEFAULT_WIPE_AIR_CUT_MS, pgmRouteMixer(holdVisible)),
+			content: createFullChannelRouteContent(channel, pgmRouteMixer(holdVisible)),
 		})
 		if (routeStartMs > 0 && holdVisible !== liveVisible) {
 			obj.keyframes = [
@@ -718,59 +623,6 @@ function createDualRouteTimelineObjects(
 }
 
 /**
- * Experimental STING-route trial — faithful Caspar STING on the incoming PGM route
- * (`HypercomposedChannels.wipeUseStingRouteTransition`, off by default).
- *
- * Caspar's STING transition is **single-layer**: it wraps ONE PLAY of a producer,
- * holds that layer's leading producer as `src` until the transition's trigger point,
- * then starts pulling the new producer (`dst`) while the wipe mask composites the two
- * (see `sting_producer.cpp`: `started_dst = current_frame_ >= info_.trigger_point`).
- * The STING lives on its own PGM layer ({@link PGM_ROUTE_LAYERS.STING}, 124), which is
- * empty before/after the wipe. Its source is therefore transparent: Caspar keys the
- * (empty) source with the inverted mask and the incoming route with the mask, so the
- * outgoing look simply stays visible on the dual routes (110/111) underneath. The dual
- * routes flip under the cover at the cut point, and the sting layer is cleared when the
- * wipe ends — hard cuts and themed wipes never touch this layer.
- *
- * It depends on the two fixed config invariants: `createFullChannelRouteContent` must
- * serialize `layer: null` (AMCP `route://N`, never `route://N-0`) and `delay` must be
- * ms (casparcg-state maps to frames via `time2Frames`).
- */
-export function createStingRouteTimelineObjects(
-	config: StudioConfig,
-	slot: LookSlot,
-	options?: {
-		routeStartMs?: number
-		previousSlot?: LookSlot
-		stingFile?: string
-		stingDurationMs?: number
-	}
-): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
-	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
-	const stingDurationMs = Math.max(0, Math.floor(options?.stingDurationMs ?? 0))
-	const obj = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-		id: '',
-		// Take (0) → end of the wipe; afterwards the layer is empty again (CLEAR).
-		enable: stingDurationMs > 0 ? { start: 0, duration: stingDurationMs } : { start: 0 },
-		layer: PGM_ROUTE_LAYERS.STING,
-		priority: 1,
-		content: createFullChannelRouteContent(
-			getLookCasparChannel(config, slot),
-			options?.stingFile,
-			routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS,
-			pgmRouteMixer(true)
-		),
-	})
-	// Lookahead NONE on this layer (see the mapping): each Take LOADBGs its own paused
-	// `route://N`+STING from this object, then the bare PLAY keyframe promotes it — the
-	// armed and played producers are one and the same. PRELOAD instead armed a part
-	// one-or-more takes ahead (routes alternate per slot) and the producer-swapping PLAY
-	// casparcg-state then emitted carried no STING (hard cut, #139 regression).
-	applyCasparHotPlayCue(obj, 0)
-	return [obj]
-}
-
-/**
  * @deprecated Prefer {@link createPgmRouteTimelineObjects}. Returns the **live** slot's
  * route object only (tests / call sites that still expect a single timeline object).
  */
@@ -778,7 +630,7 @@ export function createPgmRouteTimelineObject(
 	config: StudioConfig,
 	slot: LookSlot,
 	_wipeFile?: string,
-	options?: { sting?: boolean; routeStartMs?: number; cutPointMs?: number; previousSlot?: LookSlot }
+	options?: { routeStartMs?: number; previousSlot?: LookSlot }
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const objs = createPgmRouteTimelineObjects(config, slot, {
 		routeStartMs: options?.routeStartMs ?? 0,
@@ -872,7 +724,7 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
  *
  * Keep the PLAY keyframe bare (playing only). casparcg-state attaches transitions to
  * the producer's LOAD; a transition-bearing PLAY keyframe made Promoter not emit the
- * PLAY at all (see {@link createStingRouteTimelineObjects}).
+ * PLAY at all.
  */
 function applyCasparHotPlayCue(
 	obj: TimelineBlueprintExt,
@@ -945,57 +797,13 @@ function createPgmWipeOverlayTimelineObject(
  * mis-unit (frames vs ms → TRIGGER_POINT=0). Overlay + delayed MEDIA cut matches
  * the working Full-section path (SJV / ŠPORT / Počasie / tip).
  */
-/**
- * Experimental trial: run the classical `wipes/wipe` (the one wipe with a stringer) as a
- * Caspar STING transition on the incoming full-channel PGM route, so the cut is locked to
- * the wipe's real on-air frame. Opt in per studio via
- * `HypercomposedChannels.wipeUseStingRouteTransition`. Themed wipes (`_sjv`/`_sport`/
- * `_pocasie`) have no stringer and cover the full screen from frame 0 — they stay on the
- * 205 overlay under the flag.
- */
-export function wipeUseStingRouteTransition(config: StudioConfig): boolean {
-	return Boolean(config.casparcg.hypercomposed?.wipeUseStingRouteTransition)
-}
-
-/**
- * True when a wiped Take runs the wipe as a Caspar STING on the route instead of the 205
- * overlay. Only the classical stringer wipe (`wipes/wipe`) qualifies; themed wipes and
- * hard cuts (no `wipeFile`) never use STING, even when the trial flag is on.
- */
-export function wipeUsesPgmSting(config: StudioConfig, wipeFile?: string): boolean {
-	// `isClassicalWipeFile` treats an absent file as classical — guard on it being set.
-	return Boolean(wipeFile) && wipeUseStingRouteTransition(config) && isClassicalWipeFile(wipeFile)
-}
-
-/**
- * True when a wiped Take should PLAY the wipe as a PGM 205–208 alpha overlay (the proven
- * path). False only for the classical `wipes/wipe` under the STING-route trial.
- */
-export function wipeUsesPgmOverlay(config: StudioConfig, wipeFile?: string): boolean {
-	return !wipeUsesPgmSting(config, wipeFile)
-}
-
-/**
- * ExpectedPackages for a wipe route piece. Overlay/dual-route path: the wipe file on
- * the overlay (205–208) + both route layers. STING-route trial: the incoming STING's
- * `maskFile` (`wipes/{stem}_mask`) and premultiplied `overlayFile` (`wipes/{stem}_pm`)
- * are the MEDIA Caspar actually consumes on the canonical route layer
- * (`PGM_ROUTE_LAYERS.B`) — without them Package Manager reports "cannot be found" and
- * Caspar won't build the transition. The straight-alpha colour `wipes/{stem}` is not
- * part of the STING command (the 205 overlay is bypassed under the trial), so it is
- * NOT an expected package here.
- */
+/** ExpectedPackages for a wipe route piece: the wipe file on its overlay (205–208) + both route layers. */
 function expectedWipePackages(
 	context: ICommonContext,
-	config: StudioConfig,
 	wipeFile: string,
-	overlayWipe: boolean,
 	routeLayers: CasparCGLayers[]
 ): ExpectedPackage.ExpectedPackageMediaFile[] {
-	const files = wipeUsesPgmSting(config, wipeFile) ? [`${wipeFile}_mask`, stingPremulOverlayFile(wipeFile)] : [wipeFile]
-	const stingLayers = wipeUsesPgmSting(config, wipeFile) ? [...routeLayers, PGM_ROUTE_LAYERS.STING] : routeLayers
-	const layers = overlayWipe ? [pgmWipeEffectsLayerForFile(wipeFile), ...stingLayers] : stingLayers
-	return files.map((file) => createMediaFileExpectedPackage(context, file, layers))
+	return [createMediaFileExpectedPackage(context, wipeFile, [pgmWipeEffectsLayerForFile(wipeFile), ...routeLayers])]
 }
 
 function createPgmRoutePiece(
@@ -1011,7 +819,6 @@ function createPgmRoutePiece(
 	hardCutRouteStartMs: number = 0
 ): IBlueprintPiece {
 	const hasWipe = Boolean(wipe && wipeFile)
-	const overlayWipe = hasWipe && wipeUsesPgmOverlay(config, wipeFile)
 	const wipeDurationMs = resolveWipeDurationMs(wipe?.duration, wipeFile)
 	const wipeCutPointMs =
 		wipeCutPointMsOverride ??
@@ -1023,19 +830,13 @@ function createPgmRoutePiece(
 
 	const routeStartMs = hasWipe ? wipeCutPointMs : hardCutRouteStartMs
 	const timelineObjects: TimelineBlueprintExt[] = []
-	if (overlayWipe && wipeFile) {
+	if (hasWipe && wipeFile) {
 		// Overlay from Take (0) — never leave a naked hard-cut window before the sting.
 		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0))
 	}
 	timelineObjects.push(
 		...createPgmRouteTimelineObjects(config, slot, {
 			routeStartMs,
-			wipeFile,
-			// STING-route trial: pass the classical `wipes/wipe` as the STING mask/overlay so
-			// the incoming route re-PLAY wraps in a Caspar STING transition (delay = air cut
-			// in ms). Themed wipes are ignored here — they keep the 205 overlay.
-			stingFile: hasWipe && wipeFile && wipeUsesPgmSting(config, wipeFile) ? wipeFile : undefined,
-			stingDurationMs: wipeDurationMs,
 			previousSlot: previousSlot ?? (routeStartMs > 0 ? otherLookSlot(slot) : undefined),
 		})
 	)
@@ -1073,7 +874,7 @@ function createPgmRoutePiece(
 			ignoreMediaObjectStatus: true,
 			timelineObjects,
 		},
-		expectedPackages: wipeFile ? expectedWipePackages(context, config, wipeFile, overlayWipe, routeLayers) : undefined,
+		expectedPackages: wipeFile ? expectedWipePackages(context, wipeFile, routeLayers) : undefined,
 		// Wipe overlay needs a long LOADBG window. Sofie excludes InTransition preroll
 		// from toPartDelay — do not put this preroll on Normal look pieces.
 		prerollDuration: hasWipe
@@ -1099,15 +900,11 @@ function attachRouteToWipePiece(
 	for (const mute of mutes) {
 		mute.enable = { start: 0, duration: wipeDurationMs }
 	}
-	const overlayWipe = wipeUsesPgmOverlay(config, wipeFile)
 	const routeLayers = [PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B]
 	wipePiece.content.timelineObjects = [
-		...(overlayWipe ? [createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0)] : []),
+		createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0),
 		...createPgmRouteTimelineObjects(config, slot, {
 			routeStartMs: wipeCutPointMs,
-			wipeFile,
-			stingFile: wipeUsesPgmSting(config, wipeFile) ? wipeFile : undefined,
-			stingDurationMs: wipeDurationMs,
 			previousSlot: previousSlot ?? otherLookSlot(slot),
 		}),
 		...mutes,
@@ -1117,7 +914,7 @@ function attachRouteToWipePiece(
 	wipePiece.prerollDuration = Math.max(config.casparcgLatency, getLookPrerollMs(config), DEFAULT_WIPE_PREROLL_MS)
 	wipePiece.content.ignoreAudioFormat = true
 	wipePiece.content.ignoreMediaObjectStatus = true
-	wipePiece.expectedPackages = expectedWipePackages(context, config, wipeFile, overlayWipe, routeLayers)
+	wipePiece.expectedPackages = expectedWipePackages(context, wipeFile, routeLayers)
 	const channel = getLookCasparChannel(config, slot)
 	if (!wipePiece.name.includes('route://')) {
 		wipePiece.name = `${wipePiece.name.replace(/\s*\|\s*[\w./-]+$/, '')} | route://${channel}`
@@ -1149,6 +946,9 @@ export function finalizeHypercomposedPart(
 	rawType?: string
 ): void {
 	if (!isHypercomposedStudio(config)) return
+
+	const vmixProgram = usesVmixProgram(config)
+	if (vmixProgram) stripVisionMixerProgramObjects(pieces)
 
 	const lookKind = lookKindForPart(rawType, objects)
 	const idleOtherSlot = otherLookSlot(lookSlot)
@@ -1247,7 +1047,7 @@ export function finalizeHypercomposedPart(
 			partContentDelayDuration: 0,
 		}
 		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
-		// Kolíska beds ride Caspar audio layers — Sisyfos ForceMute does not duck them.
+		// Kolíska beds ride Caspar audio layers (or vMix bed inputs) — Sisyfos ForceMute does not duck them.
 		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
@@ -1419,7 +1219,21 @@ export function finalizeHypercomposedPart(
 	const alreadyRouted = pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some((obj) => isPgmRouteLayer(String(obj.layer)))
 	)
-	if (!alreadyRouted) {
+	if (vmixProgram) {
+		moveLookCameraToVmix(config, pieces, lookSlot)
+		hideLookBgLoopUnderDoubleBox(pieces)
+		attachVmixTake(
+			context,
+			config,
+			pieces,
+			partExternalId,
+			lookSlot,
+			hasWipe ? wipe : undefined,
+			hasWipe ? wipeFile : undefined,
+			wipeDurationMs,
+			!hasWipe && previousLookSlot !== undefined && !sameLookChannel ? LOOK_HARD_CUT_KEEPALIVE_MS : 0
+		)
+	} else if (!alreadyRouted) {
 		const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 		if (wipePiece && wipeFile) {
 			attachRouteToWipePiece(
@@ -1466,6 +1280,174 @@ export function finalizeHypercomposedPart(
 			? Math.max(LOOK_MEDIA_POSTROLL_MS, DEFAULT_WIPE_DURATION_MS, wipeCutPointMs, wipeDurationMs)
 			: LOOK_HARD_CUT_POSTROLL_MS
 	)
+}
+
+const VISION_MIXER_PROGRAM_LAYERS = new Set<string>([VMixLayers.VMixMeProgram, VMixLayers.VMixMePreview])
+
+/** The Take owns the vMix program bus — drop the generic adapters' PROGRAM / PREVIEW objects. */
+function stripVisionMixerProgramObjects(pieces: IBlueprintPiece[]): void {
+	for (const piece of pieces) {
+		if (!piece.content.timelineObjects) continue
+		piece.content.timelineObjects = piece.content.timelineObjects.filter(
+			(obj) => !VISION_MIXER_PROGRAM_LAYERS.has(String(obj.layer))
+		)
+	}
+}
+
+/**
+ * vMix program switch for a Take. Wiped Takes fire the wipe's stinger at Take — vMix holds
+ * the outgoing look until the stinger's own cut point, where the idle Caspar look hot-PLAYs.
+ * Hard cuts CUT once the keepalive has given the idle look its first frame.
+ */
+function attachVmixTake(
+	context: ICommonContext,
+	config: StudioConfig,
+	pieces: IBlueprintPiece[],
+	partExternalId: string,
+	slot: LookSlot,
+	wipe: VideoObject | undefined,
+	wipeFile: string | undefined,
+	wipeDurationMs: number,
+	hardCutStartMs: number
+): void {
+	const input = getVmixLookInput(config, slot)
+	if (input === undefined) {
+		context.logWarning(`vMix source "${VMIX_LOOK_SOURCE_KEYS[slot]}" is not configured; look ${slot} cannot take`)
+		return
+	}
+	const transition: TSR.VMixTransition = wipeFile
+		? { effect: vmixStingerForWipeFile(wipeFile), duration: wipeDurationMs }
+		: { effect: TSR.VMixTransitionType.Cut, duration: 0 }
+	const timelineObjects: IBlueprintPiece['content']['timelineObjects'] = createVMixTakeTimelineObjects(input, {
+		start: wipeFile ? 0 : hardCutStartMs,
+		transition,
+		previewInput: getVmixLookInput(config, otherLookSlot(slot)),
+	})
+	const label = `vMix ${transition.effect} → ${input}`
+
+	const wipePiece = wipeFile
+		? pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
+		: undefined
+	if (wipeFile) {
+		const mutes = (wipePiece?.content.timelineObjects ?? []).filter(
+			(obj) => String(obj.layer) === (SisyfosLayers.ForceMute as string)
+		)
+		if (mutes.length === 0) {
+			const wipeMutes = getWipeForceMuteChannels(config)
+			if (wipeMutes.length > 0) {
+				mutes.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, wipeMutes))
+			}
+		}
+		for (const mute of mutes) {
+			mute.enable = { start: 0, duration: wipeDurationMs }
+		}
+		timelineObjects.push(...mutes)
+	}
+	if (wipePiece) {
+		wipePiece.content.timelineObjects = timelineObjects
+		wipePiece.enable = { start: 0 }
+		wipePiece.pieceType = IBlueprintPieceType.InTransition
+		wipePiece.prerollDuration = config.casparcgLatency
+		wipePiece.content.ignoreAudioFormat = true
+		wipePiece.content.ignoreMediaObjectStatus = true
+		wipePiece.expectedPackages = undefined
+		wipePiece.name = `${wipePiece.name.replace(/\s*\|\s*[\w./-]+$/, '')} | ${label}`
+		return
+	}
+
+	const transitionLabel =
+		typeof wipe?.attributes?.transition === 'string' && wipe.attributes.transition.trim()
+			? wipe.attributes.transition.trim()
+			: undefined
+	const sourceLayerId = wipeFile ? SourceLayer.PgmWipe : SourceLayer.PgmRoute
+	pieces.push(
+		literal<IBlueprintPiece>({
+			enable: { start: 0 },
+			externalId: `${partExternalId}_pgm_route`,
+			name: wipeFile ? `Wipe${transitionLabel ? ` · ${transitionLabel}` : ''} | ${label}` : `PGM ${slot} | ${label}`,
+			lifespan: PieceLifespan.WithinPart,
+			sourceLayerId,
+			outputLayerId: getOutputLayerForSourceLayer(sourceLayerId),
+			...(wipeFile ? { pieceType: IBlueprintPieceType.InTransition } : {}),
+			content: {
+				fileName: wipeFile,
+				ignoreAudioFormat: true,
+				ignoreMediaObjectStatus: true,
+				timelineObjects,
+			},
+			prerollDuration: config.casparcgLatency,
+		})
+	)
+}
+
+const DOUBLEBOX_LOOP_BG_LOOP: Readonly<Record<string, CasparCGLayers>> = {
+	[LOOK_A_LAYERS.doubleBoxLoop]: LOOK_A_LAYERS.bgLoop,
+	[LOOK_B_LAYERS.doubleBoxLoop]: LOOK_B_LAYERS.bgLoop,
+}
+
+/**
+ * vMix studios: a look carrying `db_loop` ships a fully transparent background so the vMix
+ * camera layer shows through — `bg_loop` follows `db_loop` (opacity 0 while it plays, back
+ * to 1 while a Take EMPTYs it). Look CAM hides `bg_loop` above both (priority 3).
+ */
+function hideLookBgLoopUnderDoubleBox(pieces: IBlueprintPiece[]): void {
+	for (const piece of pieces) {
+		const objects = piece.content.timelineObjects
+		if (!objects) continue
+		const bgLoopObjects = objects.flatMap((obj) => {
+			const bgLoopLayer = DOUBLEBOX_LOOP_BG_LOOP[String(obj.layer)]
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			if (!bgLoopLayer || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) return []
+			return [
+				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+					id: '',
+					enable: obj.enable,
+					layer: bgLoopLayer,
+					priority: obj.priority,
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						file: DEFAULT_BG_LOOP_FILE,
+						loop: true,
+						mixer: { opacity: content.file === 'EMPTY' ? 1 : 0 },
+					},
+				}),
+			]
+		})
+		if (bgLoopObjects.length > 0) piece.content.timelineObjects = [...objects, ...bgLoopObjects]
+	}
+}
+
+/**
+ * vMix owns the live camera: any Caspar look CAM left on this Take (route:// ingest or a
+ * camera EMPTY) becomes the matching vMix look-input camera layer, or clears it.
+ */
+function moveLookCameraToVmix(config: StudioConfig, pieces: IBlueprintPiece[], slot: LookSlot): void {
+	const cameraLayer = getLookLayers(slot).camera as string
+	for (const piece of pieces) {
+		const objects = piece.content.timelineObjects
+		if (!objects) continue
+		piece.content.timelineObjects = objects.flatMap((obj) => {
+			if (String(obj.layer) !== cameraLayer) return [obj]
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			if (content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) return [obj]
+			const base = { enable: obj.enable, priority: obj.priority }
+			if (content.file === 'EMPTY') {
+				return [
+					literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+						id: '',
+						...base,
+						layer: slot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB,
+						content: { deviceType: TSR.DeviceType.VMIX, type: TSR.TimelineContentTypeVMix.INPUT, layers: {} },
+					}),
+				]
+			}
+			if (parseRouteMediaChannel(content.file) === undefined) return [obj]
+			const vmixObjects = createVMixLookCameraTimelineObjects(config, content.mixer?.fill, base)
+			remapLookLayers([{ content: { timelineObjects: vmixObjects } } as IBlueprintPiece], slot)
+			return vmixObjects
+		})
+	}
 }
 
 /** True when Full-look CAM on 115 would cover SYN/VT (110) or weather underlay (116). */
@@ -1773,8 +1755,12 @@ function partHasActiveIluZaver(pieces: IBlueprintPiece[]): boolean {
 /** True when this part plays look CAM (live `route://5` / DeckLink) — do not EMPTY it. */
 function partHasLookCameraMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
 	const cameraLayer = getLookLayers(lookSlot).camera
+	const vmixCameraLayer = lookSlot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB
 	return pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some((obj) => {
+			if (String(obj.layer) === (vmixCameraLayer as string)) {
+				return Boolean((obj.content as TSR.TimelineContentVMixInput).layers?.[1])
+			}
 			if (String(obj.layer) !== (cameraLayer as string)) return false
 			const content = obj.content as { type?: string; file?: string; inputType?: string }
 			if (content?.type === TSR.TimelineContentTypeCasparCg.INPUT) return true

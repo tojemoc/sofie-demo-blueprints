@@ -3,6 +3,7 @@ import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { usesVmixProgram } from './visionMixer.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
 /** Caspar HTML template folder under template-path (copy from megarepo assets). */
@@ -25,7 +26,9 @@ export function createDebugChannelLabelTimeline(config: StudioConfig): TimelineB
 		{ layer: CasparCGLayers.CasparCGDebugLabelPgm, label: `${channels.pgmChannel}. PGM` },
 		{ layer: CasparCGLayers.CasparCGDebugLabelDoubleBox, label: `${channels.bgChannelA}. DoubleBox` },
 		{ layer: CasparCGLayers.CasparCGDebugLabelFull, label: `${channels.bgChannelB}. Full` },
-		{ layer: CasparCGLayers.CasparCGDebugLabelCamIngest, label: `${channels.camIngestChannel}. CAM` },
+		...(usesVmixProgram(config)
+			? []
+			: [{ layer: CasparCGLayers.CasparCGDebugLabelCamIngest, label: `${channels.camIngestChannel}. CAM` }]),
 	]
 
 	return debugLabels.map(({ layer, label }) =>

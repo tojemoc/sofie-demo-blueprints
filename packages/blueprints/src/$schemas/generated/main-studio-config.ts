@@ -90,7 +90,6 @@ export interface HypercomposedChannels {
 	pgmCameraProducer?: string
 	pgmCameraVideoFilter?: string
 	debugChannelLabels?: boolean
-	wipeUseStingRouteTransition?: boolean
 }
 export interface InputConfig {
 	input: number

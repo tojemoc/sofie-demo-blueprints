@@ -8,6 +8,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
+import { VMIX_CLEAN_GFX_SOURCE_KEY, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import {
 	createCameraIngestBaselineTimeline,
@@ -34,6 +35,7 @@ export const PGM_COUNTUP_FILE = 'assets/countup'
 
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
+	const vmixProgram = usesVmixProgram(config)
 
 	return {
 		timelineObjects: [
@@ -84,41 +86,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 								loop: true,
 							},
 						}),
-						// Dual always-live PGM routes — never re-PLAY on Take (black-frame race).
-						// Baseline shows BG B (route://4); Takes swap opacity/volume only.
-						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-							id: '',
-							enable: { while: 1 },
-							priority: 0,
-							layer: PGM_ROUTE_LAYERS.A,
-							content: {
-								...createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelA),
-								mixer: { opacity: 0, volume: 0 },
-							},
-						}),
-						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-							id: '',
-							enable: { while: 1 },
-							priority: 0,
-							layer: PGM_ROUTE_LAYERS.B,
-							content: {
-								...createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
-								mixer: { opacity: 1, volume: 1 },
-							},
-						}),
-						// Pre-warm look CAM on both A (DoubleBox FILL) and B (fullscreen) so
-						// the first Take only RESUMEs — no cold PLAY of route://5 / bg_loop.
-						...([
-							createCameraIngestBaselineTimeline(config),
-							createFullLookBaselineCameraTimeline(config),
-							createDoubleBoxBaselineCameraTimeline(config),
-						].filter(
-							(obj): obj is NonNullable<ReturnType<typeof createCameraIngestBaselineTimeline>> => obj !== undefined
-						) as TimelineBlueprintExt[]),
-						// Sticky opacity-0 wipe LOADBG on every EffectsPlayer (205–208).
-						// Without these, idle layers resolve to nothing and TSR emits
-						// LOADBG … "EMPTY", destroying the next Take's PRELOAD.
-						...createStickyWipeBaselineTimeline(),
+						...(vmixProgram ? [] : getCasparProgramBaseline(config)),
 						// LED pod underlay for opening headlines — visible from Activate/Rehearsal
 						// (not only after first Take). Cleared on first DoubleBox Take.
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
@@ -150,7 +118,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			...createBackgroundMusicBaselineTimeline(),
+			...createBackgroundMusicBaselineTimeline(config),
 
 			...createDebugChannelLabelTimeline(config),
 
@@ -171,6 +139,93 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			}),
 		],
 	}
+}
+
+/**
+ * Caspar-switched program only: dual always-live PGM routes (baseline shows BG B, Takes swap
+ * opacity/volume — never re-PLAY), look CAM pre-warm via the ingest channel, and sticky
+ * opacity-0 wipe LOADBG on every EffectsPlayer (205–208) so idle layers never LOADBG "EMPTY".
+ */
+/**
+ * vMix-switched program: look B on air until the first Take (matches the Caspar baseline
+ * route), and both look inputs with no camera layer so a finished CAM piece clears it.
+ */
+function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
+	const lookB = getVmixLookInput(config, 'B')
+	const lookInputs = [
+		[VMixLayers.VMixLookInputA, getVmixLookInput(config, 'A')],
+		[VMixLayers.VMixLookInputB, lookB],
+	] as const
+	return [
+		...(lookB !== undefined
+			? [
+					literal<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>>({
+						id: '',
+						enable: { while: 1 },
+						priority: 0,
+						layer: VMixLayers.VMixMeProgram,
+						content: {
+							deviceType: TSR.DeviceType.VMIX,
+							type: TSR.TimelineContentTypeVMix.PROGRAM,
+							input: lookB,
+						},
+					}),
+				]
+			: []),
+		...lookInputs
+			.filter(([, input]) => input !== undefined)
+			.map(([layer]) =>
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+					id: '',
+					enable: { while: 1 },
+					priority: 0,
+					layer,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.INPUT,
+						layers: {},
+					},
+				})
+			),
+	]
+}
+
+function getCasparProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
+	return [
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { while: 1 },
+			priority: 0,
+			layer: PGM_ROUTE_LAYERS.A,
+			content: {
+				...createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelA),
+				mixer: { opacity: 0, volume: 0 },
+			},
+		}),
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { while: 1 },
+			priority: 0,
+			layer: PGM_ROUTE_LAYERS.B,
+			content: {
+				...createFullChannelRouteContent(getHypercomposedChannels({ studio: config }).bgChannelB),
+				mixer: { opacity: 1, volume: 1 },
+			},
+		}),
+		// Pre-warm look CAM on both A (DoubleBox FILL) and B (fullscreen) so
+		// the first Take only RESUMEs — no cold PLAY of route://5 / bg_loop.
+		...([
+			createCameraIngestBaselineTimeline(config),
+			createFullLookBaselineCameraTimeline(config),
+			createDoubleBoxBaselineCameraTimeline(config),
+		].filter(
+			(obj): obj is NonNullable<ReturnType<typeof createCameraIngestBaselineTimeline>> => obj !== undefined
+		) as TimelineBlueprintExt[]),
+		// Sticky opacity-0 wipe LOADBG on every EffectsPlayer (205–208).
+		// Without these, idle layers resolve to nothing and TSR emits
+		// LOADBG … "EMPTY", destroying the next Take's PRELOAD.
+		...createStickyWipeBaselineTimeline(),
+	]
 }
 
 function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
@@ -252,11 +307,12 @@ function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 }
 
 function getVMixBaseline(config: StudioConfig): TimelineBlueprintExt[] {
-	const dskInput = Object.values<VmixInputConfig>(config.vmixSources).find(
-		(source) => source.type === SourceType.Graphics
-	)
+	const dskInput =
+		config.vmixSources[VMIX_CLEAN_GFX_SOURCE_KEY] ??
+		Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.Graphics)
 
 	return [
+		...(usesVmixProgram(config) ? getVMixProgramBaseline(config) : []),
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixOverlay>>({
 			id: '',
 			enable: { while: 1 },

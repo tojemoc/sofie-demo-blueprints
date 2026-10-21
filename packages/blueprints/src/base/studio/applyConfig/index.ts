@@ -84,15 +84,26 @@ function generatePlayoutDevices(config: BlueprintConfig): BlueprintResultApplySt
 					host: config.studio.casparcg.host,
 					port: config.studio.casparcg.port || 5250,
 					// 1080p5000: TSR / casparcg-state convert ms→frames via `initOptions.fps
-					// || 25`, so without this every `time2Frames` (STING TRIGGER_POINT,
-					// seek, keyframes) counts frames at 25fps on a 50fps channel. The
-					// STING-route wipe trial needs TRIGGER_POINT ~40 (800 ms @50fps) not
-					// ~20 (the 25fps half) to cut under the wipe cover. Keep it on the
-					// device so both A/B routes and every layer share one frame grid.
+					// || 25`, so without this every `time2Frames` (seek, keyframes) counts
+					// frames at 25fps on a 50fps channel. Keep it on the device so both
+					// A/B looks and every layer share one frame grid.
 					fps: 50,
 				},
 			}),
 		},
+	}
+
+	if (config.studio.visionMixer.type === VisionMixerDevice.VMix) {
+		playoutDevices[config.studio.visionMixer.deviceId] = {
+			parentConfigId: 'playoutgateway',
+			options: literal<TSR.DeviceOptionsVmix>({
+				type: TSR.DeviceType.VMIX,
+				options: {
+					host: config.studio.visionMixer.host,
+					port: config.studio.visionMixer.port,
+				},
+			}),
+		}
 	}
 
 	if (config.studio.visionMixer.type === VisionMixerDevice.Atem) {

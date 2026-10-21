@@ -76,8 +76,8 @@ export const PgmChannelLayers = {
 	DoubleBoxLoop: BgChannelLayers.DoubleBoxLoop,
 	GraphicsLowerThird: BgChannelLayers.GraphicsLowerThird,
 	GraphicsLogo: 123,
-	/** STING route transition layer — above countup (123), below the 205+ wipe overlays. */
-	RouteSting: 124,
+	/** vMix studios: look B L3D on the clean-GFX channel (look A keeps {@link GraphicsLowerThird}). */
+	GraphicsLowerThirdB: 122,
 	/**
 	 * Classical story wipe overlay (`wipes/wipe`). Layer **205** (not 200): older
 	 * bundles left `MIXER 2-200 KEYER 1` sticky on 200, so remastered `wipe.mov`

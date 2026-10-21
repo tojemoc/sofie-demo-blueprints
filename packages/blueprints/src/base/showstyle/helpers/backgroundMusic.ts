@@ -1,8 +1,9 @@
 import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { ICommonContext } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
-import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
-import { CasparCGLayers } from '../../studio/layers.js'
+import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
+import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
+import { VMIX_BED_SOURCE_KEYS } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
@@ -20,6 +21,11 @@ export const KOLISKA_HIT_DURATION_MS = 2000
 export const KOLISKA_HIT_VOLUME = 1
 export const KOLISKA_BED_VOLUME = 0.45
 
+/** vMix studios play the kolíska beds on vMix inputs (`vmixSources.bedA` / `bedC`) — Caspar stays silent. */
+export function casparOwnsMusicBeds(config: StudioConfig): boolean {
+	return config.visionMixer.type !== VisionMixerDevice.VMix
+}
+
 function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
 	return [
 		{
@@ -36,7 +42,79 @@ function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineC
 	]
 }
 
-export function createBackgroundMusicBaselineTimeline(): TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] {
+type VmixBed = keyof typeof VMIX_BED_SOURCE_KEYS
+
+const VMIX_BED_LAYERS: Record<VmixBed, { input: VMixLayers; audio: VMixLayers }> = {
+	A: { input: VMixLayers.VMixBedA, audio: VMixLayers.VMixBedAAudio },
+	C: { input: VMixLayers.VMixBedC, audio: VMixLayers.VMixBedCAudio },
+}
+
+/** vMix AUDIO volume (0–100) for a Caspar mixer volume (0–1). */
+function vmixBedVolume(volume: number): number {
+	return Math.round(volume * 100)
+}
+
+function vmixBedPlayObject(
+	bed: VmixBed,
+	enable: TimelineBlueprintExt['enable'],
+	priority: number
+): TimelineBlueprintExt<TSR.TimelineContentVMixInput> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+		id: '',
+		enable,
+		layer: VMIX_BED_LAYERS[bed].input,
+		priority,
+		content: { deviceType: TSR.DeviceType.VMIX, type: TSR.TimelineContentTypeVMix.INPUT, playing: true, loop: true },
+	})
+}
+
+function vmixBedAudioObject(
+	bed: VmixBed,
+	enable: TimelineBlueprintExt['enable'],
+	priority: number,
+	audio: { muted: true } | { koliska: true }
+): TimelineBlueprintExt<TSR.TimelineContentVMixAudio> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixAudio>>({
+		id: '',
+		enable,
+		layer: VMIX_BED_LAYERS[bed].audio,
+		priority,
+		content: {
+			deviceType: TSR.DeviceType.VMIX,
+			type: TSR.TimelineContentTypeVMix.AUDIO,
+			...('muted' in audio ? { muted: true } : { muted: false, volume: vmixBedVolume(KOLISKA_HIT_VOLUME) }),
+		},
+		...('koliska' in audio
+			? {
+					keyframes: [
+						{
+							id: '',
+							enable: { start: KOLISKA_HIT_DURATION_MS },
+							content: {
+								deviceType: TSR.DeviceType.VMIX,
+								type: TSR.TimelineContentTypeVMix.AUDIO,
+								volume: vmixBedVolume(KOLISKA_BED_VOLUME),
+							},
+						},
+					],
+				}
+			: {}),
+	})
+}
+
+function hasVmixBed(config: StudioConfig, bed: VmixBed): boolean {
+	return config.vmixSources[VMIX_BED_SOURCE_KEYS[bed]] !== undefined
+}
+
+export function createBackgroundMusicBaselineTimeline(config: StudioConfig): TimelineBlueprintExt[] {
+	if (!casparOwnsMusicBeds(config)) {
+		return [
+			...(hasVmixBed(config, 'A')
+				? [vmixBedPlayObject('A', { while: 1 }, 0), vmixBedAudioObject('A', { while: 1 }, 0, { koliska: true })]
+				: []),
+			...(hasVmixBed(config, 'C') ? [vmixBedAudioObject('C', { while: 1 }, 0, { muted: true })] : []),
+		]
+	}
 	return createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
 		enable: { while: 1 },
 		volume: KOLISKA_HIT_VOLUME,
@@ -82,11 +160,15 @@ export function createBackgroundMusicMutePiece(
 		content: {
 			fileName: BG_MUSIC_A_FILE,
 			ignoreAudioFormat: true,
-			timelineObjects: createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
-				volume: 0,
-				priority: 2,
-				...(timelineEnable ? { enable: timelineEnable } : {}),
-			}),
+			timelineObjects: casparOwnsMusicBeds(config)
+				? createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
+						volume: 0,
+						priority: 2,
+						...(timelineEnable ? { enable: timelineEnable } : {}),
+					})
+				: (['A', 'C'] as const)
+						.filter((bed) => hasVmixBed(config, bed))
+						.map((bed) => vmixBedAudioObject(bed, timelineEnable ?? { start: 0 }, 2, { muted: true })),
 		},
 		expectedPackages: [],
 		prerollDuration: prerollMs,
@@ -135,22 +217,31 @@ export function createSportBackgroundMusicPiece(
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
 		content: {
 			fileName: BG_MUSIC_C_FILE,
-			timelineObjects: createDualChannelAudioBedTimelineObjects(BG_MUSIC_C_FILE, {
-				volume: KOLISKA_HIT_VOLUME,
-				priority: 1,
-				keyframes: koliskaMixerKeyframes(),
-			}),
+			timelineObjects: casparOwnsMusicBeds(config)
+				? createDualChannelAudioBedTimelineObjects(BG_MUSIC_C_FILE, {
+						volume: KOLISKA_HIT_VOLUME,
+						priority: 1,
+						keyframes: koliskaMixerKeyframes(),
+					})
+				: [
+						...(hasVmixBed(config, 'C')
+							? [vmixBedPlayObject('C', { start: 0 }, 1), vmixBedAudioObject('C', { start: 0 }, 1, { koliska: true })]
+							: []),
+						...(hasVmixBed(config, 'A') ? [vmixBedAudioObject('A', { start: 0 }, 1, { muted: true })] : []),
+					],
 		},
-		expectedPackages: [
-			createMediaFileExpectedPackage(
-				context,
-				BG_MUSIC_C_FILE,
-				[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
-				{
-					includeSideEffects: true,
-				}
-			),
-		],
+		expectedPackages: !casparOwnsMusicBeds(config)
+			? []
+			: [
+					createMediaFileExpectedPackage(
+						context,
+						BG_MUSIC_C_FILE,
+						[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
+						{
+							includeSideEffects: true,
+						}
+					),
+				],
 		prerollDuration: config.casparcgLatency,
 	})
 }

@@ -16,7 +16,7 @@ import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphic
 import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
-import { createVisionMixerObjects } from '../helpers/visionMixer.js'
+import { createVisionMixerObjects, usesVmixProgram } from '../helpers/visionMixer.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
@@ -25,6 +25,7 @@ import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countup
 import { createLedPodHeadlineClearPiece } from '../helpers/ledPodHeadline.js'
 import {
 	createLookCameraTimelineContent,
+	createVMixLookCameraTimelineObjects,
 	getPgmCameraProducer,
 	PgmCameraTimelineContent,
 } from '../helpers/pgmCamera.js'
@@ -39,10 +40,7 @@ export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
 function createPgmCameraTimelineObjects(
 	config: StudioConfig,
 	mode: 'fullscreen' | 'doublebox'
-): TimelineBlueprintExt<PgmCameraTimelineContent>[] {
-	const producer = getPgmCameraProducer(config)
-	if (!producer) return []
-
+): TimelineBlueprintExt[] {
 	const mixer =
 		mode === 'fullscreen'
 			? { fill: { ...PGM_FULLSCREEN_CAMERA_FILL } }
@@ -50,6 +48,10 @@ function createPgmCameraTimelineObjects(
 					// FILL only — cam sits under ILU (z-order) + db_loop cutouts (~80% right-stuck).
 					fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
 				}
+	if (usesVmixProgram(config)) return createVMixLookCameraTimelineObjects(config, mixer.fill)
+
+	const producer = getPgmCameraProducer(config)
+	if (!producer) return []
 
 	return [
 		literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({

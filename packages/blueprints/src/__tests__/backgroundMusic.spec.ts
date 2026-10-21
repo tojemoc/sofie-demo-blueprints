@@ -36,7 +36,7 @@ describe('isSportSegmentName', () => {
 
 describe('koliska bed envelope', () => {
 	it('starts loud then ducks after the hit window on LED and PGM', () => {
-		const timelines = createBackgroundMusicBaselineTimeline()
+		const timelines = createBackgroundMusicBaselineTimeline(hybridCasparConfig)
 		expect(timelines).toHaveLength(2)
 		expect(timelines.map((tl) => tl.layer)).toEqual([
 			CasparCGLayers.CasparCGAudioBed,
