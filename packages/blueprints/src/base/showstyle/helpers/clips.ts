@@ -67,6 +67,21 @@ export const WIPE_FILE_COVER_DURATION_MS = 80
 /** Centre of {@link WIPE_FILE_COVER_START_MS}…+{@link WIPE_FILE_COVER_DURATION_MS}. */
 export const WIPE_FILE_COVER_CENTER_MS = WIPE_FILE_COVER_START_MS + WIPE_FILE_COVER_DURATION_MS / 2
 
+/**
+ * STING-route path only (`casparcg.hypercomposed.wipeUseStingRouteTransition`): extra ms
+ * the dual-route opacity flip waits past the air cut. The dedicated sting layer's `src`
+ * is empty (the layer is cleared between stings), so the still-un-wiped region is
+ * transparent and shows the 110/111 routes straight through — a flip at the air cut pops
+ * the new look into the uncovered region early ("cut before the wipe covers"). The mask's
+ * own frame counter also starts on its first *valid* frame, so a cold-started sting shifts
+ * real cover later than the fixed wall-clock flip. Keep TRIGGER_POINT at the air cut (the
+ * sting's dst reveal stays self-aligned under the mask); move only the route flip past the
+ * cover window (ends ~{@link WIPE_FILE_COVER_START_MS}+{@link WIPE_FILE_COVER_DURATION_MS}
+ * file-ms ≈ air cut +60 ms) plus a 3f margin. The overlay path needs no offset — layer 205's
+ * wipe card is fully opaque at the air cut and hides the flip.
+ */
+export const WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS = 120
+
 /** Studio / wipe editorial frame rate (Caspar 1080p5000). */
 export const WIPE_FRAME_RATE = 50
 
