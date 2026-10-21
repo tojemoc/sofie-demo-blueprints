@@ -177,6 +177,7 @@
 			"ui:title": "Atem Sources",
 			"ui:description": "Description of Atem inputs i.e. cameras, remotes etc.",
 			"ui:category": "Inputs",
+			"default": {},
 			"additionalProperties": {
 				"type": "object",
 				"title": "InputConfig",
@@ -200,6 +201,7 @@
 			"ui:title": "Atem Outputs",
 			"ui:description": "Description of Atem outputs / auxes",
 			"ui:category": "Outputs",
+			"default": {},
 			"additionalProperties": {
 				"type": "object",
 				"title": "OutputConfig",
@@ -227,6 +229,7 @@
 			"ui:title": "vMix Sources",
 			"ui:description": "Description of vMix inputs i.e. cameras, remotes etc. Hypercomposed vMix studios use the keys lookA / lookB (Caspar BG A / BG B feeds), cleanGfx (Caspar PGM channel, overlay 1) and the first camera-type entry (camera layer under the look).",
 			"ui:category": "Inputs",
+			"default": {},
 			"additionalProperties": {
 				"type": "object",
 				"title": "VmixInputConfig",
@@ -250,6 +253,7 @@
 			"ui:title": "Sisyfos Sources",
 			"ui:description": "Description of Sisyfos channels",
 			"ui:category": "Audio",
+			"default": {},
 			"additionalProperties": {
 				"type": "object",
 				"title": "SiyfosSourceConfig",
