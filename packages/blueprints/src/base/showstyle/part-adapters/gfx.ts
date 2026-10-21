@@ -7,7 +7,7 @@ import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
-import { casparOwnsMusicBeds, createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { autoNextFromRe, autoNextPublicData } from '../helpers/autoNext.js'
 
 export function generateGfxPart(
@@ -34,7 +34,7 @@ export function generateGfxPart(
 		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId))
 	}
 
-	if (casparOwnsMusicBeds(config) && partHasOutroOverlay(part.objects)) {
+	if (partHasOutroOverlay(part.objects)) {
 		pieces.push(
 			createOutroBackgroundMusicMutePiece(
 				config,

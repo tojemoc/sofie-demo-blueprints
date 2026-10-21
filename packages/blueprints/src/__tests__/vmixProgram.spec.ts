@@ -26,6 +26,8 @@ const CAMERA_INPUT = 1
 const LOOK_A_INPUT = 2
 const LOOK_B_INPUT = 3
 const CLEAN_GFX_INPUT = 4
+const BED_A_INPUT = 6
+const BED_C_INPUT = 7
 
 const vmixStudioConfig: StudioConfig = {
 	...hybridCasparConfig,
@@ -39,6 +41,8 @@ const vmixStudioConfig: StudioConfig = {
 		lookA: { input: LOOK_A_INPUT, type: SourceType.MediaPlayer },
 		lookB: { input: LOOK_B_INPUT, type: SourceType.MediaPlayer },
 		cleanGfx: { input: CLEAN_GFX_INPUT, type: SourceType.Graphics },
+		bedA: { input: BED_A_INPUT, type: SourceType.MediaPlayer },
+		bedC: { input: BED_C_INPUT, type: SourceType.MediaPlayer },
 	},
 }
 
@@ -184,6 +188,60 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 	})
 })
 
+describe('vMix studio beds + DoubleBox background (smoke rundown)', () => {
+	const parts = generateSmokeRundown()
+	const audioOn = (pieces: IBlueprintPiece[], layer: VMixLayers) =>
+		objectsOf(pieces)
+			.filter((obj) => obj.layer === layer)
+			.map((obj) => obj.content as TSR.TimelineContentVMixAudio)
+
+	it('intro, outro and wiped Takes mute both vMix bed inputs', () => {
+		const muting = parts.filter(({ pieces }) => pieces.some((piece) => piece.name.startsWith('BG music mute')))
+		expect(muting.length).toBeGreaterThan(0)
+		for (const { externalId, pieces } of muting) {
+			for (const layer of [VMixLayers.VMixBedAAudio, VMixLayers.VMixBedCAudio]) {
+				expect(
+					audioOn(pieces, layer).some((audio) => audio.muted === true),
+					`part ${externalId} ${layer}`
+				).toBe(true)
+			}
+		}
+	})
+
+	it('Šport swaps the vMix bed from A to C', () => {
+		const sport = parts.find(({ pieces }) => pieces.some((piece) => piece.name === 'BG music C (Šport)'))
+		expect(sport).toBeDefined()
+		const objs = objectsOf(sport?.pieces ?? [])
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedC)?.content).toMatchObject({ playing: true })
+		expect(audioOn(sport?.pieces ?? [], VMixLayers.VMixBedCAudio).some((a) => a.muted === false)).toBe(true)
+		expect(audioOn(sport?.pieces ?? [], VMixLayers.VMixBedAAudio).some((a) => a.muted === true)).toBe(true)
+	})
+
+	it('every db_loop look hides its bg_loop for the same window', () => {
+		const dbLoopLayers = {
+			[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: CasparCGLayers.CasparCGLookBgLoop,
+			[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: CasparCGLayers.CasparCGLookBgLoopB,
+		} as Record<string, CasparCGLayers>
+		let dbLoops = 0
+		for (const { externalId, pieces } of parts) {
+			for (const piece of pieces) {
+				const objs = (piece.content.timelineObjects ?? []) as TimelineBlueprintExt[]
+				for (const obj of objs.filter((o) => dbLoopLayers[String(o.layer)])) {
+					const playing = (obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
+					if (playing) dbLoops++
+					const bg = objs.find(
+						(o) =>
+							o.layer === dbLoopLayers[String(obj.layer)] &&
+							(o.content as TSR.TimelineContentCCGMedia).mixer?.opacity === (playing ? 0 : 1)
+					)
+					expect(bg?.enable, `part ${externalId} ${piece.name}`).toEqual(obj.enable)
+				}
+			}
+		}
+		expect(dbLoops).toBeGreaterThan(0)
+	})
+})
+
 describe('vMix studio baseline + mappings', () => {
 	const baseline = getBaseline({
 		getStudioConfig: () => ({ studio: vmixStudioConfig }),
@@ -204,6 +262,17 @@ describe('vMix studio baseline + mappings', () => {
 			type: TSR.TimelineContentTypeVMix.PROGRAM,
 			input: LOOK_B_INPUT,
 		})
+	})
+
+	it('plays bed A on its vMix input (kolíska duck) with bed C muted', () => {
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedA)?.content).toMatchObject({ playing: true, loop: true })
+		const bedA = objs.find((obj) => obj.layer === VMixLayers.VMixBedAAudio)
+		expect(bedA?.content).toMatchObject({ muted: false, volume: 100 })
+		expect(bedA?.keyframes?.[0]?.content).toMatchObject({ volume: 45 })
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedCAudio)?.content).toMatchObject({ muted: true })
+		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, 'vmix0')
+		expect(mappings[VMixLayers.VMixBedA]?.options).toMatchObject({ index: String(BED_A_INPUT) })
+		expect(mappings[VMixLayers.VMixBedCAudio]?.options).toMatchObject({ index: String(BED_C_INPUT) })
 	})
 
 	it('baseline carries no Caspar route / wipe / cam-ingest objects or music beds', () => {

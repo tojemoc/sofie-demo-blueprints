@@ -5,7 +5,7 @@ import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { parseConfig } from '../helpers/config.js'
-import { casparOwnsMusicBeds, createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { autoNextForced, autoNextPublicData, FORCE_INTRO_AUTO_NEXT } from '../helpers/autoNext.js'
 
@@ -43,9 +43,7 @@ export function generateIntroPart(
 			: part.payload.clipProps.duration && part.payload.clipProps.duration > 0
 				? part.payload.clipProps.duration
 				: undefined
-	if (casparOwnsMusicBeds(config)) {
-		pieces.push(createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs))
-	}
+	pieces.push(createIntroBackgroundMusicMutePiece(config, part.payload.externalId, introDurationMs))
 	// Do not PLAY countup here. Reveal is opacity 0 until the first wipe into DoubleBox
 	// after MOD; a mute piece would start PLAY at opacity 1 under the intro overlay.
 	// Post-reveal Intro mute (if any) is handled by appendCountupSustainIfRevealed.

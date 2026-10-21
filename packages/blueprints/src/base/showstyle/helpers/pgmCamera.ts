@@ -279,7 +279,7 @@ export function createVMixLookCameraTimelineObjects(
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
 			...base,
-			priority: Math.max(1, base.priority ?? 0),
+			priority: 3,
 			layer: CasparCGLayers.CasparCGLookBgLoop,
 			content: {
 				deviceType: TSR.DeviceType.CASPARCG,

@@ -7,7 +7,7 @@ import { DVEDesigns, DVELayouts } from '../helpers/dve.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
-import { casparOwnsMusicBeds, createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
+import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
 import { VMIX_CLEAN_GFX_SOURCE_KEY, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import {
@@ -118,7 +118,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			...(casparOwnsMusicBeds(config) ? createBackgroundMusicBaselineTimeline() : []),
+			...createBackgroundMusicBaselineTimeline(config),
 
 			...createDebugChannelLabelTimeline(config),
 

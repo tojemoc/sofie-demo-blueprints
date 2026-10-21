@@ -16,6 +16,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import {
+	DEFAULT_BG_LOOP_FILE,
 	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_FRAME_MS,
@@ -1045,11 +1046,9 @@ export function finalizeHypercomposedPart(
 			previousPartKeepaliveDuration: leaveWeatherHideMs,
 			partContentDelayDuration: 0,
 		}
-		if (!vmixProgram) {
-			muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
-			// Kolíska beds ride Caspar audio layers — Sisyfos ForceMute does not duck them.
-			pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
-		}
+		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
+		// Kolíska beds ride Caspar audio layers (or vMix bed inputs) — Sisyfos ForceMute does not duck them.
+		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
 		// Leave-weather uses wipeRouteCutMs so the countup appears with the (lagged) route.
@@ -1222,6 +1221,7 @@ export function finalizeHypercomposedPart(
 	)
 	if (vmixProgram) {
 		moveLookCameraToVmix(config, pieces, lookSlot)
+		hideLookBgLoopUnderDoubleBox(pieces)
 		attachVmixTake(
 			context,
 			config,
@@ -1363,6 +1363,44 @@ function attachVmixTake(
 			prerollDuration: config.casparcgLatency,
 		})
 	)
+}
+
+const DOUBLEBOX_LOOP_BG_LOOP: Readonly<Record<string, CasparCGLayers>> = {
+	[LOOK_A_LAYERS.doubleBoxLoop]: LOOK_A_LAYERS.bgLoop,
+	[LOOK_B_LAYERS.doubleBoxLoop]: LOOK_B_LAYERS.bgLoop,
+}
+
+/**
+ * vMix studios: a look carrying `db_loop` ships a fully transparent background so the vMix
+ * camera layer shows through — `bg_loop` follows `db_loop` (opacity 0 while it plays, back
+ * to 1 while a Take EMPTYs it). Look CAM hides `bg_loop` above both (priority 3).
+ */
+function hideLookBgLoopUnderDoubleBox(pieces: IBlueprintPiece[]): void {
+	for (const piece of pieces) {
+		const objects = piece.content.timelineObjects
+		if (!objects) continue
+		const bgLoopObjects = objects.flatMap((obj) => {
+			const bgLoopLayer = DOUBLEBOX_LOOP_BG_LOOP[String(obj.layer)]
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			if (!bgLoopLayer || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) return []
+			return [
+				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+					id: '',
+					enable: obj.enable,
+					layer: bgLoopLayer,
+					priority: obj.priority,
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						file: DEFAULT_BG_LOOP_FILE,
+						loop: true,
+						mixer: { opacity: content.file === 'EMPTY' ? 1 : 0 },
+					},
+				}),
+			]
+		})
+		if (bgLoopObjects.length > 0) piece.content.timelineObjects = [...objects, ...bgLoopObjects]
+	}
 }
 
 /**

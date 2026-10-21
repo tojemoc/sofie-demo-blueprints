@@ -150,6 +150,8 @@ export function createVisionMixerObjects(
  */
 export const VMIX_LOOK_SOURCE_KEYS = { A: 'lookA', B: 'lookB' } as const
 export const VMIX_CLEAN_GFX_SOURCE_KEY = 'cleanGfx'
+/** `vmixSources` keys for the kolíska beds vMix plays (Caspar beds are not emitted on vMix studios). */
+export const VMIX_BED_SOURCE_KEYS = { A: 'bedA', C: 'bedC' } as const
 
 /** vMix stinger slot per wipe file — slots are loaded with the matching wipe in vMix. */
 const VMIX_STINGER_BY_WIPE: ReadonlyArray<{ match: RegExp; stinger: TSR.VMixTransitionType }> = [
