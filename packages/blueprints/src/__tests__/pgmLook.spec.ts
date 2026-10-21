@@ -440,6 +440,8 @@ describe('pgmLook look-kind channels + route', () => {
 		// through — the flip must land after the mask has fully covered, not at the air cut
 		// (the "cut before the wipe covers" leak). The STING trigger itself stays at the cut.
 		const dual = objs.filter((o) => o.layer === PGM_ROUTE_LAYERS.A || o.layer === PGM_ROUTE_LAYERS.B)
+		// 6f @50fps — independently pinned so a silent constant change fails here.
+		expect(WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS).toBe(120)
 		for (const o of dual) {
 			expect(o.keyframes?.[0]?.enable).toEqual({ start: WIPE_AIR_CUT_MS + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS })
 		}

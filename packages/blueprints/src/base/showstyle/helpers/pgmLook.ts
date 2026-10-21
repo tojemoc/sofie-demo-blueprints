@@ -644,15 +644,18 @@ export function createPgmRouteTimelineObjects(
 	// additionally runs its transition on its own layer on top of the same flip — the
 	// outgoing look stays visible underneath until the flip lands under the sting cover.
 	const stingRoute = Boolean(wipeUseStingRouteTransition(config) && options?.stingFile)
+	const routeStartMs = Math.max(0, Math.floor(options?.routeStartMs ?? 0))
 	const dual = createDualRouteTimelineObjects(config, slot, {
 		previousSlot: options?.previousSlot,
 		// STING path: the sting layer's src is empty, so the un-wiped region is transparent
 		// and shows the routes straight through. Flip only once the mask has fully covered
 		// (air cut + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS); `routeStartMs` itself stays the
-		// STING trigger point. Overlay/hard-cut paths keep the flip at the cut.
+		// STING trigger point — resolve the same DEFAULT_WIPE_AIR_CUT_MS fallback as
+		// createStingRouteTimelineObjects when no explicit cut is given. Overlay/hard-cut
+		// paths keep the flip at the cut.
 		routeStartMs: stingRoute
-			? (options?.routeStartMs ?? 0) + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS
-			: options?.routeStartMs,
+			? (routeStartMs > 0 ? routeStartMs : DEFAULT_WIPE_AIR_CUT_MS) + WIPE_STING_ROUTE_FLIP_AFTER_COVER_MS
+			: routeStartMs,
 	})
 	if (stingRoute) {
 		return [...dual, ...createStingRouteTimelineObjects(config, slot, options)]
