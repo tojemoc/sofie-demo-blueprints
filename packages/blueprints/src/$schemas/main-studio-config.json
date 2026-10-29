@@ -300,36 +300,42 @@
 					"type": "integer",
 					"ui:title": "Camera input",
 					"ui:description": "vMix input number of the camera, placed as a layer under the look input",
+					"minimum": 1,
 					"default": 1
 				},
 				"lookAInput": {
 					"type": "integer",
 					"ui:title": "Look A input",
 					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look A channel",
+					"minimum": 1,
 					"default": 2
 				},
 				"lookBInput": {
 					"type": "integer",
 					"ui:title": "Look B input",
 					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look B channel",
+					"minimum": 1,
 					"default": 3
 				},
 				"cleanGfxInput": {
 					"type": "integer",
 					"ui:title": "Clean GFX input",
 					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar PGM / clean-GFX channel. Keyed as the baseline Overlay 1.",
+					"minimum": 1,
 					"default": 4
 				},
 				"bedAInput": {
 					"type": "integer",
 					"ui:title": "Bed A input",
 					"ui:description": "vMix input number for the kolíska bed A music (bg_music_a)",
+					"minimum": 1,
 					"default": 5
 				},
 				"bedCInput": {
 					"type": "integer",
 					"ui:title": "Bed C input",
 					"ui:description": "vMix input number for the kolíska bed C music (bg_music_c, Šport)",
+					"minimum": 1,
 					"default": 6
 				}
 			},

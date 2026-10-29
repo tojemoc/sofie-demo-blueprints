@@ -3,7 +3,6 @@ import { ICommonContext } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
 import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
-import { usesVmixProgram } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
@@ -102,9 +101,9 @@ function vmixBedAudioObject(
 	})
 }
 
-/** vMix program studios always carry the bed inputs (`vmixProgram.bedAInput` / `bedCInput`). */
+/** vMix studios always carry the bed inputs (`vmixProgram.bedAInput` / `bedCInput`); mappings are emitted for every vMix studio. */
 function hasVmixBeds(config: StudioConfig): boolean {
-	return usesVmixProgram(config)
+	return config.visionMixer.type === VisionMixerDevice.VMix
 }
 
 export function createBackgroundMusicBaselineTimeline(config: StudioConfig): TimelineBlueprintExt[] {
