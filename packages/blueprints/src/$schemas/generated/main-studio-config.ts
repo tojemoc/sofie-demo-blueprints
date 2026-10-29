@@ -21,6 +21,7 @@ export interface StudioConfig {
 	sisyfosSources: {
 		[k: string]: SiyfosSourceConfig
 	}
+	vmixProgram: VmixProgramConfig
 	previewRenderer: string
 	casparcgLatency: number
 	wipePlayoutLatencyMs?: number
@@ -91,21 +92,48 @@ export interface HypercomposedChannels {
 	pgmCameraVideoFilter?: string
 	debugChannelLabels?: boolean
 }
+/**
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "".
+ */
 export interface InputConfig {
 	input: number
 	type: SourceType
 }
+/**
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "".
+ */
 export interface OutputConfig {
 	output: number
 	source: number
 }
+/**
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "".
+ */
 export interface VmixInputConfig {
 	input: number
 	type: SourceType
 }
+/**
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "".
+ */
 export interface SiyfosSourceConfig {
 	source: number
 	type: AudioSourceType
+}
+/**
+ * vMix program bus input numbers
+ */
+export interface VmixProgramConfig {
+	cameraInput: number
+	lookAInput: number
+	lookBInput: number
+	cleanGfxInput: number
+	bedAInput: number
+	bedCInput: number
 }
 
 /**

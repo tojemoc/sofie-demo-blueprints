@@ -3,9 +3,12 @@ import { literal } from '../../../../common/util.js'
 import { SourceType, StudioConfig } from '../../helpers/config.js'
 import { VMixLayers } from '../../layers.js'
 import { VmixInputConfig } from '../../../../$schemas/generated/main-studio-config.js'
-import { VMIX_BED_SOURCE_KEYS, VMIX_LOOK_SOURCE_KEYS } from '../../../showstyle/helpers/visionMixer.js'
 
-export function getVMixMappings(vmixSources: StudioConfig['vmixSources'], deviceId = 'vmix0'): BlueprintMappings {
+export function getVMixMappings(
+	vmixSources: StudioConfig['vmixSources'],
+	vmixProgram: StudioConfig['vmixProgram'],
+	deviceId = 'vmix0'
+): BlueprintMappings {
 	const mappings: BlueprintMappings = {
 		[VMixLayers.VMixMeProgram]: literal<BlueprintMapping<TSR.MappingVmixProgram>>({
 			device: TSR.DeviceType.VMIX,
@@ -33,37 +36,33 @@ export function getVMixMappings(vmixSources: StudioConfig['vmixSources'], device
 		}),
 	}
 
-	for (const [layer, key] of [
-		[VMixLayers.VMixLookInputA, VMIX_LOOK_SOURCE_KEYS.A],
-		[VMixLayers.VMixLookInputB, VMIX_LOOK_SOURCE_KEYS.B],
+	for (const [layer, input] of [
+		[VMixLayers.VMixLookInputA, vmixProgram.lookAInput],
+		[VMixLayers.VMixLookInputB, vmixProgram.lookBInput],
 	] as const) {
-		const source = vmixSources[key] as VmixInputConfig | undefined
-		if (!source) continue
 		mappings[layer] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
 			device: TSR.DeviceType.VMIX,
 			deviceId,
 			lookahead: LookaheadMode.NONE,
-			options: { mappingType: TSR.MappingVmixType.Input, index: '' + source.input },
+			options: { mappingType: TSR.MappingVmixType.Input, index: '' + input },
 		})
 	}
 
-	for (const [inputLayer, audioLayer, key] of [
-		[VMixLayers.VMixBedA, VMixLayers.VMixBedAAudio, VMIX_BED_SOURCE_KEYS.A],
-		[VMixLayers.VMixBedC, VMixLayers.VMixBedCAudio, VMIX_BED_SOURCE_KEYS.C],
+	for (const [inputLayer, audioLayer, input] of [
+		[VMixLayers.VMixBedA, VMixLayers.VMixBedAAudio, vmixProgram.bedAInput],
+		[VMixLayers.VMixBedC, VMixLayers.VMixBedCAudio, vmixProgram.bedCInput],
 	] as const) {
-		const source = vmixSources[key] as VmixInputConfig | undefined
-		if (!source) continue
 		mappings[inputLayer] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
 			device: TSR.DeviceType.VMIX,
 			deviceId,
 			lookahead: LookaheadMode.NONE,
-			options: { mappingType: TSR.MappingVmixType.Input, index: '' + source.input },
+			options: { mappingType: TSR.MappingVmixType.Input, index: '' + input },
 		})
 		mappings[audioLayer] = literal<BlueprintMapping<TSR.MappingVmixAudioChannel>>({
 			device: TSR.DeviceType.VMIX,
 			deviceId,
 			lookahead: LookaheadMode.NONE,
-			options: { mappingType: TSR.MappingVmixType.AudioChannel, index: '' + source.input },
+			options: { mappingType: TSR.MappingVmixType.AudioChannel, index: '' + input },
 		})
 	}
 

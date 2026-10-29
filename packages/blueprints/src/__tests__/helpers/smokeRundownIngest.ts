@@ -85,6 +85,7 @@ export const hybridCasparConfig: StudioConfig = {
 	},
 	sisyfosSources: {},
 	vmixSources: {},
+	vmixProgram: { cameraInput: 1, lookAInput: 2, lookBInput: 3, cleanGfxInput: 4, bedAInput: 5, bedCInput: 6 },
 	atemOutputs: {},
 	atemSources: {
 		camera1: { input: 1, type: SourceType.Camera },

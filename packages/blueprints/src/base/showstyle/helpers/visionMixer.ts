@@ -1,8 +1,7 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
 import { assertUnreachable, literal } from '../../../common/util.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
-import { VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
+import { StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { AtemLayers, VMixLayers } from '../../studio/layers.js'
 
 export function createAtemInputTimelineObjects(
@@ -143,16 +142,6 @@ export function createVisionMixerObjects(
 	}
 }
 
-/**
- * `vmixSources` keys for the hypercomposed vMix program bus: the two Caspar look feeds that
- * alternate on Takes and the clean-GFX feed keyed over program. Camera is the first
- * `SourceType.Camera` entry.
- */
-export const VMIX_LOOK_SOURCE_KEYS = { A: 'lookA', B: 'lookB' } as const
-export const VMIX_CLEAN_GFX_SOURCE_KEY = 'cleanGfx'
-/** `vmixSources` keys for the kolíska beds vMix plays (Caspar beds are not emitted on vMix studios). */
-export const VMIX_BED_SOURCE_KEYS = { A: 'bedA', C: 'bedC' } as const
-
 /** vMix stinger slot per wipe file — slots are loaded with the matching wipe in vMix. */
 const VMIX_STINGER_BY_WIPE: ReadonlyArray<{ match: RegExp; stinger: TSR.VMixTransitionType }> = [
 	{ match: /wipe_sjv/i, stinger: TSR.VMixTransitionType.Stinger2 },
@@ -165,16 +154,16 @@ export function usesVmixProgram(config: StudioConfig): boolean {
 	return config.visionMixer.type === VisionMixerDevice.VMix && Boolean(config.casparcg.hypercomposed)
 }
 
-export function getVmixLookInput(config: StudioConfig, slot: 'A' | 'B'): number | undefined {
-	return config.vmixSources[VMIX_LOOK_SOURCE_KEYS[slot]]?.input
+export function getVmixLookInput(config: StudioConfig, slot: 'A' | 'B'): number {
+	return slot === 'A' ? config.vmixProgram.lookAInput : config.vmixProgram.lookBInput
 }
 
-export function getVmixCleanGfxInput(config: StudioConfig): number | undefined {
-	return config.vmixSources[VMIX_CLEAN_GFX_SOURCE_KEY]?.input
+export function getVmixCleanGfxInput(config: StudioConfig): number {
+	return config.vmixProgram.cleanGfxInput
 }
 
-export function getVmixCameraInput(config: StudioConfig): number | undefined {
-	return Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.Camera)?.input
+export function getVmixCameraInput(config: StudioConfig): number {
+	return config.vmixProgram.cameraInput
 }
 
 /** Classical `wipes/wipe` → Stinger1; themed SJV / ŠPORT / Počasie → Stinger2–4. */

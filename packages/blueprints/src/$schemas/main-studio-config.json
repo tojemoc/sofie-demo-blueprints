@@ -39,7 +39,7 @@
 					"type": "integer",
 					"description": "Port of the vision mixer",
 					"ui:title": "Port",
-					"ui:description": "Port of the vision mixer (E.G. 9910)",
+					"ui:description": "Port of the vision mixer (ATEM 9910, vMix TCP API 8099)",
 					"default": 9910
 				}
 			},
@@ -178,7 +178,8 @@
 			"ui:description": "Description of Atem inputs i.e. cameras, remotes etc.",
 			"ui:category": "Inputs",
 			"default": {},
-			"additionalProperties": {
+			"patternProperties": {
+				"": {
 				"type": "object",
 				"title": "InputConfig",
 				"properties": {
@@ -193,7 +194,8 @@
 						"$ref": "#/$defs/SourceType"
 					}
 				},
-				"required": ["input", "type"]
+					"required": ["input", "type"]
+				}
 			}
 		},
 		"atemOutputs": {
@@ -202,7 +204,8 @@
 			"ui:description": "Description of Atem outputs / auxes",
 			"ui:category": "Outputs",
 			"default": {},
-			"additionalProperties": {
+			"patternProperties": {
+				"": {
 				"type": "object",
 				"title": "OutputConfig",
 				"properties": {
@@ -221,16 +224,18 @@
 						"default": 1
 					}
 				},
-				"required": ["output", "source"]
+					"required": ["output", "source"]
+				}
 			}
 		},
 		"vmixSources": {
 			"type": "object",
 			"ui:title": "vMix Sources",
-			"ui:description": "Description of vMix inputs i.e. cameras, remotes etc. Hypercomposed vMix studios use the keys lookA / lookB (Caspar BG A / BG B feeds), cleanGfx (Caspar PGM channel, overlay 1) and the first camera-type entry (camera layer under the look).",
+			"ui:description": "Description of generic vMix inputs i.e. cameras, remotes, mediaplayers, multiview etc. — used by adlibs and generic source adapters. The program/look/bed inputs are configured separately under vMix program inputs.",
 			"ui:category": "Inputs",
 			"default": {},
-			"additionalProperties": {
+			"patternProperties": {
+				"": {
 				"type": "object",
 				"title": "VmixInputConfig",
 				"properties": {
@@ -245,7 +250,8 @@
 						"$ref": "#/$defs/SourceType"
 					}
 				},
-				"required": ["input", "type"]
+					"required": ["input", "type"]
+				}
 			}
 		},
 		"sisyfosSources": {
@@ -254,7 +260,8 @@
 			"ui:description": "Description of Sisyfos channels",
 			"ui:category": "Audio",
 			"default": {},
-			"additionalProperties": {
+			"patternProperties": {
+				"": {
 				"type": "object",
 				"title": "SiyfosSourceConfig",
 				"properties": {
@@ -277,8 +284,63 @@
 						"tsEnumNames": ["Host", "Guest", "Remote", "Playback"]
 					}
 				},
-				"required": ["source", "type"]
+					"required": ["source", "type"]
+				}
 			}
+		},
+		"vmixProgram": {
+			"type": "object",
+			"title": "VmixProgramConfig",
+			"description": "vMix program bus input numbers",
+			"ui:category": "Vision Mixer Device",
+			"ui:title": "vMix program inputs",
+			"ui:description": "vMix input numbers that own the program bus. Used only when visionMixer.type = Vmix with Caspar hypercomposed output (vMix switches between the Caspar-rendered looks, keys clean GFX as Overlay 1, and plays the kolíska beds).",
+			"properties": {
+				"cameraInput": {
+					"type": "integer",
+					"ui:title": "Camera input",
+					"ui:description": "vMix input number of the camera, placed as a layer under the look input",
+					"minimum": 1,
+					"default": 1
+				},
+				"lookAInput": {
+					"type": "integer",
+					"ui:title": "Look A input",
+					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look A channel",
+					"minimum": 1,
+					"default": 2
+				},
+				"lookBInput": {
+					"type": "integer",
+					"ui:title": "Look B input",
+					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look B channel",
+					"minimum": 1,
+					"default": 3
+				},
+				"cleanGfxInput": {
+					"type": "integer",
+					"ui:title": "Clean GFX input",
+					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar PGM / clean-GFX channel. Keyed as the baseline Overlay 1.",
+					"minimum": 1,
+					"default": 4
+				},
+				"bedAInput": {
+					"type": "integer",
+					"ui:title": "Bed A input",
+					"ui:description": "vMix input number for the kolíska bed A music (bg_music_a)",
+					"minimum": 1,
+					"default": 5
+				},
+				"bedCInput": {
+					"type": "integer",
+					"ui:title": "Bed C input",
+					"ui:description": "vMix input number for the kolíska bed C music (bg_music_c, Šport)",
+					"minimum": 1,
+					"default": 6
+				}
+			},
+			"required": ["cameraInput", "lookAInput", "lookBInput", "cleanGfxInput", "bedAInput", "bedCInput"],
+			"additionalProperties": false
 		},
 		"previewRenderer": {
 			"type": "string",
@@ -331,6 +393,7 @@
 		"vmixSources",
 		"atemOutputs",
 		"atemSources",
+		"vmixProgram",
 		"visionMixer",
 		"audioMixer",
 		"casparcg",

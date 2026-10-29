@@ -3,7 +3,6 @@ import { ICommonContext } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
 import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
-import { VMIX_BED_SOURCE_KEYS } from './visionMixer.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
@@ -21,7 +20,7 @@ export const KOLISKA_HIT_DURATION_MS = 2000
 export const KOLISKA_HIT_VOLUME = 1
 export const KOLISKA_BED_VOLUME = 0.45
 
-/** vMix studios play the kolíska beds on vMix inputs (`vmixSources.bedA` / `bedC`) — Caspar stays silent. */
+/** vMix studios play the kolíska beds on vMix inputs (`vmixProgram.bedAInput` / `bedCInput`) — Caspar stays silent. */
 export function casparOwnsMusicBeds(config: StudioConfig): boolean {
 	return config.visionMixer.type !== VisionMixerDevice.VMix
 }
@@ -42,7 +41,7 @@ function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineC
 	]
 }
 
-type VmixBed = keyof typeof VMIX_BED_SOURCE_KEYS
+type VmixBed = 'A' | 'C'
 
 const VMIX_BED_LAYERS: Record<VmixBed, { input: VMixLayers; audio: VMixLayers }> = {
 	A: { input: VMixLayers.VMixBedA, audio: VMixLayers.VMixBedAAudio },
@@ -102,17 +101,21 @@ function vmixBedAudioObject(
 	})
 }
 
-function hasVmixBed(config: StudioConfig, bed: VmixBed): boolean {
-	return config.vmixSources[VMIX_BED_SOURCE_KEYS[bed]] !== undefined
+/** vMix studios always carry the bed inputs (`vmixProgram.bedAInput` / `bedCInput`); mappings are emitted for every vMix studio. */
+function hasVmixBeds(config: StudioConfig): boolean {
+	return config.visionMixer.type === VisionMixerDevice.VMix
 }
 
 export function createBackgroundMusicBaselineTimeline(config: StudioConfig): TimelineBlueprintExt[] {
 	if (!casparOwnsMusicBeds(config)) {
 		return [
-			...(hasVmixBed(config, 'A')
-				? [vmixBedPlayObject('A', { while: 1 }, 0), vmixBedAudioObject('A', { while: 1 }, 0, { koliska: true })]
+			...(hasVmixBeds(config)
+				? [
+						vmixBedPlayObject('A', { while: 1 }, 0),
+						vmixBedAudioObject('A', { while: 1 }, 0, { koliska: true }),
+						vmixBedAudioObject('C', { while: 1 }, 0, { muted: true }),
+					]
 				: []),
-			...(hasVmixBed(config, 'C') ? [vmixBedAudioObject('C', { while: 1 }, 0, { muted: true })] : []),
 		]
 	}
 	return createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
@@ -167,7 +170,7 @@ export function createBackgroundMusicMutePiece(
 						...(timelineEnable ? { enable: timelineEnable } : {}),
 					})
 				: (['A', 'C'] as const)
-						.filter((bed) => hasVmixBed(config, bed))
+						.filter(() => hasVmixBeds(config))
 						.map((bed) => vmixBedAudioObject(bed, timelineEnable ?? { start: 0 }, 2, { muted: true })),
 		},
 		expectedPackages: [],
@@ -224,10 +227,13 @@ export function createSportBackgroundMusicPiece(
 						keyframes: koliskaMixerKeyframes(),
 					})
 				: [
-						...(hasVmixBed(config, 'C')
-							? [vmixBedPlayObject('C', { start: 0 }, 1), vmixBedAudioObject('C', { start: 0 }, 1, { koliska: true })]
+						...(hasVmixBeds(config)
+							? [
+									vmixBedPlayObject('C', { start: 0 }, 1),
+									vmixBedAudioObject('C', { start: 0 }, 1, { koliska: true }),
+									vmixBedAudioObject('A', { start: 0 }, 1, { muted: true }),
+								]
 							: []),
-						...(hasVmixBed(config, 'A') ? [vmixBedAudioObject('A', { start: 0 }, 1, { muted: true })] : []),
 					],
 		},
 		expectedPackages: !casparOwnsMusicBeds(config)
