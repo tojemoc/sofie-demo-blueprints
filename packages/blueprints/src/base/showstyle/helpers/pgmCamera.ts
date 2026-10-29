@@ -264,7 +264,6 @@ export function createVMixLookCameraTimelineObjects(
 	base: Pick<TimelineBlueprintExt, 'enable' | 'priority'> = { enable: { start: 0 }, priority: 1 }
 ): TimelineBlueprintExt[] {
 	const cameraInput = getVmixCameraInput(config)
-	if (cameraInput === undefined) return []
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 			id: '',

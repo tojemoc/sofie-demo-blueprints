@@ -8,7 +8,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
-import { VMIX_CLEAN_GFX_SOURCE_KEY, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
+import { getVmixCleanGfxInput, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import {
 	createCameraIngestBaselineTimeline,
@@ -152,41 +152,32 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
  */
 function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	const lookB = getVmixLookInput(config, 'B')
-	const lookInputs = [
-		[VMixLayers.VMixLookInputA, getVmixLookInput(config, 'A')],
-		[VMixLayers.VMixLookInputB, lookB],
-	] as const
+	const lookInputs = [VMixLayers.VMixLookInputA, VMixLayers.VMixLookInputB] as const
 	return [
-		...(lookB !== undefined
-			? [
-					literal<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>>({
-						id: '',
-						enable: { while: 1 },
-						priority: 0,
-						layer: VMixLayers.VMixMeProgram,
-						content: {
-							deviceType: TSR.DeviceType.VMIX,
-							type: TSR.TimelineContentTypeVMix.PROGRAM,
-							input: lookB,
-						},
-					}),
-				]
-			: []),
-		...lookInputs
-			.filter(([, input]) => input !== undefined)
-			.map(([layer]) =>
-				literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
-					id: '',
-					enable: { while: 1 },
-					priority: 0,
-					layer,
-					content: {
-						deviceType: TSR.DeviceType.VMIX,
-						type: TSR.TimelineContentTypeVMix.INPUT,
-						layers: {},
-					},
-				})
-			),
+		literal<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>>({
+			id: '',
+			enable: { while: 1 },
+			priority: 0,
+			layer: VMixLayers.VMixMeProgram,
+			content: {
+				deviceType: TSR.DeviceType.VMIX,
+				type: TSR.TimelineContentTypeVMix.PROGRAM,
+				input: lookB,
+			},
+		}),
+		...lookInputs.map((layer) =>
+			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+				id: '',
+				enable: { while: 1 },
+				priority: 0,
+				layer,
+				content: {
+					deviceType: TSR.DeviceType.VMIX,
+					type: TSR.TimelineContentTypeVMix.INPUT,
+					layers: {},
+				},
+			})
+		),
 	]
 }
 
@@ -307,9 +298,10 @@ function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 }
 
 function getVMixBaseline(config: StudioConfig): TimelineBlueprintExt[] {
-	const dskInput =
-		config.vmixSources[VMIX_CLEAN_GFX_SOURCE_KEY] ??
-		Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.Graphics)
+	const dskInput = usesVmixProgram(config)
+		? getVmixCleanGfxInput(config)
+		: (Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.Graphics)
+				?.input ?? -1)
 
 	return [
 		...(usesVmixProgram(config) ? getVMixProgramBaseline(config) : []),
@@ -322,7 +314,7 @@ function getVMixBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				deviceType: TSR.DeviceType.VMIX,
 				type: TSR.TimelineContentTypeVMix.OVERLAY,
 
-				input: dskInput?.input || -1,
+				input: dskInput,
 			},
 		}),
 	]

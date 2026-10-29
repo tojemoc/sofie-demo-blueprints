@@ -38,7 +38,6 @@ import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorType
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
-	VMIX_LOOK_SOURCE_KEYS,
 	createVMixTakeTimelineObjects,
 	getVmixLookInput,
 	usesVmixProgram,
@@ -1223,7 +1222,6 @@ export function finalizeHypercomposedPart(
 		moveLookCameraToVmix(config, pieces, lookSlot)
 		hideLookBgLoopUnderDoubleBox(pieces)
 		attachVmixTake(
-			context,
 			config,
 			pieces,
 			partExternalId,
@@ -1300,7 +1298,6 @@ function stripVisionMixerProgramObjects(pieces: IBlueprintPiece[]): void {
  * Hard cuts CUT once the keepalive has given the idle look its first frame.
  */
 function attachVmixTake(
-	context: ICommonContext,
 	config: StudioConfig,
 	pieces: IBlueprintPiece[],
 	partExternalId: string,
@@ -1311,10 +1308,6 @@ function attachVmixTake(
 	hardCutStartMs: number
 ): void {
 	const input = getVmixLookInput(config, slot)
-	if (input === undefined) {
-		context.logWarning(`vMix source "${VMIX_LOOK_SOURCE_KEYS[slot]}" is not configured; look ${slot} cannot take`)
-		return
-	}
 	const transition: TSR.VMixTransition = wipeFile
 		? { effect: vmixStingerForWipeFile(wipeFile), duration: wipeDurationMs }
 		: { effect: TSR.VMixTransitionType.Cut, duration: 0 }

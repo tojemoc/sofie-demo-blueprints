@@ -12,7 +12,7 @@ import { applyConfig } from '../base/studio/applyConfig/index.js'
 import { VMIX_RETIRED_CASPAR_LAYERS, getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
 import { PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
-import { AudioSourceType, SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../base/studio/layers.js'
 import { TimelineBlueprintExt } from '../base/studio/customTypes.js'
 import { ObjectType, VideoObject } from '../common/definitions/objects.js'
@@ -38,13 +38,14 @@ const vmixStudioConfig: StudioConfig = {
 		...hybridCasparConfig.casparcg,
 		hypercomposed: { ledChannel: 1, pgmChannel: 4, bgChannelA: 2, bgChannelB: 3 },
 	},
-	vmixSources: {
-		camera1: { input: CAMERA_INPUT, type: SourceType.Camera },
-		lookA: { input: LOOK_A_INPUT, type: SourceType.MediaPlayer },
-		lookB: { input: LOOK_B_INPUT, type: SourceType.MediaPlayer },
-		cleanGfx: { input: CLEAN_GFX_INPUT, type: SourceType.Graphics },
-		bedA: { input: BED_A_INPUT, type: SourceType.MediaPlayer },
-		bedC: { input: BED_C_INPUT, type: SourceType.MediaPlayer },
+	vmixSources: {},
+	vmixProgram: {
+		cameraInput: CAMERA_INPUT,
+		lookAInput: LOOK_A_INPUT,
+		lookBInput: LOOK_B_INPUT,
+		cleanGfxInput: CLEAN_GFX_INPUT,
+		bedAInput: BED_A_INPUT,
+		bedCInput: BED_C_INPUT,
 	},
 }
 
@@ -345,7 +346,7 @@ describe('vMix studio baseline + mappings', () => {
 		expect(bedA?.content).toMatchObject({ muted: false, volume: 100 })
 		expect(bedA?.keyframes?.[0]?.content).toMatchObject({ volume: 45 })
 		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedCAudio)?.content).toMatchObject({ muted: true })
-		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, 'vmix0')
+		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, vmixStudioConfig.vmixProgram, 'vmix0')
 		expect(mappings[VMixLayers.VMixBedA]?.options).toMatchObject({ index: String(BED_A_INPUT) })
 		expect(mappings[VMixLayers.VMixBedCAudio]?.options).toMatchObject({ index: String(BED_C_INPUT) })
 	})
@@ -375,7 +376,7 @@ describe('vMix studio baseline + mappings', () => {
 	})
 
 	it('maps both look inputs and registers the vMix playout device', () => {
-		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, 'vmix0')
+		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, vmixStudioConfig.vmixProgram, 'vmix0')
 		expect(mappings[VMixLayers.VMixLookInputA]?.options).toMatchObject({ index: String(LOOK_A_INPUT) })
 		expect(mappings[VMixLayers.VMixLookInputB]?.options).toMatchObject({ index: String(LOOK_B_INPUT) })
 		const devices = applyConfig({} as never, vmixStudioConfig, {} as never).playoutDevices
