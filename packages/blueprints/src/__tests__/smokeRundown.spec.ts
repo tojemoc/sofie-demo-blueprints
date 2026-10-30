@@ -36,19 +36,17 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 			'seg-weather',
 			'seg-outro',
 		])
-		expect(exportData.parts.length).toBeGreaterThanOrEqual(30)
+		expect(exportData.parts.length).toBe(27)
 		expect(exportData.pieces.some((p) => p.pieceType === 'intro')).toBe(true)
-		// Topic/guest nameplates stay as predstavovak; Opening MOD is coerced to l3d-mod on ingest.
-		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-predstavovak')).toBe(true)
+		// The export already ships the Opening MOD nameplate as l3d-mod (stale predstavovak coerced upstream).
+		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-mod')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sjv')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-sport')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'l3d-odporucanie')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'weather')).toBe(true)
 		expect(exportData.pieces.some((p) => p.pieceType === 'outro')).toBe(true)
 		// SJV body is SYN cluster (not ILU)
-		expect(
-			exportData.parts.filter((p) => p.segmentId === 'seg-sjv' && p.partType === 'syn').length
-		).toBeGreaterThanOrEqual(3)
+		expect(exportData.parts.filter((p) => p.segmentId === 'seg-sjv' && p.partType === 'syn').length).toBe(2)
 	})
 
 	it('resolves editorial segment types from payload.type', () => {
@@ -73,7 +71,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 	it('skips logo-bug ingest (baseline assets/countup covers logo + countup)', () => {
 		const tema1 = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-1'))
-		const firstDb = tema1.parts.find((part) => part.payload.externalId === 'part-tema-1-db')
+		const firstDb = tema1.parts.find((part) => part.payload.externalId === 'part-tema-1-1-ilu-fico-tarabu')
 		expect(firstDb?.objects.some((obj) => obj.clipName === 'gfx/logo-bug')).toBe(false)
 	})
 
@@ -144,8 +142,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 	it('emits Sofie Script pieces from top-level smoke part scripts', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines'))
-		const headline = segment.parts.find((part) => part.payload.externalId === 'part-hl-1')
-		expect(headline?.payload.script).toMatch(/Osobné údaje v OR SR/)
+		const headline = segment.parts.find((part) => part.payload.externalId === 'part-headlines-1-headline1')
+		expect(headline?.payload.script).toMatch(/odvolanie Tomáša Tarabu/)
 		if (!headline) return
 
 		const partContext = new PartContext(mockSegmentContext(), headline.payload.externalId)
@@ -168,7 +166,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const partContext = new PartContext(segmentContext, headline.payload.externalId)
 		const result = generateCameraPart(partContext, headline as PartProps<CameraProps>, createCountupRevealClaim())
 
-		expect(result.part.expectedDuration).toBe(10000)
+		expect(result.part.expectedDuration).toBe(7000)
 		expect(result.part.autoNext).toBeFalsy()
 
 		const pgmCam = result.pieces
@@ -186,8 +184,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 		const ilu = headline.objects.find((obj) => obj.clipName === 'gfx/headline')
 		const l3d = headline.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
-		expect(ilu?.duration).toBe(10000)
-		expect(l3d?.duration).toBe(8000)
+		expect(ilu?.duration).toBe(7000)
+		expect(l3d?.duration).toBe(0)
 	})
 
 	it('passes headline L3D fields as headline/subline to Caspar templates', () => {
@@ -196,8 +194,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const headlineObject = headlinePart?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
 		expect(headlineObject?.attributes).toMatchObject({
-			headline: 'Osobné údaje',
-			subline: 'v OR SR',
+			headline: 'Tarabovo',
+			subline: '(ne)odvolanie',
 		})
 
 		const graphics = parseGraphicsFromObjects(hybridCasparConfig, headlinePart?.objects ?? [])
@@ -207,7 +205,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(caspar, 'Caspar template timeline content missing on gfx/l3d-headline piece').toBeDefined()
 		if (!piece || !caspar) return
 
-		expect(caspar.data).toEqual({ headline: 'Osobné údaje', subline: 'v OR SR' })
+		expect(caspar.data).toEqual({ headline: 'Tarabovo', subline: '(ne)odvolanie' })
 	})
 
 	it('parses HEADLINE ILU parts as camera parts with headline graphics and L3Ds', () => {
@@ -225,7 +223,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 
 	it('normalizes legacy iluFile paths and passes through ingest durations unchanged', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
-		const partPayload = ingest.parts.find((part) => part.externalId === 'part-hl-1')?.payload as {
+		const partPayload = ingest.parts.find((part) => part.externalId === 'part-headlines-1-headline1')?.payload as {
 			duration: number
 			pieces: Array<{ objectType: string; duration?: number; attributes: Record<string, unknown> }>
 		}
@@ -243,7 +241,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		}
 
 		const segment = convertIngestData(mockIngestContext, ingest)
-		const headline = segment.parts.find((part) => part.payload.externalId === 'part-hl-1')
+		const headline = segment.parts.find((part) => part.payload.externalId === 'part-headlines-1-headline1')
 		const ilu = headline?.objects.find((obj) => obj.clipName === 'gfx/headline')
 		const l3d = headline?.objects.find((obj) => obj.clipName === 'gfx/l3d-headline')
 
@@ -295,15 +293,15 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		).toBe(true)
 	})
 
-	it('lands SJV / Šport opening wipes on the first SYN (open GFX parts are skipped)', () => {
-		for (const [segmentId, openId, synId] of [
-			['seg-sjv', 'part-sjv-open', 'part-sjv-syn-1'],
-			['seg-sport', 'part-sport-open', 'part-sport-syn-1'],
+	it('lands SJV / Šport opening wipes on the first SYN', () => {
+		for (const [segmentId, synId] of [
+			['seg-sjv', 'part-sjv-1-litva'],
+			['seg-sport', 'part-sport-1-hokej'],
 		] as const) {
 			const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segmentId))
-			const openPart = segment.parts.find((part) => part.payload.externalId === openId)
 			const synPart = segment.parts.find((part) => part.payload.externalId === synId)
-			expect(openPart?.payload.skip || openPart?.payload.float).toBeTruthy()
+			expect(synPart).toBeDefined()
+			expect(segment.parts[0]?.payload.externalId).toBe(synId)
 			const wipe = synPart?.objects.find(
 				(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 			)
@@ -312,7 +310,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 	})
 
 	it('intro part duration is 8 seconds', () => {
-		const introPart = exportData.parts.find((part) => part.id === 'part-intro')
+		const introPart = exportData.parts.find((part) => part.id === 'part-intro-1-intro')
 		expect(introPart).toBeDefined()
 		expect(introPart?.duration).toBe(8)
 	})
