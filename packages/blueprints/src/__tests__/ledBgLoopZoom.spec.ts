@@ -92,7 +92,7 @@ describe('LED pod headline', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-sjv')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
-		const sjvSyn = generated.parts.find((part) => part.part.externalId === 'part-sjv-syn-2')
+		const sjvSyn = generated.parts.find((part) => part.part.externalId === 'part-sjv-2-huliak')
 		expect(sjvSyn).toBeDefined()
 		expect(sjvSyn?.pieces.some((piece) => piece.externalId?.endsWith('_led_pod_headline_clear'))).toBe(true)
 		expect(sjvSyn?.pieces.some((piece) => piece.externalId?.endsWith('_led_pod_headline'))).toBe(false)
