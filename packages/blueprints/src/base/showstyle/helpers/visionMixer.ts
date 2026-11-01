@@ -173,19 +173,45 @@ export function vmixStingerForWipeFile(wipeFile: string | undefined): TSR.VMixTr
 	)
 }
 
+/** vMix Stinger1–4 ignore the transition's Input and sting whatever sits in Preview — lead the PROGRAM by this much so the lead PREVIEW (incoming look) is already selected. */
+export const VMIX_STINGER_PREVIEW_LEAD_MS = 40
+
 /**
  * Take-shaped vMix program switch: PROGRAM moves to the incoming look input at `start`
  * (stinger from Take, or CUT after the hard-cut keepalive) and PREVIEW follows to the
- * outgoing input — the idle channel the next look composes on.
+ * outgoing input — the idle channel the next look composes on. For stingers, a lead
+ * PREVIEW first selects the incoming input, since Stinger1–4 transition the current
+ * Preview rather than the Input passed to TRANSITION.
  */
 export function createVMixTakeTimelineObjects(
 	input: number,
 	options: { start: number; transition: TSR.VMixTransition; previewInput?: number }
 ): TimelineBlueprintExt<TSR.TimelineContentVMixAny>[] {
-	const objects: TimelineBlueprintExt<TSR.TimelineContentVMixAny>[] = [
+	const isStinger = options.transition.effect !== TSR.VMixTransitionType.Cut
+	const previewLeadMs = isStinger ? VMIX_STINGER_PREVIEW_LEAD_MS : 0
+	const objects: TimelineBlueprintExt<TSR.TimelineContentVMixAny>[] = []
+	if (isStinger) {
+		objects.push(
+			literal<TimelineBlueprintExt<TSR.TimelineContentVMixPreview>>({
+				id: '',
+				enable: {
+					start: options.start,
+					duration: VMIX_STINGER_PREVIEW_LEAD_MS + options.transition.duration + 40,
+				},
+				layer: VMixLayers.VMixMePreview,
+				content: {
+					deviceType: TSR.DeviceType.VMIX,
+					type: TSR.TimelineContentTypeVMix.PREVIEW,
+					input,
+				},
+				priority: 1,
+			})
+		)
+	}
+	objects.push(
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>>({
 			id: '',
-			enable: { start: options.start },
+			enable: { start: options.start + previewLeadMs },
 			layer: VMixLayers.VMixMeProgram,
 			content: {
 				deviceType: TSR.DeviceType.VMIX,
@@ -194,13 +220,13 @@ export function createVMixTakeTimelineObjects(
 				transition: options.transition,
 			},
 			priority: 1,
-		}),
-	]
+		})
+	)
 	if (options.previewInput !== undefined) {
 		objects.push(
 			literal<TimelineBlueprintExt<TSR.TimelineContentVMixPreview>>({
 				id: '',
-				enable: { start: options.start + options.transition.duration + 40 },
+				enable: { start: options.start + previewLeadMs + options.transition.duration + 40 },
 				layer: VMixLayers.VMixMePreview,
 				content: {
 					deviceType: TSR.DeviceType.VMIX,
