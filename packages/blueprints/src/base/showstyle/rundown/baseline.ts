@@ -178,6 +178,19 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				},
 			})
 		),
+		// Stingers transition the Preview input — seed it with look A so the first
+		// stung Take (to A — B is on air) airs the right feed even before the lead PREVIEW lands.
+		literal<TimelineBlueprintExt<TSR.TimelineContentVMixPreview>>({
+			id: '',
+			enable: { while: 1 },
+			priority: 0,
+			layer: VMixLayers.VMixMePreview,
+			content: {
+				deviceType: TSR.DeviceType.VMIX,
+				type: TSR.TimelineContentTypeVMix.PREVIEW,
+				input: getVmixLookInput(config, 'A'),
+			},
+		}),
 	]
 }
 

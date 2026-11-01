@@ -1,9 +1,9 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
 import { createLookSlotSequence, finalizeHypercomposedPart } from '../base/showstyle/helpers/pgmLook.js'
 import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
-import { vmixStingerForWipeFile } from '../base/showstyle/helpers/visionMixer.js'
+import { VMIX_STINGER_PREVIEW_LEAD_MS, vmixStingerForWipeFile } from '../base/showstyle/helpers/visionMixer.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -125,13 +125,16 @@ describe('vMix wipe ForceMute', () => {
 				clipName: 'wipes/wipe',
 				attributes: { playLayer: 'wipe' },
 			}
-			const part = { externalId: 'vmix-wipe-mute', title: 'Wipe' }
+			const part = { externalId: 'vmix-wipe-mute', title: 'Wipe' } as IBlueprintPart
 			finalizeHypercomposedPart(vmixContext(), config, part, part.externalId, [wipe], pieces, 'A')
 
 			const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 			const mutes = wipePiece?.content.timelineObjects?.filter((obj) => obj.layer === SisyfosLayers.ForceMute)
 			expect(mutes).toHaveLength(existingMutes.length || 1)
-			expect(mutes?.map((obj) => obj.enable)).toEqual(mutes?.map(() => ({ start: 0, duration: 1800 })))
+			expect(mutes?.map((obj) => obj.enable)).toEqual(
+				mutes?.map(() => ({ start: 0, duration: 1800 + VMIX_STINGER_PREVIEW_LEAD_MS }))
+			)
+			expect(part.inTransition?.blockTakeDuration).toBe(1800 + VMIX_STINGER_PREVIEW_LEAD_MS)
 			expect(mutes?.flatMap((obj) => (obj.content as TSR.TimelineContentSisyfosChannels).channels)).toEqual([
 				{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
 				{ mappedLayer: 'sisyfos_source_host0', isPgm: 0 },
@@ -141,14 +144,19 @@ describe('vMix wipe ForceMute', () => {
 				expect(mute.priority).toBe(2)
 			})
 			expect(programObjects(pieces)[0]).toMatchObject({
-				enable: { start: 0 },
+				enable: { start: 40 },
 				content: {
 					input: LOOK_A_INPUT,
 					transition: { effect: TSR.VMixTransitionType.Stinger1, duration: 1800 },
 				},
 			})
-			expect(objectsOf(pieces).find((obj) => obj.layer === VMixLayers.VMixMePreview)).toMatchObject({
-				enable: { start: 1840 },
+			const previews = objectsOf(pieces).filter((obj) => obj.layer === VMixLayers.VMixMePreview)
+			expect(previews[0]).toMatchObject({
+				enable: { start: 0, duration: 1880 },
+				content: { input: LOOK_A_INPUT },
+			})
+			expect(previews[1]).toMatchObject({
+				enable: { start: 1880 },
 				content: { input: LOOK_B_INPUT },
 			})
 		}
@@ -180,7 +188,7 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 			const wipePiece = wipePieceOf(pieces)
 			const effect = vmixStingerForWipeFile((wipePiece?.content as { fileName?: string } | undefined)?.fileName)
 			stingers.add(effect)
-			expect(program.enable, `part ${externalId}`).toEqual({ start: 0 })
+			expect(program.enable, `part ${externalId}`).toEqual({ start: VMIX_STINGER_PREVIEW_LEAD_MS })
 			expect(program.content.transition?.effect, `part ${externalId}`).toBe(effect)
 			expect(program.content.transition?.duration, `part ${externalId}`).toBeGreaterThan(0)
 			expect(wipePiece?.expectedPackages, `part ${externalId}`).toBeUndefined()
@@ -202,6 +210,45 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 				effect: TSR.VMixTransitionType.Cut,
 				duration: 0,
 			})
+		}
+	})
+
+	it('wiped Takes lead with PREVIEW(incoming) so the stinger airs the right input', () => {
+		for (const { externalId, pieces } of wipedParts) {
+			const program = programObjects(pieces)[0]
+			const duration = program.content.transition?.duration ?? 0
+			const previews = objectsOf(pieces).filter((obj) => obj.layer === VMixLayers.VMixMePreview)
+			const lead = previews.find((obj) => !Array.isArray(obj.enable) && obj.enable.start === 0)
+			expect(lead, `part ${externalId} lead PREVIEW`).toBeDefined()
+			expect(lead?.enable).toEqual({
+				start: 0,
+				duration: VMIX_STINGER_PREVIEW_LEAD_MS + duration + 40,
+			})
+			expect((lead?.content as TSR.TimelineContentVMixPreview).input, `part ${externalId} lead PREVIEW input`).toBe(
+				program.content.input
+			)
+			expect(program.enable, `part ${externalId} program start`).toEqual({
+				start: VMIX_STINGER_PREVIEW_LEAD_MS,
+			})
+			const follow = previews.find(
+				(obj) => !Array.isArray(obj.enable) && obj.enable.start === VMIX_STINGER_PREVIEW_LEAD_MS + duration + 40
+			)
+			expect(follow, `part ${externalId} follow PREVIEW`).toBeDefined()
+			expect((follow?.content as TSR.TimelineContentVMixPreview).input, `part ${externalId} follow PREVIEW input`).toBe(
+				program.content.input === LOOK_A_INPUT ? LOOK_B_INPUT : LOOK_A_INPUT
+			)
+		}
+	})
+
+	it('hard-cut Takes emit no lead PREVIEW', () => {
+		for (const { externalId, pieces } of hardCutParts) {
+			const program = programObjects(pieces)[0]
+			const programStart = Array.isArray(program.enable) ? 0 : (program.enable.start ?? 0)
+			const previews = objectsOf(pieces).filter((obj) => obj.layer === VMixLayers.VMixMePreview)
+			expect(
+				previews.filter((obj) => !Array.isArray(obj.enable) && (obj.enable.start ?? 0) < programStart),
+				`part ${externalId} lead PREVIEW`
+			).toHaveLength(0)
 		}
 	})
 
@@ -337,6 +384,10 @@ describe('vMix studio baseline + mappings', () => {
 		expect(objs.find((obj) => obj.layer === VMixLayers.VMixMeProgram)?.content).toMatchObject({
 			type: TSR.TimelineContentTypeVMix.PROGRAM,
 			input: LOOK_B_INPUT,
+		})
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixMePreview)?.content).toMatchObject({
+			type: TSR.TimelineContentTypeVMix.PREVIEW,
+			input: LOOK_A_INPUT,
 		})
 	})
 

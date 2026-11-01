@@ -38,6 +38,7 @@ import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorType
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
+	VMIX_STINGER_PREVIEW_LEAD_MS,
 	createVMixTakeTimelineObjects,
 	getVmixLookInput,
 	usesVmixProgram,
@@ -1040,14 +1041,18 @@ export function finalizeHypercomposedPart(
 		// wipe CLEAR (new look could not win while the previous part still occupied the
 		// channel).
 		// L3D templates are CLEARed separately at Take — keepalive must not stack them.
+		// vMix stingers fire VMIX_STINGER_PREVIEW_LEAD_MS after Take (the lead PREVIEW
+		// selects the incoming look first) — block/mute windows must cover the shifted
+		// sting tail, not just the bare wipe duration.
+		const stingCoverMs = wipeDurationMs + (vmixProgram ? VMIX_STINGER_PREVIEW_LEAD_MS : 0)
 		part.inTransition = {
-			blockTakeDuration: wipeDurationMs,
+			blockTakeDuration: stingCoverMs,
 			previousPartKeepaliveDuration: leaveWeatherHideMs,
 			partContentDelayDuration: 0,
 		}
-		muteEditorialClipAudioDuringWipe(pieces, wipeDurationMs)
+		muteEditorialClipAudioDuringWipe(pieces, stingCoverMs)
 		// Kolíska beds ride Caspar audio layers (or vMix bed inputs) — Sisyfos ForceMute does not duck them.
-		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, wipeDurationMs))
+		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, stingCoverMs))
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
 		// Leave-weather uses wipeRouteCutMs so the countup appears with the (lagged) route.
@@ -1332,7 +1337,8 @@ function attachVmixTake(
 			}
 		}
 		for (const mute of mutes) {
-			mute.enable = { start: 0, duration: wipeDurationMs }
+			// Stinger fires VMIX_STINGER_PREVIEW_LEAD_MS after Take — hold the mute through its tail.
+			mute.enable = { start: 0, duration: wipeDurationMs + VMIX_STINGER_PREVIEW_LEAD_MS }
 		}
 		timelineObjects.push(...mutes)
 	}
