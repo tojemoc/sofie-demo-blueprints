@@ -1,4 +1,4 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
 import { createLookSlotSequence, finalizeHypercomposedPart } from '../base/showstyle/helpers/pgmLook.js'
@@ -125,13 +125,16 @@ describe('vMix wipe ForceMute', () => {
 				clipName: 'wipes/wipe',
 				attributes: { playLayer: 'wipe' },
 			}
-			const part = { externalId: 'vmix-wipe-mute', title: 'Wipe' }
+			const part = { externalId: 'vmix-wipe-mute', title: 'Wipe' } as IBlueprintPart
 			finalizeHypercomposedPart(vmixContext(), config, part, part.externalId, [wipe], pieces, 'A')
 
 			const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 			const mutes = wipePiece?.content.timelineObjects?.filter((obj) => obj.layer === SisyfosLayers.ForceMute)
 			expect(mutes).toHaveLength(existingMutes.length || 1)
-			expect(mutes?.map((obj) => obj.enable)).toEqual(mutes?.map(() => ({ start: 0, duration: 1800 })))
+			expect(mutes?.map((obj) => obj.enable)).toEqual(
+				mutes?.map(() => ({ start: 0, duration: 1800 + VMIX_STINGER_PREVIEW_LEAD_MS }))
+			)
+			expect(part.inTransition?.blockTakeDuration).toBe(1800 + VMIX_STINGER_PREVIEW_LEAD_MS)
 			expect(mutes?.flatMap((obj) => (obj.content as TSR.TimelineContentSisyfosChannels).channels)).toEqual([
 				{ mappedLayer: 'sisyfos_source_playback0', isPgm: 0 },
 				{ mappedLayer: 'sisyfos_source_host0', isPgm: 0 },
