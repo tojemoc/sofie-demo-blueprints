@@ -28,6 +28,10 @@ export const DemoStudioConfig: StudioConfig = {
 			pgmChannel: 2,
 			bgChannelA: 3,
 			bgChannelB: 4,
+			// ATEM-classic map (route bus on ch2, looks on ch3/4). vMix studios must
+			// remap to pgmChannel 4 (clean GFX = NDI GFX), bgChannelA 2 / bgChannelB 3
+			// (looks = NDI A / NDI B) so vmixProgram inputs 2/3/4 line up — otherwise
+			// look content feeds the clean-GFX input and PGM graphics feed look A.
 			camIngestChannel: 5,
 			// Opened once on ch5 ingest; look 3/4-115 PLAY route://5 (never a second DeckLink).
 			pgmCameraProducer: 'dshow://video=OBS Virtual Camera',
