@@ -54,6 +54,16 @@ LED / PGM / BG look channel numbers for the Caspar hypercomposed topology:
 
 Look channels are **semantic** (not index ping-pong): DoubleBox parts always route `route://{bgChannelA}` (default **3**); headlines and other Full parts always route `route://{bgChannelB}` (default **4**). All hypercomposed wiped Takes PLAY the wipe on PGM EffectsPlayer (200) and hard-cut MEDIA `route://N` at the wipe cut point (DoubleBox → ch3, Full-section → ch4). Logo-bug stays on PGM layer 123 above the route so it is not wiped away. Full contract table: [PGM route contract](./pgm_route_contract.md).
 
+**vMix studios** (`visionMixer.type: Vmix`) rewire the same Caspar outputs differently — vMix owns the program bus, so there is no route bus and the looks must land on the channels vMix reads as inputs:
+
+| Key | vMix value | Role |
+|-----|-----------:|------|
+| `pgmChannel` | **4** | Clean-GFX channel only (logo, countup, intro/outro, look L3Ds) — keyed over the vMix program, no routes or wipes |
+| `bgChannelA` | **2** | Look A render channel (NDI out "A") |
+| `bgChannelB` | **3** | Look B render channel (NDI out "B") |
+
+`vmixProgram` input numbers then name the vMix inputs fed by those channels (e.g. `lookAInput` 2 = NDI A, `lookBInput` 3 = NDI B, `cleanGfxInput` 4 = NDI GFX). Leaving the ATEM defaults (`pgmChannel` 2, BG 3/4) makes look content — including `bg_loop` — appear on the clean-GFX input while PGM graphics and L3Ds land on the look-A input. Set `visionMixer.port` to the vMix TCP API port **8099**; the HTTP API port 8088 is used only by input media polling, not commands.
+
 ## Showstyle Configuration
 
 These are the config parameters for the Showstyle. They can be accessed from the [Showstyle Blueprint Configuration page](http://localhost:3000/settings/showStyleBase/show0/blueprint-config).
