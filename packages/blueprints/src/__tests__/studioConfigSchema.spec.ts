@@ -66,6 +66,10 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 		const programProperties = vmixProgram.properties as JsonSchemaObject
 		for (const field of ['cameraInput', 'lookAInput', 'lookBInput', 'cleanGfxInput', 'bedAInput', 'bedCInput']) {
 			expect((programProperties[field] as JsonSchemaObject)?.type).toBe('integer')
+		}
+		// cameraInput may be 0 (disables the vMix look camera); every other input is 1-based.
+		expect((programProperties.cameraInput as JsonSchemaObject)?.minimum).toBe(0)
+		for (const field of ['lookAInput', 'lookBInput', 'cleanGfxInput', 'bedAInput', 'bedCInput']) {
 			expect((programProperties[field] as JsonSchemaObject)?.minimum).toBe(1)
 		}
 		expect(vmixProgram.required).toEqual(

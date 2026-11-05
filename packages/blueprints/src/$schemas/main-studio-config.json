@@ -299,8 +299,8 @@
 				"cameraInput": {
 					"type": "integer",
 					"ui:title": "Camera input",
-					"ui:description": "vMix input number of the camera, placed as a layer under the look input",
-					"minimum": 1,
+					"ui:description": "vMix input number of the camera, placed as a layer under the look input. Set 0 to disable the vMix look camera entirely (no layer-1 camera keying; DoubleBox panes keep bg_loop instead of going black).",
+					"minimum": 0,
 					"default": 1
 				},
 				"lookAInput": {
