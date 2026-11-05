@@ -257,6 +257,8 @@ export function vmixLayerTransformFromFill(fill: TSR.Mixer['fill']): Pick<TSR.VM
  * (under the Caspar feed), placed from the Caspar FILL; the look `bg_loop` drops to opacity 0
  * for the same window so the camera shows through the look's transparent pane. Look A layer
  * ids — {@link remapLookLayers} moves both to look B.
+ * `vmixProgram.cameraInput <= 0` disables the look camera entirely (empty objects, panes
+ * keep `bg_loop` — see {@link hideLookBgLoopUnderDoubleBox}).
  */
 export function createVMixLookCameraTimelineObjects(
 	config: StudioConfig,
@@ -264,6 +266,7 @@ export function createVMixLookCameraTimelineObjects(
 	base: Pick<TimelineBlueprintExt, 'enable' | 'priority'> = { enable: { start: 0 }, priority: 1 }
 ): TimelineBlueprintExt[] {
 	const cameraInput = getVmixCameraInput(config)
+	if (cameraInput <= 0) return []
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 			id: '',

@@ -40,6 +40,7 @@ import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
 	VMIX_STINGER_PREVIEW_LEAD_MS,
 	createVMixTakeTimelineObjects,
+	getVmixCameraInput,
 	getVmixLookInput,
 	usesVmixProgram,
 	vmixStingerForWipeFile,
@@ -1225,7 +1226,7 @@ export function finalizeHypercomposedPart(
 	)
 	if (vmixProgram) {
 		moveLookCameraToVmix(config, pieces, lookSlot)
-		hideLookBgLoopUnderDoubleBox(pieces)
+		hideLookBgLoopUnderDoubleBox(config, pieces)
 		attachVmixTake(
 			config,
 			pieces,
@@ -1388,8 +1389,11 @@ const DOUBLEBOX_LOOP_BG_LOOP: Readonly<Record<string, CasparCGLayers>> = {
  * vMix studios: a look carrying `db_loop` ships a fully transparent background so the vMix
  * camera layer shows through — `bg_loop` follows `db_loop` (opacity 0 while it plays, back
  * to 1 while a Take EMPTYs it). Look CAM hides `bg_loop` above both (priority 3).
+ * No-op when the vMix camera is disabled (`cameraInput <= 0`): with no camera layer behind
+ * the panes, transparent `bg_loop` would read as black instead of the loop's blue.
  */
-function hideLookBgLoopUnderDoubleBox(pieces: IBlueprintPiece[]): void {
+function hideLookBgLoopUnderDoubleBox(config: StudioConfig, pieces: IBlueprintPiece[]): void {
+	if (getVmixCameraInput(config) <= 0) return
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects
 		if (!objects) continue
