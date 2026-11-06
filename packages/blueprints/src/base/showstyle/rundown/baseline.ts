@@ -8,7 +8,12 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
-import { getVmixCleanGfxInput, getVmixLookFeedInput, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
+import {
+	getVmixCleanGfxInput,
+	getVmixLookFeedInput,
+	getVmixLookInput,
+	usesVmixProgram,
+} from '../helpers/visionMixer.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import {
 	createCameraIngestBaselineTimeline,
