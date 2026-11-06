@@ -83,6 +83,8 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 			cameraInput: 1,
 			lookAInput: 2,
 			lookBInput: 3,
+			lookAFeedInput: 2,
+			lookBFeedInput: 3,
 			cleanGfxInput: 4,
 			bedAInput: 5,
 			bedCInput: 6,

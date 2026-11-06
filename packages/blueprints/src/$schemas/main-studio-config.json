@@ -306,16 +306,30 @@
 				"lookAInput": {
 					"type": "integer",
 					"ui:title": "Look A input",
-					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look A channel",
+					"ui:description": "vMix input number the PROGRAM bus switches to for look A. When lookAFeedInput is set, this must be a composite (Virtual / multiview) input — blueprints place the camera on layer 1 and the NDI look feed on layer 2 above it. When lookAFeedInput is 0, this input is the NDI feed itself and the camera sits on layer 1 above it (legacy mode).",
 					"minimum": 1,
 					"default": 2
 				},
 				"lookBInput": {
 					"type": "integer",
 					"ui:title": "Look B input",
-					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look B channel",
+					"ui:description": "vMix input number the PROGRAM bus switches to for look B. Same composite-input contract as lookAInput (camera layer 1 under the NDI feed on layer 2 when lookBFeedInput is set).",
 					"minimum": 1,
 					"default": 3
+				},
+				"lookAFeedInput": {
+					"type": "integer",
+					"ui:title": "Look A feed input",
+					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look A channel — placed on layer 2 of lookAInput ABOVE the camera layer so graphics key over the camera through the transparent cutout. Set 0 to disable the feed overlay (legacy: camera layers on top of the look feed).",
+					"minimum": 0,
+					"default": 0
+				},
+				"lookBFeedInput": {
+					"type": "integer",
+					"ui:title": "Look B feed input",
+					"ui:description": "vMix input number fed (e.g. via NDI) by the Caspar BG look B channel — placed on layer 2 of lookBInput above the camera. Set 0 to disable (legacy cam-on-top mode).",
+					"minimum": 0,
+					"default": 0
 				},
 				"cleanGfxInput": {
 					"type": "integer",

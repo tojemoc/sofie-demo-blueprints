@@ -8,7 +8,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
-import { getVmixCleanGfxInput, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
+import { getVmixCleanGfxInput, getVmixLookFeedInput, getVmixLookInput, usesVmixProgram } from '../helpers/visionMixer.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import {
 	createCameraIngestBaselineTimeline,
@@ -165,8 +165,10 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				input: lookB,
 			},
 		}),
-		...lookInputs.map((layer) =>
-			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+		...lookInputs.map((layer) => {
+			const slot = layer === VMixLayers.VMixLookInputA ? 'A' : 'B'
+			const feedInput = getVmixLookFeedInput(config, slot)
+			return literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 				id: '',
 				enable: { while: 1 },
 				priority: 0,
@@ -174,10 +176,12 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				content: {
 					deviceType: TSR.DeviceType.VMIX,
 					type: TSR.TimelineContentTypeVMix.INPUT,
-					layers: {},
+					// No camera layer at rest; keep the NDI look feed on layer 2 above
+					// the (now empty) camera layer when feed inputs are configured.
+					layers: feedInput > 0 ? { 2: { input: feedInput } } : {},
 				},
 			})
-		),
+		}),
 		// Stingers transition the Preview input — seed it with look A so the first
 		// stung Take (to A — B is on air) airs the right feed even before the lead PREVIEW lands.
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixPreview>>({

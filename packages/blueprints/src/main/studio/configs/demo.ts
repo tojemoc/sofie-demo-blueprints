@@ -3,8 +3,8 @@ import { SourceType, StudioConfig, VisionMixerDevice } from '../../../base/studi
 export const DemoStudioConfig: StudioConfig = {
 	previewRenderer: 'sofie',
 	casparcgLatency: 0,
-	casparcgMediaFolder: 'c:/casparcg/sofie-demo-media',
-	ingestMediaFolder: 'c:/casparcg/sofie-demo-media',
+	casparcgMediaFolder: 'y:/360-ingest/sofie-demo-media',
+	ingestMediaFolder: 'y:/360-ingest/sofie-demo-media',
 	// Ops: Package Manager must read the SAME tree Caspar plays (e.g. Y:/360-ingest/sofie-demo-media).
 	// If these stay on c:/casparcg/... while Caspar media-path is Y:, Sofie shows false
 	// "Voice Over / ILU / Lower Third can't be found" while AMCP PLAY still succeeds.
@@ -45,6 +45,11 @@ export const DemoStudioConfig: StudioConfig = {
 		cameraInput: 1,
 		lookAInput: 2,
 		lookBInput: 3,
+		// NDI feeds of the look channels, layered ABOVE the camera on the composite
+		// look inputs (cam layer 1 under feed layer 2) once lookAInput/lookBInput are
+		// repointed at Virtual inputs in the vMix preset.
+		lookAFeedInput: 2,
+		lookBFeedInput: 3,
 		cleanGfxInput: 4,
 		bedAInput: 5,
 		bedCInput: 6,

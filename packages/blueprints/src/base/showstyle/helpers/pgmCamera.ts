@@ -2,7 +2,7 @@ import { TSR } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
-import { getVmixCameraInput } from './visionMixer.js'
+import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
 import { DEFAULT_BG_LOOP_FILE } from './clips.js'
 import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
@@ -253,36 +253,43 @@ export function vmixLayerTransformFromFill(fill: TSR.Mixer['fill']): Pick<TSR.VM
 }
 
 /**
- * vMix studios: vMix owns the live camera. Look CAM is layer 1 of the look's vMix input
- * (under the Caspar feed), placed from the Caspar FILL; the look `bg_loop` drops to opacity 0
- * for the same window so the camera shows through the look's transparent pane. Look A layer
- * ids — {@link remapLookLayers} moves both to look B.
+ * vMix studios: vMix owns the live camera. Look CAM is layer 1 of the look's vMix input,
+ * placed from the Caspar FILL; the look `bg_loop` drops to opacity 0 for the same window
+ * so the camera shows through the look's transparent pane.
+ * With `lookAFeedInput`/`lookBFeedInput` set, the NDI look feed goes on layer 2 ABOVE the
+ * camera (the look input is a composite/virtual input in vMix) — graphics key over the
+ * camera through the transparent cutout. Without it the camera layers on top of the feed
+ * (legacy mode). Emits on the slot's layer directly (remap-safe: B ids are not in A→B).
  * `vmixProgram.cameraInput <= 0` disables the look camera entirely (empty objects, panes
  * keep `bg_loop` — see {@link hideLookBgLoopUnderDoubleBox}).
  */
 export function createVMixLookCameraTimelineObjects(
 	config: StudioConfig,
 	fill: TSR.Mixer['fill'],
-	base: Pick<TimelineBlueprintExt, 'enable' | 'priority'> = { enable: { start: 0 }, priority: 1 }
+	base: Pick<TimelineBlueprintExt, 'enable' | 'priority'> = { enable: { start: 0 }, priority: 1 },
+	slot: 'A' | 'B' = 'A'
 ): TimelineBlueprintExt[] {
 	const cameraInput = getVmixCameraInput(config)
 	if (cameraInput <= 0) return []
+	const feedInput = getVmixLookFeedInput(config, slot)
+	const layers: TSR.VMixLayers = { 1: { input: cameraInput, ...vmixLayerTransformFromFill(fill) } }
+	if (feedInput > 0) layers[2] = { input: feedInput }
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 			id: '',
 			...base,
-			layer: VMixLayers.VMixLookInputA,
+			layer: slot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB,
 			content: {
 				deviceType: TSR.DeviceType.VMIX,
 				type: TSR.TimelineContentTypeVMix.INPUT,
-				layers: { 1: { input: cameraInput, ...vmixLayerTransformFromFill(fill) } },
+				layers,
 			},
 		}),
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
 			...base,
 			priority: 3,
-			layer: CasparCGLayers.CasparCGLookBgLoop,
+			layer: slot === 'A' ? CasparCGLayers.CasparCGLookBgLoop : CasparCGLayers.CasparCGLookBgLoopB,
 			content: {
 				deviceType: TSR.DeviceType.CASPARCG,
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
