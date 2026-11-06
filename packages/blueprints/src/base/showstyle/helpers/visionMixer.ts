@@ -158,6 +158,17 @@ export function getVmixLookInput(config: StudioConfig, slot: 'A' | 'B'): number 
 	return slot === 'A' ? config.vmixProgram.lookAInput : config.vmixProgram.lookBInput
 }
 
+/**
+ * NDI look feed input for the slot — layered ABOVE the camera on the composite look
+ * input (cam layer 1, feed layer 2). `0`/unset → legacy cam-on-top mode (no feed layer).
+ * Returns 0 when it equals the look input itself (never self-layer an input).
+ */
+export function getVmixLookFeedInput(config: StudioConfig, slot: 'A' | 'B'): number {
+	const feed = slot === 'A' ? config.vmixProgram.lookAFeedInput : config.vmixProgram.lookBFeedInput
+	const look = getVmixLookInput(config, slot)
+	return typeof feed === 'number' && feed > 0 && feed !== look ? feed : 0
+}
+
 export function getVmixCleanGfxInput(config: StudioConfig): number {
 	return config.vmixProgram.cleanGfxInput
 }

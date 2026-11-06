@@ -39,6 +39,8 @@ export function createLedBgLoopZoomPiece(config: StudioConfig, partExternalId: s
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LedBgLoopZoom),
 		content: {
 			fileName: LED_BACKGROUND_LOOP_FILE,
+			// Mixer re-assert of the baseline loop — not a media lookup (baseline owns the file).
+			ignoreMediaObjectStatus: true,
 			timelineObjects: [
 				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 					id: '',

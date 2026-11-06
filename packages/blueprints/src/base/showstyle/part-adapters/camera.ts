@@ -37,9 +37,15 @@ export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
 	return isDoubleBoxLook(part.rawType, part.objects)
 }
 
+/**
+ * Look-CAM objects for a Camera part: on vMix studios this is the look-input camera
+ * layer (plus the NDI feed layer) on `lookSlot`; on ATEM/Caspar it is the
+ * `pgmCameraProducer` route with the mode's FILL.
+ */
 function createPgmCameraTimelineObjects(
 	config: StudioConfig,
-	mode: 'fullscreen' | 'doublebox'
+	mode: 'fullscreen' | 'doublebox',
+	lookSlot: LookSlot = 'A'
 ): TimelineBlueprintExt[] {
 	const mixer =
 		mode === 'fullscreen'
@@ -48,7 +54,7 @@ function createPgmCameraTimelineObjects(
 					// FILL only — cam sits under ILU (z-order) + db_loop cutouts (~80% right-stuck).
 					fill: { ...PGM_DOUBLEBOX_CAMERA_FILL },
 				}
-	if (usesVmixProgram(config)) return createVMixLookCameraTimelineObjects(config, mixer.fill)
+	if (usesVmixProgram(config)) return createVMixLookCameraTimelineObjects(config, mixer.fill, undefined, lookSlot)
 
 	const producer = getPgmCameraProducer(config)
 	if (!producer) return []
@@ -89,7 +95,7 @@ export function generateCameraPart(
 		content: {
 			timelineObjects: [
 				...createVisionMixerObjects(config, sourceInfo.input),
-				...createPgmCameraTimelineObjects(config, doubleBox ? 'doublebox' : 'fullscreen'),
+				...createPgmCameraTimelineObjects(config, doubleBox ? 'doublebox' : 'fullscreen', lookSlot),
 				audioTlObj,
 			],
 		},

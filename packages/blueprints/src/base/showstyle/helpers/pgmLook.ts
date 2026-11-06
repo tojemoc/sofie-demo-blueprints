@@ -41,6 +41,7 @@ import {
 	VMIX_STINGER_PREVIEW_LEAD_MS,
 	createVMixTakeTimelineObjects,
 	getVmixCameraInput,
+	getVmixLookFeedInput,
 	getVmixLookInput,
 	usesVmixProgram,
 	vmixStingerForWipeFile,
@@ -1322,6 +1323,25 @@ function attachVmixTake(
 		transition,
 		previewInput: getVmixLookInput(config, otherLookSlot(slot)),
 	})
+	// NDI look feed on layer 2 above the camera layer — also clears a stale camera
+	// layer on this input when the take carries no camera object (priority 0 loses
+	// to cam objects, so it only wins when no cam is desired).
+	const feedInput = getVmixLookFeedInput(config, slot)
+	if (feedInput > 0) {
+		timelineObjects.push(
+			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+				id: '',
+				enable: { start: 0 },
+				priority: 0,
+				layer: slot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB,
+				content: {
+					deviceType: TSR.DeviceType.VMIX,
+					type: TSR.TimelineContentTypeVMix.INPUT,
+					layers: { 2: { input: feedInput } },
+				},
+			})
+		)
+	}
 	const label = `vMix ${transition.effect} → ${input}`
 
 	const wipePiece = wipeFile
@@ -1436,17 +1456,22 @@ function moveLookCameraToVmix(config: StudioConfig, pieces: IBlueprintPiece[], s
 			if (content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) return [obj]
 			const base = { enable: obj.enable, priority: obj.priority }
 			if (content.file === 'EMPTY') {
+				const feedInput = getVmixLookFeedInput(config, slot)
 				return [
 					literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 						id: '',
 						...base,
 						layer: slot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB,
-						content: { deviceType: TSR.DeviceType.VMIX, type: TSR.TimelineContentTypeVMix.INPUT, layers: {} },
+						content: {
+							deviceType: TSR.DeviceType.VMIX,
+							type: TSR.TimelineContentTypeVMix.INPUT,
+							layers: feedInput > 0 ? { 2: { input: feedInput } } : {},
+						},
 					}),
 				]
 			}
 			if (parseRouteMediaChannel(content.file) === undefined) return [obj]
-			const vmixObjects = createVMixLookCameraTimelineObjects(config, content.mixer?.fill, base)
+			const vmixObjects = createVMixLookCameraTimelineObjects(config, content.mixer?.fill, base, slot)
 			remapLookLayers([{ content: { timelineObjects: vmixObjects } } as IBlueprintPiece], slot)
 			return vmixObjects
 		})

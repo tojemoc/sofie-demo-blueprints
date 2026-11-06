@@ -131,6 +131,8 @@ export interface VmixProgramConfig {
 	cameraInput: number
 	lookAInput: number
 	lookBInput: number
+	lookAFeedInput?: number
+	lookBFeedInput?: number
 	cleanGfxInput: number
 	bedAInput: number
 	bedCInput: number
