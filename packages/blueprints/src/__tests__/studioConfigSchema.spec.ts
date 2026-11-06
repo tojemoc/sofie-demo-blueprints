@@ -1,6 +1,7 @@
 import { JSONSchema } from '@sofie-automation/blueprints-integration'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { DemoStudioConfig } from '../main/studio/configs/demo.js'
+import { getVmixLookFeedInput } from '../base/showstyle/helpers/visionMixer.js'
 
 interface JsonSchemaObject {
 	[key: string]: unknown
@@ -81,14 +82,26 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 	it('DemoStudioConfig carries the vmixProgram defaults', () => {
 		expect(DemoStudioConfig.vmixProgram).toEqual({
 			cameraInput: 1,
-			lookAInput: 2,
-			lookBInput: 3,
+			lookAInput: 7,
+			lookBInput: 8,
 			lookAFeedInput: 2,
 			lookBFeedInput: 3,
 			cleanGfxInput: 4,
 			bedAInput: 5,
 			bedCInput: 6,
 		})
+	})
+
+	it('getVmixLookFeedInput resolves the feed layer for each look slot', () => {
+		expect(getVmixLookFeedInput(DemoStudioConfig, 'A')).toBe(2)
+		expect(getVmixLookFeedInput(DemoStudioConfig, 'B')).toBe(3)
+		// A feed equal to its look input — or 0/unset — disables the overlay.
+		const feedEqualsLook = {
+			...DemoStudioConfig,
+			vmixProgram: { ...DemoStudioConfig.vmixProgram, lookAFeedInput: 7, lookBFeedInput: 0 },
+		}
+		expect(getVmixLookFeedInput(feedEqualsLook, 'A')).toBe(0)
+		expect(getVmixLookFeedInput(feedEqualsLook, 'B')).toBe(0)
 	})
 
 	it('keeps $defs-free schema shape (sanity: dereference produced a plain object tree)', () => {

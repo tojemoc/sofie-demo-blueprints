@@ -37,6 +37,11 @@ export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
 	return isDoubleBoxLook(part.rawType, part.objects)
 }
 
+/**
+ * Look-CAM objects for a Camera part: on vMix studios this is the look-input camera
+ * layer (plus the NDI feed layer) on `lookSlot`; on ATEM/Caspar it is the
+ * `pgmCameraProducer` route with the mode's FILL.
+ */
 function createPgmCameraTimelineObjects(
 	config: StudioConfig,
 	mode: 'fullscreen' | 'doublebox',

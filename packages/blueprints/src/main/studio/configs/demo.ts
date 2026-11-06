@@ -43,11 +43,12 @@ export const DemoStudioConfig: StudioConfig = {
 	vmixSources: {},
 	vmixProgram: {
 		cameraInput: 1,
-		lookAInput: 2,
-		lookBInput: 3,
-		// NDI feeds of the look channels, layered ABOVE the camera on the composite
-		// look inputs (cam layer 1 under feed layer 2) once lookAInput/lookBInput are
-		// repointed at Virtual inputs in the vMix preset.
+		// lookAInput/lookBInput are the composite Virtual inputs in the vMix preset:
+		// blueprints place the camera on layer 1 and the NDI look feed on layer 2.
+		lookAInput: 7,
+		lookBInput: 8,
+		// Raw NDI feeds of the Caspar look channels, keyed over the camera through the
+		// transparent cutout. Must differ from lookAInput/lookBInput or the overlay is off.
 		lookAFeedInput: 2,
 		lookBFeedInput: 3,
 		cleanGfxInput: 4,
