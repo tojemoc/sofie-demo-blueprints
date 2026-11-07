@@ -143,17 +143,18 @@ describe('vMix wipe ForceMute', () => {
 				expect(mutes?.[index]).toBe(mute)
 				expect(mute.priority).toBe(2)
 			})
+			// Fixture has no look media — program falls back to the camera input.
 			expect(programObjects(pieces)[0]).toMatchObject({
 				enable: { start: 40 },
 				content: {
-					input: LOOK_A_INPUT,
+					input: CAMERA_INPUT,
 					transition: { effect: TSR.VMixTransitionType.Stinger1, duration: 1800 },
 				},
 			})
 			const previews = objectsOf(pieces).filter((obj) => obj.layer === VMixLayers.VMixMePreview)
 			expect(previews[0]).toMatchObject({
 				enable: { start: 0, duration: 1880 },
-				content: { input: LOOK_A_INPUT },
+				content: { input: CAMERA_INPUT },
 			})
 			expect(previews[1]).toMatchObject({
 				enable: { start: 1880 },
@@ -166,13 +167,18 @@ describe('vMix wipe ForceMute', () => {
 describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 	const parts = generateSmokeRundown()
 
-	it('every Take emits exactly one vMix PROGRAM on a look input', () => {
+	it('every Take emits exactly one vMix PROGRAM on a look or camera input', () => {
 		expect(parts.length).toBeGreaterThan(0)
 		for (const { externalId, pieces } of parts) {
 			const programs = programObjects(pieces)
 			expect(programs, `part ${externalId}`).toHaveLength(1)
-			expect([LOOK_A_INPUT, LOOK_B_INPUT], `part ${externalId}`).toContain(programs[0].content.input)
+			expect([LOOK_A_INPUT, LOOK_B_INPUT, CAMERA_INPUT], `part ${externalId}`).toContain(programs[0].content.input)
 		}
+	})
+
+	it('Takes with no look media program the camera input (never a black look NDI)', () => {
+		const cameraTakes = parts.filter(({ pieces }) => programObjects(pieces)[0].content.input === CAMERA_INPUT)
+		expect(cameraTakes.length).toBeGreaterThan(0)
 	})
 
 	const wipePieceOf = (pieces: IBlueprintPiece[]) =>
@@ -254,10 +260,13 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 
 	it('wiped Takes alternate A/B so vMix always has a new input to sting to', () => {
 		const inputs = parts.map(({ pieces }) => programObjects(pieces)[0].content.input)
-		expect(new Set(inputs)).toEqual(new Set([LOOK_A_INPUT, LOOK_B_INPUT]))
+		expect(new Set(inputs)).toEqual(new Set([LOOK_A_INPUT, LOOK_B_INPUT, CAMERA_INPUT]))
 		parts.forEach(({ externalId, pieces }, i) => {
 			if (i === 0) return
 			if (!pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))) return
+			// No-look Takes all land on CAMERA_INPUT — camera→camera is a valid stinger
+			// target, only look-input repeats would sting over a stale NDI.
+			if (inputs[i] === CAMERA_INPUT && inputs[i - 1] === CAMERA_INPUT) return
 			expect(inputs[i], `part ${externalId}`).not.toBe(inputs[i - 1])
 		})
 	})

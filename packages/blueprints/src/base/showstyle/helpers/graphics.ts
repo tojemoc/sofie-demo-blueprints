@@ -349,6 +349,9 @@ function createHeadlineIluMediaTimelineObject(
 			mixer: {
 				fill,
 				volume,
+				// Explicit reveal: a stale MIXER OPACITY 0 on LED 115 (e.g. from a
+				// previous rundown) otherwise leaves the playing clip invisible.
+				opacity: 1,
 				...(mode === 'slot' ? { crop: HEADLINE_ILU_SLOT_CROP } : {}),
 			},
 		},
@@ -432,6 +435,7 @@ function getIluZaverTimelineObjects(
 					crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 					fill: { ...PGM_DOUBLEBOX_ILU_FILL },
 					volume: resolveIluVolume(object),
+					opacity: 1,
 				},
 			},
 		}),
