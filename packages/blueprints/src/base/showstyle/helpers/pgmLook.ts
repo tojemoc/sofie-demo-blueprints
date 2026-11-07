@@ -1314,7 +1314,11 @@ function attachVmixTake(
 	wipeDurationMs: number,
 	hardCutStartMs: number
 ): void {
-	const input = getVmixLookInput(config, slot)
+	// Look-bearing Takes program the look input. Takes with no look content on the
+	// claimed slot (headlines / LED-only moments) must not cut PGM to a black NDI —
+	// program the raw camera input instead (clean GFX rides above via Overlay 1).
+	const cameraInput = getVmixCameraInput(config)
+	const input = partHasLookMedia(pieces, slot) || cameraInput <= 0 ? getVmixLookInput(config, slot) : cameraInput
 	const transition: TSR.VMixTransition = wipeFile
 		? { effect: vmixStingerForWipeFile(wipeFile), duration: wipeDurationMs }
 		: { effect: TSR.VMixTransitionType.Cut, duration: 0 }
@@ -1808,6 +1812,33 @@ function partHasLookClipMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): bo
 			if (!isCasparMedia(content) || content.file === 'EMPTY') return false
 			return true
 		})
+	)
+}
+
+/** True when this part plays non-EMPTY Caspar MEDIA on the look `db_loop` layer. */
+function partHasLookDoubleBoxLoopMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
+	const dbLoopLayer = getLookLayers(lookSlot).doubleBoxLoop
+	return pieces.some((piece) =>
+		(piece.content.timelineObjects ?? []).some((obj) => {
+			if (String(obj.layer) !== (dbLoopLayer as string)) return false
+			const content = obj.content as { type?: string; file?: string }
+			return isCasparMedia(content) && content.file !== 'EMPTY'
+		})
+	)
+}
+
+/**
+ * True when the Take composes any look content on `lookSlot` — clip / ILU / CAM /
+ * db_loop. Companion `bg_loop` and EMPTY clear objects do not count: a Take that
+ * claims a slot but emits no look media owns no picture for the PGM route (vMix
+ * falls back to the camera input instead of cutting to black).
+ */
+function partHasLookMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
+	return (
+		partHasLookClipMedia(pieces, lookSlot) ||
+		partHasLookIluMedia(pieces, lookSlot) ||
+		partHasLookCameraMedia(pieces, lookSlot) ||
+		partHasLookDoubleBoxLoopMedia(pieces, lookSlot)
 	)
 }
 
