@@ -1119,6 +1119,18 @@ export function finalizeHypercomposedPart(
 		// hold EMPTY for the whole part — otherwise previous L3D returns after
 		// the clear window while the sting/keepalive still covers.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
+		// The previous on-air L3D sits on the *other* look slot (Takes ping-pong).
+		// Without this EMPTY its piece only ends at keepalive end and then CG STOPs
+		// (useStopCommand), so the old template keeps animating out long after the
+		// new one ADDs — two L3Ds stack (vMix puts both L3D mappings on the same
+		// clean-GFX channel, so the overlap is always on-air). Open-ended EMPTY so
+		// the keepalive'd template cannot resume after a finite window ends
+		// (hard-cut keepalive outlasts the incoming-layer EMPTY). On wiped Takes
+		// hold it with the rest of the outgoing picture until the route cut under
+		// cover — same rule as the other-slot clears below.
+		const otherSlotL3dClearStartMs =
+			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : l3dClearStartMs
+		clearObjects.push(...buildL3dLayerClearObjects(idleOtherSlot, undefined, otherSlotL3dClearStartMs))
 	}
 	// Full wipe onto a *new* look channel: EMPTY stale CAM / db_loop on the incoming
 	// Full channel under the sting. EMPTY the clip layer only when this part has
