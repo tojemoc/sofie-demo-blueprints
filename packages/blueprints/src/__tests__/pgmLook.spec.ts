@@ -290,7 +290,15 @@ describe('pgmLook look-kind channels + route', () => {
 
 		const hl2Timeline = generated.parts[1].pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.lowerThird)).toBe(true)
-		expect(hl2Timeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
+		// No incoming template on the other slot — only the EMPTY that kills the
+		// previous on-air L3D at Take (part 1 ping-ponged onto B; part 0 was on A).
+		expect(
+			hl2Timeline.some(
+				(obj) =>
+					obj.layer === LOOK_A_LAYERS.lowerThird &&
+					(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+			)
+		).toBe(false)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
 
 		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
@@ -309,6 +317,12 @@ describe('pgmLook look-kind channels + route', () => {
 		)
 		expect(l3dEmpty?.layer).toBe(LOOK_B_LAYERS.lowerThird)
 		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
+		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
+		// keepalive-end CG STOP cannot animate out stacked under the incoming template.
+		const otherSlotL3dEmpty = l3dClear?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(otherSlotL3dEmpty?.enable).toEqual({ start: 0 })
 		// Look ILU CLEAR rides the same piece when the part has no bg_pocasie.
 		expect(
 			l3dClear?.content.timelineObjects?.some(
@@ -604,7 +618,13 @@ describe('pgmLook look-kind channels + route', () => {
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 		expect(synL3d, 'SYN L3D must pre-build on Full (ch4), not on DoubleBox').toBeDefined()
-		expect(synTimeline.some((obj) => obj.layer === LOOK_A_LAYERS.lowerThird)).toBe(false)
+		// No SYN content on the DoubleBox slot — only the EMPTY that kills the
+		// previous L3D at the route cut under the wipe cover (same hold as db_loop).
+		expect(
+			synTimeline.every(
+				(obj) => obj.layer !== LOOK_A_LAYERS.lowerThird || (obj.content as { file?: string }).file === 'EMPTY'
+			)
+		).toBe(true)
 
 		const synRoute = findLivePgmRouteObj([{ content: { timelineObjects: synTimeline } }])
 		expect(routeSwitchStartMs(synRoute ?? {})).toBe(WIPE_AIR_CUT_MS)
@@ -621,6 +641,12 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => obj.layer === LOOK_A_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(dbLoopEmpty?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
+		// Previous L3D on the DoubleBox channel dies at the route cut under cover —
+		// not at keepalive end via CG STOP (which animated out under the new L3D).
+		const prevL3dEmpty = synClear?.content.timelineObjects?.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(prevL3dEmpty?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 	})
 
 	it('parseRouteMediaChannel reads full-channel MEDIA files', () => {
