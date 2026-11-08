@@ -21,6 +21,12 @@ export enum VMixLayers {
 	VMixBedC = 'vmix_bed_c',
 	VMixBedAAudio = 'vmix_bed_a_audio',
 	VMixBedCAudio = 'vmix_bed_c_audio',
+	/**
+	 * vMix recording toggle — `RECORDING { on: true }` piece inserted on the
+	 * first on-air Take; leaving the timeline at rundown end stops it
+	 * (one show = one recording).
+	 */
+	VMixRecording = 'vmix_recording',
 }
 
 export enum CasparCGLayers {
@@ -38,6 +44,11 @@ export enum CasparCGLayers {
 	CasparCGIluPlayer = 'casparcg_ilu_player',
 	/** LED pod underlay under headline ILU movs (`assets/pod_headline`, layer 112). */
 	CasparCGLedPodHeadline = 'casparcg_led_pod_headline',
+	/**
+	 * LED calibration test frame (`assets/testframe`, layer 114) — baseline only,
+	 * until the first Take (per-part OutOnRundownEnd EMPTY).
+	 */
+	CasparCGLedTestframe = 'casparcg_led_testframe',
 	CasparCGEffectsPlayer = 'casparcg_effects_player',
 	/**
 	 * Classical story wipe (`wipes/wipe`) — PGM Caspar layer 205.
@@ -81,6 +92,16 @@ export enum CasparCGLayers {
 	CasparCGPgmDoubleBoxLoop = 'casparcg_pgm_doublebox_loop',
 	/** Look B DoubleBox compositing frame (BG B layer 118). */
 	CasparCGPgmDoubleBoxLoopB = 'casparcg_pgm_doublebox_loop_b',
+	/**
+	 * Look B pre-first-Take calibration CAM in the DoubleBox window (BG B layer 117,
+	 * spare — never used by show pieces). Caspar-switched studios only.
+	 */
+	CasparCGLookCalibCam = 'casparcg_look_calib_cam',
+	/**
+	 * Look B pre-first-Take calibration `loops/db_loop` (BG B layer 119, spare —
+	 * above the show db_loop on 118, below L3D on 121).
+	 */
+	CasparCGLookCalibFrame = 'casparcg_look_calib_frame',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',
 	/** Look A topic L3Ds that belong inside the wiped scene (BG A layer 121). */

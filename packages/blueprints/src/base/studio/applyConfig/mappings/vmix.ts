@@ -34,6 +34,15 @@ export function getVMixMappings(
 
 			options: { mappingType: TSR.MappingVmixType.Overlay, index: 1 },
 		}),
+		// Recording state — a `RECORDING { on: true }` object enters the timeline on
+		// the first on-air Take (inserted by onTake) and leaves at rundown end.
+		[VMixLayers.VMixRecording]: literal<BlueprintMapping<TSR.MappingVmixRecording>>({
+			device: TSR.DeviceType.VMIX,
+			deviceId,
+			lookahead: LookaheadMode.NONE,
+
+			options: { mappingType: TSR.MappingVmixType.Recording },
+		}),
 	}
 
 	for (const [layer, input] of [

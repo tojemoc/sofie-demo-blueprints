@@ -4,12 +4,16 @@ import {
 	JSONBlobStringify,
 	JSONSchema,
 	IRundownActivationContext,
+	IOnTakeContext,
+	BlueprintPlayoutPersistentStore,
 } from '@sofie-automation/blueprints-integration'
 import { executeAction, executeDataStoreAction } from './executeActions/index.js'
 import { getAdlibItem } from './getAdlibItem.js'
 import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
-import { ShowStyleConfig } from './helpers/config.js'
+import { parseConfig, ShowStyleConfig } from './helpers/config.js'
+import { VisionMixerDevice } from '../studio/helpers/config.js'
+import { createVmixRecordingPiece } from './helpers/studioCalibration.js'
 import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getRundown } from './rundown/index.js'
 import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
@@ -71,6 +75,25 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 	/** Called when a RundownPlaylist has been activated */
 	onRundownActivate: async (_context: IRundownActivationContext) => {
 		// Noop
+	},
+	/**
+	 * Called during a Take — 'next' is the part being taken. On the first on-air
+	 * Take of a vMix studio, inserts the OutOnRundownEnd `RECORDING { on: true }`
+	 * piece so recording starts at the first Take and stops at rundown end.
+	 * Rehearsal takes are ignored.
+	 */
+	onTake: async (
+		context: IOnTakeContext,
+		playoutPersistentState: BlueprintPlayoutPersistentStore<unknown>
+	): Promise<void> => {
+		const config = parseConfig(context).studio
+		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
+		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
+			vmixRecordingStarted?: boolean
+		}>
+		if (recordingState.getKey('vmixRecordingStarted')) return
+		await context.insertPiece('next', createVmixRecordingPiece())
+		recordingState.setKey('vmixRecordingStarted', true)
 	},
 	// Uncomment this to enable config fixup migrations between blueprint versions.
 	// Note: When defined, fixUpConfig must be run after every blueprint upload before

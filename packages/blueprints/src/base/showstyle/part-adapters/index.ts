@@ -63,6 +63,7 @@ import {
 	createLedPodHeadlineClearPiece,
 	segmentUsesLedPodHeadline,
 } from '../helpers/ledPodHeadline.js'
+import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
 import { SourceLayer } from '../applyconfig/layers.js'
 
 /** Part types that compose a story look on BG A/B. */
@@ -254,6 +255,12 @@ export function generateParts(
 			// operators saw pod_headline.png flash on the LED. Re-assert EMPTY on every
 			// non-headline look part so layer 112 stays dark.
 			newPart.pieces.push(createLedPodHeadlineClearPiece(rawPart.payload.externalId))
+		}
+		if (studioConfig.casparcg.hypercomposed) {
+			// Baseline carries the studio calibration look (LED testframe + look-B
+			// db_loop/cam). Any part can be the first Take, so every part EMPTYs the
+			// spare calibration layers — OutOnRundownEnd keeps them dead to show end.
+			newPart.pieces.push(createStudioCalibrationClearPiece(rawPart.payload.externalId))
 		}
 		// Editorial skip / float from Rundown Editor — Sofie must not take these parts.
 		if (floatedOrSkipped) {
