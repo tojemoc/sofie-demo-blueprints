@@ -55,12 +55,13 @@ export function createStudioCalibrationClearPiece(partExternalId: string): IBlue
 
 /**
  * vMix `RECORDING { on: true }` — inserted into the taken part by `onTake` on
- * every on-air Take that lacks one (skipped in rehearsal). Pieces inserted via
- * `insertPiece` in `onTake` are not continued as infinites into the next
- * PartInstance (Core never marks them `dynamicallyInserted`), so each copy dies
- * at its part boundary and the next Take's copy takes over seamlessly — the
- * last one leaves the timeline at outro end / deactivate and emits
- * STOP_RECORDING, so one show is one recording.
+ * the first on-air Take (skipped in rehearsal), and armed into every nexted
+ * part by `onSetAsNext` once the show is on air. Auto-next transitions never
+ * call `onTake`, so arming at set-next time is what keeps recording alive
+ * across them regardless of whether Core continues the previous copy as an
+ * infinite — each copy dies at its part boundary while the next one starts at
+ * the same instant. The last one leaves the timeline at outro end /
+ * deactivate and emits STOP_RECORDING, so one show is one recording.
  */
 export function createVmixRecordingPiece(): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
@@ -68,6 +69,7 @@ export function createVmixRecordingPiece(): IBlueprintPiece {
 		externalId: 'first_take_vmix_recording',
 		name: 'vMix recording',
 		lifespan: PieceLifespan.OutOnRundownEnd,
+		extendOnHold: true,
 		sourceLayerId: SourceLayer.VmixRecording,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VmixRecording),
 		content: {
