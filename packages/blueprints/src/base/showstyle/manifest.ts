@@ -115,6 +115,11 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 	 * so the vMix recording stays continuous until the last copy dies at
 	 * outro end / deactivate. Should Core ever continue the previous copy as
 	 * an infinite, the source-layer presence check skips the re-insert.
+	 *
+	 * The flag alone cannot gate rehearsal: an active playlist can be
+	 * flipped back to rehearsal without resetting persistent state, so part
+	 * instances created while in rehearsal (`rehearsal: true`) are never
+	 * armed.
 	 */
 	onSetAsNext: async (
 		context: IOnSetAsNextContext,
@@ -126,6 +131,8 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 			vmixRecordingStarted?: boolean
 		}>
 		if (!recordingState.getKey('vmixRecordingStarted')) return
+		const nextPartInstance = await context.getPartInstance('next')
+		if (!nextPartInstance || nextPartInstance.rehearsal) return
 		await ensureVmixRecordingPiece(context)
 	},
 	// Uncomment this to enable config fixup migrations between blueprint versions.

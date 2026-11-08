@@ -237,11 +237,12 @@ describe('vMix recording', () => {
 	})
 
 	it('onSetAsNext arms nexted parts with the recording piece once the show is on air', async () => {
-		const makeContext = (config: StudioConfig, nextSourceLayerIds: string[] = []) => {
+		const makeContext = (config: StudioConfig, nextSourceLayerIds: string[] = [], nextRehearsal = false) => {
 			const inserted: IBlueprintPiece[] = []
 			const context = {
 				getStudioConfig: () => ({ studio: config }),
 				getShowStyleConfig: () => ({ dvePresets: {} }),
+				getPartInstance: async (_part: 'current' | 'next') => ({ rehearsal: nextRehearsal }),
 				getPieceInstances: async (_part: 'current' | 'next') =>
 					nextSourceLayerIds.map((sourceLayerId) => ({ piece: { sourceLayerId } })),
 				insertPiece: async (_part: 'next', piece: IBlueprintPiece) => {
@@ -268,6 +269,12 @@ describe('vMix recording', () => {
 		const already = makeContext(vmixStudioConfig, [SourceLayer.VmixRecording])
 		await baseManifest.onSetAsNext?.(already.context, makePersistentState({ vmixRecordingStarted: true }))
 		expect(already.inserted).toHaveLength(0)
+
+		// Playlist flipped to rehearsal while active (persistent flag left set)
+		// → part instances created in rehearsal are not armed.
+		const rehearsalPart = makeContext(vmixStudioConfig, [], true)
+		await baseManifest.onSetAsNext?.(rehearsalPart.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(rehearsalPart.inserted).toHaveLength(0)
 
 		// Non-vMix studio → no recording.
 		const atem = makeContext(hybridCasparConfig)
