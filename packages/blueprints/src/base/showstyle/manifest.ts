@@ -5,6 +5,8 @@ import {
 	JSONSchema,
 	IRundownActivationContext,
 	IOnTakeContext,
+	IOnSetAsNextContext,
+	BlueprintPlayoutPersistentStore,
 } from '@sofie-automation/blueprints-integration'
 import { executeAction, executeDataStoreAction } from './executeActions/index.js'
 import { getAdlibItem } from './getAdlibItem.js'
@@ -77,26 +79,61 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		// Noop
 	},
 	/**
-	 * Called during a Take — 'next' is the part being taken. On every on-air
-	 * Take of a vMix studio, ensure the taken part carries the OutOnRundownEnd
-	 * `RECORDING { on: true }` piece so recording starts at the first Take and
-	 * stops at rundown end. Rehearsal takes are ignored.
+	 * Called during a Take — 'next' is the part being taken. On the first
+	 * on-air Take of a vMix studio, insert the OutOnRundownEnd
+	 * `RECORDING { on: true }` piece into the taken part so recording starts
+	 * at the first Take, and flag the show as recording so `onSetAsNext` can
+	 * keep arming subsequent parts. Rehearsal takes are ignored.
 	 *
-	 * The piece is re-inserted per Take rather than relying on infinite
-	 * continuation: `insertPiece` during `onTake` lands before Core marks the
-	 * part taken, so the PieceInstance is never flagged `dynamicallyInserted`
-	 * and `getPlayheadTrackingInfinitesForPart` does not continue it into the
-	 * next PartInstance — it would die at the very next Take. The new object
-	 * enters the timeline at the same instant the previous one leaves, so the
-	 * vMix recording stays continuous. Should Core ever continue it as an
-	 * infinite, the source-layer presence check skips the re-insert.
+	 * The piece cannot rely on infinite continuation alone: on cores where
+	 * `insertPiece` pieces are not flagged `dynamicallyInserted`,
+	 * `getPlayheadTrackingInfinitesForPart` does not continue them into the
+	 * next PartInstance, and Core never calls `onTake` for auto-next
+	 * transitions — so the copy in the outgoing part would die at the part
+	 * boundary (e.g. the auto-next out of the intro) with nothing to replace
+	 * it. `onSetAsNext` covers those transitions by arming every nexted part.
 	 */
-	onTake: async (context: IOnTakeContext): Promise<void> => {
+	onTake: async (
+		context: IOnTakeContext,
+		playoutPersistentState: BlueprintPlayoutPersistentStore<unknown>
+	): Promise<void> => {
 		const config = parseConfig(context).studio
 		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
-		const nextPieces = await context.getPieceInstances('next')
-		if (nextPieces.some((instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string))) return
-		await context.insertPiece('next', createVmixRecordingPiece())
+		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
+			vmixRecordingStarted?: boolean
+		}>
+		await ensureVmixRecordingPiece(context)
+		recordingState.setKey('vmixRecordingStarted', true)
+	},
+	/**
+	 * Called whenever a PartInstance is set as Next — including by the
+	 * auto-next path (`onPartPlaybackStarted` → `setNextPart`), which never
+	 * calls `onTake`. Once the show has gone on air, arm the nexted part with
+	 * the `RECORDING { on: true }` piece: it stays dormant while the part is
+	 * next and enters the timeline exactly when that part is taken (manually
+	 * or by auto-next), at the same instant the previous part's copy leaves —
+	 * so the vMix recording stays continuous until the last copy dies at
+	 * outro end / deactivate. Should Core ever continue the previous copy as
+	 * an infinite, the source-layer presence check skips the re-insert.
+	 *
+	 * The flag alone cannot gate rehearsal: an active playlist can be
+	 * flipped back to rehearsal without resetting persistent state, so part
+	 * instances created while in rehearsal (`rehearsal: true`) are never
+	 * armed.
+	 */
+	onSetAsNext: async (
+		context: IOnSetAsNextContext,
+		playoutPersistentState: BlueprintPlayoutPersistentStore<unknown>
+	): Promise<void> => {
+		const config = parseConfig(context).studio
+		if (config.visionMixer.type !== VisionMixerDevice.VMix) return
+		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
+			vmixRecordingStarted?: boolean
+		}>
+		if (!recordingState.getKey('vmixRecordingStarted')) return
+		const nextPartInstance = await context.getPartInstance('next')
+		if (!nextPartInstance || nextPartInstance.rehearsal) return
+		await ensureVmixRecordingPiece(context)
 	},
 	// Uncomment this to enable config fixup migrations between blueprint versions.
 	// Note: When defined, fixUpConfig must be run after every blueprint upload before
@@ -104,4 +141,17 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 	// fixUpConfig: () => {
 	// 	// Noop
 	// },
+}
+
+/**
+ * Insert the vMix `RECORDING { on: true }` piece into 'next' unless it already
+ * carries one (e.g. a Core-continued infinite). Shared by `onTake` (the part
+ * being taken) and `onSetAsNext` (the part being armed while next).
+ */
+async function ensureVmixRecordingPiece(
+	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece'>
+): Promise<void> {
+	const nextPieces = await context.getPieceInstances('next')
+	if (nextPieces.some((instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string))) return
+	await context.insertPiece('next', createVmixRecordingPiece())
 }
