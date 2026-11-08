@@ -60,6 +60,17 @@ export enum SourceLayer {
 	 * Must not share {@link SourceLayer.PgmLowerThird} with the incoming L3D (same-start prune).
 	 */
 	PgmLayerClear = 'pgm_layer_clear',
+	/**
+	 * Hidden OutOnRundownEnd EMPTYs that kill the pre-first-Take studio
+	 * calibration (LED testframe + look-B db_loop/cam) at the first Take.
+	 * Dedicated layer so it never prunes the WithinPart {@link SourceLayer.PgmLayerClear} pieces.
+	 */
+	StudioCalibrationClear = 'studio_calibration_clear',
+	/**
+	 * Hidden vMix `RECORDING` piece — inserted into the taken part by `onTake`
+	 * on the first on-air Take; OutOnRundownEnd so show end stops it.
+	 */
+	VmixRecording = 'vmix_recording',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -88,6 +99,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.PgmWipe:
 		case SourceLayer.PgmRoute:
 		case SourceLayer.PgmLayerClear:
+		case SourceLayer.StudioCalibrationClear:
 		case SourceLayer.Strap:
 		case SourceLayer.Ticker:
 		case SourceLayer.Logo:
@@ -99,6 +111,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.HostOverride:
 		case SourceLayer.AudioBed:
 		case SourceLayer.DVE_RETAIN:
+		case SourceLayer.VmixRecording:
 			return OutputLayer.Aux
 		default:
 			return OutputLayer.Pgm

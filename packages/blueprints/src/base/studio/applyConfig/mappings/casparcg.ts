@@ -104,6 +104,8 @@ function lookStackMappingsB(
 	| CasparCGLayers.CasparCGPgmIluPlayerB
 	| CasparCGLayers.CasparCGPgmCameraB
 	| CasparCGLayers.CasparCGPgmDoubleBoxLoopB
+	| CasparCGLayers.CasparCGLookCalibCam
+	| CasparCGLayers.CasparCGLookCalibFrame
 	| CasparCGLayers.CasparCGGraphicsPgmLowerThirdB
 > {
 	return {
@@ -114,6 +116,18 @@ function lookStackMappingsB(
 		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparLayerMapping(
 			channel,
 			BgChannelLayers.DoubleBoxLoop,
+			LookaheadMode.NONE
+		),
+		// Pre-first-Take calibration look on BG B — spare layers so the per-part
+		// OutOnRundownEnd EMPTY never fights show pieces on 115/118.
+		[CasparCGLayers.CasparCGLookCalibCam]: casparLayerMapping(
+			channel,
+			BgChannelLayers.CalibrationCamera,
+			LookaheadMode.NONE
+		),
+		[CasparCGLayers.CasparCGLookCalibFrame]: casparLayerMapping(
+			channel,
+			BgChannelLayers.CalibrationFrame,
 			LookaheadMode.NONE
 		),
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]: casparLayerMapping(
@@ -188,6 +202,7 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 	const mappings: BlueprintMappings = {
 		[CasparCGLayers.CasparCGClipPlayer1]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPlayer),
 		[CasparCGLayers.CasparCGLedPodHeadline]: casparLayerMapping(ledChannel, LedChannelLayers.PodHeadline),
+		[CasparCGLayers.CasparCGLedTestframe]: casparLayerMapping(ledChannel, LedChannelLayers.TestFrame),
 		[CasparCGLayers.CasparCGIluPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.IluPlayer),
 		[CasparCGLayers.CasparCGClipPlayerPreview]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPreview),
 		[CasparCGLayers.CasparCGEffectsPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.EffectsPlayer),

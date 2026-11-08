@@ -5,10 +5,10 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
-import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
+import { DEFAULT_BG_LOOP_FILE } from './clips.js'
 
-/** Same media as LED baseline — sticky underlay on look bg_loop layer (ch3/4 · 110). */
-export const FULL_BG_LOOP_FILE = LED_BACKGROUND_LOOP_FILE
+/** Same media as LED baseline `LED_BACKGROUND_LOOP_FILE` — import clips, not baseline (cycle). */
+export const FULL_BG_LOOP_FILE = DEFAULT_BG_LOOP_FILE
 
 /**
  * Look companion `loops/bg_loop` on the dedicated bg_loop layer (110), under SYN clips

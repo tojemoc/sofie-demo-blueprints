@@ -14,6 +14,12 @@ export const LedChannelLayers = {
 	 * Disk: `assets/pod_headline.png` (Caspar PLAY `assets/pod_headline`).
 	 */
 	PodHeadline: 112,
+	/**
+	 * Pre-first-Take studio calibration frame (`assets/testframe`) — above
+	 * pod_headline, under ILU. Killed at first Take by the per-part
+	 * calibration-clear piece.
+	 */
+	TestFrame: 114,
 	IluPlayer: 115,
 	GraphicsTicker: 120,
 	GraphicsLowerThird: 121,
@@ -39,6 +45,16 @@ export const BgChannelLayers = {
 	IluPlayer: 116,
 	/** DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
 	DoubleBoxLoop: 118,
+	/**
+	 * Pre-first-Take calibration CAM in the DoubleBox window (spare layer above
+	 * ILU, under the calibration frame). Emptied at first Take.
+	 */
+	CalibrationCamera: 117,
+	/**
+	 * Pre-first-Take calibration `loops/db_loop` frame — spare layer so the
+	 * per-part EMPTY cannot stomp real DoubleBox pieces on 118.
+	 */
+	CalibrationFrame: 119,
 	GraphicsLowerThird: 121,
 } as const
 
