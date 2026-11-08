@@ -160,6 +160,22 @@ export function getSourceLayer(): ISourceLayer[] {
 			// No exclusiveGroup — L3D CLEAR must coexist with VO/VT/Camera on the same Take.
 		},
 		{
+			_id: SourceLayer.StudioCalibrationClear,
+			type: SourceLayerType.GRAPHICS,
+			_rank: 212,
+			name: 'Calibration clear',
+			abbreviation: 'Ccl',
+			isHidden: true,
+		},
+		{
+			_id: SourceLayer.VmixRecording,
+			type: SourceLayerType.UNKNOWN,
+			_rank: 207,
+			name: 'vMix recording',
+			abbreviation: 'Rec',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,
