@@ -166,26 +166,16 @@ describe('vMix recording', () => {
 		})
 	})
 
-	it('onTake inserts the recording piece once, only on-air on vMix studios', async () => {
-		const store: Record<string, unknown> = {}
-		const playoutPersistentState = {
-			getAll: () => store,
-			getKey: (k: string) => store[k],
-			setKey: (k: string, v: unknown) => {
-				store[k] = v
-			},
-			setAll: (obj: Record<string, unknown>) => Object.assign(store, obj),
-			getAllPublic: () => ({}),
-			getKeyPublic: () => undefined,
-			setKeyPublic: () => undefined,
-			setAllPublic: () => undefined,
-		}
-		const makeContext = (config: StudioConfig, isRehearsal: boolean) => {
+	it('onTake re-inserts the recording piece whenever the taken part lacks one', async () => {
+		const playoutPersistentState = {} as never
+		const makeContext = (config: StudioConfig, isRehearsal: boolean, nextSourceLayerIds: string[] = []) => {
 			const inserted: IBlueprintPiece[] = []
 			const context = {
 				getStudioConfig: () => ({ studio: config }),
 				getShowStyleConfig: () => ({ dvePresets: {} }),
 				isRehearsal,
+				getPieceInstances: async (_part: 'current' | 'next') =>
+					nextSourceLayerIds.map((sourceLayerId) => ({ piece: { sourceLayerId } })),
 				insertPiece: async (_part: 'current' | 'next', piece: IBlueprintPiece) => {
 					inserted.push(piece)
 					return {}
@@ -194,21 +184,31 @@ describe('vMix recording', () => {
 			return { context: context as unknown as IOnTakeContext, inserted }
 		}
 
-		// On-air take on a vMix studio → recording piece is inserted exactly once.
+		// First on-air take on a vMix studio → recording piece is inserted.
 		const onAir = makeContext(vmixStudioConfig, false)
-		await baseManifest.onTake?.(onAir.context, playoutPersistentState as never)
+		await baseManifest.onTake?.(onAir.context, playoutPersistentState)
 		expect(onAir.inserted).toHaveLength(1)
-		await baseManifest.onTake?.(onAir.context, playoutPersistentState as never)
-		expect(onAir.inserted).toHaveLength(1)
+
+		// Next take: the previous instance did not continue (Core never marks
+		// onTake-inserted pieces dynamicallyInserted), so it is inserted again.
+		const secondTake = makeContext(vmixStudioConfig, false)
+		await baseManifest.onTake?.(secondTake.context, playoutPersistentState)
+		expect(secondTake.inserted).toHaveLength(1)
+
+		// If the taken part already carries a recording piece (e.g. Core
+		// continued it as an infinite), nothing is inserted.
+		const continued = makeContext(vmixStudioConfig, false, [SourceLayer.VmixRecording])
+		await baseManifest.onTake?.(continued.context, playoutPersistentState)
+		expect(continued.inserted).toHaveLength(0)
 
 		// Rehearsal take → no recording.
 		const rehearsal = makeContext(vmixStudioConfig, true)
-		await baseManifest.onTake?.(rehearsal.context, playoutPersistentState as never)
+		await baseManifest.onTake?.(rehearsal.context, playoutPersistentState)
 		expect(rehearsal.inserted).toHaveLength(0)
 
 		// Non-vMix studio → no recording.
 		const atem = makeContext(hybridCasparConfig, false)
-		await baseManifest.onTake?.(atem.context, playoutPersistentState as never)
+		await baseManifest.onTake?.(atem.context, playoutPersistentState)
 		expect(atem.inserted).toHaveLength(0)
 	})
 })
