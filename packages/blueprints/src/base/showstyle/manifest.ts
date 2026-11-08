@@ -5,7 +5,6 @@ import {
 	JSONSchema,
 	IRundownActivationContext,
 	IOnTakeContext,
-	BlueprintPlayoutPersistentStore,
 } from '@sofie-automation/blueprints-integration'
 import { executeAction, executeDataStoreAction } from './executeActions/index.js'
 import { getAdlibItem } from './getAdlibItem.js'
@@ -14,6 +13,7 @@ import { getShowStyleVariantId } from './getShowStyleVariantId.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { VisionMixerDevice } from '../studio/helpers/config.js'
 import { createVmixRecordingPiece } from './helpers/studioCalibration.js'
+import { SourceLayer } from './applyconfig/layers.js'
 import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getRundown } from './rundown/index.js'
 import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
@@ -77,23 +77,26 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		// Noop
 	},
 	/**
-	 * Called during a Take — 'next' is the part being taken. On the first on-air
-	 * Take of a vMix studio, inserts the OutOnRundownEnd `RECORDING { on: true }`
-	 * piece so recording starts at the first Take and stops at rundown end.
-	 * Rehearsal takes are ignored.
+	 * Called during a Take — 'next' is the part being taken. On every on-air
+	 * Take of a vMix studio, ensure the taken part carries the OutOnRundownEnd
+	 * `RECORDING { on: true }` piece so recording starts at the first Take and
+	 * stops at rundown end. Rehearsal takes are ignored.
+	 *
+	 * The piece is re-inserted per Take rather than relying on infinite
+	 * continuation: `insertPiece` during `onTake` lands before Core marks the
+	 * part taken, so the PieceInstance is never flagged `dynamicallyInserted`
+	 * and `getPlayheadTrackingInfinitesForPart` does not continue it into the
+	 * next PartInstance — it would die at the very next Take. The new object
+	 * enters the timeline at the same instant the previous one leaves, so the
+	 * vMix recording stays continuous. Should Core ever continue it as an
+	 * infinite, the source-layer presence check skips the re-insert.
 	 */
-	onTake: async (
-		context: IOnTakeContext,
-		playoutPersistentState: BlueprintPlayoutPersistentStore<unknown>
-	): Promise<void> => {
+	onTake: async (context: IOnTakeContext): Promise<void> => {
 		const config = parseConfig(context).studio
 		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
-		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
-			vmixRecordingStarted?: boolean
-		}>
-		if (recordingState.getKey('vmixRecordingStarted')) return
+		const nextPieces = await context.getPieceInstances('next')
+		if (nextPieces.some((instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string))) return
 		await context.insertPiece('next', createVmixRecordingPiece())
-		recordingState.setKey('vmixRecordingStarted', true)
 	},
 	// Uncomment this to enable config fixup migrations between blueprint versions.
 	// Note: When defined, fixUpConfig must be run after every blueprint upload before
