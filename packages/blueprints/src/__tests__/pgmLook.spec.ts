@@ -320,14 +320,14 @@ describe('pgmLook look-kind channels + route', () => {
 			start: 0,
 			duration: LOOK_HARD_CUT_KEEPALIVE_MS + LOOK_HARD_CUT_OVERLAP_MS,
 		})
+		// Dedicated-channel EMPTY ends at the incoming headline ADD — holding it to
+		// the look keepalive would suppress the scheduled headline on the live
+		// clean-GFX feed.
 		const headlineEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(headlineEmpty?.enable).toEqual({
-			start: 0,
-			duration: LOOK_HARD_CUT_KEEPALIVE_MS + LOOK_HARD_CUT_OVERLAP_MS,
-		})
+		expect(headlineEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
 		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
 		// keepalive-end CG STOP cannot animate out stacked under the incoming template.
 		const otherSlotL3dEmpty = l3dClear?.content.timelineObjects?.find(

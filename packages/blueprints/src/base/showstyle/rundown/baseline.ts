@@ -38,12 +38,9 @@ import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casp
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 
-/**
- * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
- * Not in baseline: PLAY starts on the first DoubleBox Take ({@link createCountupRevealPiece})
- * so headlines / L3D-mod never show countup. Disk: `assets/countup.mov`.
- */
-export const PGM_COUNTUP_FILE = 'assets/countup'
+// Defined in helpers/countupReveal.ts so countupReveal does not have to import
+// baseline (baseline → pgmLook → countupReveal would form a module cycle).
+export { PGM_COUNTUP_FILE } from '../helpers/countupReveal.js'
 
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio

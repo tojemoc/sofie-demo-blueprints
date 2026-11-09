@@ -293,6 +293,15 @@ describe('vMix recording', () => {
 		await baseManifest.onSetAsNext?.(already.context, makePersistentState({ vmixRecordingStarted: true }))
 		expect(already.inserted).toHaveLength(0)
 
+		// Legacy `vmix_recording` source layer (part nexted before the layer
+		// rename) → migrated in place, not duplicated.
+		const legacy = makeContext(vmixStudioConfig, [VMixLayers.VMixRecording])
+		await baseManifest.onSetAsNext?.(legacy.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(legacy.inserted).toHaveLength(0)
+		expect(legacy.updated).toEqual([
+			{ id: VMixLayers.VMixRecording, piece: { sourceLayerId: SourceLayer.VmixRecording } },
+		])
+
 		// Playlist flipped to rehearsal while active (persistent flag left set)
 		// → part instances created in rehearsal are not armed.
 		const rehearsalPart = makeContext(vmixStudioConfig, [], true)
@@ -320,7 +329,10 @@ describe('vMix recording', () => {
 				},
 			},
 		}
-		const contextFactory = (sourceLayerIds: string[] = []) => {
+		const contextFactory = (
+			sourceLayerIds: string[] = [],
+			pieces: Array<{ _id: string; piece: { name?: string; sourceLayerId: string; content: object } }> = [outroPiece]
+		) => {
 			const inserted: IBlueprintPiece[] = []
 			const updated: Array<{ id: string; piece: Partial<IBlueprintPiece> }> = []
 			const context = {
@@ -332,7 +344,7 @@ describe('vMix recording', () => {
 						_id: sourceLayerId,
 						piece: { sourceLayerId, content: {} },
 					})),
-					outroPiece,
+					...pieces,
 				],
 				insertPiece: async (_part: 'next', piece: IBlueprintPiece) => {
 					inserted.push(piece)
@@ -356,5 +368,23 @@ describe('vMix recording', () => {
 		expect(continued.updated).toEqual([
 			{ id: SourceLayer.VmixRecording, piece: { enable: { start: 0, duration: 6500 } } },
 		])
+
+		// Explicit outro identity survives normalization on the piece name — caps
+		// even when the file no longer matches the outro regex.
+		const namedOutro = contextFactory(
+			[],
+			[
+				{
+					_id: 'named-outro',
+					piece: {
+						name: 'Outro | assets/custom_close',
+						sourceLayerId: SourceLayer.PgmIntro,
+						content: { timelineObjects: [] },
+					},
+				},
+			]
+		)
+		await baseManifest.onSetAsNext?.(namedOutro.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(namedOutro.inserted[0]?.enable).toEqual({ start: 0, duration: 6500 })
 	})
 })

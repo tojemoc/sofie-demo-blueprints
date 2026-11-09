@@ -18,7 +18,7 @@ import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { VisionMixerDevice } from '../studio/helpers/config.js'
 import { createVmixRecordingPiece } from './helpers/studioCalibration.js'
 import { SourceLayer } from './applyconfig/layers.js'
-import { CasparCGLayers } from '../studio/layers.js'
+import { CasparCGLayers, VMixLayers } from '../studio/layers.js'
 import { isOutroVideoFile } from './helpers/clips.js'
 import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getRundown } from './rundown/index.js'
@@ -158,14 +158,21 @@ async function ensureVmixRecordingPiece(
 	nextPartInstance: IBlueprintPartInstance | undefined
 ): Promise<void> {
 	const nextPieces = await context.getPieceInstances('next')
+	// Accept the legacy `vmix_recording` source layer too: a part nexted before
+	// the layer rename already carries a copy — migrate it instead of inserting
+	// a duplicate (its stale id would also shadow the TSR recording object).
 	const recordingInstance = nextPieces.find(
-		(instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string)
+		(instance) =>
+			instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string) ||
+			instance.piece.sourceLayerId === (VMixLayers.VMixRecording as string)
 	)
 	const durationMs = vmixRecordingDurationForPart(nextPartInstance, nextPieces)
 	if (recordingInstance) {
-		if (durationMs !== undefined) {
+		const hasLegacySourceLayer = recordingInstance.piece.sourceLayerId !== (SourceLayer.VmixRecording as string)
+		if (hasLegacySourceLayer || durationMs !== undefined) {
 			await context.updatePieceInstance(recordingInstance._id, {
-				enable: { start: 0, duration: durationMs },
+				...(hasLegacySourceLayer ? { sourceLayerId: SourceLayer.VmixRecording as string } : {}),
+				...(durationMs !== undefined ? { enable: { start: 0, duration: durationMs } } : {}),
 			})
 		}
 		return
@@ -184,15 +191,19 @@ function vmixRecordingDurationForPart(
 ): number | undefined {
 	const expectedDuration = partInstance?.part?.expectedDuration
 	if (!expectedDuration || expectedDuration <= 0) return undefined
-	return pieceInstances.some((instance) =>
-		(instance.piece.content?.timelineObjects ?? []).some((obj) => {
-			const file = (obj.content as { file?: unknown }).file
-			return (
-				obj.layer === (CasparCGLayers.CasparCGPgmIntroPlayer as string) &&
-				typeof file === 'string' &&
-				isOutroVideoFile(file)
-			)
-		})
+	return pieceInstances.some(
+		(instance) =>
+			// `Outro |` is the outro identity normalization puts on the piece —
+			// keeps the cap even when the filename no longer matches the regex.
+			instance.piece.name?.startsWith('Outro |') ||
+			(instance.piece.content?.timelineObjects ?? []).some((obj) => {
+				const file = (obj.content as { file?: unknown }).file
+				return (
+					obj.layer === (CasparCGLayers.CasparCGPgmIntroPlayer as string) &&
+					typeof file === 'string' &&
+					isOutroVideoFile(file)
+				)
+			})
 	)
 		? expectedDuration
 		: undefined

@@ -7,7 +7,15 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
-import { PGM_COUNTUP_FILE } from '../rundown/baseline.js'
+
+/**
+ * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
+ * Not in baseline: PLAY starts on the first DoubleBox Take ({@link createCountupRevealPiece})
+ * so headlines / L3D-mod never show countup. Disk: `assets/countup.mov`.
+ * Defined here (not `rundown/baseline.js`) so baseline → pgmLook → countupReveal
+ * does not form a module cycle; baseline re-exports it for compatibility.
+ */
+export const PGM_COUNTUP_FILE = 'assets/countup'
 
 /** MIX fade when countup becomes audible on first DoubleBox after wipe. */
 export const PGM_COUNTUP_FADE_MS = 400

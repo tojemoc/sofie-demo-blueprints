@@ -1113,8 +1113,10 @@ export function finalizeHypercomposedPart(
 	const l3dClearHoldMs = hasIncomingLookL3d
 		? Math.max(clearHoldFor(l3dClearDurationMs, l3dClearStartMs) ?? 0, staleL3dHoldMs)
 		: staleL3dHoldMs
+	// Dedicated channel: the EMPTY must end at the incoming headline's ADD —
+	// holding it to the look keepalive would suppress a short scheduled headline.
 	const headlineClearHoldMs = hasIncomingHeadlineL3d
-		? Math.max(clearHoldFor(headlineClearDurationMs, l3dClearStartMs) ?? 0, staleL3dHoldMs)
+		? clearHoldFor(headlineClearDurationMs, l3dClearStartMs)
 		: staleL3dHoldMs
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
@@ -1745,6 +1747,7 @@ function applyL3dTakeOffsets(
 	}
 }
 
+/** True when any piece carries an incoming Caspar TEMPLATE object on one of `layers`. */
 function partHasIncomingL3dTemplate(pieces: IBlueprintPiece[], layers: Set<string>): boolean {
 	return pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some((obj) => {
