@@ -160,6 +160,8 @@ describe('vMix recording', () => {
 	it('recording piece is RECORDING on:true until rundown end', () => {
 		const piece = createVmixRecordingPiece()
 		expect(piece.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(piece.extendOnHold).not.toBe(true)
+		expect(piece.sourceLayerId).not.toBe(VMixLayers.VMixRecording)
 		const obj = (piece.content.timelineObjects ?? [])[0] as TimelineBlueprintExt<TSR.TimelineContentVMixRecording>
 		expect(obj.layer).toBe(VMixLayers.VMixRecording)
 		expect(obj.enable).toEqual({ while: 1 })
@@ -189,12 +191,14 @@ describe('vMix recording', () => {
 			getStudioConfig: () => ({ studio: config }),
 			getShowStyleConfig: () => ({ dvePresets: {} }),
 			isRehearsal,
+			getPartInstance: async (_part: 'current' | 'next') => ({ rehearsal: isRehearsal, part: {} }),
 			getPieceInstances: async (_part: 'current' | 'next') =>
-				nextSourceLayerIds.map((sourceLayerId) => ({ piece: { sourceLayerId } })),
+				nextSourceLayerIds.map((sourceLayerId) => ({ _id: sourceLayerId, piece: { sourceLayerId, content: {} } })),
 			insertPiece: async (_part: 'current' | 'next', piece: IBlueprintPiece) => {
 				inserted.push(piece)
 				return {}
 			},
+			updatePieceInstance: async () => ({}),
 		}
 		return { context: context as unknown as IOnTakeContext, inserted }
 	}
@@ -237,20 +241,39 @@ describe('vMix recording', () => {
 	})
 
 	it('onSetAsNext arms nexted parts with the recording piece once the show is on air', async () => {
-		const makeContext = (config: StudioConfig, nextSourceLayerIds: string[] = [], nextRehearsal = false) => {
+		const makeContext = (
+			config: StudioConfig,
+			nextSourceLayerIds: string[] = [],
+			nextRehearsal = false,
+			nextExpectedDuration?: number,
+			nextPieces: Array<Record<string, unknown>> = []
+		) => {
 			const inserted: IBlueprintPiece[] = []
+			const updated: Array<{ id: string; piece: Partial<IBlueprintPiece> }> = []
 			const context = {
 				getStudioConfig: () => ({ studio: config }),
 				getShowStyleConfig: () => ({ dvePresets: {} }),
-				getPartInstance: async (_part: 'current' | 'next') => ({ rehearsal: nextRehearsal }),
-				getPieceInstances: async (_part: 'current' | 'next') =>
-					nextSourceLayerIds.map((sourceLayerId) => ({ piece: { sourceLayerId } })),
+				getPartInstance: async (_part: 'current' | 'next') => ({
+					rehearsal: nextRehearsal,
+					part: { expectedDuration: nextExpectedDuration },
+				}),
+				getPieceInstances: async (_part: 'current' | 'next') => [
+					...nextSourceLayerIds.map((sourceLayerId) => ({
+						_id: sourceLayerId,
+						piece: { sourceLayerId, content: {} },
+					})),
+					...nextPieces,
+				],
 				insertPiece: async (_part: 'next', piece: IBlueprintPiece) => {
 					inserted.push(piece)
 					return {}
 				},
+				updatePieceInstance: async (id: string, piece: Partial<IBlueprintPiece>) => {
+					updated.push({ id, piece })
+					return {}
+				},
 			}
-			return { context: context as unknown as IOnSetAsNextContext, inserted }
+			return { context: context as unknown as IOnSetAsNextContext, inserted, updated }
 		}
 
 		// Auto-next lands on a part armed while it was next → its own recording
@@ -280,5 +303,58 @@ describe('vMix recording', () => {
 		const atem = makeContext(hybridCasparConfig)
 		await baseManifest.onSetAsNext?.(atem.context, makePersistentState({ vmixRecordingStarted: true }))
 		expect(atem.inserted).toHaveLength(0)
+	})
+
+	it('caps the outro recording copy at the timed part duration', async () => {
+		const outroPiece = {
+			_id: 'outro-piece',
+			piece: {
+				sourceLayerId: SourceLayer.PgmIntro,
+				content: {
+					timelineObjects: [
+						{
+							layer: CasparCGLayers.CasparCGPgmIntroPlayer,
+							content: { file: 'assets/outro' },
+						},
+					],
+				},
+			},
+		}
+		const contextFactory = (sourceLayerIds: string[] = []) => {
+			const inserted: IBlueprintPiece[] = []
+			const updated: Array<{ id: string; piece: Partial<IBlueprintPiece> }> = []
+			const context = {
+				getStudioConfig: () => ({ studio: vmixStudioConfig }),
+				getShowStyleConfig: () => ({ dvePresets: {} }),
+				getPartInstance: async () => ({ rehearsal: false, part: { expectedDuration: 6500 } }),
+				getPieceInstances: async () => [
+					...sourceLayerIds.map((sourceLayerId) => ({
+						_id: sourceLayerId,
+						piece: { sourceLayerId, content: {} },
+					})),
+					outroPiece,
+				],
+				insertPiece: async (_part: 'next', piece: IBlueprintPiece) => {
+					inserted.push(piece)
+					return {}
+				},
+				updatePieceInstance: async (id: string, piece: Partial<IBlueprintPiece>) => {
+					updated.push({ id, piece })
+					return {}
+				},
+			}
+			return { context: context as unknown as IOnSetAsNextContext, inserted, updated }
+		}
+
+		const fresh = contextFactory()
+		await baseManifest.onSetAsNext?.(fresh.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(fresh.inserted[0]?.enable).toEqual({ start: 0, duration: 6500 })
+
+		const continued = contextFactory([SourceLayer.VmixRecording])
+		await baseManifest.onSetAsNext?.(continued.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(continued.inserted).toHaveLength(0)
+		expect(continued.updated).toEqual([
+			{ id: SourceLayer.VmixRecording, piece: { enable: { start: 0, duration: 6500 } } },
+		])
 	})
 })

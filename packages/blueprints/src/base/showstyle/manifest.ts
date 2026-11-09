@@ -7,6 +7,8 @@ import {
 	IOnTakeContext,
 	IOnSetAsNextContext,
 	BlueprintPlayoutPersistentStore,
+	IBlueprintPartInstance,
+	IBlueprintPieceInstance,
 } from '@sofie-automation/blueprints-integration'
 import { executeAction, executeDataStoreAction } from './executeActions/index.js'
 import { getAdlibItem } from './getAdlibItem.js'
@@ -16,6 +18,8 @@ import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { VisionMixerDevice } from '../studio/helpers/config.js'
 import { createVmixRecordingPiece } from './helpers/studioCalibration.js'
 import { SourceLayer } from './applyconfig/layers.js'
+import { CasparCGLayers } from '../studio/layers.js'
+import { isOutroVideoFile } from './helpers/clips.js'
 import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getRundown } from './rundown/index.js'
 import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
@@ -102,7 +106,8 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
 			vmixRecordingStarted?: boolean
 		}>
-		await ensureVmixRecordingPiece(context)
+		const nextPartInstance = await context.getPartInstance('next')
+		await ensureVmixRecordingPiece(context, nextPartInstance)
 		recordingState.setKey('vmixRecordingStarted', true)
 	},
 	/**
@@ -133,7 +138,7 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		if (!recordingState.getKey('vmixRecordingStarted')) return
 		const nextPartInstance = await context.getPartInstance('next')
 		if (!nextPartInstance || nextPartInstance.rehearsal) return
-		await ensureVmixRecordingPiece(context)
+		await ensureVmixRecordingPiece(context, nextPartInstance)
 	},
 	// Uncomment this to enable config fixup migrations between blueprint versions.
 	// Note: When defined, fixUpConfig must be run after every blueprint upload before
@@ -149,9 +154,41 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
  * being taken) and `onSetAsNext` (the part being armed while next).
  */
 async function ensureVmixRecordingPiece(
-	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece'>
+	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece' | 'updatePieceInstance'>,
+	nextPartInstance: IBlueprintPartInstance | undefined
 ): Promise<void> {
 	const nextPieces = await context.getPieceInstances('next')
-	if (nextPieces.some((instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string))) return
-	await context.insertPiece('next', createVmixRecordingPiece())
+	const recordingInstance = nextPieces.find(
+		(instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string)
+	)
+	const durationMs = vmixRecordingDurationForPart(nextPartInstance, nextPieces)
+	if (recordingInstance) {
+		if (durationMs !== undefined) {
+			await context.updatePieceInstance(recordingInstance._id, {
+				enable: { start: 0, duration: durationMs },
+			})
+		}
+		return
+	}
+	await context.insertPiece('next', createVmixRecordingPiece(durationMs))
+}
+
+function vmixRecordingDurationForPart(
+	partInstance: IBlueprintPartInstance | undefined,
+	pieceInstances: IBlueprintPieceInstance[]
+): number | undefined {
+	const expectedDuration = partInstance?.part?.expectedDuration
+	if (!expectedDuration || expectedDuration <= 0) return undefined
+	return pieceInstances.some((instance) =>
+		(instance.piece.content?.timelineObjects ?? []).some((obj) => {
+			const file = (obj.content as { file?: unknown }).file
+			return (
+				obj.layer === (CasparCGLayers.CasparCGPgmIntroPlayer as string) &&
+				typeof file === 'string' &&
+				isOutroVideoFile(file)
+			)
+		})
+	)
+		? expectedDuration
+		: undefined
 }

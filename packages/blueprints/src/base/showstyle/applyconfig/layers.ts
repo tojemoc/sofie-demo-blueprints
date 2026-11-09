@@ -70,7 +70,7 @@ export enum SourceLayer {
 	 * Hidden vMix `RECORDING` piece — inserted into the taken part by `onTake`
 	 * on the first on-air Take; OutOnRundownEnd so show end stops it.
 	 */
-	VmixRecording = 'vmix_recording',
+	VmixRecording = 'vmix_recording_source',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
