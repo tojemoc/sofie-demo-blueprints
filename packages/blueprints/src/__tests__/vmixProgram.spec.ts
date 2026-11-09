@@ -181,6 +181,33 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 		expect(cameraTakes.length).toBeGreaterThan(0)
 	})
 
+	it('programs the look input for a template-only non-headline L3D part', () => {
+		const part = { externalId: 'l3d-only', title: 'l3d' }
+		const pieces: IBlueprintPiece[] = [
+			{
+				enable: { start: 0 },
+				externalId: 'l3d-only_l3d',
+				name: 'L3D',
+				lifespan: PieceLifespan.WithinPart,
+				sourceLayerId: 'pgm_l3d',
+				outputLayerId: 'pgm',
+				content: {
+					timelineObjects: [
+						{
+							id: 'l3d',
+							enable: { start: 0 },
+							layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird,
+							priority: 1,
+							content: { type: TSR.TimelineContentTypeCasparCg.TEMPLATE },
+						} as never,
+					],
+				},
+			},
+		]
+		finalizeHypercomposedPart(vmixContext(), vmixStudioConfig, part as never, 'l3d-only', [], pieces, 'B')
+		expect(programObjects(pieces)[0]?.content.input).toBe(LOOK_B_INPUT)
+	})
+
 	const wipePieceOf = (pieces: IBlueprintPiece[]) =>
 		pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 	const wipedParts = parts.filter(({ pieces }) => wipePieceOf(pieces))

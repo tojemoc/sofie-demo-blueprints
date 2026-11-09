@@ -1,4 +1,4 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
 	PartType,
@@ -267,6 +267,32 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(filePaths).toContain('wipes/wipe.mov')
 		expect(filePaths).not.toContain('wipes/wipe_pm.mov')
 		expect(filePaths).not.toContain('wipes/wipe_mask.mov')
+	})
+
+	it('remaps ad-lib L3Ds onto the active look slot', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'adlib-l3d', title: 'adlib' }
+		const pieces: IBlueprintPiece[] = []
+		const adLibPieces = [
+			{
+				content: {
+					timelineObjects: [{ layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird, content: {} }],
+				},
+			},
+		] as unknown as IBlueprintAdLibPiece[]
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part as never,
+			'adlib-l3d',
+			[],
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			adLibPieces
+		)
+		expect(adLibPieces[0].content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
 	})
 
 	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {

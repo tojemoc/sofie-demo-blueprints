@@ -82,7 +82,8 @@ export function generateRemotePart(
 		result.pieces,
 		lookSlot,
 		previousLookSlot,
-		part.rawType
+		part.rawType,
+		result.adLibPieces
 	)
 	return result
 }

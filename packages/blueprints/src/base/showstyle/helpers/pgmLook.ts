@@ -1,7 +1,9 @@
 import {
 	ExpectedPackage,
+	IBlueprintAdLibPiece,
 	IBlueprintPart,
 	IBlueprintPiece,
+	IBlueprintPieceGeneric,
 	IBlueprintPieceType,
 	ICommonContext,
 	PieceLifespan,
@@ -362,7 +364,7 @@ function remapLayerId(layer: string, slot: LookSlot): string {
 	return LOOK_A_TO_B[layer] ?? layer
 }
 
-export function remapLookLayers(pieces: IBlueprintPiece[], slot: LookSlot): void {
+export function remapLookLayers(pieces: IBlueprintPieceGeneric[], slot: LookSlot): void {
 	if (slot === 'A') return
 
 	for (const piece of pieces) {
@@ -945,7 +947,9 @@ export function finalizeHypercomposedPart(
 	/** Look claimed for the previous part. Same slot ⇒ this channel is still on-air (rare after ping-pong). */
 	previousLookSlot?: LookSlot,
 	/** Editorial layout; defaults from ingest objects / DoubleBox ILU graphic. */
-	rawType?: string
+	rawType?: string,
+	/** Ad-lib pieces generated for this part — remapped onto `lookSlot` like scheduled pieces. */
+	adLibPieces?: IBlueprintAdLibPiece[]
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
@@ -981,6 +985,7 @@ export function finalizeHypercomposedPart(
 	}
 
 	remapLookLayers(pieces, lookSlot)
+	if (adLibPieces) remapLookLayers(adLibPieces, lookSlot)
 
 	const wipe = findWipeVideoObject(objects)
 	const wipeFile = wipe
@@ -1110,9 +1115,10 @@ export function finalizeHypercomposedPart(
 			? LOOK_HARD_CUT_KEEPALIVE_MS
 			: 0
 	const staleL3dHoldMs = Math.max(0, previousLookKeepaliveMs - l3dClearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
-	const l3dClearHoldMs = hasIncomingLookL3d
-		? Math.max(clearHoldFor(l3dClearDurationMs, l3dClearStartMs) ?? 0, staleL3dHoldMs)
-		: staleL3dHoldMs
+	// Incoming-slot EMPTY ends at the scheduled ADD (like the dedicated channel);
+	// the outgoing slot has its own clear below. Only an L3D-free Take keeps the
+	// keepalive hold so a stale template cannot reappear mid-transition.
+	const l3dClearHoldMs = hasIncomingLookL3d ? clearHoldFor(l3dClearDurationMs, l3dClearStartMs) : staleL3dHoldMs
 	// Dedicated channel: the EMPTY must end at the incoming headline's ADD —
 	// holding it to the look keepalive would suppress a short scheduled headline.
 	const headlineClearHoldMs = hasIncomingHeadlineL3d
@@ -1863,16 +1869,18 @@ function partHasLookDoubleBoxLoopMedia(pieces: IBlueprintPiece[], lookSlot: Look
 
 /**
  * True when the Take composes any look content on `lookSlot` — clip / ILU / CAM /
- * db_loop. Companion `bg_loop` and EMPTY clear objects do not count: a Take that
- * claims a slot but emits no look media owns no picture for the PGM route (vMix
- * falls back to the camera input instead of cutting to black).
+ * db_loop / scheduled look-baked L3D template. Companion `bg_loop` and EMPTY
+ * clear objects do not count. The dedicated headline L3D rides clean GFX, so a
+ * headline-only Take still falls back to the camera input instead of cutting to
+ * a look that has no picture.
  */
 function partHasLookMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
 	return (
 		partHasLookClipMedia(pieces, lookSlot) ||
 		partHasLookIluMedia(pieces, lookSlot) ||
 		partHasLookCameraMedia(pieces, lookSlot) ||
-		partHasLookDoubleBoxLoopMedia(pieces, lookSlot)
+		partHasLookDoubleBoxLoopMedia(pieces, lookSlot) ||
+		partHasIncomingL3dTemplate(pieces, LOOK_L3D_TEMPLATE_LAYERS)
 	)
 }
 
