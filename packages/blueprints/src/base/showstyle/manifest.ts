@@ -16,7 +16,7 @@ import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { VisionMixerDevice } from '../studio/helpers/config.js'
-import { createVmixRecordingPiece } from './helpers/studioCalibration.js'
+import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
 import { SourceLayer } from './applyconfig/layers.js'
 import { CasparCGLayers, VMixLayers } from '../studio/layers.js'
 import { isOutroVideoFile } from './helpers/clips.js'
@@ -154,30 +154,30 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
  * being taken) and `onSetAsNext` (the part being armed while next).
  */
 async function ensureVmixRecordingPiece(
-	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece' | 'updatePieceInstance'>,
+	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece' | 'removePieceInstances'>,
 	nextPartInstance: IBlueprintPartInstance | undefined
 ): Promise<void> {
 	const nextPieces = await context.getPieceInstances('next')
-	// Accept the legacy `vmix_recording` source layer too: a part nexted before
-	// the layer rename already carries a copy — migrate it instead of inserting
-	// a duplicate (its stale id would also shadow the TSR recording object).
-	const recordingInstance = nextPieces.find(
-		(instance) =>
-			instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string) ||
-			instance.piece.sourceLayerId === (VMixLayers.VMixRecording as string)
-	)
 	const durationMs = vmixRecordingDurationForPart(nextPartInstance, nextPieces)
-	if (recordingInstance) {
-		const hasLegacySourceLayer = recordingInstance.piece.sourceLayerId !== (SourceLayer.VmixRecording as string)
-		if (hasLegacySourceLayer || durationMs !== undefined) {
-			await context.updatePieceInstance(recordingInstance._id, {
-				...(hasLegacySourceLayer ? { sourceLayerId: SourceLayer.VmixRecording as string } : {}),
-				...(durationMs !== undefined ? { enable: { start: 0, duration: durationMs } } : {}),
-			})
-		}
+	// A part nexted before the source-layer rename can carry a copy on the legacy
+	// `vmix_recording` id — its own control object shadows the TSR recording
+	// layer. `updatePieceInstance` cannot change sourceLayerId, so remove it and
+	// insert a fresh copy below.
+	const legacyInstance = nextPieces.find(
+		(instance) => instance.piece.sourceLayerId === (VMixLayers.VMixRecording as string)
+	)
+	if (legacyInstance) await context.removePieceInstances('next', [legacyInstance._id])
+	const recordingInstance = nextPieces.find(
+		(instance) => instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string)
+	)
+	if (!recordingInstance || legacyInstance) {
+		await context.insertPiece('next', createVmixRecordingPiece(durationMs))
 		return
 	}
-	await context.insertPiece('next', createVmixRecordingPiece(durationMs))
+	// An existing copy may be a Core-continued infinite that `updatePieceInstance`
+	// refuses to touch — end it with a dedicated OFF object at the outro's
+	// expected duration instead of mutating it.
+	if (durationMs !== undefined) await context.insertPiece('next', createVmixRecordingStopPiece(durationMs))
 }
 
 /**

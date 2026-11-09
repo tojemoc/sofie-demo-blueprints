@@ -88,3 +88,38 @@ export function createVmixRecordingPiece(durationMs?: number): IBlueprintPiece {
 		},
 	})
 }
+
+/**
+ * vMix `RECORDING { on: false }` scheduled at the outro's expected end. When a
+ * recording copy is already armed in the part (e.g. a Core-continued infinite
+ * that `updatePieceInstance` refuses to touch), this priority-2 OFF object wins
+ * the layer at `startMs` and emits STOP_RECORDING without mutating the existing
+ * piece. OutOnRundownEnd so a stray copy cannot re-enable recording afterwards.
+ */
+export function createVmixRecordingStopPiece(startMs: number): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		// Two frames before expectedDuration so the piece still lands inside the
+		// part when auto-next would cut at exactly that instant.
+		enable: { start: Math.max(0, startMs - 40) },
+		externalId: 'outro_vmix_recording_stop',
+		name: 'vMix recording stop',
+		lifespan: PieceLifespan.OutOnRundownEnd,
+		sourceLayerId: SourceLayer.VmixRecording,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VmixRecording),
+		content: {
+			timelineObjects: [
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixRecording>>({
+					id: '',
+					enable: { while: 1 },
+					layer: VMixLayers.VMixRecording,
+					priority: 2,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.RECORDING,
+						on: false,
+					},
+				}),
+			],
+		},
+	})
+}

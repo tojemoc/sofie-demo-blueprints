@@ -249,7 +249,7 @@ describe('vMix recording', () => {
 			nextPieces: Array<Record<string, unknown>> = []
 		) => {
 			const inserted: IBlueprintPiece[] = []
-			const updated: Array<{ id: string; piece: Partial<IBlueprintPiece> }> = []
+			const removed: string[] = []
 			const context = {
 				getStudioConfig: () => ({ studio: config }),
 				getShowStyleConfig: () => ({ dvePresets: {} }),
@@ -268,12 +268,12 @@ describe('vMix recording', () => {
 					inserted.push(piece)
 					return {}
 				},
-				updatePieceInstance: async (id: string, piece: Partial<IBlueprintPiece>) => {
-					updated.push({ id, piece })
-					return {}
+				removePieceInstances: async (_part: 'current' | 'next', ids: string[]) => {
+					removed.push(...ids)
+					return ids
 				},
 			}
-			return { context: context as unknown as IOnSetAsNextContext, inserted, updated }
+			return { context: context as unknown as IOnSetAsNextContext, inserted, removed }
 		}
 
 		// Auto-next lands on a part armed while it was next → its own recording
@@ -294,13 +294,12 @@ describe('vMix recording', () => {
 		expect(already.inserted).toHaveLength(0)
 
 		// Legacy `vmix_recording` source layer (part nexted before the layer
-		// rename) → migrated in place, not duplicated.
+		// rename) → removed (its control object shadows the TSR layer) and a
+		// fresh copy is inserted.
 		const legacy = makeContext(vmixStudioConfig, [VMixLayers.VMixRecording])
 		await baseManifest.onSetAsNext?.(legacy.context, makePersistentState({ vmixRecordingStarted: true }))
-		expect(legacy.inserted).toHaveLength(0)
-		expect(legacy.updated).toEqual([
-			{ id: VMixLayers.VMixRecording, piece: { sourceLayerId: SourceLayer.VmixRecording } },
-		])
+		expect(legacy.removed).toEqual([VMixLayers.VMixRecording])
+		expect(legacy.inserted).toHaveLength(1)
 
 		// Playlist flipped to rehearsal while active (persistent flag left set)
 		// → part instances created in rehearsal are not armed.
@@ -334,7 +333,7 @@ describe('vMix recording', () => {
 			pieces: Array<{ _id: string; piece: { name?: string; sourceLayerId: string; content: object } }> = [outroPiece]
 		) => {
 			const inserted: IBlueprintPiece[] = []
-			const updated: Array<{ id: string; piece: Partial<IBlueprintPiece> }> = []
+			const removed: string[] = []
 			const context = {
 				getStudioConfig: () => ({ studio: vmixStudioConfig }),
 				getShowStyleConfig: () => ({ dvePresets: {} }),
@@ -350,24 +349,27 @@ describe('vMix recording', () => {
 					inserted.push(piece)
 					return {}
 				},
-				updatePieceInstance: async (id: string, piece: Partial<IBlueprintPiece>) => {
-					updated.push({ id, piece })
-					return {}
+				removePieceInstances: async (_part: 'current' | 'next', ids: string[]) => {
+					removed.push(...ids)
+					return ids
 				},
 			}
-			return { context: context as unknown as IOnSetAsNextContext, inserted, updated }
+			return { context: context as unknown as IOnSetAsNextContext, inserted, removed }
 		}
 
 		const fresh = contextFactory()
 		await baseManifest.onSetAsNext?.(fresh.context, makePersistentState({ vmixRecordingStarted: true }))
 		expect(fresh.inserted[0]?.enable).toEqual({ start: 0, duration: 6500 })
 
+		// An existing copy may be a Core-continued infinite that updatePieceInstance
+		// cannot touch → capped with a dedicated OFF object at the expected end.
 		const continued = contextFactory([SourceLayer.VmixRecording])
 		await baseManifest.onSetAsNext?.(continued.context, makePersistentState({ vmixRecordingStarted: true }))
-		expect(continued.inserted).toHaveLength(0)
-		expect(continued.updated).toEqual([
-			{ id: SourceLayer.VmixRecording, piece: { enable: { start: 0, duration: 6500 } } },
-		])
+		expect(continued.inserted).toHaveLength(1)
+		expect(continued.inserted[0]?.enable).toEqual({ start: 6460 })
+		expect((continued.inserted[0]?.content.timelineObjects?.[0]?.content as { on?: boolean } | undefined)?.on).toBe(
+			false
+		)
 
 		// Explicit outro identity survives normalization on the piece name — caps
 		// even when the file no longer matches the outro regex.
