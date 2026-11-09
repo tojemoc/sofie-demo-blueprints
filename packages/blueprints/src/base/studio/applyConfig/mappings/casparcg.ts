@@ -195,8 +195,8 @@ export const VMIX_RETIRED_CASPAR_LAYERS: ReadonlyArray<CasparCGLayers> = [
 
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
 	const { ledChannel, pgmChannel, bgChannelA, bgChannelB, camIngestChannel } = getHypercomposedChannels(config)
-	// vMix switches program: the PGM channel carries clean GFX only, and look L3Ds move
-	// onto it so they key over the vMix program instead of riding the look feeds.
+	// vMix switches program: the PGM channel carries clean GFX. Headline L3Ds stay
+	// there; all other L3Ds ride their look feed so transitions remove them atomically.
 	const vmixProgram = config.studio.visionMixer.type === VisionMixerDevice.VMix
 
 	const mappings: BlueprintMappings = {
@@ -240,13 +240,12 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 			LookaheadMode.NONE
 		),
 
-		...lookStackMappings(
-			bgChannelA,
-			vmixProgram ? { channel: pgmChannel, layer: PgmChannelLayers.GraphicsLowerThird } : undefined
-		),
-		...lookStackMappingsB(
-			bgChannelB,
-			vmixProgram ? { channel: pgmChannel, layer: PgmChannelLayers.GraphicsLowerThirdB } : undefined
+		...lookStackMappings(bgChannelA),
+		...lookStackMappingsB(bgChannelB),
+		[CasparCGLayers.CasparCGGraphicsHeadline]: casparLayerMapping(
+			pgmChannel,
+			PgmChannelLayers.GraphicsLowerThird,
+			LookaheadMode.NONE
 		),
 
 		[CasparCGLayers.CasparCGDebugLabelLed]: casparLayerMapping(ledChannel, DEBUG_CHANNEL_LABEL_LAYER),

@@ -10,7 +10,7 @@ import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
 import { VMIX_RETIRED_CASPAR_LAYERS, getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
-import { PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { BgChannelLayers, PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
 import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../base/studio/layers.js'
@@ -418,18 +418,22 @@ describe('vMix studio baseline + mappings', () => {
 		}
 	})
 
-	it('mappings drop the retired Caspar layers and put look L3Ds on the clean-GFX channel', () => {
+	it('keeps only headline L3Ds on clean GFX; other L3Ds ride their look channel', () => {
 		const mappings = getCasparCGMappings({ studio: vmixStudioConfig })
 		for (const layer of VMIX_RETIRED_CASPAR_LAYERS) {
 			expect(mappings[layer], `layer ${layer}`).toBeUndefined()
 		}
-		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.options).toMatchObject({
+		expect(mappings[CasparCGLayers.CasparCGGraphicsHeadline]?.options).toMatchObject({
 			channel: 4,
 			layer: PgmChannelLayers.GraphicsLowerThird,
 		})
+		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.options).toMatchObject({
+			channel: 2,
+			layer: BgChannelLayers.GraphicsLowerThird,
+		})
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]?.options).toMatchObject({
-			channel: 4,
-			layer: PgmChannelLayers.GraphicsLowerThirdB,
+			channel: 3,
+			layer: BgChannelLayers.GraphicsLowerThird,
 		})
 		expect(mappings[CasparCGLayers.CasparCGLookBgLoop]?.options).toMatchObject({ channel: 2 })
 		expect(mappings[CasparCGLayers.CasparCGLookBgLoopB]?.options).toMatchObject({ channel: 3 })

@@ -195,7 +195,7 @@ describe('casparV2Graphics', () => {
 		expect(headline?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(syn?.sourceLayerId).toBe(SourceLayer.PgmLowerThird)
 		expect(mod?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
-		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
+		expect(headline?.content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsHeadline)
 		expect(synCaspar?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThird)
 		expect((synCaspar?.content as TSR.TimelineContentCCGTemplate).data).toEqual({
 			name: 'Guest',

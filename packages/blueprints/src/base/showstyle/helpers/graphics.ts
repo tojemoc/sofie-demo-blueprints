@@ -483,8 +483,10 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	} else if (isPocasieGraphic(object) || object.clipName.match(/fullscreen/i)) {
 		// Fullscreen story GFX on PGM clip player — never displace LED bg loop.
 		return CasparCGLayers.CasparCGClipPlayer2
+	} else if (normalizeGraphicClipName(object.clipName) === 'gfx/l3d-headline') {
+		return CasparCGLayers.CasparCGGraphicsHeadline
 	} else if (isPgmL3dGraphic(object)) {
-		// PGM L3D chrome (channel 2). LED allow-list: headlines ILU + bg_loop only.
+		// Non-headline L3Ds ride the active look feed so transitions remove them atomically.
 		return CasparCGLayers.CasparCGGraphicsPgmLowerThird
 	} else {
 		return CasparCGLayers.CasparCGGraphicsLowerThird

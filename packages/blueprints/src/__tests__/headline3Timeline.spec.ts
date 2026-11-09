@@ -51,7 +51,7 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			const ilu = tl.find((t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file)
 			const l3d = tl.find(
 				(t) =>
-					t.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThird &&
+					t.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
 					(t.content as { name?: string }).name === 'gfx/l3d-headline'
 			)
 			const fallback = tl.find(
