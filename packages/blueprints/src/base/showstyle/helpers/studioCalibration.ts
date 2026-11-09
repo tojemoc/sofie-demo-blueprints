@@ -63,13 +63,12 @@ export function createStudioCalibrationClearPiece(partExternalId: string): IBlue
  * the same instant. The last one leaves the timeline at outro end /
  * deactivate and emits STOP_RECORDING, so one show is one recording.
  */
-export function createVmixRecordingPiece(): IBlueprintPiece {
+export function createVmixRecordingPiece(durationMs?: number): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
-		enable: { start: 0 },
+		enable: { start: 0, ...(durationMs !== undefined ? { duration: durationMs } : {}) },
 		externalId: 'first_take_vmix_recording',
 		name: 'vMix recording',
 		lifespan: PieceLifespan.OutOnRundownEnd,
-		extendOnHold: true,
 		sourceLayerId: SourceLayer.VmixRecording,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VmixRecording),
 		content: {

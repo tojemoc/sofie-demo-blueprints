@@ -12,7 +12,7 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { normalizeLayeredVideoFileName, resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
-import { LOOK_B_LAYERS } from '../base/showstyle/helpers/pgmLook.js'
+import { LOOK_B_LAYERS, LOOK_HARD_CUT_OVERLAP_MS } from '../base/showstyle/helpers/pgmLook.js'
 import { AudioSourceType } from '../base/studio/helpers/config.js'
 import {
 	loadSmokeRundownExport,
@@ -418,8 +418,9 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const l3dEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		// No incoming L3D: EMPTY must not expire at WIPE_AIR_CUT_MS (keepalive continues).
-		expect(l3dEmpty?.enable).toEqual({ start: 0 })
+		// No incoming L3D: EMPTY only needs to cover the outgoing keepalive;
+		// finite so an ad-lib L3D later in the part can still play.
+		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: WIPE_AIR_CUT_MS + LOOK_HARD_CUT_OVERLAP_MS })
 		const timeline = wipePiece?.content.timelineObjects ?? []
 		expect(timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer)?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,

@@ -175,6 +175,11 @@ describe('casparcgMappings', () => {
 		expect(PgmChannelLayers.RouteB).toBeGreaterThan(PgmChannelLayers.RouteA)
 		expect(PgmChannelLayers.GraphicsLogo).toBeGreaterThan(PgmChannelLayers.RouteB)
 		expect(PgmChannelLayers.IntroOverlay).toBeGreaterThan(PgmChannelLayers.GraphicsLogo)
+		expect(getMappingOptions(CasparCGLayers.CasparCGGraphicsHeadline)).toEqual({
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel: 2,
+			layer: PgmChannelLayers.GraphicsLowerThird,
+		})
 	})
 
 	it('routes CAM ingest helper to channel 5 (sole DeckLink/dshow open)', () => {

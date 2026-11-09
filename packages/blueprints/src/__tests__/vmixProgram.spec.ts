@@ -10,7 +10,7 @@ import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
 import { VMIX_RETIRED_CASPAR_LAYERS, getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
-import { PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { BgChannelLayers, PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
 import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../base/studio/layers.js'
@@ -179,6 +179,33 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 	it('Takes with no look media program the camera input (never a black look NDI)', () => {
 		const cameraTakes = parts.filter(({ pieces }) => programObjects(pieces)[0].content.input === CAMERA_INPUT)
 		expect(cameraTakes.length).toBeGreaterThan(0)
+	})
+
+	it('programs the look input for a template-only non-headline L3D part', () => {
+		const part = { externalId: 'l3d-only', title: 'l3d' }
+		const pieces: IBlueprintPiece[] = [
+			{
+				enable: { start: 0 },
+				externalId: 'l3d-only_l3d',
+				name: 'L3D',
+				lifespan: PieceLifespan.WithinPart,
+				sourceLayerId: 'pgm_l3d',
+				outputLayerId: 'pgm',
+				content: {
+					timelineObjects: [
+						{
+							id: 'l3d',
+							enable: { start: 0 },
+							layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird,
+							priority: 1,
+							content: { type: TSR.TimelineContentTypeCasparCg.TEMPLATE },
+						} as never,
+					],
+				},
+			},
+		]
+		finalizeHypercomposedPart(vmixContext(), vmixStudioConfig, part as never, 'l3d-only', [], pieces, 'B')
+		expect(programObjects(pieces)[0]?.content.input).toBe(LOOK_B_INPUT)
 	})
 
 	const wipePieceOf = (pieces: IBlueprintPiece[]) =>
@@ -418,18 +445,22 @@ describe('vMix studio baseline + mappings', () => {
 		}
 	})
 
-	it('mappings drop the retired Caspar layers and put look L3Ds on the clean-GFX channel', () => {
+	it('keeps only headline L3Ds on clean GFX; other L3Ds ride their look channel', () => {
 		const mappings = getCasparCGMappings({ studio: vmixStudioConfig })
 		for (const layer of VMIX_RETIRED_CASPAR_LAYERS) {
 			expect(mappings[layer], `layer ${layer}`).toBeUndefined()
 		}
-		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.options).toMatchObject({
+		expect(mappings[CasparCGLayers.CasparCGGraphicsHeadline]?.options).toMatchObject({
 			channel: 4,
 			layer: PgmChannelLayers.GraphicsLowerThird,
 		})
+		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.options).toMatchObject({
+			channel: 2,
+			layer: BgChannelLayers.GraphicsLowerThird,
+		})
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]?.options).toMatchObject({
-			channel: 4,
-			layer: PgmChannelLayers.GraphicsLowerThirdB,
+			channel: 3,
+			layer: BgChannelLayers.GraphicsLowerThird,
 		})
 		expect(mappings[CasparCGLayers.CasparCGLookBgLoop]?.options).toMatchObject({ channel: 2 })
 		expect(mappings[CasparCGLayers.CasparCGLookBgLoopB]?.options).toMatchObject({ channel: 3 })

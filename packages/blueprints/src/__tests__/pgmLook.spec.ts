@@ -1,4 +1,4 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
 	PartType,
@@ -269,6 +269,32 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(filePaths).not.toContain('wipes/wipe_mask.mov')
 	})
 
+	it('remaps ad-lib L3Ds onto the active look slot', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'adlib-l3d', title: 'adlib' }
+		const pieces: IBlueprintPiece[] = []
+		const adLibPieces = [
+			{
+				content: {
+					timelineObjects: [{ layer: CasparCGLayers.CasparCGGraphicsPgmLowerThird, content: {} }],
+				},
+			},
+		] as unknown as IBlueprintAdLibPiece[]
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part as never,
+			'adlib-l3d',
+			[],
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			adLibPieces
+		)
+		expect(adLibPieces[0].content.timelineObjects?.[0]?.layer).toBe(CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
+	})
+
 	it('ping-pongs smoke headlines across idle look channels (3→4→3)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-headlines')
@@ -304,7 +330,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
 		const hl2L3d = hl2Timeline.find(
 			(obj) =>
-				obj.layer === LOOK_B_LAYERS.lowerThird &&
+				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 		expect(!Array.isArray(hl2L3d?.enable) && hl2L3d?.enable.start).toBe(L3D_OUT_MS)
@@ -316,7 +342,18 @@ describe('pgmLook look-kind channels + route', () => {
 			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(l3dEmpty?.layer).toBe(LOOK_B_LAYERS.lowerThird)
-		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
+		expect(l3dEmpty?.enable).toEqual({
+			start: 0,
+			duration: LOOK_HARD_CUT_KEEPALIVE_MS + LOOK_HARD_CUT_OVERLAP_MS,
+		})
+		// Dedicated-channel EMPTY ends at the incoming headline ADD — holding it to
+		// the look keepalive would suppress the scheduled headline on the live
+		// clean-GFX feed.
+		const headlineEmpty = l3dClear?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline && (obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(headlineEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
 		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
 		// keepalive-end CG STOP cannot animate out stacked under the incoming template.
 		const otherSlotL3dEmpty = l3dClear?.content.timelineObjects?.find(

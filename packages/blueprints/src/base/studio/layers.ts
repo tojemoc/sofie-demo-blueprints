@@ -104,6 +104,8 @@ export enum CasparCGLayers {
 	CasparCGLookCalibFrame = 'casparcg_look_calib_frame',
 
 	CasparCGGraphicsLowerThird = 'casparcg_graphics_l3d',
+	/** Headline L3D on the dedicated clean-GFX PGM channel (layer 121). */
+	CasparCGGraphicsHeadline = 'casparcg_graphics_headline',
 	/** Look A topic L3Ds that belong inside the wiped scene (BG A layer 121). */
 	CasparCGGraphicsPgmLowerThird = 'casparcg_graphics_pgm_l3d',
 	/** Look B topic / SYN L3Ds (BG B layer 121). */

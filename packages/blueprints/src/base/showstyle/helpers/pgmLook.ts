@@ -1,7 +1,9 @@
 import {
 	ExpectedPackage,
+	IBlueprintAdLibPiece,
 	IBlueprintPart,
 	IBlueprintPiece,
+	IBlueprintPieceGeneric,
 	IBlueprintPieceType,
 	ICommonContext,
 	PieceLifespan,
@@ -362,7 +364,7 @@ function remapLayerId(layer: string, slot: LookSlot): string {
 	return LOOK_A_TO_B[layer] ?? layer
 }
 
-export function remapLookLayers(pieces: IBlueprintPiece[], slot: LookSlot): void {
+export function remapLookLayers(pieces: IBlueprintPieceGeneric[], slot: LookSlot): void {
 	if (slot === 'A') return
 
 	for (const piece of pieces) {
@@ -945,7 +947,9 @@ export function finalizeHypercomposedPart(
 	/** Look claimed for the previous part. Same slot ⇒ this channel is still on-air (rare after ping-pong). */
 	previousLookSlot?: LookSlot,
 	/** Editorial layout; defaults from ingest objects / DoubleBox ILU graphic. */
-	rawType?: string
+	rawType?: string,
+	/** Ad-lib pieces generated for this part — remapped onto `lookSlot` like scheduled pieces. */
+	adLibPieces?: IBlueprintAdLibPiece[]
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
@@ -981,6 +985,7 @@ export function finalizeHypercomposedPart(
 	}
 
 	remapLookLayers(pieces, lookSlot)
+	if (adLibPieces) remapLookLayers(adLibPieces, lookSlot)
 
 	const wipe = findWipeVideoObject(objects)
 	const wipeFile = wipe
@@ -1083,51 +1088,60 @@ export function finalizeHypercomposedPart(
 		}
 	}
 
-	const hasIncomingL3d = partHasIncomingL3dTemplate(pieces)
-	const earliestL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces)
+	const hasIncomingLookL3d = partHasIncomingL3dTemplate(pieces, LOOK_L3D_TEMPLATE_LAYERS)
+	const hasIncomingHeadlineL3d = partHasIncomingL3dTemplate(pieces, HEADLINE_L3D_TEMPLATE_LAYERS)
+	const hasIncomingL3d = hasIncomingLookL3d || hasIncomingHeadlineL3d
+	const earliestLookL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces, LOOK_L3D_TEMPLATE_LAYERS)
+	const earliestHeadlineL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces, HEADLINE_L3D_TEMPLATE_LAYERS)
 	// CLEAR until the first incoming L3D is on-air. Wiped Takes: that is max(wipeEnd,
 	// earliest objectTime) so start:1s under wipe_sport cannot gap-fill previous CG.
 	// wipe_pocasie lands weather GFX at the cover cut with bg_pocasie.
-	const firstL3dOnAirMs = hasWipe
-		? wipePocasie
-			? wipeCutPointMs + earliestL3dObjectTimeMs
-			: Math.max(wipeDurationMs, earliestL3dObjectTimeMs)
-		: hasIncomingL3d
-			? L3D_OUT_MS + earliestL3dObjectTimeMs
-			: 0
-	const l3dClearDurationMs = hasIncomingL3d ? firstL3dOnAirMs : undefined
+	const l3dOnAirMs = (earliestObjectTimeMs: number): number =>
+		hasWipe
+			? wipePocasie
+				? wipeCutPointMs + earliestObjectTimeMs
+				: Math.max(wipeDurationMs, earliestObjectTimeMs)
+			: L3D_OUT_MS + earliestObjectTimeMs
+	const l3dClearDurationMs = hasIncomingLookL3d ? l3dOnAirMs(earliestLookL3dObjectTimeMs) : undefined
+	const headlineClearDurationMs = hasIncomingHeadlineL3d ? l3dOnAirMs(earliestHeadlineL3dObjectTimeMs) : undefined
 	// Leave-weather into wiped ZAVER: hold previous weather L3D until cover is solid —
 	// not cleared at Take while wipe overlay is still loading. Wipe-only GFX shells
 	// keep L3D CLEAR at Take. Require an *active* on-air ilu-zaver piece — an
 	// ad-lib-only ingest hit must not delay L3D CLEAR on unrelated wiped GFX.
 	const l3dClearStartMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : 0
-	const l3dClearHoldMs =
-		l3dClearDurationMs !== undefined && l3dClearStartMs > 0
-			? Math.max(0, l3dClearDurationMs - l3dClearStartMs) +
-				// Overlap the delayed ADD by 2f so weather cities cannot flash for a frame
-				// when EMPTY ends at the same instant the new L3D enables.
-				(leaveWeatherUnderWipe ? LOOK_HARD_CUT_OVERLAP_MS : 0)
-			: l3dClearDurationMs
+	const previousLookKeepaliveMs = hasWipe
+		? leaveWeatherHideMs
+		: previousLookSlot !== undefined
+			? LOOK_HARD_CUT_KEEPALIVE_MS
+			: 0
+	const staleL3dHoldMs = Math.max(0, previousLookKeepaliveMs - l3dClearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
+	// Incoming-slot EMPTY ends at the scheduled ADD (like the dedicated channel);
+	// the outgoing slot has its own clear below. Only an L3D-free Take keeps the
+	// keepalive hold so a stale template cannot reappear mid-transition.
+	const l3dClearHoldMs = hasIncomingLookL3d ? clearHoldFor(l3dClearDurationMs, l3dClearStartMs) : staleL3dHoldMs
+	// Dedicated channel: the EMPTY must end at the incoming headline's ADD —
+	// holding it to the look keepalive would suppress a short scheduled headline.
+	const headlineClearHoldMs = hasIncomingHeadlineL3d
+		? clearHoldFor(headlineClearDurationMs, l3dClearStartMs)
+		: staleL3dHoldMs
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
 	// (SJV→SJV, ŠPORT→ŠPORT) otherwise become CG UPDATE (text swap, no IN anim).
 	// All Caspar EMPTYs share {@link SourceLayer.PgmLayerClear} (not GFX) so SYN VO is
 	// not pruned by exclusiveGroup `pgm`.
 	const clearObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = []
-	if (hasIncomingL3d || hasWipe) {
-		// Duration only until the delayed CG ADD. Wiped Takes with no incoming L3D must
-		// hold EMPTY for the whole part — otherwise previous L3D returns after
-		// the clear window while the sting/keepalive still covers.
+	if (hasIncomingL3d || hasWipe || previousLookSlot !== undefined) {
+		// Keep EMPTY through the outgoing-look keepalive (or until the delayed CG ADD,
+		// when that is later), but end it afterwards so an ad-lib L3D later in the part
+		// can still play.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
+		clearObjects.push(
+			emptyLookMediaObject(CasparCGLayers.CasparCGGraphicsHeadline, headlineClearHoldMs, l3dClearStartMs)
+		)
 		// The previous on-air L3D sits on the *other* look slot (Takes ping-pong).
-		// Without this EMPTY its piece only ends at keepalive end and then CG STOPs
-		// (useStopCommand), so the old template keeps animating out long after the
-		// new one ADDs — two L3Ds stack (vMix puts both L3D mappings on the same
-		// clean-GFX channel, so the overlap is always on-air). Open-ended EMPTY so
-		// the keepalive'd template cannot resume after a finite window ends
-		// (hard-cut keepalive outlasts the incoming-layer EMPTY). On wiped Takes
-		// hold it with the rest of the outgoing picture until the route cut under
-		// cover — same rule as the other-slot clears below.
+		// Open-ended EMPTY so its keepalive'd template cannot resume when that feed is
+		// claimed again later. On wiped Takes hold it with the outgoing picture until
+		// the route cut under cover — same rule as the other-slot clears below.
 		const otherSlotL3dClearStartMs =
 			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : l3dClearStartMs
 		clearObjects.push(...buildL3dLayerClearObjects(idleOtherSlot, undefined, otherSlotL3dClearStartMs))
@@ -1591,10 +1605,12 @@ function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDuratio
 	}
 }
 
-const L3D_TEMPLATE_LAYERS = new Set<string>([
+const LOOK_L3D_TEMPLATE_LAYERS = new Set<string>([
 	CasparCGLayers.CasparCGGraphicsPgmLowerThird,
 	CasparCGLayers.CasparCGGraphicsPgmLowerThirdB,
 ])
+const HEADLINE_L3D_TEMPLATE_LAYERS = new Set<string>([CasparCGLayers.CasparCGGraphicsHeadline])
+const L3D_TEMPLATE_LAYERS = new Set<string>([...LOOK_L3D_TEMPLATE_LAYERS, ...HEADLINE_L3D_TEMPLATE_LAYERS])
 
 function isCasparTemplate(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
@@ -1602,6 +1618,17 @@ function isCasparTemplate(content: { type?: string }): boolean {
 
 function isCasparMedia(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA
+}
+
+/**
+ * EMPTY hold needed from `clearStartMs` until the delayed CG ADD. Delayed clears
+ * (leave-weather ZAVER) also overlap the ADD by 2f so the outgoing template cannot
+ * flash for a frame when EMPTY ends at the same instant the new L3D enables.
+ */
+function clearHoldFor(clearDurationMs: number | undefined, clearStartMs: number): number | undefined {
+	if (clearDurationMs === undefined) return undefined
+	if (clearStartMs <= 0) return clearDurationMs
+	return Math.max(0, clearDurationMs - clearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
 }
 
 function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): void {
@@ -1726,23 +1753,24 @@ function applyL3dTakeOffsets(
 	}
 }
 
-function partHasIncomingL3dTemplate(pieces: IBlueprintPiece[]): boolean {
+/** True when any piece carries an incoming Caspar TEMPLATE object on one of `layers`. */
+function partHasIncomingL3dTemplate(pieces: IBlueprintPiece[], layers: Set<string>): boolean {
 	return pieces.some((piece) =>
 		(piece.content.timelineObjects ?? []).some((obj) => {
 			const layer = String(obj.layer)
-			if (!L3D_TEMPLATE_LAYERS.has(layer)) return false
+			if (!layers.has(layer)) return false
 			return isCasparTemplate(obj.content as { type?: string })
 		})
 	)
 }
 
-/** Earliest piece.enable.start among pieces that carry an incoming look L3D template. */
-function minIncomingL3dPieceStartMs(pieces: IBlueprintPiece[]): number {
+/** Earliest piece.enable.start among pieces that carry an incoming L3D template. */
+function minIncomingL3dPieceStartMs(pieces: IBlueprintPiece[], layers: Set<string>): number {
 	let minStart: number | undefined
 	for (const piece of pieces) {
 		const hasL3d = (piece.content.timelineObjects ?? []).some((obj) => {
 			const layer = String(obj.layer)
-			if (!L3D_TEMPLATE_LAYERS.has(layer)) return false
+			if (!layers.has(layer)) return false
 			return isCasparTemplate(obj.content as { type?: string })
 		})
 		if (!hasL3d) continue
@@ -1841,16 +1869,18 @@ function partHasLookDoubleBoxLoopMedia(pieces: IBlueprintPiece[], lookSlot: Look
 
 /**
  * True when the Take composes any look content on `lookSlot` — clip / ILU / CAM /
- * db_loop. Companion `bg_loop` and EMPTY clear objects do not count: a Take that
- * claims a slot but emits no look media owns no picture for the PGM route (vMix
- * falls back to the camera input instead of cutting to black).
+ * db_loop / scheduled look-baked L3D template. Companion `bg_loop` and EMPTY
+ * clear objects do not count. The dedicated headline L3D rides clean GFX, so a
+ * headline-only Take still falls back to the camera input instead of cutting to
+ * a look that has no picture.
  */
 function partHasLookMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolean {
 	return (
 		partHasLookClipMedia(pieces, lookSlot) ||
 		partHasLookIluMedia(pieces, lookSlot) ||
 		partHasLookCameraMedia(pieces, lookSlot) ||
-		partHasLookDoubleBoxLoopMedia(pieces, lookSlot)
+		partHasLookDoubleBoxLoopMedia(pieces, lookSlot) ||
+		partHasIncomingL3dTemplate(pieces, LOOK_L3D_TEMPLATE_LAYERS)
 	)
 }
 
