@@ -1111,10 +1111,10 @@ export function finalizeHypercomposedPart(
 			: 0
 	const staleL3dHoldMs = Math.max(0, previousLookKeepaliveMs - l3dClearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
 	const l3dClearHoldMs = hasIncomingLookL3d
-		? Math.max(clearHoldFor(l3dClearDurationMs, l3dClearStartMs, leaveWeatherUnderWipe) ?? 0, staleL3dHoldMs)
+		? Math.max(clearHoldFor(l3dClearDurationMs, l3dClearStartMs) ?? 0, staleL3dHoldMs)
 		: staleL3dHoldMs
 	const headlineClearHoldMs = hasIncomingHeadlineL3d
-		? Math.max(clearHoldFor(headlineClearDurationMs, l3dClearStartMs, leaveWeatherUnderWipe) ?? 0, staleL3dHoldMs)
+		? Math.max(clearHoldFor(headlineClearDurationMs, l3dClearStartMs) ?? 0, staleL3dHoldMs)
 		: staleL3dHoldMs
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
@@ -1612,14 +1612,15 @@ function isCasparMedia(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA
 }
 
-function clearHoldFor(
-	clearDurationMs: number | undefined,
-	clearStartMs: number,
-	addOverlap: boolean
-): number | undefined {
+/**
+ * EMPTY hold needed from `clearStartMs` until the delayed CG ADD. Delayed clears
+ * (leave-weather ZAVER) also overlap the ADD by 2f so the outgoing template cannot
+ * flash for a frame when EMPTY ends at the same instant the new L3D enables.
+ */
+function clearHoldFor(clearDurationMs: number | undefined, clearStartMs: number): number | undefined {
 	if (clearDurationMs === undefined) return undefined
 	if (clearStartMs <= 0) return clearDurationMs
-	return Math.max(0, clearDurationMs - clearStartMs) + (addOverlap ? LOOK_HARD_CUT_OVERLAP_MS : 0)
+	return Math.max(0, clearDurationMs - clearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
 }
 
 function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): void {

@@ -173,6 +173,11 @@ async function ensureVmixRecordingPiece(
 	await context.insertPiece('next', createVmixRecordingPiece(durationMs))
 }
 
+/**
+ * Finite recording duration for the timed outro part (PGM 210 `assets/outro`
+ * overlay + `expectedDuration`), so vMix emits STOP_RECORDING when the jingle
+ * ends instead of waiting for deactivation. Undefined on ordinary parts.
+ */
 function vmixRecordingDurationForPart(
 	partInstance: IBlueprintPartInstance | undefined,
 	pieceInstances: IBlueprintPieceInstance[]
