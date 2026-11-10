@@ -99,6 +99,7 @@ export enum OutputLayer {
 	Script = 'script',
 }
 
+/** Output layer a piece on `layer` should land on when not set explicitly. */
 export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 	switch (layer) {
 		case SourceLayer.Script:

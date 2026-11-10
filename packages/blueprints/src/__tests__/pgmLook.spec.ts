@@ -414,7 +414,7 @@ describe('pgmLook look-kind channels + route', () => {
 				(obj) =>
 					obj.layer === CasparCGLayers.CasparCGClipPlayer2B &&
 					(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
-					(obj.content as TSR.TimelineContentTypeCasparCg).file !== 'EMPTY'
+					(obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
 			)
 		expect(incomingClip).toBeDefined()
 		expect(media.file).toBe((incomingClip?.content as TSR.TimelineContentCCGMedia).file)

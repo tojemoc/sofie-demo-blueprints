@@ -171,6 +171,9 @@ export function generateParts(
 			case PartType.Intro: {
 				// Intro overlay on PGM (210); underlay claims idle so the next Take stays cross-slot.
 				const introLook: LookSlot = floatedOrSkipped ? (previousLookSlot ?? lookSlots.peek()) : lookSlots.claimIdle()
+				// resolveLookSlotForPart only peeked for Intro — record the slot it
+				// actually claimed so the idle-preview same-slot guard sees it.
+				partLookSlots[partLookSlots.length - 1] = introLook
 				newPart = generateIntroPart(
 					partContext,
 					rawPart as unknown as PartProps<IntroProps>,

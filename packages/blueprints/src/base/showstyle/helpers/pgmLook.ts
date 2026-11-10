@@ -1936,9 +1936,10 @@ function emptyLookMediaObject(
  * transparent layer rather than blinking `bg_loop`.
  */
 export function injectIdleLookPreviewPieces(
-	parts: Array<{ part: { externalId: string; invalid?: boolean }; pieces: IBlueprintPiece[] }>,
+	parts: Array<{ part: { externalId: string; invalid?: boolean; floated?: boolean }; pieces: IBlueprintPiece[] }>,
 	partLookSlots: Array<LookSlot | undefined>
 ): void {
+	/** Clip / ILU layers of the physical look channel claimed by `slot`. */
 	const mediaLayersForSlot = (slot: LookSlot): CasparCGLayers[] => {
 		const layers = getLookLayers(slot)
 		return [layers.clip, layers.ilu]
@@ -1946,17 +1947,24 @@ export function injectIdleLookPreviewPieces(
 
 	for (let i = 0; i < parts.length - 1; i++) {
 		const currentSlot = partLookSlots[i]
-		const nextSlot = partLookSlots[i + 1]
+		if (currentSlot === undefined || parts[i].part.invalid || parts[i].part.floated) continue
+
+		// The preview rides the *last on-air part*: a floated, skipped, or invalid
+		// part never takes, so scan past it to the next part that can actually go
+		// on air and clone that part's media instead.
+		let nextIdx = i + 1
+		while (nextIdx < parts.length && (parts[nextIdx].part.invalid || parts[nextIdx].part.floated)) nextIdx++
+		if (nextIdx >= parts.length) continue
+		const nextSlot = partLookSlots[nextIdx]
 		// Only when the next part actually claims the *idle* channel — same-slot
 		// (peek part in between, or a broken ping-pong) must never put a paused
 		// clip onto the live channel.
-		if (currentSlot === undefined || nextSlot === undefined || nextSlot === currentSlot) continue
-		if (parts[i].part.invalid) continue
+		if (nextSlot === undefined || nextSlot === currentSlot) continue
 
 		const targetLayers = mediaLayersForSlot(nextSlot)
 		const seen = new Set<CasparCGLayers>()
 		const previewObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = []
-		for (const piece of parts[i + 1].pieces) {
+		for (const piece of parts[nextIdx].pieces) {
 			for (const obj of piece.content?.timelineObjects ?? []) {
 				const content = obj.content as TSR.TimelineContentCCGMedia | undefined
 				if (
