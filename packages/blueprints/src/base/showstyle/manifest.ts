@@ -176,8 +176,17 @@ async function ensureVmixRecordingPiece(
 	}
 	// An existing copy may be a Core-continued infinite that `updatePieceInstance`
 	// refuses to touch — end it with a dedicated OFF object at the outro's
-	// expected duration instead of mutating it.
-	if (durationMs !== undefined) await context.insertPiece('next', createVmixRecordingStopPiece(durationMs))
+	// expected duration instead of mutating it. Skip the OFF when an armed copy
+	// already ends the recording (`enable.duration`) or the OFF is already in
+	// place — the stop piece shares the source layer, so the lookup above
+	// cannot tell these apart and a repeat call would stack duplicates.
+	if (durationMs === undefined) return
+	const alreadyEnds = nextPieces.some(
+		(instance) =>
+			instance.piece.sourceLayerId === (SourceLayer.VmixRecording as string) &&
+			(instance.piece.externalId === 'outro_vmix_recording_stop' || instance.piece.enable?.duration !== undefined)
+	)
+	if (!alreadyEnds) await context.insertPiece('next', createVmixRecordingStopPiece(durationMs))
 }
 
 /**

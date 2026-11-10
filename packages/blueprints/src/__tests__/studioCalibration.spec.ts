@@ -241,6 +241,10 @@ describe('vMix recording', () => {
 	})
 
 	it('onSetAsNext arms nexted parts with the recording piece once the show is on air', async () => {
+		/**
+		 * onSetAsNext context for a nexted part; `nextSourceLayerIds` / `nextPieces`
+		 * pre-seed its piece instances, `inserted`/`removed` capture mutations.
+		 */
 		const makeContext = (
 			config: StudioConfig,
 			nextSourceLayerIds: string[] = [],
@@ -328,29 +332,42 @@ describe('vMix recording', () => {
 				},
 			},
 		}
+		/**
+		 * Context for the timed outro part (expectedDuration 6500); inserted pieces
+		 * are appended to `nextPieces` so repeated onTake/onSetAsNext calls see the
+		 * armed state, removed ids are spliced back out.
+		 */
 		const contextFactory = (
 			sourceLayerIds: string[] = [],
 			pieces: Array<{ _id: string; piece: { name?: string; sourceLayerId: string; content: object } }> = [outroPiece]
 		) => {
 			const inserted: IBlueprintPiece[] = []
 			const removed: string[] = []
+			const nextPieces: Array<Record<string, unknown>> = [
+				...sourceLayerIds.map((sourceLayerId) => ({
+					_id: sourceLayerId,
+					piece: { sourceLayerId, content: {} },
+				})),
+				...pieces,
+			]
 			const context = {
 				getStudioConfig: () => ({ studio: vmixStudioConfig }),
 				getShowStyleConfig: () => ({ dvePresets: {} }),
 				getPartInstance: async () => ({ rehearsal: false, part: { expectedDuration: 6500 } }),
-				getPieceInstances: async () => [
-					...sourceLayerIds.map((sourceLayerId) => ({
-						_id: sourceLayerId,
-						piece: { sourceLayerId, content: {} },
-					})),
-					...pieces,
-				],
+				getPieceInstances: async () => nextPieces,
+				/** Records the piece and reflects it in `nextPieces` for later calls. */
 				insertPiece: async (_part: 'next', piece: IBlueprintPiece) => {
+					nextPieces.push({ _id: piece.externalId ?? `inserted_${nextPieces.length}`, piece })
 					inserted.push(piece)
 					return {}
 				},
+				/** Records the removed ids and splices them out of `nextPieces`. */
 				removePieceInstances: async (_part: 'current' | 'next', ids: string[]) => {
 					removed.push(...ids)
+					for (const id of ids) {
+						const index = nextPieces.findIndex((instance) => instance._id === id)
+						if (index >= 0) nextPieces.splice(index, 1)
+					}
 					return ids
 				},
 			}
@@ -370,6 +387,24 @@ describe('vMix recording', () => {
 		expect((continued.inserted[0]?.content.timelineObjects?.[0]?.content as { on?: boolean } | undefined)?.on).toBe(
 			false
 		)
+
+		// A repeat ensure on the same part must not stack a second OFF piece —
+		// the stop piece shares the recording source layer, so the presence
+		// check alone cannot tell it apart from an unbounded copy.
+		await baseManifest.onSetAsNext?.(continued.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(continued.inserted).toHaveLength(1)
+
+		// Manual Take after onSetAsNext armed a bounded copy → that copy already
+		// ends the recording at the expected duration, so the take must not add
+		// a redundant OFF piece.
+		const takeAfterArm = contextFactory()
+		await baseManifest.onSetAsNext?.(takeAfterArm.context, makePersistentState({ vmixRecordingStarted: true }))
+		expect(takeAfterArm.inserted).toHaveLength(1)
+		await baseManifest.onTake?.(
+			takeAfterArm.context as unknown as IOnTakeContext,
+			makePersistentState({ vmixRecordingStarted: true })
+		)
+		expect(takeAfterArm.inserted).toHaveLength(1)
 
 		// Explicit outro identity survives normalization on the piece name — caps
 		// even when the file no longer matches the outro regex.
