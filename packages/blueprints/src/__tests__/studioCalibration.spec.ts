@@ -425,3 +425,94 @@ describe('vMix recording', () => {
 		expect(namedOutro.inserted[0]?.enable).toEqual({ start: 0, duration: 6500 })
 	})
 })
+
+describe('countup hold on out-of-order navigation', () => {
+	const makePersistentState = (initial: Record<string, unknown> = {}) => {
+		const store = { ...initial }
+		return {
+			getKey: (key: string) => store[key],
+			setKey: (key: string, value: unknown) => {
+				store[key] = value
+			},
+		} as unknown as BlueprintPlayoutPersistentStore<{ countupPaused?: boolean; expectedNextPartId?: string }>
+	}
+
+	/**
+	 * onSetAsNext context: `manuallySelected` mirrors Core's user-driven setNext,
+	 * `currentPartId`/`nextPartId` are the underlying Part ids (a manual re-pick
+	 * makes a new PartInstance over the same Part). `inserted` captures pieces.
+	 */
+	const makeContext = (
+		config: StudioConfig,
+		manuallySelected: boolean,
+		currentPartId: string | undefined,
+		nextPartId: string | undefined,
+		nextPieceExternalIds: string[] = []
+	) => {
+		const inserted: IBlueprintPiece[] = []
+		const context = {
+			manuallySelected,
+			getStudioConfig: () => ({ studio: config }),
+			getShowStyleConfig: () => ({ dvePresets: {} }),
+			getHashId: (id: string) => id,
+			getPartInstance: async (part: 'current' | 'next') => {
+				const partId = part === 'current' ? currentPartId : nextPartId
+				return partId === undefined
+					? undefined
+					: { _id: `inst_${part}_${partId}_${Math.random()}`, part: { _id: partId } }
+			},
+			getPieceInstances: async (_part: 'current' | 'next') =>
+				nextPieceExternalIds.map((externalId) => ({ _id: externalId, piece: { externalId, content: {} } })),
+			insertPiece: async (_part: 'next', piece: IBlueprintPiece) => {
+				inserted.push(piece)
+				return {}
+			},
+		}
+		return { context: context as unknown as IOnSetAsNextContext, inserted }
+	}
+
+	it('auto-next records the natural next; a manual re-pick of the same Part does not pause', async () => {
+		// Auto selection (auto-next after a Take) records the natural next Part id.
+		const auto = makeContext(hybridCasparConfig, false, 'cur', 'n1')
+		const state = makePersistentState()
+		await baseManifest.onSetAsNext?.(auto.context, state)
+		expect(state.getKey('expectedNextPartId')).toBe('n1')
+		expect(state.getKey('countupPaused')).toBeUndefined()
+		expect(auto.inserted).toHaveLength(0)
+
+		// Re-affirming that same next part by hand (new PartInstance, same Part)
+		// does not break story order → no pause, no hold piece.
+		const reaffirm = makeContext(hybridCasparConfig, true, 'cur', 'n1')
+		await baseManifest.onSetAsNext?.(reaffirm.context, state)
+		expect(state.getKey('countupPaused')).toBeUndefined()
+		expect(reaffirm.inserted).toHaveLength(0)
+	})
+
+	it('a manual jump to a different Part while on air latches and arms the hold piece', async () => {
+		const state = makePersistentState({ expectedNextPartId: 'n1' })
+		const jump = makeContext(hybridCasparConfig, true, 'cur', 'n5')
+		await baseManifest.onSetAsNext?.(jump.context, state)
+		expect(state.getKey('countupPaused')).toBe(true)
+		expect(jump.inserted).toHaveLength(1)
+		expect(jump.inserted[0]?.externalId?.endsWith('_countuphold')).toBe(true)
+		expect(jump.inserted[0]?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		expect(jump.inserted[0]?.sourceLayerId).toBe(SourceLayer.CountupHold)
+		const obj = jump.inserted[0]?.content.timelineObjects?.[0]
+		expect(obj?.layer).toBe(CasparCGLayers.CasparCGGraphicsLogo)
+		expect(obj?.content).toMatchObject({ file: 'assets/countup', playing: false })
+
+		// Later nexts keep the hold armed (pause persists across the rundown),
+		// and a part already carrying a hold copy is not armed twice.
+		const armedAgain = makeContext(hybridCasparConfig, false, 'n5', 'n6', ['n6_countuphold'])
+		await baseManifest.onSetAsNext?.(armedAgain.context, state)
+		expect(armedAgain.inserted).toHaveLength(0)
+	})
+
+	it('manual selection before the first Take never latches (no current part)', async () => {
+		const state = makePersistentState()
+		const preshow = makeContext(hybridCasparConfig, true, undefined, 'n1')
+		await baseManifest.onSetAsNext?.(preshow.context, state)
+		expect(state.getKey('countupPaused')).toBeUndefined()
+		expect(preshow.inserted).toHaveLength(0)
+	})
+})
