@@ -176,6 +176,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			isHidden: true,
 		},
 		{
+			_id: SourceLayer.CountupHold,
+			type: SourceLayerType.UNKNOWN,
+			_rank: 208,
+			name: 'Countup hold',
+			abbreviation: 'Ch',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

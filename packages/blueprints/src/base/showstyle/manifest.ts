@@ -6,6 +6,7 @@ import {
 	IRundownActivationContext,
 	IOnTakeContext,
 	IOnSetAsNextContext,
+	ICommonContext,
 	BlueprintPlayoutPersistentStore,
 	IBlueprintPartInstance,
 	IBlueprintPieceInstance,
@@ -17,6 +18,7 @@ import { getShowStyleVariantId } from './getShowStyleVariantId.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { VisionMixerDevice } from '../studio/helpers/config.js'
 import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
+import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
 import { SourceLayer } from './applyconfig/layers.js'
 import { CasparCGLayers, VMixLayers } from '../studio/layers.js'
 import { isOutroVideoFile } from './helpers/clips.js'
@@ -102,13 +104,16 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		playoutPersistentState: BlueprintPlayoutPersistentStore<unknown>
 	): Promise<void> => {
 		const config = parseConfig(context).studio
-		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
-		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
-			vmixRecordingStarted?: boolean
-		}>
+		const playoutState = playoutPersistentState as BlueprintPlayoutPersistentStore<SpravyPlayoutState>
 		const nextPartInstance = await context.getPartInstance('next')
+		// Out-of-order navigation latched earlier: keep the countup paused here too
+		// (covers nexts that were already selected before the flag was set).
+		if (playoutState.getKey('countupPaused')) {
+			await ensureCountupHoldPiece(context, nextPartInstance)
+		}
+		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
 		await ensureVmixRecordingPiece(context, nextPartInstance)
-		recordingState.setKey('vmixRecordingStarted', true)
+		playoutState.setKey('vmixRecordingStarted', true)
 	},
 	/**
 	 * Called whenever a PartInstance is set as Next — including by the
@@ -131,12 +136,32 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		playoutPersistentState: BlueprintPlayoutPersistentStore<unknown>
 	): Promise<void> => {
 		const config = parseConfig(context).studio
-		if (config.visionMixer.type !== VisionMixerDevice.VMix) return
-		const recordingState = playoutPersistentState as BlueprintPlayoutPersistentStore<{
-			vmixRecordingStarted?: boolean
-		}>
-		if (!recordingState.getKey('vmixRecordingStarted')) return
+		const playoutState = playoutPersistentState as BlueprintPlayoutPersistentStore<SpravyPlayoutState>
+		// A user-selected next (jump further than one TAKE, or TAKE previous)
+		// breaks the story's logical order — latch the countup pause and arm the
+		// selected part so the loop freezes at take and stays frozen. The initial
+		// next selection before the first Take is also `manuallySelected`, so the
+		// latch requires an on-air current part — never freeze an unstarted show.
+		const currentPartInstance = await context.getPartInstance('current')
 		const nextPartInstance = await context.getPartInstance('next')
+		if (context.manuallySelected) {
+			// Latch only when the selection breaks the story order — re-affirming the
+			// auto-selected natural next (recorded below) must not freeze the loop.
+			// Compare the underlying Part, not the PartInstance: a manual re-pick of
+			// the same Part creates a fresh PartInstance. And the initial pre-show
+			// selection never latches: no on-air current part.
+			const expectedNextId = playoutState.getKey('expectedNextPartId')
+			if (currentPartInstance && expectedNextId && nextPartInstance?.part._id !== expectedNextId) {
+				playoutState.setKey('countupPaused', true)
+			}
+		} else if (nextPartInstance) {
+			playoutState.setKey('expectedNextPartId', nextPartInstance.part._id)
+		}
+		if (playoutState.getKey('countupPaused')) {
+			await ensureCountupHoldPiece(context, nextPartInstance)
+		}
+		if (config.visionMixer.type !== VisionMixerDevice.VMix) return
+		if (!playoutState.getKey('vmixRecordingStarted')) return
 		if (!nextPartInstance || nextPartInstance.rehearsal) return
 		await ensureVmixRecordingPiece(context, nextPartInstance)
 	},
@@ -146,6 +171,31 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 	// fixUpConfig: () => {
 	// 	// Noop
 	// },
+}
+
+interface SpravyPlayoutState {
+	vmixRecordingStarted?: boolean
+	/** Latched by `manuallySelected` onSetAsNext — pauses `assets/countup` for the rest of the show. */
+	countupPaused?: boolean
+	/** Underlying Part id of the last auto-selected natural next — a manual selection differing from it breaks order. */
+	expectedNextPartId?: string
+}
+
+/**
+ * Arm the nexted part with the countup hold piece (`playing:false` at priority 4)
+ * unless it already carries one (e.g. a Core-continued infinite copy). The piece
+ * stays dormant while the part is next and pauses the loop the instant the part
+ * is taken — the producer stays paused because every later nexted part is armed
+ * the same way while the flag is set.
+ */
+async function ensureCountupHoldPiece(
+	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece'> & ICommonContext,
+	partInstance: IBlueprintPartInstance | undefined
+): Promise<void> {
+	if (!partInstance) return
+	const nextPieces = await context.getPieceInstances('next')
+	if (nextPieces.some((instance) => instance.piece.externalId?.endsWith(COUNTUP_HOLD_EXTERNAL_ID_SUFFIX))) return
+	await context.insertPiece('next', createCountupHoldPiece(context, partInstance.part.externalId))
 }
 
 /**
