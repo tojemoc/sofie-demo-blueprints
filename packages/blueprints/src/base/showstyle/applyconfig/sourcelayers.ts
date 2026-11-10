@@ -184,6 +184,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			isHidden: true,
 		},
 		{
+			_id: SourceLayer.LookIdlePreview,
+			type: SourceLayerType.UNKNOWN,
+			_rank: 209,
+			name: 'Idle look preview',
+			abbreviation: 'Lpv',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

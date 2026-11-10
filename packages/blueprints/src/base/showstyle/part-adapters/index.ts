@@ -53,6 +53,7 @@ import {
 	LookSlotSequence,
 	findWipeVideoObject,
 	getLookSlotSequenceForGeneration,
+	injectIdleLookPreviewPieces,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
@@ -126,6 +127,7 @@ export function generateParts(
 		},
 	]
 
+	const partLookSlots: Array<LookSlot | undefined> = []
 	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
 		// Editorial skip / float — never on-air; leave lookSlots unchanged for DB→DB peek.
@@ -136,6 +138,7 @@ export function generateParts(
 		// Until the first claim, previousLookSlot is undefined (baseline underlay only).
 		const previousLookSlot = lookSlots.hasClaimed() ? lookSlots.peek() : undefined
 		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType, floatedOrSkipped)
+		partLookSlots.push(lookSlot)
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {
@@ -348,6 +351,13 @@ export function generateParts(
 
 		return newPart
 	})
+
+	if (studioConfig.casparcg.hypercomposed) {
+		// Paused *foreground* preview of the incoming clip/ILU on the off-air channel:
+		// the vMix input shows a frozen frame for the whole part instead of `bg_loop`,
+		// and the take is a pure RESUME of an already-paused producer.
+		injectIdleLookPreviewPieces(parts, partLookSlots)
+	}
 
 	// Sofie holds previous look only for piece.postrollDuration into the next Take's
 	// previousPartKeepaliveDuration. Raise each part to the following on-air wipe's
