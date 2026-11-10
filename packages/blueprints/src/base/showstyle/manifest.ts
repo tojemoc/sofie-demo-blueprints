@@ -143,10 +143,18 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		// next selection before the first Take is also `manuallySelected`, so the
 		// latch requires an on-air current part — never freeze an unstarted show.
 		const currentPartInstance = await context.getPartInstance('current')
-		if (context.manuallySelected && currentPartInstance) {
-			playoutState.setKey('countupPaused', true)
-		}
 		const nextPartInstance = await context.getPartInstance('next')
+		if (context.manuallySelected) {
+			// Latch only when the selection breaks the story order — re-affirming the
+			// auto-selected natural next (recorded below) must not freeze the loop.
+			// Initial pre-show selection never latches: no on-air current part.
+			const expectedNextId = playoutState.getKey('expectedNextPartInstanceId')
+			if (currentPartInstance && expectedNextId && nextPartInstance?._id !== expectedNextId) {
+				playoutState.setKey('countupPaused', true)
+			}
+		} else if (nextPartInstance) {
+			playoutState.setKey('expectedNextPartInstanceId', nextPartInstance._id)
+		}
 		if (playoutState.getKey('countupPaused')) {
 			await ensureCountupHoldPiece(context, nextPartInstance)
 		}
@@ -167,6 +175,8 @@ interface SpravyPlayoutState {
 	vmixRecordingStarted?: boolean
 	/** Latched by `manuallySelected` onSetAsNext — pauses `assets/countup` for the rest of the show. */
 	countupPaused?: boolean
+	/** PartInstance id of the last auto-selected natural next — manual selections differing from it break order. */
+	expectedNextPartInstanceId?: string
 }
 
 /**

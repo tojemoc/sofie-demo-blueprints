@@ -299,8 +299,10 @@ export function createCountupHoldPiece(context: ICommonContext, partExternalId: 
 		externalId: `${partExternalId}${COUNTUP_HOLD_EXTERNAL_ID_SUFFIX}`,
 		name: '360 countup (pause)',
 		lifespan: PieceLifespan.OutOnRundownEnd,
-		sourceLayerId: SourceLayer.Logo,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Logo),
+		// Dedicated hidden source layer — never competes with Logo sustain/mute pieces
+		// in Core's same-start pruning; timeline priority 4 still wins the Caspar layer.
+		sourceLayerId: SourceLayer.CountupHold,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.CountupHold),
 		content: {
 			fileName: PGM_COUNTUP_FILE,
 			timelineObjects: [

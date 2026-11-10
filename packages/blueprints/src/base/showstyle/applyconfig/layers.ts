@@ -71,6 +71,12 @@ export enum SourceLayer {
 	 * on the first on-air Take; OutOnRundownEnd so show end stops it.
 	 */
 	VmixRecording = 'vmix_recording_source',
+	/**
+	 * Hidden countup hold piece — inserted into nexted parts by `onSetAsNext`/`onTake`
+	 * after out-of-order navigation. Dedicated layer so Core pruning can never drop it
+	 * against the per-part countup sustain/mute pieces on {@link SourceLayer.Logo}.
+	 */
+	CountupHold = 'countup_hold',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -112,6 +118,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.AudioBed:
 		case SourceLayer.DVE_RETAIN:
 		case SourceLayer.VmixRecording:
+		case SourceLayer.CountupHold:
 			return OutputLayer.Aux
 		default:
 			return OutputLayer.Pgm
