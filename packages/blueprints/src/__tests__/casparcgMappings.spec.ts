@@ -289,19 +289,34 @@ describe('casparcgMappings', () => {
 		}
 	})
 
-	it('does not preload live look compose layers (avoids early LOAD replacing on-air)', () => {
+	it('preloads look compose media on the idle channel only (next part, distance 1)', () => {
 		const mappings = getCasparCGMappings({ studio: baseStudioConfig })
-		// Clip / ILU / db_loop must be NONE — PRELOAD LOADBGs the next Take onto the
-		// live layer under the wipe (DB ILU cut, Full black blink, stray db_loop on ZAVER).
-		expect(mappings[CasparCGLayers.CasparCGClipPlayer2]?.lookahead).toBe(LookaheadMode.NONE)
-		expect(mappings[CasparCGLayers.CasparCGClipPlayer2B]?.lookahead).toBe(LookaheadMode.NONE)
-		expect(mappings[CasparCGLayers.CasparCGPgmIluPlayer]?.lookahead).toBe(LookaheadMode.NONE)
-		expect(mappings[CasparCGLayers.CasparCGPgmIluPlayerB]?.lookahead).toBe(LookaheadMode.NONE)
-		expect(mappings[CasparCGLayers.CasparCGPgmDoubleBoxLoop]?.lookahead).toBe(LookaheadMode.NONE)
-		expect(mappings[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]?.lookahead).toBe(LookaheadMode.NONE)
-		// Look CAM layers route://ingest — no native DeckLink PRELOAD. Ingest mapping also NONE.
-		expect(mappings[CasparCGLayers.CasparCGPgmCamera]?.lookahead).toBe(LookaheadMode.NONE)
-		expect(mappings[CasparCGLayers.CasparCGPgmCameraB]?.lookahead).toBe(LookaheadMode.NONE)
+		// Clip / ILU / cam / db_loop PRELOAD with depth+distance 1: the immediate
+		// next part LOADBGs paused onto the idle channel so the Take hot-PLAY is an
+		// instant promote (no cold decode → no bg_loop blink on hard cuts). The
+		// search must never reach past the next part — a deeper same-channel part
+		// would arm the live layer's background (the old deep-PRELOAD failure).
+		const preloaded = [
+			CasparCGLayers.CasparCGClipPlayer2,
+			CasparCGLayers.CasparCGClipPlayer2B,
+			CasparCGLayers.CasparCGPgmIluPlayer,
+			CasparCGLayers.CasparCGPgmIluPlayerB,
+			CasparCGLayers.CasparCGPgmCamera,
+			CasparCGLayers.CasparCGPgmCameraB,
+			CasparCGLayers.CasparCGPgmDoubleBoxLoop,
+			CasparCGLayers.CasparCGPgmDoubleBoxLoopB,
+		]
+		for (const layer of preloaded) {
+			expect(mappings[layer]?.lookahead).toBe(LookaheadMode.PRELOAD)
+			expect(mappings[layer]?.lookaheadDepth).toBe(1)
+			expect(mappings[layer]?.lookaheadMaxSearchDistance).toBe(1)
+		}
+		// LED ilu player preloads too: ilu-zaver arms while ZAVER is Next (weather cover).
+		expect(mappings[CasparCGLayers.CasparCGIluPlayer]?.lookahead).toBe(LookaheadMode.PRELOAD)
+		expect(mappings[CasparCGLayers.CasparCGIluPlayer]?.lookaheadMaxSearchDistance).toBe(1)
+		// Sticky bg_loop underlay and native cam ingest stay NONE.
+		expect(mappings[CasparCGLayers.CasparCGLookBgLoop]?.lookahead).toBe(LookaheadMode.NONE)
+		expect(mappings[CasparCGLayers.CasparCGLookBgLoopB]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmCameraIngest]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmRoute]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGPgmEffectsPlayer]?.lookahead).toBe(LookaheadMode.PRELOAD)

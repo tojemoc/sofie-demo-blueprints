@@ -280,3 +280,54 @@ export function appendCountupSustainIfRevealed(
 	}
 	pieces.push(createCountupSustainPiece(context, config, partExternalId))
 }
+
+/** externalId suffix for the hold piece (no `_countup_` substring — sustain pieces must still be generated). */
+export const COUNTUP_HOLD_EXTERNAL_ID_SUFFIX = '_countuphold'
+
+/**
+ * Out-of-order navigation hold: `playing: false` on the logo layer at priority 4
+ * (above reveal / sustain / mute copies) so `assets/countup` pauses and stays
+ * paused for the rest of the rundown — the loop stops counting, while the usual
+ * pieces keep owning hide/show / mute. Inserted into 'next' by onSetAsNext /
+ * onTake once the `countupPaused` playout flag latches (`context.manuallySelected`).
+ * OutOnRundownEnd so a continued copy holds the pause; where a core does not
+ * continue inserted infinites, onSetAsNext re-arms each nexted part.
+ */
+export function createCountupHoldPiece(context: ICommonContext, partExternalId: string): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: 0 },
+		externalId: `${partExternalId}${COUNTUP_HOLD_EXTERNAL_ID_SUFFIX}`,
+		name: '360 countup (pause)',
+		lifespan: PieceLifespan.OutOnRundownEnd,
+		sourceLayerId: SourceLayer.Logo,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Logo),
+		content: {
+			fileName: PGM_COUNTUP_FILE,
+			timelineObjects: [
+				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+					id: '',
+					enable: { while: 1 },
+					layer: CasparCGLayers.CasparCGGraphicsLogo,
+					priority: 4,
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						file: PGM_COUNTUP_FILE,
+						loop: true,
+						noStarttime: true,
+						playing: false,
+						mixer: {
+							opacity: 1,
+							volume: 1,
+						},
+					},
+				}),
+			],
+		},
+		expectedPackages: [
+			createMediaFileExpectedPackage(context, PGM_COUNTUP_FILE, [CasparCGLayers.CasparCGGraphicsLogo], {
+				includeSideEffects: true,
+			}),
+		],
+	})
+}

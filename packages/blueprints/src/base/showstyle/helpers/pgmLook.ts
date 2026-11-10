@@ -1215,6 +1215,21 @@ export function finalizeHypercomposedPart(
 			clearObjects.push(...buildLookIluClearObjects(lookSlot, LOOK_ILU_HARD_CUT_CLEAR_MS))
 		}
 	}
+	// vMix inputs keep NDI audio live off-program: EMPTY the outgoing look's
+	// media layers just past the air cut so ILU/SYN audio dies with the switch
+	// (postroll otherwise keeps the clip audible ~2.5s into the next part). The
+	// 2f lag keeps the EMPTY safely past the vMix Cut / stinger cut so it can
+	// never tear a frame of empty channel into program. Same-slot has no
+	// separate outgoing channel — the incoming compose owns it.
+	if (vmixProgram && previousLookSlot !== undefined && !sameLookChannel) {
+		const outgoingOffAirMs = (hasWipe ? wipeRouteCutMs : LOOK_HARD_CUT_KEEPALIVE_MS) + LOOK_HARD_CUT_INCOMING_DELAY_MS
+		const outgoingLayers = getLookLayers(previousLookSlot)
+		clearObjects.push(
+			emptyLookMediaObject(outgoingLayers.clip, undefined, outgoingOffAirMs),
+			emptyLookMediaObject(outgoingLayers.ilu, undefined, outgoingOffAirMs),
+			emptyLookMediaObject(outgoingLayers.camera, undefined, outgoingOffAirMs)
+		)
+	}
 	if (clearObjects.length > 0) {
 		appendPgmLayerClearPiece(pieces, partExternalId, clearObjects)
 	}

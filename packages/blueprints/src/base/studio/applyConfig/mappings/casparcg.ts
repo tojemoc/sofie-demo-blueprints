@@ -58,6 +58,33 @@ function casparLayerMapping(
 	})
 }
 
+/**
+ * Paused LOADBG while the part is Next (Sofie PRELOAD). `lookaheadDepth` 1 +
+ * `lookaheadMaxSearchDistance` **1** scopes the search to the *immediate* next
+ * PartInstance only — a deeper same-channel part can never arm the live layer's
+ * background (the pre-#126 failure: PRELOAD LOADBG'd a one-or-more-takes-ahead
+ * clip and `PLAY` promoted the wrong/still-loading producer under the wipe).
+ * Lookahead media objects are always emitted paused (`auto:false`, keyframes
+ * stripped) so the off-air channel holds a cue'd first frame; the Take's
+ * `playing:true` keyframe is then a bare `PLAY` promote (no cold decode → no
+ * `bg_loop` blink on ILU→SYN hard cuts), and even an early vMix cut lands on the
+ * loaded frame instead of a still-loading layer.
+ */
+function casparPreloadMapping(channel: number, layer: number): BlueprintMapping<TSR.MappingCasparCGLayer> {
+	return literal<BlueprintMapping<TSR.MappingCasparCGLayer>>({
+		device: TSR.DeviceType.CASPARCG,
+		deviceId: 'casparcg0',
+		lookahead: LookaheadMode.PRELOAD,
+		lookaheadDepth: 1,
+		lookaheadMaxSearchDistance: 1,
+		options: {
+			mappingType: TSR.MappingCasparCGType.Layer,
+			channel,
+			layer,
+		},
+	})
+}
+
 function lookStackMappings(
 	channel: number,
 	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird }
@@ -70,20 +97,16 @@ function lookStackMappings(
 	| CasparCGLayers.CasparCGPgmDoubleBoxLoop
 	| CasparCGLayers.CasparCGGraphicsPgmLowerThird
 > {
-	// NONE on compose layers: PRELOAD LOADBGs the *next* clip onto the live layer
-	// during InTransition preroll and replaces the on-air producer early — visible as
-	// DB→DB ILU cutting under the wipe, Full→Full black blinks, and stray `db_loop`
-	// LOADBG during ZAVER while PGM is still `route://4`. Camera was already NONE.
+	// PRELOAD (distance 1) on compose media layers: the immediate next part LOADBGs
+	// paused onto the idle look channel while Next, so a hard cut / stinger cut
+	// promotes an armed frame instead of cold-decoding (bg_loop blink). bgLoop +
+	// L3D stay NONE (sticky loop never hot-cues; template PRELOAD becomes CG UPDATE).
 	return {
 		[CasparCGLayers.CasparCGLookBgLoop]: casparLayerMapping(channel, BgChannelLayers.BgLoop, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGClipPlayer2]: casparLayerMapping(channel, BgChannelLayers.ClipPlayer, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGPgmIluPlayer]: casparLayerMapping(channel, BgChannelLayers.IluPlayer, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGPgmCamera]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: casparLayerMapping(
-			channel,
-			BgChannelLayers.DoubleBoxLoop,
-			LookaheadMode.NONE
-		),
+		[CasparCGLayers.CasparCGClipPlayer2]: casparPreloadMapping(channel, BgChannelLayers.ClipPlayer),
+		[CasparCGLayers.CasparCGPgmIluPlayer]: casparPreloadMapping(channel, BgChannelLayers.IluPlayer),
+		[CasparCGLayers.CasparCGPgmCamera]: casparPreloadMapping(channel, BgChannelLayers.Camera),
+		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: casparPreloadMapping(channel, BgChannelLayers.DoubleBoxLoop),
 		// NONE: PRELOAD of the next L3D on the same CEF layer becomes CG UPDATE
 		// (text swap, no in/out animation). Takes must STOP then ADD instead.
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: casparLayerMapping(
@@ -110,14 +133,10 @@ function lookStackMappingsB(
 > {
 	return {
 		[CasparCGLayers.CasparCGLookBgLoopB]: casparLayerMapping(channel, BgChannelLayers.BgLoop, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGClipPlayer2B]: casparLayerMapping(channel, BgChannelLayers.ClipPlayer, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparLayerMapping(channel, BgChannelLayers.IluPlayer, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGPgmCameraB]: casparLayerMapping(channel, BgChannelLayers.Camera, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparLayerMapping(
-			channel,
-			BgChannelLayers.DoubleBoxLoop,
-			LookaheadMode.NONE
-		),
+		[CasparCGLayers.CasparCGClipPlayer2B]: casparPreloadMapping(channel, BgChannelLayers.ClipPlayer),
+		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparPreloadMapping(channel, BgChannelLayers.IluPlayer),
+		[CasparCGLayers.CasparCGPgmCameraB]: casparPreloadMapping(channel, BgChannelLayers.Camera),
+		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparPreloadMapping(channel, BgChannelLayers.DoubleBoxLoop),
 		// Pre-first-Take calibration look on BG B — spare layers so the per-part
 		// OutOnRundownEnd EMPTY never fights show pieces on 115/118.
 		[CasparCGLayers.CasparCGLookCalibCam]: casparLayerMapping(
@@ -203,7 +222,12 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGClipPlayer1]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPlayer),
 		[CasparCGLayers.CasparCGLedPodHeadline]: casparLayerMapping(ledChannel, LedChannelLayers.PodHeadline),
 		[CasparCGLayers.CasparCGLedTestframe]: casparLayerMapping(ledChannel, LedChannelLayers.TestFrame),
-		[CasparCGLayers.CasparCGIluPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.IluPlayer),
+		// PRELOAD (distance 1): while ZAVER+AVIZO is Next — i.e. from the moment the
+		// weather GFX starts — `LOADBG 1-115` arms `gfx/ilu-zaver`'s media paused, so
+		// the PLAY at the leave-weather cover cut is a hot promote (it previously
+		// cold-started and landed after the wipe had already ended). Also pre-cues
+		// headline ILUs on the same layer.
+		[CasparCGLayers.CasparCGIluPlayer]: casparPreloadMapping(ledChannel, LedChannelLayers.IluPlayer),
 		[CasparCGLayers.CasparCGClipPlayerPreview]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPreview),
 		[CasparCGLayers.CasparCGEffectsPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.EffectsPlayer),
 		[CasparCGLayers.CasparCGGraphicsTicker]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsTicker),
