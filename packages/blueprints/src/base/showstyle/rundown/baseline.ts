@@ -76,6 +76,10 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			// vMix studios keep the look channels transparent (the camera lives on the
 			// vMix look inputs) — no bg_loop; instead both slots run a phase-locked
 			// opacity-0 db_loop so DoubleBox takes reveal, never restart, the frame.
+			// Exception — legacy vMix without look feed inputs: there is no static
+			// camera under the NDI feed on the look input, so a transparent channel
+			// shows black. Keep the bg_loop underlay per slot without a feed input
+			// so an unwiped VT/VO has a visible picture until its clip feed is up.
 			...(config.casparcg.hypercomposed
 				? [
 						...(vmixProgram
@@ -95,6 +99,29 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 											},
 										})
 								)
+							: []),
+						...(vmixProgram
+							? (
+									[
+										{ layer: CasparCGLayers.CasparCGLookBgLoop, slot: 'A' },
+										{ layer: CasparCGLayers.CasparCGLookBgLoopB, slot: 'B' },
+									] as const
+								)
+									.filter(({ slot }) => getVmixLookFeedInput(config, slot) === 0)
+									.map(({ layer }) =>
+										literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+											id: '',
+											enable: { while: 1 },
+											priority: 0,
+											layer,
+											content: {
+												deviceType: TSR.DeviceType.CASPARCG,
+												type: TSR.TimelineContentTypeCasparCg.MEDIA,
+												file: LED_BACKGROUND_LOOP_FILE,
+												loop: true,
+											},
+										})
+									)
 							: [
 									literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 										id: '',

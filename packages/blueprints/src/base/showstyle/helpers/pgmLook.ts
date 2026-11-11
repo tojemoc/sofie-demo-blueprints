@@ -39,7 +39,7 @@ import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorType
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
-	VMIX_CASPAR_FEED_LATENCY_MS,
+	VMIX_HARD_CUT_RESUME_LEAD_MS,
 	VMIX_STINGER_PREVIEW_LEAD_MS,
 	createVMixTakeTimelineObjects,
 	getVmixCameraInput,
@@ -384,6 +384,11 @@ function remapLayerId(layer: string, slot: LookSlot): string {
 	return LOOK_A_TO_B[layer] ?? layer
 }
 
+/**
+ * Remap every Caspar layer id in `pieces` (and their expected-package layer
+ * lists) from slot A to `slot` — pieces are authored on the A set and swapped
+ * onto B when the take claims the B channel. No-op for slot A.
+ */
 export function remapLookLayers(pieces: IBlueprintPieceGeneric[], slot: LookSlot): void {
 	if (slot === 'A') return
 
@@ -1117,11 +1122,12 @@ export function finalizeHypercomposedPart(
 			// LOAD from Take; hot PLAY at the short delay so Caspar can decode while
 			// PGM still shows the previous channel (route delayed to keepalive below).
 			// vMix: the Cut lands at keepalive — RESUME early enough that the first
-			// frame crosses the feed latency right at the cut (cut − feed latency).
+			// frame crosses the feed latency right at the cut (cut − worst-case
+			// latency − one frame of headroom).
 			applyHardCutIdleLookHotCue(
 				pieces,
 				vmixProgram
-					? Math.max(0, LOOK_HARD_CUT_KEEPALIVE_MS - VMIX_CASPAR_FEED_LATENCY_MS)
+					? Math.max(0, LOOK_HARD_CUT_KEEPALIVE_MS - VMIX_HARD_CUT_RESUME_LEAD_MS)
 					: LOOK_HARD_CUT_INCOMING_DELAY_MS
 			)
 		}
@@ -2078,6 +2084,11 @@ function partHasLookMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolea
 	)
 }
 
+/**
+ * Priority-2 `EMPTY` MEDIA object for a look layer — clears whatever the
+ * previous part left (clip / CAM / loop) for `clearDurationMs` starting at
+ * `clearStartMs`; open-ended when no duration is given.
+ */
 function emptyLookMediaObject(
 	layer: CasparCGLayers,
 	clearDurationMs?: number,

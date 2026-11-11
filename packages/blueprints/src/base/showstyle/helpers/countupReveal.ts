@@ -7,6 +7,7 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
+import { usesVmixProgram } from './visionMixer.js'
 
 /**
  * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
@@ -20,13 +21,17 @@ export const PGM_COUNTUP_FILE = 'assets/countup'
 /** MIX fade when countup becomes audible on first DoubleBox after wipe. */
 export const PGM_COUNTUP_FADE_MS = 400
 
-/** Studio `audioLevels.countupVolume` (0–1 Caspar mixer, default 0.5). */
+/**
+ * Studio `audioLevels.countupVolume` (0–1 Caspar mixer). vMix-program studios
+ * default to 0.5 (countup rides the clean-GFX feed into vMix and reads loud);
+ * other studios keep the previous level 1 unless explicitly configured.
+ */
 export function getCountupVolume(config: StudioConfig): number {
 	const raw = config.audioLevels?.countupVolume
 	if (typeof raw === 'number' && Number.isFinite(raw)) {
 		return Math.min(1, Math.max(0, raw))
 	}
-	return 0.5
+	return usesVmixProgram(config) ? 0.5 : 1
 }
 
 /** Per-generation claim — one reveal per rundown ingest pass (not retained across generations). */
@@ -80,6 +85,7 @@ export function resetCountupRevealGenerationForTests(): void {
 	activeCountupRevealGenerationRundownId = undefined
 }
 
+/** Fade-in keyframes for the reveal copy: PLAY + MIX ramp to `volume` at the enable time. */
 function countupRevealKeyframes(
 	volume: number
 ): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
@@ -105,6 +111,7 @@ function countupRevealKeyframes(
 	]
 }
 
+/** Timeline object for one countup mode — reveal (hidden LOADBG + fade keyframes), sustain (audible loop) or mute (silent hold). */
 function countupTimelineObject(
 	mode: 'reveal' | 'sustain' | 'mute',
 	volume: number
@@ -134,6 +141,7 @@ function countupTimelineObject(
 	})
 }
 
+/** Shared piece factory for the reveal / sustain / mute countup variants. */
 function createCountupPiece(
 	context: ICommonContext,
 	config: StudioConfig,
@@ -259,6 +267,7 @@ export function partIsOutroOrZaverCountupMute(rawType: string | undefined, objec
 	})
 }
 
+/** True when this part is the intro overlay (countup not yet revealed — must not start it muted at opacity 1). */
 function partIsIntroCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/intro/i.test(rawType || '') && !partIsOutroOrZaverCountupMute(rawType, objects)) return true
 	return objects.some((obj) => {

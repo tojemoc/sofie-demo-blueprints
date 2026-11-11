@@ -197,6 +197,16 @@ export const VMIX_CASPAR_FEED_LATENCY_MS = 300
 /** Extra headroom added to the off-air point so the Caspar state change lands past the vMix cut. */
 export const VMIX_OFF_AIR_MARGIN_MS = 140
 
+/** Worst-case measured RESUME → picture latency on the studio feed (~283–344 ms). */
+export const VMIX_CASPAR_FEED_LATENCY_MAX_MS = 344
+
+/**
+ * Hard-cut RESUME lead: the worst-case feed latency plus one 25fps frame of
+ * headroom, so the first moving frame reaches vMix before the Cut even at the
+ * measured upper bound.
+ */
+export const VMIX_HARD_CUT_RESUME_LEAD_MS = VMIX_CASPAR_FEED_LATENCY_MAX_MS + 40
+
 /** Default stinger cut point measured from the stinger PROGRAM command (~960 ms on the studio). */
 export const DEFAULT_VMIX_STINGER_CUT_POINT_MS = 960
 

@@ -369,46 +369,49 @@ export function generateParts(
 
 	if (studioConfig.casparcg.hypercomposed) {
 		if (usesVmixProgram(studioConfig)) {
-			// Phase-locked db_loop: in segments with no DoubleBox-frame piece, every
-			// look-bearing part re-asserts opacity 0 on its own slot so a keepalive'd
-			// opacity-1 object from an earlier segment cannot reveal the frame.
-			const segmentHasDbLoopFrame = parts.some((generated) =>
-				generated.pieces.some((piece) =>
+			// Phase-locked db_loop: every look-bearing part that does not own the
+			// DoubleBox frame on its own slot re-asserts opacity 0, so a keepalive'd
+			// opacity-1 reveal from a previous part/segment cannot linger (e.g. a
+			// Full part after a DoubleBox would otherwise keep the frame on its
+			// incoming slot). Parts with the frame keep it; the outgoing DoubleBox
+			// slot stays revealed until its own off-air point.
+			parts.forEach((generated, i) => {
+				const slot = partLookSlots[i]
+				if (
+					slot === undefined ||
+					generated.part.invalid ||
+					generated.part.floated ||
+					!isLookBearingPartType(intermediateSegment.parts[i]?.type ?? null)
+				) {
+					return
+				}
+				const ownsFrame = generated.pieces.some((piece) =>
 					(piece.content.timelineObjects ?? []).some(
 						(obj) =>
+							String(obj.layer) === (getLookLayers(slot).doubleBoxLoop as string) &&
 							(obj.content as { type?: string; file?: string }).file === DOUBLEBOX_LOOP_FILE &&
 							(obj.content as { type?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA
 					)
 				)
-			)
-			if (!segmentHasDbLoopFrame) {
-				parts.forEach((generated, i) => {
-					const slot = partLookSlots[i]
-					if (
-						slot === undefined ||
-						generated.part.invalid ||
-						generated.part.floated ||
-						!isLookBearingPartType(intermediateSegment.parts[i]?.type ?? null)
-					) {
-						return
-					}
-					generated.pieces.push(
-						literal<IBlueprintPiece>({
-							enable: { start: 0 },
-							externalId: `${generated.part.externalId}_db_loop_hold`,
-							name: 'db_loop hold (vMix)',
-							lifespan: PieceLifespan.WithinPart,
-							sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
-							outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
-							content: {
-								timelineObjects: [
-									createVmixDbLoopOpacityZeroObject(getLookLayers(slot).doubleBoxLoop),
-								] as TimelineBlueprintExt[],
-							},
-						})
-					)
-				})
-			}
+				if (ownsFrame) {
+					return
+				}
+				generated.pieces.push(
+					literal<IBlueprintPiece>({
+						enable: { start: 0 },
+						externalId: `${generated.part.externalId}_db_loop_hold`,
+						name: 'db_loop hold (vMix)',
+						lifespan: PieceLifespan.WithinPart,
+						sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
+						outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
+						content: {
+							timelineObjects: [
+								createVmixDbLoopOpacityZeroObject(getLookLayers(slot).doubleBoxLoop),
+							] as TimelineBlueprintExt[],
+						},
+					})
+				)
+			})
 		}
 		// Paused *foreground* preview of the incoming clip/ILU on the off-air channel:
 		// the vMix input shows a frozen frame for the whole part instead of `bg_loop`,

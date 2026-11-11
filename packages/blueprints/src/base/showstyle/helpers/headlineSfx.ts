@@ -5,6 +5,7 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
+import { usesVmixProgram } from './visionMixer.js'
 
 /** Caspar PLAY path (no extension) — disk: `sofie-demo-media/assets/headline_sfx.wav`. */
 export const HEADLINE_SFX_FILE = 'assets/headline_sfx'
@@ -19,13 +20,17 @@ const HEADLINE_SFX_PACKAGE_FILE = 'assets/headline_sfx.wav'
  */
 export const HEADLINE_SFX_DURATION_MS = 2500
 
-/** Studio `audioLevels.headlineSfxVolume` (0–1 Caspar mixer, default 0.5). */
+/**
+ * Studio `audioLevels.headlineSfxVolume` (0–1 Caspar mixer). vMix-program
+ * studios default to 0.5 (the sting rides the clean-GFX feed and reads loud);
+ * other studios keep the previous level 1 unless explicitly configured.
+ */
 export function getHeadlineSfxVolume(config: StudioConfig): number {
 	const raw = config.audioLevels?.headlineSfxVolume
 	if (typeof raw === 'number' && Number.isFinite(raw)) {
 		return Math.min(1, Math.max(0, raw))
 	}
-	return 0.5
+	return usesVmixProgram(config) ? 0.5 : 1
 }
 
 /**

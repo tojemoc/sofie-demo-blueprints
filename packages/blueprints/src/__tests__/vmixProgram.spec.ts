@@ -1,9 +1,17 @@
 import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
-import { createLookSlotSequence, finalizeHypercomposedPart } from '../base/showstyle/helpers/pgmLook.js'
+import {
+	createLookSlotSequence,
+	finalizeHypercomposedPart,
+	LOOK_HARD_CUT_KEEPALIVE_MS,
+} from '../base/showstyle/helpers/pgmLook.js'
 import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
-import { VMIX_STINGER_PREVIEW_LEAD_MS, vmixStingerForWipeFile } from '../base/showstyle/helpers/visionMixer.js'
+import {
+	VMIX_HARD_CUT_RESUME_LEAD_MS,
+	VMIX_STINGER_PREVIEW_LEAD_MS,
+	vmixStingerForWipeFile,
+} from '../base/showstyle/helpers/visionMixer.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
@@ -554,7 +562,8 @@ describe('vMix feed mode (look feed inputs)', () => {
 		}
 	})
 
-	it('incoming clip/ILU objects start at 0 with noStarttime; RESUME at 100 hard-cut / 0 wiped', () => {
+	it('incoming clip/ILU objects start at 0 with noStarttime; RESUME before the Cut hard-cut / 0 wiped', () => {
+		const hardCutResumeMs = Math.max(0, LOOK_HARD_CUT_KEEPALIVE_MS - VMIX_HARD_CUT_RESUME_LEAD_MS)
 		let hardCutResumes = 0
 		let wipedResumes = 0
 		for (const { pieces } of parts) {
@@ -567,7 +576,7 @@ describe('vMix feed mode (look feed inputs)', () => {
 				const resume = obj.keyframes?.find((kf) => (kf.content as { playing?: boolean }).playing === true)
 				if (!resume || Array.isArray(resume.enable)) continue
 				const start = resume.enable.start ?? 0
-				if (start === 100) hardCutResumes++
+				if (start === hardCutResumeMs) hardCutResumes++
 				else if (start === 0) wipedResumes++
 			}
 		}
