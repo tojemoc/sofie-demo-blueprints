@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
       - name: restore node_modules
@@ -74,7 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
       - name: restore node_modules
@@ -112,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
       - name: Configure Yarn
@@ -217,7 +217,7 @@ jobs:
           ref: ${{ steps.release_ref.outputs.ref }}
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
 
@@ -297,7 +297,7 @@ jobs:
           persist-credentials: false
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
 
