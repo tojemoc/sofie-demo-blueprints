@@ -14,6 +14,7 @@ import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { autoNextFromRe } from '../helpers/autoNext.js'
 
+/** Generate a REMOTE part — remote guest input peeked on the last claimed look slot. */
 export function generateRemotePart(
 	context: PartContext,
 	part: PartProps<RemoteProps>,

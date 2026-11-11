@@ -379,6 +379,7 @@ export function findWipeVideoObject(objects: SomeObject[]): VideoObject | undefi
 	)
 }
 
+/** Map a slot-A layer id onto `slot` via {@link LOOK_A_TO_B} (identity for A). */
 function remapLayerId(layer: string, slot: LookSlot): string {
 	if (slot === 'A') return layer
 	return LOOK_A_TO_B[layer] ?? layer
@@ -1141,6 +1142,8 @@ export function finalizeHypercomposedPart(
 	// CLEAR until the first incoming L3D is on-air. Wiped Takes: that is max(wipeEnd,
 	// earliest objectTime) so start:1s under wipe_sport cannot gap-fill previous CG.
 	// wipe_pocasie lands weather GFX at the cover cut with bg_pocasie.
+	// Take-relative time the incoming L3D reaches air — after the wipe ends (or
+	// the weather cover cut for wipe_pocasie), or after L3D_OUT_MS on hard cuts.
 	const l3dOnAirMs = (earliestObjectTimeMs: number): number =>
 		hasWipe
 			? wipePocasie
@@ -1640,6 +1643,7 @@ const EDITORIAL_AUDIO_LOOK_LAYERS = new Set<string>([
 	CasparCGLayers.CasparCGIluPlayer,
 ])
 
+/** Set the Caspar mixer volume on a clip/ILU MEDIA object in place. */
 function setLookClipMixerVolume(obj: TimelineBlueprintExt, volume: number): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.mixer = { ...(content.mixer ?? {}), volume }
@@ -1757,6 +1761,7 @@ function rampVmixLookClipAudio(pieces: IBlueprintPiece[], stingCoverMs: number):
 	}
 }
 
+/** Caspar-PGM path: hold editorial look clip/ILU audio at 0 for the wipe duration. */
 function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDurationMs: number): void {
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects ?? []
@@ -1803,10 +1808,12 @@ const LOOK_L3D_TEMPLATE_LAYERS = new Set<string>([
 const HEADLINE_L3D_TEMPLATE_LAYERS = new Set<string>([CasparCGLayers.CasparCGGraphicsHeadline])
 const L3D_TEMPLATE_LAYERS = new Set<string>([...LOOK_L3D_TEMPLATE_LAYERS, ...HEADLINE_L3D_TEMPLATE_LAYERS])
 
+/** True when the timeline object content is a Caspar TEMPLATE. */
 function isCasparTemplate(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 }
 
+/** True when the timeline object content is Caspar MEDIA. */
 function isCasparMedia(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA
 }
@@ -1822,6 +1829,7 @@ function clearHoldFor(clearDurationMs: number | undefined, clearStartMs: number)
 	return Math.max(0, clearDurationMs - clearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
 }
 
+/** Shift a Take-time (`start: 0`) enable by `delayMs`; non-zero or non-numeric starts are left alone. */
 function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): void {
 	if (delayMs <= 0) return
 	const enable = obj.enable as { start?: number | string | null } | Array<unknown> | undefined
@@ -2020,6 +2028,7 @@ function isActiveIluZaverPiece(piece: IBlueprintPiece): boolean {
 	})
 }
 
+/** True when any piece in the part is an active ilu-zaver overlay (leaving-weather hold path). */
 function partHasActiveIluZaver(pieces: IBlueprintPiece[]): boolean {
 	return pieces.some(isActiveIluZaverPiece)
 }

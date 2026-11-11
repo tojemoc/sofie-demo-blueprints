@@ -25,6 +25,7 @@ export function casparOwnsMusicBeds(config: StudioConfig): boolean {
 	return config.visionMixer.type !== VisionMixerDevice.VMix
 }
 
+/** Kolíska hit-then-duck mixer keyframes for the Caspar audio beds (Caspar-PGM path only). */
 function koliskaMixerKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
 	return [
 		{
@@ -57,6 +58,7 @@ export function getVmixBedVolume(config: StudioConfig): number {
 	return 70
 }
 
+/** INPUT `playing:true` object for a vMix kolíska bed input. */
 function vmixBedPlayObject(
 	bed: VmixBed,
 	enable: TimelineBlueprintExt['enable'],
@@ -71,6 +73,7 @@ function vmixBedPlayObject(
 	})
 }
 
+/** AUDIO object for a vMix kolíska bed input — muted/unmuted flag at the constant bed volume. */
 function vmixBedAudioObject(
 	config: StudioConfig,
 	bed: VmixBed,
@@ -98,6 +101,7 @@ function hasVmixBeds(config: StudioConfig): boolean {
 	return config.visionMixer.type === VisionMixerDevice.VMix
 }
 
+/** Baseline kolíska bed objects — vMix bed inputs on vMix studios, Caspar audio-bed layers otherwise. */
 export function createBackgroundMusicBaselineTimeline(config: StudioConfig): TimelineBlueprintExt[] {
 	if (!casparOwnsMusicBeds(config)) {
 		return [
@@ -295,6 +299,7 @@ export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDuration
 	}
 }
 
+/** `enable.start` of a keyframe in ms (non-numeric/absent → +∞ so it sorts last). */
 function keyframeStartMs(kf: { enable?: unknown }): number {
 	const enable = kf.enable as { start?: number } | Array<unknown> | undefined
 	if (!enable || Array.isArray(enable)) return Number.POSITIVE_INFINITY
@@ -319,12 +324,14 @@ function mixerVolumeAtOrBefore(
 	return volume
 }
 
+/** True when the segment name starts with "sport" (accent-insensitive) — the Šport bed-swap segment. */
 export function isSportSegmentName(name: string): boolean {
 	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 	// Word-start match only — avoid false positives like "Transport".
 	return /^sport(?:\b|$)/u.test(normalized)
 }
 
+/** Sisyfos ForceMute channel entries for every configured Playback source. */
 export function getPlaybackForceMuteChannels(
 	config: StudioConfig
 ): { type: AudioSourceType.Playback; index: number; isOn: false }[] {

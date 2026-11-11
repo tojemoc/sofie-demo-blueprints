@@ -15,6 +15,7 @@ export type PgmCameraTimelineContent = TSR.TimelineContentCCGMedia | TSR.Timelin
 
 const DECKLINK_PRODUCER_RE = /^DECKLINK(?:\s+DEVICE)?\s+(\d+)(?:\s+FORMAT\s+(\S+))?$/i
 
+/** True when the producer string is an ffmpeg capture URI (dshow / v4l2 / iec61883). */
 function isLiveFfmpegProducer(producer: string): boolean {
 	return /^dshow:\/\//i.test(producer) || /^v4l2:\/\//i.test(producer) || /^iec61883:\/\//i.test(producer)
 }

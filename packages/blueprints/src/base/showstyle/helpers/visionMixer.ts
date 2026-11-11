@@ -154,6 +154,7 @@ export function usesVmixProgram(config: StudioConfig): boolean {
 	return config.visionMixer.type === VisionMixerDevice.VMix && Boolean(config.casparcg.hypercomposed)
 }
 
+/** vMix input index of the composite look input for the slot (A or B). */
 export function getVmixLookInput(config: StudioConfig, slot: 'A' | 'B'): number {
 	return slot === 'A' ? config.vmixProgram.lookAInput : config.vmixProgram.lookBInput
 }
@@ -169,10 +170,12 @@ export function getVmixLookFeedInput(config: StudioConfig, slot: 'A' | 'B'): num
 	return typeof feed === 'number' && feed > 0 && feed !== look ? feed : 0
 }
 
+/** vMix input index of the clean-GFX feed (Overlay 1). */
 export function getVmixCleanGfxInput(config: StudioConfig): number {
 	return config.vmixProgram.cleanGfxInput
 }
 
+/** vMix input index of the studio camera layered on the look inputs. */
 export function getVmixCameraInput(config: StudioConfig): number {
 	return config.vmixProgram.cameraInput
 }

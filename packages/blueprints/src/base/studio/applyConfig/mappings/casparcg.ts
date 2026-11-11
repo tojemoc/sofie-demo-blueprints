@@ -19,6 +19,7 @@ export interface HypercomposedChannelMap {
 	camIngestChannel: number
 }
 
+/** Pick `preferred` channel or the next free one above it; marks the choice used. */
 function nextFreeChannel(preferred: number, used: Set<number>): number {
 	let channel = Number.isFinite(preferred) && preferred >= 1 ? Math.floor(preferred) : 1
 	while (used.has(channel)) {
@@ -28,6 +29,7 @@ function nextFreeChannel(preferred: number, used: Set<number>): number {
 	return channel
 }
 
+/** Resolve the five hypercomposed channel numbers (LED / PGM / BG A / BG B / cam ingest), de-conflicting clashes. */
 export function getHypercomposedChannels(config: BlueprintConfig): HypercomposedChannelMap {
 	const hypercomposed = config.studio.casparcg.hypercomposed
 	const used = new Set<number>()
@@ -41,6 +43,7 @@ export function getHypercomposedChannels(config: BlueprintConfig): Hypercomposed
 	}
 }
 
+/** Plain Caspar layer mapping (channel/layer + lookahead mode). */
 function casparLayerMapping(
 	channel: number,
 	layer: number,
@@ -100,6 +103,7 @@ function lookDoubleBoxLoopMapping(channel: number, vmix: boolean): BlueprintMapp
 		: casparPreloadMapping(channel, BgChannelLayers.DoubleBoxLoop)
 }
 
+/** Slot-A look-channel layer mappings (bg_loop, clip, ILU, cam, db_loop, L3D). */
 function lookStackMappings(
 	channel: number,
 	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird },
@@ -133,6 +137,7 @@ function lookStackMappings(
 	}
 }
 
+/** Slot-B look-channel layer mappings — same stack as {@link lookStackMappings} on the B ids. */
 function lookStackMappingsB(
 	channel: number,
 	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird },
@@ -229,6 +234,7 @@ export const VMIX_RETIRED_CASPAR_LAYERS: ReadonlyArray<CasparCGLayers> = [
 	CasparCGLayers.CasparCGDebugLabelCamIngest,
 ]
 
+/** All Caspar layer mappings for the studio (LED, PGM, look A/B, ingest), minus the layers retired on vMix studios. */
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
 	const { ledChannel, pgmChannel, bgChannelA, bgChannelB, camIngestChannel } = getHypercomposedChannels(config)
 	// vMix switches program: the PGM channel carries clean GFX. Headline L3Ds stay

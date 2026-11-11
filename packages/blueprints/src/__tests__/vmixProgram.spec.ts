@@ -60,12 +60,14 @@ const vmixStudioConfig: StudioConfig = {
 const RETIRED_LAYERS = new Set<string>(VMIX_RETIRED_CASPAR_LAYERS)
 const CASPAR_MUSIC_BEDS = new Set<string>([BG_MUSIC_A_FILE, BG_MUSIC_C_FILE])
 
+/** Segment context stub returning the given studio config. */
 function vmixContext(config: StudioConfig = vmixStudioConfig) {
 	return { ...mockSegmentContext(), getStudioConfig: () => ({ studio: config }) } as ReturnType<
 		typeof mockSegmentContext
 	>
 }
 
+/** Generate all parts of the smoke rundown under the given (vMix) studio config. */
 function generateSmokeRundown(config: StudioConfig = vmixStudioConfig): Array<{
 	externalId: string
 	pieces: IBlueprintPiece[]
@@ -83,10 +85,12 @@ function generateSmokeRundown(config: StudioConfig = vmixStudioConfig): Array<{
 	return parts
 }
 
+/** Flatten the timeline objects of a part's pieces. */
 function objectsOf(pieces: IBlueprintPiece[]): TimelineBlueprintExt[] {
 	return pieces.flatMap((piece) => (piece.content.timelineObjects ?? []) as TimelineBlueprintExt[])
 }
 
+/** The vMix PROGRAM objects among a part's timeline objects. */
 function programObjects(pieces: IBlueprintPiece[]): Array<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>> {
 	return objectsOf(pieces).filter((obj) => obj.layer === VMixLayers.VMixMeProgram) as Array<
 		TimelineBlueprintExt<TSR.TimelineContentVMixProgram>
@@ -219,6 +223,7 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 		expect(programObjects(pieces)[0]?.content.input).toBe(LOOK_B_INPUT)
 	})
 
+	/** The wipe piece of a part, if any. */
 	const wipePieceOf = (pieces: IBlueprintPiece[]) =>
 		pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 	const wipedParts = parts.filter(({ pieces }) => wipePieceOf(pieces))
@@ -370,6 +375,7 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 
 describe('vMix studio beds + DoubleBox background (smoke rundown)', () => {
 	const parts = generateSmokeRundown()
+	/** vMix AUDIO contents on the given layer among a part's pieces. */
 	const audioOn = (pieces: IBlueprintPiece[], layer: VMixLayers) =>
 		objectsOf(pieces)
 			.filter((obj) => obj.layer === layer)

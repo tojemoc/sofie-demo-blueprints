@@ -62,6 +62,7 @@ beforeAll(async () => {
 	baseManifest = (await import('../base/showstyle/manifest.js')).baseManifest
 })
 
+/** Baseline timeline objects for the given studio config. */
 function baselineObjects(config: StudioConfig): TimelineBlueprintExt[] {
 	const baseline = getBaseline({
 		getStudioConfig: () => ({ studio: config }),
@@ -178,6 +179,7 @@ describe('vMix recording', () => {
 		})
 	})
 
+	/** Persistent-state store stub preloaded with `initial`. */
 	const makePersistentState = (initial: Record<string, unknown> = {}) => {
 		const store = { ...initial }
 		return {
@@ -188,6 +190,7 @@ describe('vMix recording', () => {
 		} as unknown as BlueprintPlayoutPersistentStore<{ vmixRecordingStarted?: boolean }>
 	}
 
+	/** onTake context stub: records inserted pieces and reports next-part source layers. */
 	const makeTakeContext = (config: StudioConfig, isRehearsal: boolean, nextSourceLayerIds: string[] = []) => {
 		const inserted: IBlueprintPiece[] = []
 		const context = {
@@ -430,6 +433,7 @@ describe('vMix recording', () => {
 })
 
 describe('countup hold on out-of-order navigation', () => {
+	/** Persistent-state store stub preloaded with `initial`. */
 	const makePersistentState = (initial: Record<string, unknown> = {}) => {
 		const store = { ...initial }
 		return {

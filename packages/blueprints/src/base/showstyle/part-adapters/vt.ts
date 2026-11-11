@@ -20,6 +20,7 @@ import { parseConfig } from '../helpers/config.js'
 import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { autoNextFromRe } from '../helpers/autoNext.js'
 
+/** Generate a VT part — video clip on the look clip layer (SYN/VT). */
 export function generateVTPart(
 	context: PartContext,
 	part: PartProps<VTProps>,

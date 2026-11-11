@@ -4,6 +4,7 @@ import { SourceType, StudioConfig } from '../../helpers/config.js'
 import { VMixLayers } from '../../layers.js'
 import { VmixInputConfig } from '../../../../$schemas/generated/main-studio-config.js'
 
+/** vMix INPUT/AUDIO/OVERLAY/PROGRAM/PREVIEW/RECORDING mappings for the studio's configured inputs. */
 export function getVMixMappings(
 	vmixSources: StudioConfig['vmixSources'],
 	vmixProgram: StudioConfig['vmixProgram'],

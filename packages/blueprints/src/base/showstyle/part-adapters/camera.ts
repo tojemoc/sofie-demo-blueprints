@@ -70,6 +70,7 @@ function createPgmCameraTimelineObjects(
 	]
 }
 
+/** Generate a CAM part — fullscreen or DoubleBox look camera (+guest overlay) on the claimed slot. */
 export function generateCameraPart(
 	context: PartContext,
 	part: PartProps<CameraProps>,

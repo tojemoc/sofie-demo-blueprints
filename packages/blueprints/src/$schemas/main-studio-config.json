@@ -381,18 +381,16 @@
 				"headlineSfxVolume": {
 					"type": "number",
 					"ui:title": "Headline SFX volume",
-					"ui:description": "Caspar mixer volume (0–1) for the headline sting (assets/headline_sfx) on the PGM + LED bed layers.",
+					"ui:description": "Caspar mixer volume (0–1) for the headline sting (assets/headline_sfx) on the PGM + LED bed layers. Unset: 0.5 on vMix-program studios, 1 on other studios.",
 					"minimum": 0,
-					"maximum": 1,
-					"default": 0.5
+					"maximum": 1
 				},
 				"countupVolume": {
 					"type": "number",
 					"ui:title": "Countup volume",
-					"ui:description": "Caspar mixer volume (0–1) for the 360 countup SFX (assets/countup).",
+					"ui:description": "Caspar mixer volume (0–1) for the 360 countup SFX (assets/countup). Unset: 0.5 on vMix-program studios, 1 on other studios.",
 					"minimum": 0,
-					"maximum": 1,
-					"default": 0.5
+					"maximum": 1
 				}
 			},
 			"additionalProperties": false

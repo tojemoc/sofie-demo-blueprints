@@ -40,6 +40,7 @@ export interface CountupRevealClaim {
 	isRevealed(rundownId: string): boolean
 }
 
+/** Fresh claim set for one generation — the first claimant wins the reveal, later ones are told it is already revealed. */
 export function createCountupRevealClaim(): CountupRevealClaim {
 	const claimedRundownIds = new Set<string>()
 	return {
@@ -291,6 +292,7 @@ export function partShouldPersistCountupMute(rawType: string | undefined, object
 	return partIsOutroOrZaverCountupMute(rawType, objects)
 }
 
+/** Append a sustain (or mute) countup piece to the part once the countup has been revealed in this rundown. */
 export function appendCountupSustainIfRevealed(
 	context: PartContext,
 	config: StudioConfig,

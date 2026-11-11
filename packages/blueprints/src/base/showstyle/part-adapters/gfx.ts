@@ -10,6 +10,7 @@ import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { autoNextFromRe, autoNextPublicData } from '../helpers/autoNext.js'
 
+/** Generate a GFX part — L3D graphic plus optional look ILU underlay on the claimed slot. */
 export function generateGfxPart(
 	context: PartContext,
 	part: PartProps<GfxProps>,

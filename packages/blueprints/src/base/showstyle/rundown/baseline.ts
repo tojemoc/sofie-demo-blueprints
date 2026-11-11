@@ -46,6 +46,7 @@ export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 // baseline (baseline → pgmLook → countupReveal would form a module cycle).
 export { PGM_COUNTUP_FILE } from '../helpers/countupReveal.js'
 
+/** Rundown-activation baseline: LED/look underlays, calibration frames, beds, routes and mixer program/preview seeding per studio type. */
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
 	const vmixProgram = usesVmixProgram(config)
@@ -337,6 +338,7 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	]
 }
 
+/** Caspar-PGM baseline: dual always-live look routes and look CAM pre-warm. */
 function getCasparProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
@@ -375,6 +377,7 @@ function getCasparProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] 
 	]
 }
 
+/** ATEM baseline: DSK graphics overlay + audio mappings. */
 function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	const dskInput = Object.values<InputConfig>(config.atemSources).find((source) => source.type === SourceType.Graphics)
 
@@ -453,6 +456,7 @@ function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	]
 }
 
+/** vMix baseline: clean-GFX overlay and, for program studios, the look program/preview objects. */
 function getVMixBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	const dskInput = usesVmixProgram(config)
 		? getVmixCleanGfxInput(config)
