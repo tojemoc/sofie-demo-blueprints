@@ -52,16 +52,19 @@ const vmixStudioConfig: StudioConfig = {
 const RETIRED_LAYERS = new Set<string>(VMIX_RETIRED_CASPAR_LAYERS)
 const CASPAR_MUSIC_BEDS = new Set<string>([BG_MUSIC_A_FILE, BG_MUSIC_C_FILE])
 
-function vmixContext() {
-	return { ...mockSegmentContext(), getStudioConfig: () => ({ studio: vmixStudioConfig }) } as ReturnType<
+function vmixContext(config: StudioConfig = vmixStudioConfig) {
+	return { ...mockSegmentContext(), getStudioConfig: () => ({ studio: config }) } as ReturnType<
 		typeof mockSegmentContext
 	>
 }
 
-function generateSmokeRundown(): Array<{ externalId: string; pieces: IBlueprintPiece[] }> {
+function generateSmokeRundown(config: StudioConfig = vmixStudioConfig): Array<{
+	externalId: string
+	pieces: IBlueprintPiece[]
+}> {
 	const exportData = loadSmokeRundownExport()
 	const seq = createLookSlotSequence()
-	const ctx = vmixContext()
+	const ctx = vmixContext(config)
 	const parts: Array<{ externalId: string; pieces: IBlueprintPiece[] }> = []
 	for (const segId of [...new Set(exportData.parts.map((p) => p.segmentId))]) {
 		const intermediate = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segId))
@@ -309,7 +312,7 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 		}
 	})
 
-	it('look CAM becomes vMix layer 1 on the look input with the look bg_loop hidden', () => {
+	it('look CAM becomes vMix layer 1 with the feed on layer 2 and no look bg_loop objects', () => {
 		const cameraParts = parts.filter(({ pieces }) =>
 			objectsOf(pieces).some(
 				(obj) =>
@@ -320,18 +323,28 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 		expect(cameraParts.length).toBeGreaterThan(0)
 		for (const { externalId, pieces } of cameraParts) {
 			const objs = objectsOf(pieces)
-			const camera = objs.find((obj) => (obj.content as TSR.TimelineContentVMixInput).layers?.[1])
-			const layer = (camera?.content as TSR.TimelineContentVMixInput).layers?.[1]
-			expect(layer?.input, `part ${externalId}`).toBe(CAMERA_INPUT)
-			const bgLoopLayer =
-				camera?.layer === VMixLayers.VMixLookInputA
-					? CasparCGLayers.CasparCGLookBgLoop
-					: CasparCGLayers.CasparCGLookBgLoopB
-			const hidden = objs.find((obj) => obj.layer === bgLoopLayer)
-			expect((hidden?.content as TSR.TimelineContentCCGMedia)?.mixer?.opacity, `part ${externalId}`).toBe(0)
-			// vMix input matches the PROGRAM input this Take brings live.
-			const lookInput = camera?.layer === VMixLayers.VMixLookInputA ? LOOK_A_INPUT : LOOK_B_INPUT
-			expect(programObjects(pieces)[0].content.input, `part ${externalId}`).toBe(lookInput)
+			// The PROGRAM input's own look-input object carries the camera on layer 1
+			// (a preview clone on the outgoing slot is a separate object).
+			const programInput = programObjects(pieces)[0].content.input
+			const programLayer =
+				programInput === LOOK_A_INPUT
+					? VMixLayers.VMixLookInputA
+					: programInput === LOOK_B_INPUT
+						? VMixLayers.VMixLookInputB
+						: undefined
+			const camera =
+				objs.find((obj) => obj.layer === programLayer && (obj.content as TSR.TimelineContentVMixInput).layers?.[1]) ??
+				objs.find((obj) => (obj.content as TSR.TimelineContentVMixInput).layers?.[1])
+			const input = camera?.content as TSR.TimelineContentVMixInput
+			expect(input?.layers?.[1]?.input, `part ${externalId}`).toBe(CAMERA_INPUT)
+			// Legacy vMix (no look feed inputs): the camera INPUT object drops layer 2.
+			expect(input?.layers?.[2]?.input, `part ${externalId}`).toBeUndefined()
+			// No look bg_loop on A/B outside the weather part — vMix composites the look.
+			const bgLoopLayers = [CasparCGLayers.CasparCGLookBgLoop as string, CasparCGLayers.CasparCGLookBgLoopB as string]
+			expect(
+				objs.some((obj) => bgLoopLayers.includes(String(obj.layer))),
+				`part ${externalId} must not carry look bg_loop`
+			).toBe(false)
 		}
 	})
 
@@ -376,28 +389,35 @@ describe('vMix studio beds + DoubleBox background (smoke rundown)', () => {
 		expect(audioOn(sport?.pieces ?? [], VMixLayers.VMixBedAAudio).some((a) => a.muted === true)).toBe(true)
 	})
 
-	it('every db_loop look hides its bg_loop for the same window', () => {
-		const dbLoopLayers = {
-			[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: CasparCGLayers.CasparCGLookBgLoop,
-			[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: CasparCGLayers.CasparCGLookBgLoopB,
-		} as Record<string, CasparCGLayers>
+	it('db_loop layers only carry phase-locked loops/db_loop objects (never EMPTY / paused)', () => {
+		const dbLoopLayers = new Set<string>([
+			CasparCGLayers.CasparCGPgmDoubleBoxLoop as string,
+			CasparCGLayers.CasparCGPgmDoubleBoxLoopB as string,
+		])
 		let dbLoops = 0
 		for (const { externalId, pieces } of parts) {
 			for (const piece of pieces) {
 				const objs = (piece.content.timelineObjects ?? []) as TimelineBlueprintExt[]
-				for (const obj of objs.filter((o) => dbLoopLayers[String(o.layer)])) {
-					const playing = (obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
-					if (playing) dbLoops++
-					const bg = objs.find(
-						(o) =>
-							o.layer === dbLoopLayers[String(obj.layer)] &&
-							(o.content as TSR.TimelineContentCCGMedia).mixer?.opacity === (playing ? 0 : 1)
-					)
-					expect(bg?.enable, `part ${externalId} ${piece.name}`).toEqual(obj.enable)
+				for (const obj of objs.filter((o) => dbLoopLayers.has(String(o.layer)))) {
+					const content = obj.content as TSR.TimelineContentCCGMedia
+					expect(content.file, `part ${externalId} ${piece.name}`).toBe('loops/db_loop')
+					expect(content.loop, `part ${externalId} ${piece.name}`).toBe(true)
+					expect(content.playing, `part ${externalId} ${piece.name}`).not.toBe(false)
+					dbLoops++
 				}
 			}
 		}
 		expect(dbLoops).toBeGreaterThan(0)
+		// DoubleBox-frame parts reveal the frame on both physical slots.
+		const frameObj = parts
+			.flatMap(({ pieces }) =>
+				pieces.flatMap((piece) => (piece.content.timelineObjects ?? []) as TimelineBlueprintExt[])
+			)
+			.find(
+				(obj) =>
+					dbLoopLayers.has(String(obj.layer)) && (obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity === 1
+			)
+		expect(frameObj).toBeDefined()
 	})
 })
 
@@ -427,11 +447,11 @@ describe('vMix studio baseline + mappings', () => {
 		})
 	})
 
-	it('plays bed A on its vMix input (kolíska duck) with bed C muted', () => {
+	it('plays bed A on its vMix input at bedVolume (no kolíska keyframes) with bed C muted', () => {
 		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedA)?.content).toMatchObject({ playing: true, loop: true })
 		const bedA = objs.find((obj) => obj.layer === VMixLayers.VMixBedAAudio)
-		expect(bedA?.content).toMatchObject({ muted: false, volume: 100 })
-		expect(bedA?.keyframes?.[0]?.content).toMatchObject({ volume: 45 })
+		expect(bedA?.content).toMatchObject({ muted: false, volume: 70 })
+		expect(bedA?.keyframes ?? []).toHaveLength(0)
 		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedCAudio)?.content).toMatchObject({ muted: true })
 		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, vmixStudioConfig.vmixProgram, 'vmix0')
 		expect(mappings[VMixLayers.VMixBedA]?.options).toMatchObject({ index: String(BED_A_INPUT) })
@@ -479,5 +499,152 @@ describe('vMix studio baseline + mappings', () => {
 		expect(vmixStingerForWipeFile('wipes/wipe_sjv')).toBe(TSR.VMixTransitionType.Stinger2)
 		expect(vmixStingerForWipeFile('wipes/wipe_sport')).toBe(TSR.VMixTransitionType.Stinger3)
 		expect(vmixStingerForWipeFile('wipes/wipe_pocasie')).toBe(TSR.VMixTransitionType.Stinger4)
+	})
+})
+
+describe('vMix feed mode (look feed inputs)', () => {
+	const feedConfig: StudioConfig = {
+		...vmixStudioConfig,
+		vmixProgram: { ...vmixStudioConfig.vmixProgram, lookAFeedInput: 12, lookBFeedInput: 13 },
+	}
+	const parts = generateSmokeRundown(feedConfig)
+
+	const LOOK_COMPOSE_LAYERS = new Set<string>([
+		CasparCGLayers.CasparCGClipPlayer2 as string,
+		CasparCGLayers.CasparCGClipPlayer2B as string,
+		CasparCGLayers.CasparCGPgmCamera as string,
+		CasparCGLayers.CasparCGPgmCameraB as string,
+		CasparCGLayers.CasparCGPgmIluPlayer as string,
+		CasparCGLayers.CasparCGPgmIluPlayerB as string,
+		CasparCGLayers.CasparCGPgmDoubleBoxLoop as string,
+		CasparCGLayers.CasparCGPgmDoubleBoxLoopB as string,
+	])
+	const CLIP_ILU_LAYERS = new Set<string>([
+		CasparCGLayers.CasparCGClipPlayer2 as string,
+		CasparCGLayers.CasparCGClipPlayer2B as string,
+		CasparCGLayers.CasparCGPgmIluPlayer as string,
+		CasparCGLayers.CasparCGPgmIluPlayerB as string,
+	])
+	const LOOK_INPUT_LAYERS = new Set<string>([VMixLayers.VMixLookInputA as string, VMixLayers.VMixLookInputB as string])
+
+	it('every look INPUT object keeps camera layer 1 and feed layer 2', () => {
+		let count = 0
+		for (const { externalId, pieces } of parts) {
+			for (const obj of objectsOf(pieces)) {
+				if (!LOOK_INPUT_LAYERS.has(String(obj.layer))) continue
+				const content = obj.content as TSR.TimelineContentVMixInput
+				if (content?.type !== TSR.TimelineContentTypeVMix.INPUT) continue
+				expect(content.layers?.[1]?.input, `part ${externalId} layer ${String(obj.layer)}`).toBe(CAMERA_INPUT)
+				expect([12, 13], `part ${externalId} layer ${String(obj.layer)}`).toContain(content.layers?.[2]?.input)
+				count++
+			}
+		}
+		expect(count).toBeGreaterThan(0)
+	})
+
+	it('no non-adlib look-compose MEDIA object exceeds priority 1', () => {
+		for (const { externalId, pieces } of parts) {
+			for (const obj of objectsOf(pieces)) {
+				if (!LOOK_COMPOSE_LAYERS.has(String(obj.layer))) continue
+				expect(
+					obj.priority ?? 0,
+					`part ${externalId} layer ${String(obj.layer)} file ${String((obj.content as { file?: string }).file)}`
+				).toBeLessThanOrEqual(1)
+			}
+		}
+	})
+
+	it('incoming clip/ILU objects start at 0 with noStarttime; RESUME at 100 hard-cut / 0 wiped', () => {
+		let hardCutResumes = 0
+		let wipedResumes = 0
+		for (const { pieces } of parts) {
+			for (const obj of objectsOf(pieces)) {
+				if (!CLIP_ILU_LAYERS.has(String(obj.layer))) continue
+				const content = obj.content as TSR.TimelineContentCCGMedia
+				if (content?.file === 'EMPTY' || typeof content?.file !== 'string' || content.file === 'loops/db_loop') continue
+				if (!Array.isArray(obj.enable) && obj.enable?.start !== 0) continue
+				expect(content.noStarttime).toBe(true)
+				const resume = obj.keyframes?.find((kf) => (kf.content as { playing?: boolean }).playing === true)
+				if (!resume || Array.isArray(resume.enable)) continue
+				const start = resume.enable.start ?? 0
+				if (start === 100) hardCutResumes++
+				else if (start === 0) wipedResumes++
+			}
+		}
+		expect(hardCutResumes).toBeGreaterThan(0)
+		expect(wipedResumes).toBeGreaterThan(0)
+	})
+
+	it('wiped clip/ILU objects start muted with a single LINEAR ramp to editorial volume', () => {
+		let ramps = 0
+		for (const { pieces } of parts) {
+			for (const obj of objectsOf(pieces)) {
+				if (!CLIP_ILU_LAYERS.has(String(obj.layer))) continue
+				const content = obj.content as TSR.TimelineContentCCGMedia
+				if (content?.mixer?.volume !== 0) continue
+				const ramp = (obj.keyframes ?? []).filter(
+					(kf) => (kf.content as { mixer?: { volume?: number } }).mixer?.volume !== undefined
+				)
+				for (const kf of ramp) {
+					const kfContent = kf.content as { mixer?: { volume?: unknown; inTransition?: { easing?: string } } }
+					expect(
+						typeof kfContent.mixer?.volume === 'object' ? kfContent.mixer.volume : kfContent.mixer?.volume
+					).toBeDefined()
+					ramps++
+				}
+			}
+		}
+		expect(ramps).toBeGreaterThan(0)
+	})
+
+	it('no look bg_loop outside the weather part', () => {
+		const bgLoopLayers = new Set<string>([
+			CasparCGLayers.CasparCGLookBgLoop as string,
+			CasparCGLayers.CasparCGLookBgLoopB as string,
+		])
+		for (const { externalId, pieces } of parts) {
+			const isWeather = objectsOf(pieces).some((obj) =>
+				/pocasie/i.test(String((obj.content as { file?: string }).file ?? ''))
+			)
+			const onLookBg = objectsOf(pieces).filter((obj) => bgLoopLayers.has(String(obj.layer)))
+			expect(isWeather || onLookBg.length === 0, `part ${externalId}`).toBe(true)
+		}
+	})
+
+	it('preview clones start at the outgoing off-air ms with no same-layer EMPTY at that start', () => {
+		let previews = 0
+		for (const { externalId, pieces } of parts) {
+			const objs = objectsOf(pieces)
+			for (const obj of objs) {
+				if (!CLIP_ILU_LAYERS.has(String(obj.layer))) continue
+				const content = obj.content as TSR.TimelineContentCCGMedia
+				if (content?.file === 'EMPTY' || content?.playing !== false) continue
+				if (Array.isArray(obj.enable) || (obj.enable?.start ?? 0) === 0) continue
+				const start = obj.enable?.start
+				expect([240, 840, 900], `part ${externalId} preview on ${String(obj.layer)}`).toContain(start)
+				expect(
+					objs.some(
+						(other) =>
+							other !== obj &&
+							String(other.layer) === String(obj.layer) &&
+							!Array.isArray(other.enable) &&
+							other.enable?.start === start &&
+							(other.content as { file?: string }).file === 'EMPTY'
+					),
+					`part ${externalId} ${String(obj.layer)} outgoing EMPTY at ${JSON.stringify(start)}`
+				).toBe(false)
+				previews++
+			}
+		}
+		expect(previews).toBeGreaterThan(0)
+	})
+
+	it('clip player maps to Caspar layer 120 on vMix studios', () => {
+		const vmixMappings = getCasparCGMappings({ studio: feedConfig })
+		expect(vmixMappings[CasparCGLayers.CasparCGClipPlayer2]?.options).toMatchObject({ layer: 120 })
+		expect(vmixMappings[CasparCGLayers.CasparCGClipPlayer2B]?.options).toMatchObject({ layer: 120 })
+		const casparMappings = getCasparCGMappings({ studio: hybridCasparConfig })
+		expect(casparMappings[CasparCGLayers.CasparCGClipPlayer2]?.options).toMatchObject({ layer: 111 })
+		expect(casparMappings[CasparCGLayers.CasparCGClipPlayer2B]?.options).toMatchObject({ layer: 111 })
 	})
 })

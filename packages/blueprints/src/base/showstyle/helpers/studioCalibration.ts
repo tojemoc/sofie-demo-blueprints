@@ -1,8 +1,12 @@
 import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { literal } from '../../../common/util.js'
+import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
+import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
+import { vmixLayerTransformFromFill } from './pgmCamera.js'
+import { PGM_FULLSCREEN_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
 
 /**
  * Caspar PLAY path (no extension) for the pre-first-Take LED calibration frame.
@@ -22,12 +26,38 @@ export const CALIBRATION_FRAME_FILE = 'loops/db_loop'
  * Emitted into every part — the spare calibration layers (LED 114, BG B 117/119)
  * are never touched by show pieces, so these clears cannot fight them.
  */
-export function createStudioCalibrationClearPiece(partExternalId: string): IBlueprintPiece {
+export function createStudioCalibrationClearPiece(partExternalId: string, config?: StudioConfig): IBlueprintPiece {
 	const calibrationLayers: CasparCGLayers[] = [
 		CasparCGLayers.CasparCGLedTestframe,
 		CasparCGLayers.CasparCGLookCalibCam,
 		CasparCGLayers.CasparCGLookCalibFrame,
 	]
+	// vMix feed mode: the pre-first-Take calibration camera is look-B input layer 3.
+	// The baseline INPUT object is priority 0 while:1, so the first Take on slot B
+	// wins by being a piece — but a first Take on slot A would leave layer 3 alive
+	// on B (and B is the baseline program input). Re-assert the static baseline
+	// layers {1: cam fullscreen, 2: feed} at priority 0: same layers, no layer 3.
+	const calibrationInputObjects: TimelineBlueprintExt[] = []
+	const feedB = config ? getVmixLookFeedInput(config, 'B') : 0
+	const cameraInput = config ? getVmixCameraInput(config) : 0
+	if (feedB > 0 && cameraInput > 0) {
+		calibrationInputObjects.push(
+			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+				id: '',
+				enable: { while: 1 },
+				layer: VMixLayers.VMixLookInputB,
+				priority: 0,
+				content: {
+					deviceType: TSR.DeviceType.VMIX,
+					type: TSR.TimelineContentTypeVMix.INPUT,
+					layers: {
+						1: { input: cameraInput, ...vmixLayerTransformFromFill(PGM_FULLSCREEN_CAMERA_FILL) },
+						2: { input: feedB },
+					},
+				},
+			})
+		)
+	}
 	return literal<IBlueprintPiece>({
 		enable: { start: 0 },
 		externalId: `${partExternalId}_calibration_clear`,
@@ -36,19 +66,22 @@ export function createStudioCalibrationClearPiece(partExternalId: string): IBlue
 		sourceLayerId: SourceLayer.StudioCalibrationClear,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.StudioCalibrationClear),
 		content: {
-			timelineObjects: calibrationLayers.map((layer) =>
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: { while: 1 },
-					layer,
-					priority: 2,
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-						file: 'EMPTY',
-					},
-				})
-			),
+			timelineObjects: [
+				...calibrationLayers.map((layer) =>
+					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+						id: '',
+						enable: { while: 1 },
+						layer,
+						priority: 2,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'EMPTY',
+						},
+					})
+				),
+				...calibrationInputObjects,
+			],
 		},
 	})
 }

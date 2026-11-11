@@ -1,16 +1,19 @@
 import {
 	BlueprintResultPart,
 	BlueprintResultSegment,
+	IBlueprintPiece,
 	ISegmentUserContext,
 	JSONBlobStringify,
 	JSONSchema,
+	PieceLifespan,
 	SourceLayerType,
+	TSR,
 	UserEditingDefinitionAction,
 	UserEditingType,
 } from '@sofie-automation/blueprints-integration'
 import { PartContext } from '../../../common/context.js'
 import { SomeObject } from '../../../common/definitions/objects.js'
-import { t } from '../../../common/util.js'
+import { literal, t } from '../../../common/util.js'
 import {
 	CameraProps,
 	DVEProps,
@@ -52,11 +55,15 @@ import {
 	LookSlot,
 	LookSlotSequence,
 	findWipeVideoObject,
+	getLookLayers,
 	getLookSlotSequenceForGeneration,
 	injectIdleLookPreviewPieces,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
+import { usesVmixProgram } from '../helpers/visionMixer.js'
+import { DOUBLEBOX_LOOP_FILE, createVmixDbLoopOpacityZeroObject } from '../helpers/doubleboxLoop.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
@@ -65,7 +72,7 @@ import {
 	segmentUsesLedPodHeadline,
 } from '../helpers/ledPodHeadline.js'
 import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
-import { SourceLayer } from '../applyconfig/layers.js'
+import { SourceLayer, getOutputLayerForSourceLayer } from '../applyconfig/layers.js'
 
 /** Part types that compose a story look on BG A/B. */
 function isLookBearingPartType(type: PartType | null): boolean {
@@ -271,7 +278,7 @@ export function generateParts(
 			// Baseline carries the studio calibration look (LED testframe + look-B
 			// db_loop/cam). Any part can be the first Take, so every part EMPTYs the
 			// spare calibration layers — OutOnRundownEnd keeps them dead to show end.
-			newPart.pieces.push(createStudioCalibrationClearPiece(rawPart.payload.externalId))
+			newPart.pieces.push(createStudioCalibrationClearPiece(rawPart.payload.externalId, studioConfig))
 		}
 		// Editorial skip / float from Rundown Editor — Sofie must not take these parts.
 		if (floatedOrSkipped) {
@@ -361,6 +368,48 @@ export function generateParts(
 	})
 
 	if (studioConfig.casparcg.hypercomposed) {
+		if (usesVmixProgram(studioConfig)) {
+			// Phase-locked db_loop: in segments with no DoubleBox-frame piece, every
+			// look-bearing part re-asserts opacity 0 on its own slot so a keepalive'd
+			// opacity-1 object from an earlier segment cannot reveal the frame.
+			const segmentHasDbLoopFrame = parts.some((generated) =>
+				generated.pieces.some((piece) =>
+					(piece.content.timelineObjects ?? []).some(
+						(obj) =>
+							(obj.content as { type?: string; file?: string }).file === DOUBLEBOX_LOOP_FILE &&
+							(obj.content as { type?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA
+					)
+				)
+			)
+			if (!segmentHasDbLoopFrame) {
+				parts.forEach((generated, i) => {
+					const slot = partLookSlots[i]
+					if (
+						slot === undefined ||
+						generated.part.invalid ||
+						generated.part.floated ||
+						!isLookBearingPartType(intermediateSegment.parts[i]?.type ?? null)
+					) {
+						return
+					}
+					generated.pieces.push(
+						literal<IBlueprintPiece>({
+							enable: { start: 0 },
+							externalId: `${generated.part.externalId}_db_loop_hold`,
+							name: 'db_loop hold (vMix)',
+							lifespan: PieceLifespan.WithinPart,
+							sourceLayerId: SourceLayer.PgmDoubleBoxLoop,
+							outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmDoubleBoxLoop),
+							content: {
+								timelineObjects: [
+									createVmixDbLoopOpacityZeroObject(getLookLayers(slot).doubleBoxLoop),
+								] as TimelineBlueprintExt[],
+							},
+						})
+					)
+				})
+			}
+		}
 		// Paused *foreground* preview of the incoming clip/ILU on the off-air channel:
 		// the vMix input shows a frozen frame for the whole part instead of `bg_loop`,
 		// and the take is a pure RESUME of an already-paused producer.

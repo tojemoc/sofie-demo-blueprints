@@ -188,6 +188,45 @@ export function vmixStingerForWipeFile(wipeFile: string | undefined): TSR.VMixTr
 export const VMIX_STINGER_PREVIEW_LEAD_MS = 40
 
 /**
+ * Measured Caspar RESUME/LOAD → picture visible in vMix program latency
+ * (~283–344 ms on the studio feed). Used to place off-air EMPTYs / preview
+ * reveals so their effect lands just after the vMix cut.
+ */
+export const VMIX_CASPAR_FEED_LATENCY_MS = 300
+
+/** Extra headroom added to the off-air point so the Caspar state change lands past the vMix cut. */
+export const VMIX_OFF_AIR_MARGIN_MS = 140
+
+/** Default stinger cut point measured from the stinger PROGRAM command (~960 ms on the studio). */
+export const DEFAULT_VMIX_STINGER_CUT_POINT_MS = 960
+
+/** Studio `vmixProgram.stingerCutPointMs` (optional) — stinger cut measured from the stinger PROGRAM command. */
+export function getVmixStingerCutPointMs(config: StudioConfig): number {
+	const raw = config.vmixProgram?.stingerCutPointMs
+	if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+		return Math.floor(raw)
+	}
+	return DEFAULT_VMIX_STINGER_CUT_POINT_MS
+}
+
+/**
+ * Take-relative vMix program cut: hard cuts `Cut` at the keepalive; wiped Takes
+ * cut when the stinger (fired at {@link VMIX_STINGER_PREVIEW_LEAD_MS}) reaches
+ * its configured cut point.
+ */
+export function vmixProgramCutMs(config: StudioConfig, hasWipe: boolean, hardCutKeepaliveMs: number): number {
+	return hasWipe ? VMIX_STINGER_PREVIEW_LEAD_MS + getVmixStingerCutPointMs(config) : hardCutKeepaliveMs
+}
+
+/** Take-relative point where the outgoing look channel goes off air (EMPTY / preview reveal). */
+export function vmixOutgoingOffAirMs(config: StudioConfig, hasWipe: boolean, hardCutKeepaliveMs: number): number {
+	return Math.max(
+		0,
+		vmixProgramCutMs(config, hasWipe, hardCutKeepaliveMs) - VMIX_CASPAR_FEED_LATENCY_MS + VMIX_OFF_AIR_MARGIN_MS
+	)
+}
+
+/**
  * Take-shaped vMix program switch: PROGRAM moves to the incoming look input at `start`
  * (stinger from Take, or CUT after the hard-cut keepalive) and PREVIEW follows to the
  * outgoing input — the idle channel the next look composes on. For stingers, a lead

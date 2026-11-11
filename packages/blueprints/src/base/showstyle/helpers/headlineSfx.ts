@@ -19,6 +19,15 @@ const HEADLINE_SFX_PACKAGE_FILE = 'assets/headline_sfx.wav'
  */
 export const HEADLINE_SFX_DURATION_MS = 2500
 
+/** Studio `audioLevels.headlineSfxVolume` (0–1 Caspar mixer, default 0.5). */
+export function getHeadlineSfxVolume(config: StudioConfig): number {
+	const raw = config.audioLevels?.headlineSfxVolume
+	if (typeof raw === 'number' && Number.isFinite(raw)) {
+		return Math.min(1, Math.max(0, raw))
+	}
+	return 0.5
+}
+
 /**
  * One-shot SFX under each headline Take (PGM + LED audio beds).
  * WithinPart so each of the three HEADLINE parts fires a fresh PLAY.
@@ -44,6 +53,7 @@ export function createHeadlineSfxPiece(
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				file,
 				loop: false,
+				mixer: { volume: getHeadlineSfxVolume(config) },
 			},
 		})
 	)

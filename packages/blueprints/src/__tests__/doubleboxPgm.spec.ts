@@ -283,7 +283,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(countupTl?.keyframes?.[0]?.enable).toEqual({ start: WIPE_AIR_CUT_MS })
 		expect(countupTl?.keyframes?.[0]?.content).toMatchObject({
 			playing: true,
-			mixer: { opacity: 1, volume: 1 },
+			mixer: { opacity: 1, volume: 0.5 },
 		})
 		expect(result.pieces.some((piece) => piece.externalId.endsWith('_led_pod_headline_clear'))).toBe(true)
 

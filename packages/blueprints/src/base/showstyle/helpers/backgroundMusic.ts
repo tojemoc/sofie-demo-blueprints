@@ -48,9 +48,13 @@ const VMIX_BED_LAYERS: Record<VmixBed, { input: VMixLayers; audio: VMixLayers }>
 	C: { input: VMixLayers.VMixBedC, audio: VMixLayers.VMixBedCAudio },
 }
 
-/** vMix AUDIO volume (0–100) for a Caspar mixer volume (0–1). */
-function vmixBedVolume(volume: number): number {
-	return Math.round(volume * 100)
+/** vMix AUDIO volume for the kolíska beds — studio `vmixProgram.bedVolume` (0–100, default 70). */
+export function getVmixBedVolume(config: StudioConfig): number {
+	const raw = config.vmixProgram?.bedVolume
+	if (typeof raw === 'number' && Number.isFinite(raw)) {
+		return Math.min(100, Math.max(0, Math.round(raw)))
+	}
+	return 70
 }
 
 function vmixBedPlayObject(
@@ -68,11 +72,14 @@ function vmixBedPlayObject(
 }
 
 function vmixBedAudioObject(
+	config: StudioConfig,
 	bed: VmixBed,
 	enable: TimelineBlueprintExt['enable'],
 	priority: number,
-	audio: { muted: true } | { koliska: true }
+	audio: { muted: true } | { unmuted: true }
 ): TimelineBlueprintExt<TSR.TimelineContentVMixAudio> {
+	// Constant bedVolume — no kolíska hit-then-duck keyframes (a shadowed object
+	// restart used to replay the envelope on every wipe).
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixAudio>>({
 		id: '',
 		enable,
@@ -81,23 +88,8 @@ function vmixBedAudioObject(
 		content: {
 			deviceType: TSR.DeviceType.VMIX,
 			type: TSR.TimelineContentTypeVMix.AUDIO,
-			...('muted' in audio ? { muted: true } : { muted: false, volume: vmixBedVolume(KOLISKA_HIT_VOLUME) }),
+			...('muted' in audio ? { muted: true } : { muted: false, volume: getVmixBedVolume(config) }),
 		},
-		...('koliska' in audio
-			? {
-					keyframes: [
-						{
-							id: '',
-							enable: { start: KOLISKA_HIT_DURATION_MS },
-							content: {
-								deviceType: TSR.DeviceType.VMIX,
-								type: TSR.TimelineContentTypeVMix.AUDIO,
-								volume: vmixBedVolume(KOLISKA_BED_VOLUME),
-							},
-						},
-					],
-				}
-			: {}),
 	})
 }
 
@@ -112,8 +104,8 @@ export function createBackgroundMusicBaselineTimeline(config: StudioConfig): Tim
 			...(hasVmixBeds(config)
 				? [
 						vmixBedPlayObject('A', { while: 1 }, 0),
-						vmixBedAudioObject('A', { while: 1 }, 0, { koliska: true }),
-						vmixBedAudioObject('C', { while: 1 }, 0, { muted: true }),
+						vmixBedAudioObject(config, 'A', { while: 1 }, 0, { unmuted: true }),
+						vmixBedAudioObject(config, 'C', { while: 1 }, 0, { muted: true }),
 					]
 				: []),
 		]
@@ -171,7 +163,7 @@ export function createBackgroundMusicMutePiece(
 					})
 				: (['A', 'C'] as const)
 						.filter(() => hasVmixBeds(config))
-						.map((bed) => vmixBedAudioObject(bed, timelineEnable ?? { start: 0 }, 2, { muted: true })),
+						.map((bed) => vmixBedAudioObject(config, bed, timelineEnable ?? { start: 0 }, 2, { muted: true })),
 		},
 		expectedPackages: [],
 		prerollDuration: prerollMs,
@@ -230,8 +222,8 @@ export function createSportBackgroundMusicPiece(
 						...(hasVmixBeds(config)
 							? [
 									vmixBedPlayObject('C', { start: 0 }, 1),
-									vmixBedAudioObject('C', { start: 0 }, 1, { koliska: true }),
-									vmixBedAudioObject('A', { start: 0 }, 1, { muted: true }),
+									vmixBedAudioObject(config, 'C', { start: 0 }, 1, { unmuted: true }),
+									vmixBedAudioObject(config, 'A', { start: 0 }, 1, { muted: true }),
 								]
 							: []),
 					],

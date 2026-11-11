@@ -60,3 +60,27 @@ export function createDoubleBoxLoopPiece(
 		prerollDuration: config.casparcgLatency,
 	})
 }
+
+/**
+ * vMix: hidden opacity-0 `loops/db_loop` on the part's own slot at start 0.
+ * Emitted by generateParts on every look-bearing part of a segment with no
+ * DoubleBox-frame piece so the phase-locked baseline loop is never revealed
+ * (and a keepalive'd opacity-1 object from an earlier segment cannot win).
+ */
+export function createVmixDbLoopOpacityZeroObject(
+	dbLoopLayer: CasparCGLayers
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { start: 0 },
+		layer: dbLoopLayer,
+		priority: 1,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: DOUBLEBOX_LOOP_FILE,
+			loop: true,
+			mixer: { opacity: 0 },
+		},
+	})
+}
