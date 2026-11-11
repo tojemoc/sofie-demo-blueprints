@@ -483,7 +483,13 @@ function getGraphicTlLayer(object: GraphicObjectBase): CasparCGLayers {
 	} else if (isPocasieGraphic(object) || object.clipName.match(/fullscreen/i)) {
 		// Fullscreen story GFX on PGM clip player — never displace LED bg loop.
 		return CasparCGLayers.CasparCGClipPlayer2
-	} else if (normalizeGraphicClipName(object.clipName) === 'gfx/l3d-headline') {
+	} else if (
+		normalizeGraphicClipName(object.clipName) === 'gfx/l3d-headline' ||
+		normalizeGraphicClipName(object.clipName) === 'gfx/l3d-mod'
+	) {
+		// Headline L3D and the opening MOD nameplate ride the dedicated clean-GFX
+		// channel — unused during the opening, so the nameplate survives the look
+		// A↔B swaps instead of being EMPTYed with the outgoing look's L3D layer.
 		return CasparCGLayers.CasparCGGraphicsHeadline
 	} else if (isPgmL3dGraphic(object)) {
 		// Non-headline L3Ds ride the active look feed so transitions remove them atomically.
