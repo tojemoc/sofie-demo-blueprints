@@ -154,6 +154,7 @@ export function usesVmixProgram(config: StudioConfig): boolean {
 	return config.visionMixer.type === VisionMixerDevice.VMix && Boolean(config.casparcg.hypercomposed)
 }
 
+/** vMix input index of the composite look input for the slot (A or B). */
 export function getVmixLookInput(config: StudioConfig, slot: 'A' | 'B'): number {
 	return slot === 'A' ? config.vmixProgram.lookAInput : config.vmixProgram.lookBInput
 }
@@ -169,10 +170,12 @@ export function getVmixLookFeedInput(config: StudioConfig, slot: 'A' | 'B'): num
 	return typeof feed === 'number' && feed > 0 && feed !== look ? feed : 0
 }
 
+/** vMix input index of the clean-GFX feed (Overlay 1). */
 export function getVmixCleanGfxInput(config: StudioConfig): number {
 	return config.vmixProgram.cleanGfxInput
 }
 
+/** vMix input index of the studio camera layered on the look inputs. */
 export function getVmixCameraInput(config: StudioConfig): number {
 	return config.vmixProgram.cameraInput
 }
@@ -186,6 +189,55 @@ export function vmixStingerForWipeFile(wipeFile: string | undefined): TSR.VMixTr
 
 /** vMix Stinger1–4 ignore the transition's Input and sting whatever sits in Preview — lead the PROGRAM by this much so the lead PREVIEW (incoming look) is already selected. */
 export const VMIX_STINGER_PREVIEW_LEAD_MS = 40
+
+/**
+ * Measured Caspar RESUME/LOAD → picture visible in vMix program latency
+ * (~283–344 ms on the studio feed). Used to place off-air EMPTYs / preview
+ * reveals so their effect lands just after the vMix cut.
+ */
+export const VMIX_CASPAR_FEED_LATENCY_MS = 300
+
+/** Extra headroom added to the off-air point so the Caspar state change lands past the vMix cut. */
+export const VMIX_OFF_AIR_MARGIN_MS = 140
+
+/** Worst-case measured RESUME → picture latency on the studio feed (~283–344 ms). */
+export const VMIX_CASPAR_FEED_LATENCY_MAX_MS = 344
+
+/**
+ * Hard-cut RESUME lead: the worst-case feed latency plus one 25fps frame of
+ * headroom, so the first moving frame reaches vMix before the Cut even at the
+ * measured upper bound.
+ */
+export const VMIX_HARD_CUT_RESUME_LEAD_MS = VMIX_CASPAR_FEED_LATENCY_MAX_MS + 40
+
+/** Default stinger cut point measured from the stinger PROGRAM command (~960 ms on the studio). */
+export const DEFAULT_VMIX_STINGER_CUT_POINT_MS = 960
+
+/** Studio `vmixProgram.stingerCutPointMs` (optional) — stinger cut measured from the stinger PROGRAM command. */
+export function getVmixStingerCutPointMs(config: StudioConfig): number {
+	const raw = config.vmixProgram?.stingerCutPointMs
+	if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+		return Math.floor(raw)
+	}
+	return DEFAULT_VMIX_STINGER_CUT_POINT_MS
+}
+
+/**
+ * Take-relative vMix program cut: hard cuts `Cut` at the keepalive; wiped Takes
+ * cut when the stinger (fired at {@link VMIX_STINGER_PREVIEW_LEAD_MS}) reaches
+ * its configured cut point.
+ */
+export function vmixProgramCutMs(config: StudioConfig, hasWipe: boolean, hardCutKeepaliveMs: number): number {
+	return hasWipe ? VMIX_STINGER_PREVIEW_LEAD_MS + getVmixStingerCutPointMs(config) : hardCutKeepaliveMs
+}
+
+/** Take-relative point where the outgoing look channel goes off air (EMPTY / preview reveal). */
+export function vmixOutgoingOffAirMs(config: StudioConfig, hasWipe: boolean, hardCutKeepaliveMs: number): number {
+	return Math.max(
+		0,
+		vmixProgramCutMs(config, hasWipe, hardCutKeepaliveMs) - VMIX_CASPAR_FEED_LATENCY_MS + VMIX_OFF_AIR_MARGIN_MS
+	)
+}
 
 /**
  * Take-shaped vMix program switch: PROGRAM moves to the incoming look input at `start`

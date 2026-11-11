@@ -70,6 +70,7 @@ function createPgmCameraTimelineObjects(
 	]
 }
 
+/** Generate a CAM part — fullscreen or DoubleBox look camera (+guest overlay) on the claimed slot. */
 export function generateCameraPart(
 	context: PartContext,
 	part: PartProps<CameraProps>,
@@ -122,7 +123,8 @@ export function generateCameraPart(
 			// Drop baseline LED pod — headlines are over; countup owns PGM chrome now.
 			pieces.push(createLedPodHeadlineClearPiece(part.payload.externalId))
 		}
-	} else if (config.casparcg.hypercomposed) {
+	} else if (config.casparcg.hypercomposed && !usesVmixProgram(config)) {
+		// vMix look channels carry no bg_loop (weather keeps its own via wipe_pocasie).
 		pieces.push(createFullBgLoopPiece(context, config, part.payload.externalId))
 	}
 

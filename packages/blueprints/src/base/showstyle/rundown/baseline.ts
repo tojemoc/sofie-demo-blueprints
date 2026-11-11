@@ -31,8 +31,12 @@ import {
 	PGM_ROUTE_LAYERS,
 } from '../helpers/pgmLook.js'
 import { LED_POD_HEADLINE_FILE } from '../helpers/ledPodHeadline.js'
+import { DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
 import { CALIBRATION_FRAME_FILE, LED_TEST_FRAME_FILE } from '../helpers/studioCalibration.js'
-import { PGM_DOUBLEBOX_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import {
+	PGM_DOUBLEBOX_CAMERA_FILL,
+	PGM_FULLSCREEN_CAMERA_FILL,
+} from '../../studio/applyConfig/mappings/casparcgLayers.js'
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
@@ -42,6 +46,7 @@ export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
 // baseline (baseline → pgmLook → countupReveal would form a module cycle).
 export { PGM_COUNTUP_FILE } from '../helpers/countupReveal.js'
 
+/** Rundown-activation baseline: LED/look underlays, calibration frames, beds, routes and mixer program/preview seeding per studio type. */
 export function getBaseline(context: IShowStyleUserContext): BlueprintResultBaseline {
 	const config = parseConfig(context).studio
 	const vmixProgram = usesVmixProgram(config)
@@ -69,32 +74,81 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			// ClipPlayer (111) so CLEAR/EMPTY of a clip cannot darken the CAM pane —
 			// bg_loop shows through the transparent cam cutout (blue pane).
 			// Live CAM opens once on the ingest helper (ch5); looks PLAY route://5 on 115.
+			// vMix studios keep the look channels transparent (the camera lives on the
+			// vMix look inputs) — no bg_loop; instead both slots run a phase-locked
+			// opacity-0 db_loop so DoubleBox takes reveal, never restart, the frame.
+			// Exception — legacy vMix without look feed inputs: there is no static
+			// camera under the NDI feed on the look input, so a transparent channel
+			// shows black. Keep the bg_loop underlay per slot without a feed input
+			// so an unwiped VT/VO has a visible picture until its clip feed is up.
 			...(config.casparcg.hypercomposed
 				? [
-						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-							id: '',
-							enable: { while: 1 },
-							priority: 0,
-							layer: CasparCGLayers.CasparCGLookBgLoop,
-							content: {
-								deviceType: TSR.DeviceType.CASPARCG,
-								type: TSR.TimelineContentTypeCasparCg.MEDIA,
-								file: LED_BACKGROUND_LOOP_FILE,
-								loop: true,
-							},
-						}),
-						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-							id: '',
-							enable: { while: 1 },
-							priority: 0,
-							layer: CasparCGLayers.CasparCGLookBgLoopB,
-							content: {
-								deviceType: TSR.DeviceType.CASPARCG,
-								type: TSR.TimelineContentTypeCasparCg.MEDIA,
-								file: LED_BACKGROUND_LOOP_FILE,
-								loop: true,
-							},
-						}),
+						...(vmixProgram
+							? ([CasparCGLayers.CasparCGPgmDoubleBoxLoop, CasparCGLayers.CasparCGPgmDoubleBoxLoopB] as const).map(
+									(layer) =>
+										literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+											id: '',
+											enable: { while: 1 },
+											priority: 0,
+											layer,
+											content: {
+												deviceType: TSR.DeviceType.CASPARCG,
+												type: TSR.TimelineContentTypeCasparCg.MEDIA,
+												file: DOUBLEBOX_LOOP_FILE,
+												loop: true,
+												mixer: { opacity: 0 },
+											},
+										})
+								)
+							: []),
+						...(vmixProgram
+							? (
+									[
+										{ layer: CasparCGLayers.CasparCGLookBgLoop, slot: 'A' },
+										{ layer: CasparCGLayers.CasparCGLookBgLoopB, slot: 'B' },
+									] as const
+								)
+									.filter(({ slot }) => getVmixLookFeedInput(config, slot) === 0)
+									.map(({ layer }) =>
+										literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+											id: '',
+											enable: { while: 1 },
+											priority: 0,
+											layer,
+											content: {
+												deviceType: TSR.DeviceType.CASPARCG,
+												type: TSR.TimelineContentTypeCasparCg.MEDIA,
+												file: LED_BACKGROUND_LOOP_FILE,
+												loop: true,
+											},
+										})
+									)
+							: [
+									literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+										id: '',
+										enable: { while: 1 },
+										priority: 0,
+										layer: CasparCGLayers.CasparCGLookBgLoop,
+										content: {
+											deviceType: TSR.DeviceType.CASPARCG,
+											type: TSR.TimelineContentTypeCasparCg.MEDIA,
+											file: LED_BACKGROUND_LOOP_FILE,
+											loop: true,
+										},
+									}),
+									literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+										id: '',
+										enable: { while: 1 },
+										priority: 0,
+										layer: CasparCGLayers.CasparCGLookBgLoopB,
+										content: {
+											deviceType: TSR.DeviceType.CASPARCG,
+											type: TSR.TimelineContentTypeCasparCg.MEDIA,
+											file: LED_BACKGROUND_LOOP_FILE,
+											loop: true,
+										},
+									}),
+								]),
 						...(vmixProgram ? [] : getCasparProgramBaseline(config)),
 						// LED pod underlay for opening headlines — visible from Activate/Rehearsal
 						// (not only after first Take). Cleared on first DoubleBox Take.
@@ -232,13 +286,23 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 		...lookInputs.map((layer) => {
 			const slot = layer === VMixLayers.VMixLookInputA ? 'A' : 'B'
 			const feedInput = getVmixLookFeedInput(config, slot)
-			const layers: TSR.VMixLayers = feedInput > 0 ? { 2: { input: feedInput } } : {}
+			const cameraInput = getVmixCameraInput(config)
+			const layers: TSR.VMixLayers = {}
+			if (feedInput > 0) {
+				// Static camera on layer 1 of BOTH look inputs (fullscreen at rest —
+				// camera parts re-assert their own FILL) under the NDI feed on 2.
+				if (cameraInput > 0) {
+					layers[1] = {
+						input: cameraInput,
+						...vmixLayerTransformFromFill(PGM_FULLSCREEN_CAMERA_FILL),
+					}
+				}
+				layers[2] = { input: feedInput }
+			}
 			// Pre-first-Take framing aid on the baseline on-air look (B): camera in the
-			// DoubleBox window, drawn ABOVE the NDI feed so bg_loop behind the
-			// transparent db_loop cutout does not need hiding. Any Take that claims
-			// look B replaces this baseline INPUT object, clearing the camera layer.
-			const cameraInput = slot === 'B' ? getVmixCameraInput(config) : 0
-			if (cameraInput > 0) {
+			// DoubleBox window, drawn ABOVE the NDI feed. Any Take that claims look B
+			// replaces this baseline INPUT object, clearing the calibration layer.
+			if (cameraInput > 0 && slot === 'B') {
 				layers[feedInput > 0 ? 3 : 1] = {
 					input: cameraInput,
 					...vmixLayerTransformFromFill(PGM_DOUBLEBOX_CAMERA_FILL),
@@ -274,6 +338,7 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	]
 }
 
+/** Caspar-PGM baseline: dual always-live look routes and look CAM pre-warm. */
 function getCasparProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
@@ -312,6 +377,7 @@ function getCasparProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] 
 	]
 }
 
+/** ATEM baseline: DSK graphics overlay + audio mappings. */
 function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	const dskInput = Object.values<InputConfig>(config.atemSources).find((source) => source.type === SourceType.Graphics)
 
@@ -390,6 +456,7 @@ function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	]
 }
 
+/** vMix baseline: clean-GFX overlay and, for program studios, the look program/preview objects. */
 function getVMixBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	const dskInput = usesVmixProgram(config)
 		? getVmixCleanGfxInput(config)

@@ -18,7 +18,6 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import {
-	DEFAULT_BG_LOOP_FILE,
 	DEFAULT_WIPE_DURATION_MS,
 	DEFAULT_WIPE_PREROLL_MS,
 	WIPE_FRAME_MS,
@@ -40,14 +39,17 @@ import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorType
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
+	VMIX_HARD_CUT_RESUME_LEAD_MS,
 	VMIX_STINGER_PREVIEW_LEAD_MS,
 	createVMixTakeTimelineObjects,
 	getVmixCameraInput,
 	getVmixLookFeedInput,
 	getVmixLookInput,
 	usesVmixProgram,
+	vmixOutgoingOffAirMs,
 	vmixStingerForWipeFile,
 } from './visionMixer.js'
+import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
 
 export type LookSlot = 'A' | 'B'
 
@@ -217,6 +219,24 @@ const LOOK_COMPOSE_LAYERS = new Set<string>([
 	LOOK_B_LAYERS.lowerThird,
 ])
 
+/**
+ * vMix studios: every look-compose MEDIA object on these layers is priority 1 —
+ * identical file/seek at equal priority + equal start diffs clean instead of a
+ * later-id EMPTY shadowing the incoming look (superfly-timeline: equal priority
+ * resolves by later start / id order). L3D templates, bg_loop, wipe/route and
+ * calibration layers are excluded; ad-libs keep their +10.
+ */
+const VMIX_LOOK_COMPOSE_MEDIA_LAYERS = new Set<string>([
+	LOOK_A_LAYERS.clip,
+	LOOK_A_LAYERS.camera,
+	LOOK_A_LAYERS.ilu,
+	LOOK_A_LAYERS.doubleBoxLoop,
+	LOOK_B_LAYERS.clip,
+	LOOK_B_LAYERS.camera,
+	LOOK_B_LAYERS.ilu,
+	LOOK_B_LAYERS.doubleBoxLoop,
+])
+
 /** Sofie layers for the dual always-live PGM routes (A=bgA, B=bgB). */
 export const PGM_ROUTE_LAYERS = {
 	A: CasparCGLayers.CasparCGPgmRouteA,
@@ -359,11 +379,17 @@ export function findWipeVideoObject(objects: SomeObject[]): VideoObject | undefi
 	)
 }
 
+/** Map a slot-A layer id onto `slot` via {@link LOOK_A_TO_B} (identity for A). */
 function remapLayerId(layer: string, slot: LookSlot): string {
 	if (slot === 'A') return layer
 	return LOOK_A_TO_B[layer] ?? layer
 }
 
+/**
+ * Remap every Caspar layer id in `pieces` (and their expected-package layer
+ * lists) from slot A to `slot` — pieces are authored on the A set and swapped
+ * onto B when the take claims the B channel. No-op for slot A.
+ */
 export function remapLookLayers(pieces: IBlueprintPieceGeneric[], slot: LookSlot): void {
 	if (slot === 'A') return
 
@@ -1038,6 +1064,12 @@ export function finalizeHypercomposedPart(
 	// reflected in keepalive + an idle-slot clear, never the actual on-screen cut).
 	const wipeRouteCutMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : wipeCutPointMs
 
+	// vMix cut (Take-relative): hard cut at LOOK_HARD_CUT_KEEPALIVE_MS; wiped at the
+	// stinger cut point (LEAD + studio stingerCutPointMs). The outgoing channel goes
+	// off air feed-latency early + margin — EMPTY / preview reveals land just after
+	// the visible cut, never during it.
+	const vmixOffAirMs = vmixProgram ? vmixOutgoingOffAirMs(config, hasWipe, LOOK_HARD_CUT_KEEPALIVE_MS) : 0
+
 	if (hasWipe) {
 		applyLookPreroll(pieces, getLookPrerollMs(config))
 		// Keep previous look VIDEO only until the cover cut — not the full sting.
@@ -1054,16 +1086,22 @@ export function finalizeHypercomposedPart(
 		const stingCoverMs = wipeDurationMs + (vmixProgram ? VMIX_STINGER_PREVIEW_LEAD_MS : 0)
 		part.inTransition = {
 			blockTakeDuration: stingCoverMs,
-			previousPartKeepaliveDuration: leaveWeatherHideMs,
+			// vMix holds the outgoing look until at least the off-air point (cut −
+			// feed latency + margin) so the stinger never cuts to an EMPTYed channel.
+			previousPartKeepaliveDuration: vmixProgram ? Math.max(leaveWeatherHideMs, vmixOffAirMs) : leaveWeatherHideMs,
 			partContentDelayDuration: 0,
 		}
-		muteEditorialClipAudioDuringWipe(pieces, stingCoverMs)
+		if (vmixProgram) {
+			rampVmixLookClipAudio(pieces, stingCoverMs)
+		} else {
+			muteEditorialClipAudioDuringWipe(pieces, stingCoverMs)
+		}
 		// Kolíska beds ride Caspar audio layers (or vMix bed inputs) — Sisyfos ForceMute does not duck them.
 		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, stingCoverMs))
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
 		// Leave-weather uses wipeRouteCutMs so the countup appears with the (lagged) route.
-		delayCountupRevealToWipeCut(pieces, wipeRouteCutMs)
+		delayCountupRevealToWipeCut(pieces, wipeRouteCutMs, config)
 	} else if (previousLookSlot !== undefined) {
 		// Hard cut (same-slot or cross-slot): hold previous look past the incoming
 		// delay so Caspar cold-PLAY cannot open a black / bg_loop seam. Keepalive
@@ -1084,7 +1122,15 @@ export function finalizeHypercomposedPart(
 		} else {
 			// LOAD from Take; hot PLAY at the short delay so Caspar can decode while
 			// PGM still shows the previous channel (route delayed to keepalive below).
-			applyHardCutIdleLookHotCue(pieces, LOOK_HARD_CUT_INCOMING_DELAY_MS)
+			// vMix: the Cut lands at keepalive — RESUME early enough that the first
+			// frame crosses the feed latency right at the cut (cut − worst-case
+			// latency − one frame of headroom).
+			applyHardCutIdleLookHotCue(
+				pieces,
+				vmixProgram
+					? Math.max(0, LOOK_HARD_CUT_KEEPALIVE_MS - VMIX_HARD_CUT_RESUME_LEAD_MS)
+					: LOOK_HARD_CUT_INCOMING_DELAY_MS
+			)
 		}
 	}
 
@@ -1096,6 +1142,8 @@ export function finalizeHypercomposedPart(
 	// CLEAR until the first incoming L3D is on-air. Wiped Takes: that is max(wipeEnd,
 	// earliest objectTime) so start:1s under wipe_sport cannot gap-fill previous CG.
 	// wipe_pocasie lands weather GFX at the cover cut with bg_pocasie.
+	// Take-relative time the incoming L3D reaches air — after the wipe ends (or
+	// the weather cover cut for wipe_pocasie), or after L3D_OUT_MS on hard cuts.
 	const l3dOnAirMs = (earliestObjectTimeMs: number): number =>
 		hasWipe
 			? wipePocasie
@@ -1216,18 +1264,18 @@ export function finalizeHypercomposedPart(
 		}
 	}
 	// vMix inputs keep NDI audio live off-program: EMPTY the outgoing look's
-	// media layers just past the air cut so ILU/SYN audio dies with the switch
-	// (postroll otherwise keeps the clip audible ~2.5s into the next part). The
-	// 2f lag keeps the EMPTY safely past the vMix Cut / stinger cut so it can
-	// never tear a frame of empty channel into program. Same-slot has no
-	// separate outgoing channel — the incoming compose owns it.
+	// media layers at the off-air point (cut − feed latency + margin) so
+	// ILU/SYN audio dies with the switch (postroll otherwise keeps the clip
+	// audible ~2.5s into the next part) and the EMPTY lands just past the vMix
+	// Cut / stinger cut so it can never tear a frame of empty channel into
+	// program. Same-slot has no separate outgoing channel — the incoming
+	// compose owns it.
 	if (vmixProgram && previousLookSlot !== undefined && !sameLookChannel) {
-		const outgoingOffAirMs = (hasWipe ? wipeRouteCutMs : LOOK_HARD_CUT_KEEPALIVE_MS) + LOOK_HARD_CUT_INCOMING_DELAY_MS
 		const outgoingLayers = getLookLayers(previousLookSlot)
 		clearObjects.push(
-			emptyLookMediaObject(outgoingLayers.clip, undefined, outgoingOffAirMs),
-			emptyLookMediaObject(outgoingLayers.ilu, undefined, outgoingOffAirMs),
-			emptyLookMediaObject(outgoingLayers.camera, undefined, outgoingOffAirMs)
+			emptyLookMediaObject(outgoingLayers.clip, undefined, vmixOffAirMs),
+			emptyLookMediaObject(outgoingLayers.ilu, undefined, vmixOffAirMs),
+			emptyLookMediaObject(outgoingLayers.camera, undefined, vmixOffAirMs)
 		)
 	}
 	if (clearObjects.length > 0) {
@@ -1254,6 +1302,9 @@ export function finalizeHypercomposedPart(
 		// advance gfx/pocasie with the same-slot look lead.
 		preloadIdleLookMedia: hasWipe && !sameLookChannel,
 		wipeAirCutMs: wipeRouteCutMs,
+		// vMix holds the outgoing look until the stinger cut — clip/ILU RESUME at
+		// Take so the first frame is already running when the cut lands.
+		resumeClipIluAtTake: vmixProgram,
 	})
 
 	// Wiped ZAVER: LED `ilu-zaver` must land with WX hide under cover — not at Take
@@ -1268,7 +1319,6 @@ export function finalizeHypercomposedPart(
 	)
 	if (vmixProgram) {
 		moveLookCameraToVmix(config, pieces, lookSlot)
-		hideLookBgLoopUnderDoubleBox(config, pieces)
 		attachVmixTake(
 			config,
 			pieces,
@@ -1279,6 +1329,11 @@ export function finalizeHypercomposedPart(
 			wipeDurationMs,
 			!hasWipe && previousLookSlot !== undefined && !sameLookChannel ? LOOK_HARD_CUT_KEEPALIVE_MS : 0
 		)
+		// Phase-locked db_loop: both slots run `loops/db_loop` from baseline;
+		// DoubleBox takes only reveal opacity (never a producer restart).
+		applyVmixDoubleBoxPhaseLock(pieces, lookSlot, vmixOffAirMs)
+		stripVmixDoubleBoxLoopClears(pieces)
+		normalizeVmixLookComposeObjects(pieces)
 	} else if (!alreadyRouted) {
 		const wipePiece = pieces.find((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
 		if (wipePiece && wipeFile) {
@@ -1368,25 +1423,8 @@ function attachVmixTake(
 		transition,
 		previewInput: getVmixLookInput(config, otherLookSlot(slot)),
 	})
-	// NDI look feed on layer 2 above the camera layer — also clears a stale camera
-	// layer on this input when the take carries no camera object (priority 0 loses
-	// to cam objects, so it only wins when no cam is desired).
-	const feedInput = getVmixLookFeedInput(config, slot)
-	if (feedInput > 0) {
-		timelineObjects.push(
-			literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
-				id: '',
-				enable: { start: 0 },
-				priority: 0,
-				layer: slot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB,
-				content: {
-					deviceType: TSR.DeviceType.VMIX,
-					type: TSR.TimelineContentTypeVMix.INPUT,
-					layers: { 2: { input: feedInput } },
-				},
-			})
-		)
-	}
+	// Feed mode keeps the camera on look-input layer 1 statically — no prio-0
+	// `{2: feed}` object that would drop the camera when a take lacks one.
 	const label = `vMix ${transition.effect} → ${input}`
 
 	const wipePiece = wipeFile
@@ -1445,44 +1483,95 @@ function attachVmixTake(
 	)
 }
 
-const DOUBLEBOX_LOOP_BG_LOOP: Readonly<Record<string, CasparCGLayers>> = {
-	[LOOK_A_LAYERS.doubleBoxLoop]: LOOK_A_LAYERS.bgLoop,
-	[LOOK_B_LAYERS.doubleBoxLoop]: LOOK_B_LAYERS.bgLoop,
+/**
+ * Phase-locked db_loop on vMix: baseline plays `loops/db_loop` on BOTH slots at
+ * opacity 0, so a DoubleBox take only raises opacity — never restarts the
+ * producer (a restart would de-phase the frame vs the other channel). The
+ * DoubleBox-frame piece claims the incoming slot at Take (opacity 1); the other
+ * slot reveals at the outgoing off-air point so the idle channel is already
+ * framed when the next Take composes on it. Runs after {@link remapLookLayers}
+ * so the A→B remap cannot collapse the two objects onto one channel.
+ */
+function applyVmixDoubleBoxPhaseLock(pieces: IBlueprintPiece[], lookSlot: LookSlot, offAirMs: number): void {
+	const claimed = getLookLayers(lookSlot).doubleBoxLoop
+	const other = getLookLayers(otherLookSlot(lookSlot)).doubleBoxLoop
+	for (const piece of pieces) {
+		const objects = piece.content.timelineObjects ?? []
+		const claimedObjects = objects.filter((obj) => {
+			if (String(obj.layer) !== (claimed as string)) return false
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			return isCasparMedia(content) && content.file === toCasparPlayPath(DOUBLEBOX_LOOP_FILE)
+		})
+		if (claimedObjects.length === 0) continue
+		for (const obj of claimedObjects) {
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			content.mixer = { ...(content.mixer ?? {}), opacity: 1 }
+			obj.keyframes = (obj.keyframes ?? []).filter((kf) => (kf.content as { playing?: boolean }).playing !== false)
+		}
+		const base = claimedObjects[0]
+		objects.push(
+			literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+				id: '',
+				enable: { start: Math.max(0, Math.floor(offAirMs)) },
+				layer: other,
+				priority: base.priority ?? 1,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: toCasparPlayPath(DOUBLEBOX_LOOP_FILE),
+					loop: true,
+					mixer: { opacity: 1 },
+				},
+			})
+		)
+		piece.content.timelineObjects = objects
+	}
 }
 
 /**
- * vMix studios: a look carrying `db_loop` ships a fully transparent background so the vMix
- * camera layer shows through — `bg_loop` follows `db_loop` (opacity 0 while it plays, back
- * to 1 while a Take EMPTYs it). Look CAM hides `bg_loop` above both (priority 3).
- * No-op when the vMix camera is disabled (`cameraInput <= 0`): with no camera layer behind
- * the panes, transparent `bg_loop` would read as black instead of the loop's blue.
+ * vMix studios never stop the phase-locked db_loop — drop any EMPTY / paused /
+ * foreign-file MEDIA a clear path emitted on the look db_loop layers.
  */
-function hideLookBgLoopUnderDoubleBox(config: StudioConfig, pieces: IBlueprintPiece[]): void {
-	if (getVmixCameraInput(config) <= 0) return
+function stripVmixDoubleBoxLoopClears(pieces: IBlueprintPiece[]): void {
+	const dbLoopLayers = new Set<string>([LOOK_A_LAYERS.doubleBoxLoop as string, LOOK_B_LAYERS.doubleBoxLoop as string])
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects
 		if (!objects) continue
-		const bgLoopObjects = objects.flatMap((obj) => {
-			const bgLoopLayer = DOUBLEBOX_LOOP_BG_LOOP[String(obj.layer)]
+		piece.content.timelineObjects = objects.filter((obj) => {
+			if (!dbLoopLayers.has(String(obj.layer))) return true
 			const content = obj.content as TSR.TimelineContentCCGMedia
-			if (!bgLoopLayer || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) return []
-			return [
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: obj.enable,
-					layer: bgLoopLayer,
-					priority: obj.priority,
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-						file: DEFAULT_BG_LOOP_FILE,
-						loop: true,
-						mixer: { opacity: content.file === 'EMPTY' ? 1 : 0 },
-					},
-				}),
-			]
+			if (!isCasparMedia(content)) return true
+			if (content.playing === false) return false
+			return content.file === toCasparPlayPath(DOUBLEBOX_LOOP_FILE)
 		})
-		if (bgLoopObjects.length > 0) piece.content.timelineObjects = [...objects, ...bgLoopObjects]
+	}
+}
+
+/**
+ * vMix studios: equal priority (1) on every look-compose MEDIA object — clip /
+ * camera / ILU / db_loop, incoming and EMPTY clears alike — so identical content
+ * diffs clean and a later-id EMPTY can never shadow the incoming look. Also sets
+ * `noStarttime` on clip/ILU media so playTime is null and a rebased instance
+ * cannot trigger a seek-forward reload (editorial `seek` is kept for LOADBG).
+ */
+function normalizeVmixLookComposeObjects(pieces: IBlueprintPiece[]): void {
+	const clipIluLayers = new Set<string>([
+		LOOK_A_LAYERS.clip as string,
+		LOOK_B_LAYERS.clip as string,
+		LOOK_A_LAYERS.ilu as string,
+		LOOK_B_LAYERS.ilu as string,
+	])
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const layer = String(obj.layer)
+			if (!VMIX_LOOK_COMPOSE_MEDIA_LAYERS.has(layer)) continue
+			const content = obj.content as TSR.TimelineContentCCGMedia
+			if (!isCasparMedia(content)) continue
+			obj.priority = 1
+			if (clipIluLayers.has(layer) && content.file !== 'EMPTY') {
+				content.noStarttime = true
+			}
+		}
 	}
 }
 
@@ -1501,7 +1590,9 @@ function moveLookCameraToVmix(config: StudioConfig, pieces: IBlueprintPiece[], s
 			if (content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) return [obj]
 			const base = { enable: obj.enable, priority: obj.priority }
 			if (content.file === 'EMPTY') {
-				const feedInput = getVmixLookFeedInput(config, slot)
+				// Feed mode keeps the camera on look-input layer 1 statically — a
+				// camera EMPTY must not emit an INPUT object that drops layer 1.
+				if (getVmixLookFeedInput(config, slot) > 0) return []
 				return [
 					literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 						id: '',
@@ -1510,7 +1601,7 @@ function moveLookCameraToVmix(config: StudioConfig, pieces: IBlueprintPiece[], s
 						content: {
 							deviceType: TSR.DeviceType.VMIX,
 							type: TSR.TimelineContentTypeVMix.INPUT,
-							layers: feedInput > 0 ? { 2: { input: feedInput } } : {},
+							layers: {},
 						},
 					}),
 				]
@@ -1552,6 +1643,7 @@ const EDITORIAL_AUDIO_LOOK_LAYERS = new Set<string>([
 	CasparCGLayers.CasparCGIluPlayer,
 ])
 
+/** Set the Caspar mixer volume on a clip/ILU MEDIA object in place. */
 function setLookClipMixerVolume(obj: TimelineBlueprintExt, volume: number): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.mixer = { ...(content.mixer ?? {}), volume }
@@ -1581,6 +1673,95 @@ function mutePgmWipeOverlayAudio(pieces: IBlueprintPiece[]): void {
 	}
 }
 
+/** vMix wiped Takes: look clip/ILU layers ramp volume back over the sting. */
+const VMIX_RAMP_AUDIO_LOOK_LAYERS = new Set<string>([
+	CasparCGLayers.CasparCGClipPlayer2,
+	CasparCGLayers.CasparCGClipPlayer2B,
+	CasparCGLayers.CasparCGPgmIluPlayer,
+	CasparCGLayers.CasparCGPgmIluPlayerB,
+])
+
+/** Ramp keyframe offset after Take (start of the sting) for the vMix clip/ILU audio fade. */
+const VMIX_WIPE_AUDIO_RAMP_KEYFRAME_MS = 40
+
+/**
+ * vMix studios: instead of muting editorial clip audio for the sting window and
+ * jumping back (which restarted the bed "jumping" on every wipe), hold the look
+ * clip/ILU mixer at volume 0 and ramp to the editorial level over `stingCoverMs`
+ * via a LINEAR mixer transition (`MIXER <ch>-<layer> VOLUME <v> <frames> LINEAR`).
+ * The transition must live at mixer level on the keyframe — casparcg-state reads
+ * `mixer.changeTransition`/`inTransition`, not a per-property TransitionObject.
+ * The LED `ilu-zaver` player keeps the old mute.
+ */
+function rampVmixLookClipAudio(pieces: IBlueprintPiece[], stingCoverMs: number): void {
+	const transition: TSR.CasparCGTransitionInner = { duration: stingCoverMs, easing: TSR.Ease.LINEAR }
+	for (const piece of pieces) {
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const layer = String(obj.layer)
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA || content.file === 'EMPTY') continue
+
+			if (VMIX_RAMP_AUDIO_LOOK_LAYERS.has(layer)) {
+				const baseVolume =
+					typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+				content.mixer = { ...(content.mixer ?? {}), volume: 0 }
+				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
+					TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+				>
+				;(obj as TimelineBlueprintExt).keyframes = [
+					...existing,
+					{
+						id: '',
+						enable: { start: VMIX_WIPE_AUDIO_RAMP_KEYFRAME_MS },
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							mixer: {
+								volume: baseVolume,
+								inTransition: transition,
+								changeTransition: transition,
+								outTransition: transition,
+							} as TSR.Mixer,
+						},
+					},
+				]
+				continue
+			}
+
+			// LED ilu-zaver keeps the legacy mute-until-cut behaviour.
+			if (layer === (CasparCGLayers.CasparCGIluPlayer as string)) {
+				const baseVolume =
+					typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
+					TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+				>
+				;(obj as TimelineBlueprintExt).keyframes = [
+					...existing,
+					{
+						id: '',
+						enable: { start: 0, duration: stingCoverMs },
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							mixer: { volume: 0 },
+						},
+					},
+					{
+						id: '',
+						enable: { start: stingCoverMs },
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							mixer: { volume: baseVolume },
+						},
+					},
+				]
+			}
+		}
+	}
+}
+
+/** Caspar-PGM path: hold editorial look clip/ILU audio at 0 for the wipe duration. */
 function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDurationMs: number): void {
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects ?? []
@@ -1627,10 +1808,12 @@ const LOOK_L3D_TEMPLATE_LAYERS = new Set<string>([
 const HEADLINE_L3D_TEMPLATE_LAYERS = new Set<string>([CasparCGLayers.CasparCGGraphicsHeadline])
 const L3D_TEMPLATE_LAYERS = new Set<string>([...LOOK_L3D_TEMPLATE_LAYERS, ...HEADLINE_L3D_TEMPLATE_LAYERS])
 
+/** True when the timeline object content is a Caspar TEMPLATE. */
 function isCasparTemplate(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 }
 
+/** True when the timeline object content is Caspar MEDIA. */
 function isCasparMedia(content: { type?: string }): boolean {
 	return content?.type === TSR.TimelineContentTypeCasparCg.MEDIA
 }
@@ -1646,6 +1829,7 @@ function clearHoldFor(clearDurationMs: number | undefined, clearStartMs: number)
 	return Math.max(0, clearDurationMs - clearStartMs) + LOOK_HARD_CUT_OVERLAP_MS
 }
 
+/** Shift a Take-time (`start: 0`) enable by `delayMs`; non-zero or non-numeric starts are left alone. */
 function shiftEnableStartIfAtTake(obj: { enable?: unknown }, delayMs: number): void {
 	if (delayMs <= 0) return
 	const enable = obj.enable as { start?: number | string | null } | Array<unknown> | undefined
@@ -1696,10 +1880,11 @@ function applyL3dTakeOffsets(
 	wipeDurationMs: number,
 	wipePocasie = false,
 	wipeLookCutMs: number = DEFAULT_WIPE_AIR_CUT_MS,
-	options?: { preloadIdleLookMedia?: boolean; wipeAirCutMs?: number }
+	options?: { preloadIdleLookMedia?: boolean; wipeAirCutMs?: number; resumeClipIluAtTake?: boolean }
 ): void {
 	const hasWipe = wipeDurationMs > 0
 	const preloadIdleLookMedia = Boolean(options?.preloadIdleLookMedia)
+	const resumeClipIluAtTake = Boolean(options?.resumeClipIluAtTake)
 	const wipeAirCutMs =
 		typeof options?.wipeAirCutMs === 'number' && Number.isFinite(options.wipeAirCutMs)
 			? Math.max(0, Math.floor(options.wipeAirCutMs))
@@ -1757,7 +1942,15 @@ function applyL3dTakeOffsets(
 				// Idle look channel: LOAD/PAUSE from Take; hot PLAY at the full air cut
 				// (route:// flip). route:// CAM uses noStarttime — do not force seek:0.
 				const isRoute = typeof content.file === 'string' && content.file.startsWith('route://')
-				applyCasparHotPlayCue(obj as TimelineBlueprintExt, wipeAirCutMs, isRoute ? undefined : { seekMs: 0 })
+				// vMix: clip/ILU RESUME at Take — the channel is off-air until the
+				// stinger cut, so the clip is already running when the cut lands.
+				const isLookClipOrIlu =
+					layer === (LOOK_A_LAYERS.clip as string) ||
+					layer === (LOOK_B_LAYERS.clip as string) ||
+					layer === (LOOK_A_LAYERS.ilu as string) ||
+					layer === (LOOK_B_LAYERS.ilu as string)
+				const playAtMs = resumeClipIluAtTake && isLookClipOrIlu ? 0 : wipeAirCutMs
+				applyCasparHotPlayCue(obj as TimelineBlueprintExt, playAtMs, isRoute ? undefined : { seekMs: 0 })
 				continue
 			}
 
@@ -1835,6 +2028,7 @@ function isActiveIluZaverPiece(piece: IBlueprintPiece): boolean {
 	})
 }
 
+/** True when any piece in the part is an active ilu-zaver overlay (leaving-weather hold path). */
 function partHasActiveIluZaver(pieces: IBlueprintPiece[]): boolean {
 	return pieces.some(isActiveIluZaverPiece)
 }
@@ -1899,6 +2093,11 @@ function partHasLookMedia(pieces: IBlueprintPiece[], lookSlot: LookSlot): boolea
 	)
 }
 
+/**
+ * Priority-2 `EMPTY` MEDIA object for a look layer — clears whatever the
+ * previous part left (clip / CAM / loop) for `clearDurationMs` starting at
+ * `clearStartMs`; open-ended when no duration is given.
+ */
 function emptyLookMediaObject(
 	layer: CasparCGLayers,
 	clearDurationMs?: number,
@@ -1944,16 +2143,17 @@ export function injectIdleLookPreviewPieces(
 			externalId: string
 			invalid?: boolean
 			floated?: boolean
-			inTransition?: { previousPartKeepaliveDuration?: number }
+			inTransition?: { previousPartKeepaliveDuration?: number; blockTakeDuration?: number }
 		}
 		pieces: IBlueprintPiece[]
 	}>,
 	partLookSlots: Array<LookSlot | undefined>
 ): void {
-	/** Clip / ILU / DoubleBox-frame layers of the physical look channel claimed by `slot`. */
+	const vmixProgram = usesVmixProgram(config)
+	/** Clip / ILU layers of the look channel claimed by `slot` (vMix drops db_loop — it is phase-locked). */
 	const mediaLayersForSlot = (slot: LookSlot): CasparCGLayers[] => {
 		const layers = getLookLayers(slot)
-		return [layers.clip, layers.ilu, layers.doubleBoxLoop]
+		return vmixProgram ? [layers.clip, layers.ilu] : [layers.clip, layers.ilu, layers.doubleBoxLoop]
 	}
 
 	for (let i = 0; i < parts.length - 1; i++) {
@@ -1973,14 +2173,22 @@ export function injectIdleLookPreviewPieces(
 		if (nextSlot === undefined || nextSlot === currentSlot) continue
 
 		// Ping-pong makes the preview's target channel the one the previous part
-		// just vacated — which stays routed for previousPartKeepaliveDuration
-		// past this take. Reveal the clone only once it is off air, or the paused
+		// just vacated. Reveal the clone only once it is off air, or the paused
 		// frame visibly replaces the outgoing look before the cover / hard cut.
-		const previewStartMs = Math.max(0, Math.floor(parts[i].part.inTransition?.previousPartKeepaliveDuration ?? 0))
+		// vMix: off air = this take's program cut − feed latency + margin
+		// (wiped when this part's incoming take was stung).
+		const previewStartMs = vmixProgram
+			? vmixOutgoingOffAirMs(
+					config,
+					(parts[i].part.inTransition?.blockTakeDuration ?? 0) > 0,
+					LOOK_HARD_CUT_KEEPALIVE_MS
+				)
+			: Math.max(0, Math.floor(parts[i].part.inTransition?.previousPartKeepaliveDuration ?? 0))
+		const previewPriority = vmixProgram ? 1 : 3
 
 		const targetLayers = mediaLayersForSlot(nextSlot)
 		const seen = new Set<CasparCGLayers>()
-		const previewObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = []
+		const previewObjects: TimelineBlueprintExt[] = []
 		for (const piece of parts[nextIdx].pieces) {
 			for (const obj of piece.content?.timelineObjects ?? []) {
 				const content = obj.content as TSR.TimelineContentCCGMedia | undefined
@@ -1999,7 +2207,7 @@ export function injectIdleLookPreviewPieces(
 						id: '',
 						enable: { start: previewStartMs },
 						layer: obj.layer,
-						priority: 3,
+						priority: previewPriority,
 						content: {
 							...content,
 							playing: false,
@@ -2009,6 +2217,62 @@ export function injectIdleLookPreviewPieces(
 				)
 			}
 		}
+
+		// vMix: also clone the next part's look-INPUT object onto the target input
+		// at the same start so the camera is pre-positioned off-air with the media.
+		let clonedInput = false
+		if (vmixProgram) {
+			const vmixTargetLayer = nextSlot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB
+			const sourceInput = parts[nextIdx].pieces
+				.flatMap((piece) => piece.content?.timelineObjects ?? [])
+				.find((obj) => {
+					if (String(obj.layer) !== (vmixTargetLayer as string)) return false
+					const content = obj.content as TSR.TimelineContentVMixInput | undefined
+					return content?.deviceType === TSR.DeviceType.VMIX && content.type === TSR.TimelineContentTypeVMix.INPUT
+				})
+			if (sourceInput) {
+				clonedInput = true
+				previewObjects.push(
+					literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+						id: '',
+						enable: { start: previewStartMs },
+						layer: vmixTargetLayer,
+						priority: sourceInput.priority ?? previewPriority,
+						content: { ...(sourceInput.content as TSR.TimelineContentVMixInput) },
+					})
+				)
+			}
+
+			// Same-layer outgoing EMPTYs / camera-clear INPUTs at the same start would
+			// tie on equal priority and resolve by id order — drop the ones the
+			// preview covers so the paused frame always wins the off-air channel.
+			const coveredCasparLayers = new Set<string>(seen as Set<string>)
+			for (const piece of parts[i].pieces) {
+				const objects = piece.content.timelineObjects
+				if (!objects) continue
+				piece.content.timelineObjects = objects.filter((obj) => {
+					if (!Array.isArray(obj.enable) && obj.enable?.start === previewStartMs) {
+						const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+						if (
+							isCasparMedia(content ?? {}) &&
+							content?.file === 'EMPTY' &&
+							coveredCasparLayers.has(String(obj.layer))
+						) {
+							return false
+						}
+						if (
+							clonedInput &&
+							String(obj.layer) === (vmixTargetLayer as string) &&
+							(obj.content as { type?: string })?.type === TSR.TimelineContentTypeVMix.INPUT
+						) {
+							return false
+						}
+					}
+					return true
+				})
+			}
+		}
+
 		if (previewObjects.length === 0) continue
 
 		const previewPiece = literal<IBlueprintPiece>({
@@ -2022,9 +2286,6 @@ export function injectIdleLookPreviewPieces(
 				timelineObjects: previewObjects,
 			},
 		})
-		// A cloned db_loop keeps its transparent-background pairing on vMix — the
-		// preview must hide bg_loop for the same window like any DoubleBox look.
-		hideLookBgLoopUnderDoubleBox(config, [previewPiece])
 		parts[i].pieces.push(previewPiece)
 	}
 }

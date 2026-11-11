@@ -62,6 +62,7 @@ beforeAll(async () => {
 	baseManifest = (await import('../base/showstyle/manifest.js')).baseManifest
 })
 
+/** Baseline timeline objects for the given studio config. */
 function baselineObjects(config: StudioConfig): TimelineBlueprintExt[] {
 	const baseline = getBaseline({
 		getStudioConfig: () => ({ studio: config }),
@@ -103,13 +104,16 @@ describe('studio calibration baseline', () => {
 		expect(objs.find((obj) => obj.layer === CasparCGLayers.CasparCGLookCalibCam)).toBeUndefined()
 		const lookB = objs.find((obj) => obj.layer === VMixLayers.VMixLookInputB)
 		const layers = (lookB?.content as TSR.TimelineContentVMixInput)?.layers
-		expect(layers?.[3]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
+		// Feed mode: camera on layer 1 + look feed on layer 2 (baseline B keeps the
+		// pre-first-Take calibration camera on layer 3).
+		expect(layers?.[1]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
 		expect(layers?.[2]?.input).toBe(vmixStudioConfig.vmixProgram.lookBFeedInput)
-		// Look A carries no camera.
+		expect(layers?.[3]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
 		const lookA = objs.find((obj) => obj.layer === VMixLayers.VMixLookInputA)
 		const layersA = (lookA?.content as TSR.TimelineContentVMixInput)?.layers
+		expect(layersA?.[1]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
+		expect(layersA?.[2]?.input).toBe(vmixStudioConfig.vmixProgram.lookAFeedInput)
 		expect(layersA?.[3]).toBeUndefined()
-		expect(layersA?.[1]).toBeUndefined()
 	})
 
 	it('calibration layers are mapped on LED 114 and BG B 117/119', () => {
@@ -175,6 +179,7 @@ describe('vMix recording', () => {
 		})
 	})
 
+	/** Persistent-state store stub preloaded with `initial`. */
 	const makePersistentState = (initial: Record<string, unknown> = {}) => {
 		const store = { ...initial }
 		return {
@@ -185,6 +190,7 @@ describe('vMix recording', () => {
 		} as unknown as BlueprintPlayoutPersistentStore<{ vmixRecordingStarted?: boolean }>
 	}
 
+	/** onTake context stub: records inserted pieces and reports next-part source layers. */
 	const makeTakeContext = (config: StudioConfig, isRehearsal: boolean, nextSourceLayerIds: string[] = []) => {
 		const inserted: IBlueprintPiece[] = []
 		const context = {
@@ -427,6 +433,7 @@ describe('vMix recording', () => {
 })
 
 describe('countup hold on out-of-order navigation', () => {
+	/** Persistent-state store stub preloaded with `initial`. */
 	const makePersistentState = (initial: Record<string, unknown> = {}) => {
 		const store = { ...initial }
 		return {

@@ -7,6 +7,7 @@ import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
+import { usesVmixProgram } from './visionMixer.js'
 
 /**
  * PGM logo + seconds countup — single fullscreen alpha .mov on the logo layer.
@@ -20,12 +21,26 @@ export const PGM_COUNTUP_FILE = 'assets/countup'
 /** MIX fade when countup becomes audible on first DoubleBox after wipe. */
 export const PGM_COUNTUP_FADE_MS = 400
 
+/**
+ * Studio `audioLevels.countupVolume` (0–1 Caspar mixer). vMix-program studios
+ * default to 0.5 (countup rides the clean-GFX feed into vMix and reads loud);
+ * other studios keep the previous level 1 unless explicitly configured.
+ */
+export function getCountupVolume(config: StudioConfig): number {
+	const raw = config.audioLevels?.countupVolume
+	if (typeof raw === 'number' && Number.isFinite(raw)) {
+		return Math.min(1, Math.max(0, raw))
+	}
+	return usesVmixProgram(config) ? 0.5 : 1
+}
+
 /** Per-generation claim — one reveal per rundown ingest pass (not retained across generations). */
 export interface CountupRevealClaim {
 	claim(rundownId: string): boolean
 	isRevealed(rundownId: string): boolean
 }
 
+/** Fresh claim set for one generation — the first claimant wins the reveal, later ones are told it is already revealed. */
 export function createCountupRevealClaim(): CountupRevealClaim {
 	const claimedRundownIds = new Set<string>()
 	return {
@@ -71,7 +86,10 @@ export function resetCountupRevealGenerationForTests(): void {
 	activeCountupRevealGenerationRundownId = undefined
 }
 
-function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
+/** Fade-in keyframes for the reveal copy: PLAY + MIX ramp to `volume` at the enable time. */
+function countupRevealKeyframes(
+	volume: number
+): NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']> {
 	return [
 		{
 			id: '',
@@ -81,7 +99,7 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				mixer: {
 					opacity: 1,
-					volume: 1,
+					volume,
 				},
 				transitions: {
 					inTransition: {
@@ -94,7 +112,11 @@ function countupRevealKeyframes(): NonNullable<TimelineBlueprintExt<TSR.Timeline
 	]
 }
 
-function countupTimelineObject(mode: 'reveal' | 'sustain' | 'mute'): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+/** Timeline object for one countup mode — reveal (hidden LOADBG + fade keyframes), sustain (audible loop) or mute (silent hold). */
+function countupTimelineObject(
+	mode: 'reveal' | 'sustain' | 'mute',
+	volume: number
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const fadeIn = mode === 'reveal'
 	const muted = mode === 'mute' || mode === 'reveal'
 	// Reveal starts LOADBG on first DoubleBox Take (opacity/volume 0), then hot-PLAYs
@@ -113,13 +135,14 @@ function countupTimelineObject(mode: 'reveal' | 'sustain' | 'mute'): TimelineBlu
 			noStarttime: true,
 			mixer: {
 				opacity: hiddenUntilFade ? 0 : 1,
-				volume: muted ? 0 : 1,
+				volume: muted ? 0 : volume,
 			},
 		},
-		...(fadeIn ? { keyframes: countupRevealKeyframes() } : {}),
+		...(fadeIn ? { keyframes: countupRevealKeyframes(volume) } : {}),
 	})
 }
 
+/** Shared piece factory for the reveal / sustain / mute countup variants. */
 function createCountupPiece(
 	context: ICommonContext,
 	config: StudioConfig,
@@ -142,7 +165,7 @@ function createCountupPiece(
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Logo),
 		content: {
 			fileName: PGM_COUNTUP_FILE,
-			timelineObjects: [countupTimelineObject(mode)],
+			timelineObjects: [countupTimelineObject(mode, getCountupVolume(config))],
 		},
 		expectedPackages: [
 			createMediaFileExpectedPackage(context, PGM_COUNTUP_FILE, [CasparCGLayers.CasparCGGraphicsLogo], {
@@ -173,7 +196,11 @@ export function createCountupRevealPiece(
  * at the cover cut (same instant as `route://` hard-cut). Never cold-PLAY at the cut
  * and never audible/visible at Take before the sting covers.
  */
-export function delayCountupRevealToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: number): void {
+export function delayCountupRevealToWipeCut(
+	pieces: IBlueprintPiece[],
+	wipeCutPointMs: number,
+	config: StudioConfig
+): void {
 	const playAtMs = Math.max(0, Math.floor(wipeCutPointMs))
 	for (const piece of pieces) {
 		if (!piece.externalId?.endsWith('_countup_reveal')) continue
@@ -185,7 +212,7 @@ export function delayCountupRevealToWipeCut(pieces: IBlueprintPiece[], wipeCutPo
 			const content = obj.content as TSR.TimelineContentCCGMedia
 			if (content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
 			content.playing = false
-			const fadeKeyframes = countupRevealKeyframes().map((kf) => ({
+			const fadeKeyframes = countupRevealKeyframes(getCountupVolume(config)).map((kf) => ({
 				...kf,
 				enable: { start: playAtMs },
 				content: {
@@ -241,6 +268,7 @@ export function partIsOutroOrZaverCountupMute(rawType: string | undefined, objec
 	})
 }
 
+/** True when this part is the intro overlay (countup not yet revealed — must not start it muted at opacity 1). */
 function partIsIntroCountupMute(rawType: string | undefined, objects: SomeObject[]): boolean {
 	if (/intro/i.test(rawType || '') && !partIsOutroOrZaverCountupMute(rawType, objects)) return true
 	return objects.some((obj) => {
@@ -264,6 +292,7 @@ export function partShouldPersistCountupMute(rawType: string | undefined, object
 	return partIsOutroOrZaverCountupMute(rawType, objects)
 }
 
+/** Append a sustain (or mute) countup piece to the part once the countup has been revealed in this rundown. */
 export function appendCountupSustainIfRevealed(
 	context: PartContext,
 	config: StudioConfig,
@@ -293,7 +322,11 @@ export const COUNTUP_HOLD_EXTERNAL_ID_SUFFIX = '_countuphold'
  * OutOnRundownEnd so a continued copy holds the pause; where a core does not
  * continue inserted infinites, onSetAsNext re-arms each nexted part.
  */
-export function createCountupHoldPiece(context: ICommonContext, partExternalId: string): IBlueprintPiece {
+export function createCountupHoldPiece(
+	context: ICommonContext,
+	partExternalId: string,
+	config: StudioConfig
+): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
 		enable: { start: 0 },
 		externalId: `${partExternalId}${COUNTUP_HOLD_EXTERNAL_ID_SUFFIX}`,
@@ -320,7 +353,7 @@ export function createCountupHoldPiece(context: ICommonContext, partExternalId: 
 						playing: false,
 						mixer: {
 							opacity: 1,
-							volume: 1,
+							volume: getCountupVolume(config),
 						},
 					},
 				}),

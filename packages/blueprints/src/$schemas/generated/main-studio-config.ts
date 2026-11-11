@@ -22,6 +22,7 @@ export interface StudioConfig {
 		[k: string]: SiyfosSourceConfig
 	}
 	vmixProgram: VmixProgramConfig
+	audioLevels?: AudioLevelsConfig
 	previewRenderer: string
 	casparcgLatency: number
 	wipePlayoutLatencyMs?: number
@@ -136,6 +137,15 @@ export interface VmixProgramConfig {
 	cleanGfxInput: number
 	bedAInput: number
 	bedCInput: number
+	stingerCutPointMs?: number
+	bedVolume?: number
+}
+/**
+ * Mixer volume levels for show SFX (0–1 Caspar mixer scale)
+ */
+export interface AudioLevelsConfig {
+	headlineSfxVolume?: number
+	countupVolume?: number
 }
 
 /**

@@ -3,7 +3,6 @@ import { literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
 import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
-import { DEFAULT_BG_LOOP_FILE } from './clips.js'
 import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_FULLSCREEN_CAMERA_FILL,
@@ -16,6 +15,7 @@ export type PgmCameraTimelineContent = TSR.TimelineContentCCGMedia | TSR.Timelin
 
 const DECKLINK_PRODUCER_RE = /^DECKLINK(?:\s+DEVICE)?\s+(\d+)(?:\s+FORMAT\s+(\S+))?$/i
 
+/** True when the producer string is an ffmpeg capture URI (dshow / v4l2 / iec61883). */
 function isLiveFfmpegProducer(producer: string): boolean {
 	return /^dshow:\/\//i.test(producer) || /^v4l2:\/\//i.test(producer) || /^iec61883:\/\//i.test(producer)
 }
@@ -254,8 +254,8 @@ export function vmixLayerTransformFromFill(fill: TSR.Mixer['fill']): Pick<TSR.VM
 
 /**
  * vMix studios: vMix owns the live camera. Look CAM is layer 1 of the look's vMix input,
- * placed from the Caspar FILL; the look `bg_loop` drops to opacity 0 for the same window
- * so the camera shows through the look's transparent pane.
+ * placed from the Caspar FILL. The look bg_loop layers are unused on vMix (the Caspar
+ * look channels carry no bg_loop baseline).
  * With `lookAFeedInput`/`lookBFeedInput` set, the NDI look feed goes on layer 2 ABOVE the
  * camera (the look input is a composite/virtual input in vMix) — graphics key over the
  * camera through the transparent cutout. Without it the camera layers on top of the feed
@@ -283,19 +283,6 @@ export function createVMixLookCameraTimelineObjects(
 				deviceType: TSR.DeviceType.VMIX,
 				type: TSR.TimelineContentTypeVMix.INPUT,
 				layers,
-			},
-		}),
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			...base,
-			priority: 3,
-			layer: slot === 'A' ? CasparCGLayers.CasparCGLookBgLoop : CasparCGLayers.CasparCGLookBgLoopB,
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: DEFAULT_BG_LOOP_FILE,
-				loop: true,
-				mixer: { opacity: 0 },
 			},
 		}),
 	]

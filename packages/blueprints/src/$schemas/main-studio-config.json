@@ -351,9 +351,48 @@
 					"ui:description": "vMix input number for the kolíska bed C music (bg_music_c, Šport)",
 					"minimum": 1,
 					"default": 6
+				},
+				"stingerCutPointMs": {
+					"type": "integer",
+					"ui:title": "Stinger cut point (ms)",
+					"ui:description": "Time from the stinger PROGRAM command to the vMix stinger's program cut, measured on the studio (~960 ms). Drives the outgoing off-air point for wiped Takes.",
+					"minimum": 0,
+					"default": 960
+				},
+				"bedVolume": {
+					"type": "integer",
+					"ui:title": "Bed volume (0–100)",
+					"ui:description": "vMix AUDIO volume for the kolíska beds (A and C) while unmuted — a single constant level, no hit-then-duck envelope.",
+					"minimum": 0,
+					"maximum": 100,
+					"default": 70
 				}
 			},
 			"required": ["cameraInput", "lookAInput", "lookBInput", "cleanGfxInput", "bedAInput", "bedCInput"],
+			"additionalProperties": false
+		},
+		"audioLevels": {
+			"type": "object",
+			"title": "AudioLevelsConfig",
+			"description": "Mixer volume levels for show SFX (0–1 Caspar mixer scale)",
+			"ui:category": "Audio",
+			"ui:title": "Audio levels",
+			"properties": {
+				"headlineSfxVolume": {
+					"type": "number",
+					"ui:title": "Headline SFX volume",
+					"ui:description": "Caspar mixer volume (0–1) for the headline sting (assets/headline_sfx) on the PGM + LED bed layers. Unset: 0.5 on vMix-program studios, 1 on other studios.",
+					"minimum": 0,
+					"maximum": 1
+				},
+				"countupVolume": {
+					"type": "number",
+					"ui:title": "Countup volume",
+					"ui:description": "Caspar mixer volume (0–1) for the 360 countup SFX (assets/countup). Unset: 0.5 on vMix-program studios, 1 on other studios.",
+					"minimum": 0,
+					"maximum": 1
+				}
+			},
 			"additionalProperties": false
 		},
 		"previewRenderer": {

@@ -16,6 +16,7 @@ import { getAdlibItem } from './getAdlibItem.js'
 import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
+import { StudioConfig } from '../studio/helpers/config.js'
 import { VisionMixerDevice } from '../studio/helpers/config.js'
 import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
 import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
@@ -109,7 +110,7 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		// Out-of-order navigation latched earlier: keep the countup paused here too
 		// (covers nexts that were already selected before the flag was set).
 		if (playoutState.getKey('countupPaused')) {
-			await ensureCountupHoldPiece(context, nextPartInstance)
+			await ensureCountupHoldPiece(context, nextPartInstance, config)
 		}
 		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
 		await ensureVmixRecordingPiece(context, nextPartInstance)
@@ -158,7 +159,7 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 			playoutState.setKey('expectedNextPartId', nextPartInstance.part._id)
 		}
 		if (playoutState.getKey('countupPaused')) {
-			await ensureCountupHoldPiece(context, nextPartInstance)
+			await ensureCountupHoldPiece(context, nextPartInstance, config)
 		}
 		if (config.visionMixer.type !== VisionMixerDevice.VMix) return
 		if (!playoutState.getKey('vmixRecordingStarted')) return
@@ -190,12 +191,13 @@ interface SpravyPlayoutState {
  */
 async function ensureCountupHoldPiece(
 	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece'> & ICommonContext,
-	partInstance: IBlueprintPartInstance | undefined
+	partInstance: IBlueprintPartInstance | undefined,
+	studioConfig: StudioConfig
 ): Promise<void> {
 	if (!partInstance) return
 	const nextPieces = await context.getPieceInstances('next')
 	if (nextPieces.some((instance) => instance.piece.externalId?.endsWith(COUNTUP_HOLD_EXTERNAL_ID_SUFFIX))) return
-	await context.insertPiece('next', createCountupHoldPiece(context, partInstance.part.externalId))
+	await context.insertPiece('next', createCountupHoldPiece(context, partInstance.part.externalId, studioConfig))
 }
 
 /**

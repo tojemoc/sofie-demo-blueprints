@@ -21,6 +21,7 @@ import { getHostForceMuteChannels } from '../helpers/backgroundMusic.js'
 import { SisyfosLayers } from '../../studio/layers.js'
 import { autoNextFromRe } from '../helpers/autoNext.js'
 
+/** Generate a VO part — voice-over clip on the look clip layer with muted camera audio. */
 export function generateVOPart(
 	context: PartContext,
 	part: PartProps<VOProps>,

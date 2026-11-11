@@ -10,13 +10,15 @@ import {
 	createCountupRevealPiece,
 	delayCountupRevealToWipeCut,
 	getCountupRevealClaimForGeneration,
+	getCountupVolume,
 	partShouldMuteCountup,
 	partShouldPersistCountupMute,
 	resetCountupRevealGenerationForTests,
 } from '../base/showstyle/helpers/countupReveal.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
-import { SourceType } from '../base/studio/helpers/config.js'
+import { SourceType, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { getHeadlineSfxVolume } from '../base/showstyle/helpers/headlineSfx.js'
 import { hybridCasparConfig, mockSegmentContext } from './helpers/smokeRundownIngest.js'
 
 describe('countupReveal claim', () => {
@@ -28,13 +30,13 @@ describe('countupReveal claim', () => {
 		const ctx = new PartContext(mockSegmentContext(), 'part-db-1')
 		const reveal = createCountupRevealPiece(ctx, hybridCasparConfig, 'part-db-1')
 		expect(reveal.enable).toEqual({ start: 0 })
-		delayCountupRevealToWipeCut([reveal], 380)
+		delayCountupRevealToWipeCut([reveal], 380, hybridCasparConfig)
 		expect(reveal.enable).toEqual({ start: 0 })
 		const tl = reveal.content.timelineObjects?.[0]
 		expect((tl?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
 		expect(tl?.keyframes?.[0]?.enable).toEqual({ start: 380 })
 		expect(tl?.keyframes?.[0]?.content).toMatchObject({ playing: true })
-		delayCountupRevealToWipeCut([reveal], 1100)
+		delayCountupRevealToWipeCut([reveal], 1100, hybridCasparConfig)
 		expect(reveal.enable).toEqual({ start: 0 })
 		expect(reveal.content.timelineObjects?.[0]?.keyframes?.[0]?.enable).toEqual({ start: 1100 })
 	})
@@ -328,5 +330,18 @@ describe('countupReveal claim', () => {
 		const sustainPiece = sustainPieces.find((piece) => piece.externalId === 'part-later_countup_sustain')
 		expect(sustainPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		expect(sustainPiece?.content?.timelineObjects?.[0]?.content?.mixer).toMatchObject({ volume: 1 })
+	})
+
+	it('defaults to 0.5 only on vMix-program studios; explicit setting always wins', () => {
+		const vmixConfig = {
+			...hybridCasparConfig,
+			visionMixer: { type: VisionMixerDevice.VMix, host: '127.0.0.1', port: 8088, deviceId: 'vmix0' },
+		}
+		expect(getCountupVolume(hybridCasparConfig)).toBe(1)
+		expect(getHeadlineSfxVolume(hybridCasparConfig)).toBe(1)
+		expect(getCountupVolume(vmixConfig)).toBe(0.5)
+		expect(getHeadlineSfxVolume(vmixConfig)).toBe(0.5)
+		expect(getCountupVolume({ ...hybridCasparConfig, audioLevels: { countupVolume: 0.3 } })).toBe(0.3)
+		expect(getHeadlineSfxVolume({ ...vmixConfig, audioLevels: { headlineSfxVolume: 0.8 } })).toBe(0.8)
 	})
 })

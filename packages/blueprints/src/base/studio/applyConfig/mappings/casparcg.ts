@@ -19,6 +19,7 @@ export interface HypercomposedChannelMap {
 	camIngestChannel: number
 }
 
+/** Pick `preferred` channel or the next free one above it; marks the choice used. */
 function nextFreeChannel(preferred: number, used: Set<number>): number {
 	let channel = Number.isFinite(preferred) && preferred >= 1 ? Math.floor(preferred) : 1
 	while (used.has(channel)) {
@@ -28,6 +29,7 @@ function nextFreeChannel(preferred: number, used: Set<number>): number {
 	return channel
 }
 
+/** Resolve the five hypercomposed channel numbers (LED / PGM / BG A / BG B / cam ingest), de-conflicting clashes. */
 export function getHypercomposedChannels(config: BlueprintConfig): HypercomposedChannelMap {
 	const hypercomposed = config.studio.casparcg.hypercomposed
 	const used = new Set<number>()
@@ -41,6 +43,7 @@ export function getHypercomposedChannels(config: BlueprintConfig): Hypercomposed
 	}
 }
 
+/** Plain Caspar layer mapping (channel/layer + lookahead mode). */
 function casparLayerMapping(
 	channel: number,
 	layer: number,
@@ -85,9 +88,26 @@ function casparPreloadMapping(channel: number, layer: number): BlueprintMapping<
 	})
 }
 
+/** vMix: SYN/VT clips ride layer 120 above the phase-locked db_loop (118); Caspar keeps 111. */
+function lookClipLayer(vmix: boolean): number {
+	return vmix ? BgChannelLayers.VmixClipPlayer : BgChannelLayers.ClipPlayer
+}
+
+/**
+ * vMix: db_loop is phase-locked from baseline and only changes opacity — lookahead
+ * NONE so a LOADBG'd copy can never be promoted (`PLAY x-118` restarts the loop).
+ */
+function lookDoubleBoxLoopMapping(channel: number, vmix: boolean): BlueprintMapping<TSR.MappingCasparCGLayer> {
+	return vmix
+		? casparLayerMapping(channel, BgChannelLayers.DoubleBoxLoop, LookaheadMode.NONE)
+		: casparPreloadMapping(channel, BgChannelLayers.DoubleBoxLoop)
+}
+
+/** Slot-A look-channel layer mappings (bg_loop, clip, ILU, cam, db_loop, L3D). */
 function lookStackMappings(
 	channel: number,
-	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird }
+	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird },
+	vmix = false
 ): Pick<
 	BlueprintMappings,
 	| CasparCGLayers.CasparCGLookBgLoop
@@ -103,10 +123,10 @@ function lookStackMappings(
 	// L3D stay NONE (sticky loop never hot-cues; template PRELOAD becomes CG UPDATE).
 	return {
 		[CasparCGLayers.CasparCGLookBgLoop]: casparLayerMapping(channel, BgChannelLayers.BgLoop, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGClipPlayer2]: casparPreloadMapping(channel, BgChannelLayers.ClipPlayer),
+		[CasparCGLayers.CasparCGClipPlayer2]: casparPreloadMapping(channel, lookClipLayer(vmix)),
 		[CasparCGLayers.CasparCGPgmIluPlayer]: casparPreloadMapping(channel, BgChannelLayers.IluPlayer),
 		[CasparCGLayers.CasparCGPgmCamera]: casparPreloadMapping(channel, BgChannelLayers.Camera),
-		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: casparPreloadMapping(channel, BgChannelLayers.DoubleBoxLoop),
+		[CasparCGLayers.CasparCGPgmDoubleBoxLoop]: lookDoubleBoxLoopMapping(channel, vmix),
 		// NONE: PRELOAD of the next L3D on the same CEF layer becomes CG UPDATE
 		// (text swap, no in/out animation). Takes must STOP then ADD instead.
 		[CasparCGLayers.CasparCGGraphicsPgmLowerThird]: casparLayerMapping(
@@ -117,9 +137,11 @@ function lookStackMappings(
 	}
 }
 
+/** Slot-B look-channel layer mappings — same stack as {@link lookStackMappings} on the B ids. */
 function lookStackMappingsB(
 	channel: number,
-	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird }
+	lowerThird: { channel: number; layer: number } = { channel, layer: BgChannelLayers.GraphicsLowerThird },
+	vmix = false
 ): Pick<
 	BlueprintMappings,
 	| CasparCGLayers.CasparCGLookBgLoopB
@@ -133,10 +155,10 @@ function lookStackMappingsB(
 > {
 	return {
 		[CasparCGLayers.CasparCGLookBgLoopB]: casparLayerMapping(channel, BgChannelLayers.BgLoop, LookaheadMode.NONE),
-		[CasparCGLayers.CasparCGClipPlayer2B]: casparPreloadMapping(channel, BgChannelLayers.ClipPlayer),
+		[CasparCGLayers.CasparCGClipPlayer2B]: casparPreloadMapping(channel, lookClipLayer(vmix)),
 		[CasparCGLayers.CasparCGPgmIluPlayerB]: casparPreloadMapping(channel, BgChannelLayers.IluPlayer),
 		[CasparCGLayers.CasparCGPgmCameraB]: casparPreloadMapping(channel, BgChannelLayers.Camera),
-		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: casparPreloadMapping(channel, BgChannelLayers.DoubleBoxLoop),
+		[CasparCGLayers.CasparCGPgmDoubleBoxLoopB]: lookDoubleBoxLoopMapping(channel, vmix),
 		// Pre-first-Take calibration look on BG B — spare layers so the per-part
 		// OutOnRundownEnd EMPTY never fights show pieces on 115/118.
 		[CasparCGLayers.CasparCGLookCalibCam]: casparLayerMapping(
@@ -212,6 +234,7 @@ export const VMIX_RETIRED_CASPAR_LAYERS: ReadonlyArray<CasparCGLayers> = [
 	CasparCGLayers.CasparCGDebugLabelCamIngest,
 ]
 
+/** All Caspar layer mappings for the studio (LED, PGM, look A/B, ingest), minus the layers retired on vMix studios. */
 export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings {
 	const { ledChannel, pgmChannel, bgChannelA, bgChannelB, camIngestChannel } = getHypercomposedChannels(config)
 	// vMix switches program: the PGM channel carries clean GFX. Headline L3Ds stay
@@ -264,8 +287,8 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 			LookaheadMode.NONE
 		),
 
-		...lookStackMappings(bgChannelA),
-		...lookStackMappingsB(bgChannelB),
+		...lookStackMappings(bgChannelA, undefined, vmixProgram),
+		...lookStackMappingsB(bgChannelB, undefined, vmixProgram),
 		[CasparCGLayers.CasparCGGraphicsHeadline]: casparLayerMapping(
 			pgmChannel,
 			PgmChannelLayers.GraphicsLowerThird,

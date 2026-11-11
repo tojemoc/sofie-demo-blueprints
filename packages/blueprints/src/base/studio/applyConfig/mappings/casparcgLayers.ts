@@ -41,6 +41,12 @@ export const BgChannelLayers = {
 	BgLoop: 110,
 	/** SYN / VT / weather clip (above bg_loop, below CAM). */
 	ClipPlayer: 111,
+	/**
+	 * vMix studios only: clip layer moved to **120** so SYN/VT sits above the
+	 * phase-locked db_loop (118) — the DoubleBox frame keys over clip content.
+	 * ILU (116) stays under db_loop.
+	 */
+	VmixClipPlayer: 120,
 	Camera: 115,
 	IluPlayer: 116,
 	/** DoubleBox compositing frame (alpha loop) — above ILU/CAM, below L3D. */
