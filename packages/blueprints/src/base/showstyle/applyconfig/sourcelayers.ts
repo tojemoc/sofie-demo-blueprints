@@ -1,6 +1,7 @@
 import { ISourceLayer, SourceLayerType } from '@sofie-automation/blueprints-integration'
 import { SourceLayer } from './layers.js'
 
+/** Source-layer definitions registered with the showstyle (rundown editor pickers). */
 export function getSourceLayer(): ISourceLayer[] {
 	const layers: ISourceLayer[] = [
 		{
@@ -181,6 +182,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			_rank: 208,
 			name: 'Countup hold',
 			abbreviation: 'Ch',
+			isHidden: true,
+		},
+		{
+			_id: SourceLayer.LookIdlePreview,
+			type: SourceLayerType.UNKNOWN,
+			_rank: 209,
+			name: 'Idle look preview',
+			abbreviation: 'Lpv',
 			isHidden: true,
 		},
 		{

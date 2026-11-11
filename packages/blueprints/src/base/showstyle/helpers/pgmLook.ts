@@ -1921,6 +1921,96 @@ function emptyLookMediaObject(
 }
 
 /**
+ * Paused **foreground** preview of the next part's clip / ILU on the off-air look
+ * channel. Sofie lookahead can only arm nextUp (`LOADBG` — invisible on the
+ * input), which is why the operator watched `bg_loop` on every A↔B swap. This
+ * clones the *next* part's MEDIA objects into the *current* part with
+ * `playing: false` and priority 3 (above the outgoing-channel EMPTYs at
+ * priority 2): the paused clip replaces the outgoing producer the instant the
+ * channel goes off air — muting its audio at the take boundary — and stays a
+ * frozen frame on the vMix input for the whole part. At the take, the incoming
+ * part's own `playing: false` object is media-identical → no producer swap →
+ * the hot-PLAY keyframe is then a bare `RESUME`. Volume 0: a paused producer
+ * is silent anyway, this only guards against a stray PLAY while off-air.
+ * Priority 3 also beats the prio-2 EMPTY so a 404 `clearOn404` still leaves a
+ * transparent layer rather than blinking `bg_loop`.
+ */
+export function injectIdleLookPreviewPieces(
+	parts: Array<{ part: { externalId: string; invalid?: boolean; floated?: boolean }; pieces: IBlueprintPiece[] }>,
+	partLookSlots: Array<LookSlot | undefined>
+): void {
+	/** Clip / ILU layers of the physical look channel claimed by `slot`. */
+	const mediaLayersForSlot = (slot: LookSlot): CasparCGLayers[] => {
+		const layers = getLookLayers(slot)
+		return [layers.clip, layers.ilu]
+	}
+
+	for (let i = 0; i < parts.length - 1; i++) {
+		const currentSlot = partLookSlots[i]
+		if (currentSlot === undefined || parts[i].part.invalid || parts[i].part.floated) continue
+
+		// The preview rides the *last on-air part*: a floated, skipped, or invalid
+		// part never takes, so scan past it to the next part that can actually go
+		// on air and clone that part's media instead.
+		let nextIdx = i + 1
+		while (nextIdx < parts.length && (parts[nextIdx].part.invalid || parts[nextIdx].part.floated)) nextIdx++
+		if (nextIdx >= parts.length) continue
+		const nextSlot = partLookSlots[nextIdx]
+		// Only when the next part actually claims the *idle* channel — same-slot
+		// (peek part in between, or a broken ping-pong) must never put a paused
+		// clip onto the live channel.
+		if (nextSlot === undefined || nextSlot === currentSlot) continue
+
+		const targetLayers = mediaLayersForSlot(nextSlot)
+		const seen = new Set<CasparCGLayers>()
+		const previewObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = []
+		for (const piece of parts[nextIdx].pieces) {
+			for (const obj of piece.content?.timelineObjects ?? []) {
+				const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+				if (
+					content?.deviceType !== TSR.DeviceType.CASPARCG ||
+					content.type !== TSR.TimelineContentTypeCasparCg.MEDIA ||
+					!content.file ||
+					content.file === 'EMPTY' ||
+					!targetLayers.includes(obj.layer as CasparCGLayers) ||
+					seen.has(obj.layer as CasparCGLayers)
+				)
+					continue
+				seen.add(obj.layer as CasparCGLayers)
+				previewObjects.push(
+					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+						id: '',
+						enable: { while: 1 },
+						layer: obj.layer,
+						priority: 3,
+						content: {
+							...content,
+							playing: false,
+							mixer: { ...(content.mixer ?? {}), volume: 0 },
+						},
+					})
+				)
+			}
+		}
+		if (previewObjects.length === 0) continue
+
+		parts[i].pieces.push(
+			literal<IBlueprintPiece>({
+				enable: { start: 0 },
+				externalId: `${parts[i].part.externalId}_lookidlepreview`,
+				name: 'Idle look preview',
+				lifespan: PieceLifespan.WithinPart,
+				sourceLayerId: SourceLayer.LookIdlePreview,
+				outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LookIdlePreview),
+				content: {
+					timelineObjects: previewObjects,
+				},
+			})
+		)
+	}
+}
+
+/**
  * EMPTY the look L3D layer at Take (or `clearStartMs`) so a keepalive'd previous
  * template cannot stack under the wipe / hard-cut gap. Duration covers until the
  * delayed CG ADD; omit duration when there is no incoming L3D (wiped Take into a
@@ -2013,6 +2103,10 @@ function appendPgmLayerClearPiece(
 export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
 	const minPostroll = Math.max(0, Math.floor(postrollMs))
 	for (const piece of pieces) {
+		// Idle-preview clones are WithinPart paused duplicates of the *incoming*
+		// part's media — holding them past the take would shadow the incoming
+		// part's own objects on the same layers.
+		if (piece.sourceLayerId === (SourceLayer.LookIdlePreview as string)) continue
 		const objects = piece.content.timelineObjects ?? []
 		const keepPicture = objects.some((obj) => {
 			const layer = String(obj.layer)

@@ -77,6 +77,14 @@ export enum SourceLayer {
 	 * against the per-part countup sustain/mute pieces on {@link SourceLayer.Logo}.
 	 */
 	CountupHold = 'countup_hold',
+	/**
+	 * Hidden idle-look preview: clones the *next* part's clip/ILU MEDIA into the
+	 * current part as a paused foreground producer on the off-air channel, so the
+	 * vMix input shows a frozen frame instead of `bg_loop` and the Take is a pure
+	 * unpause. Dedicated layer so Core pruning can never drop it against clear or
+	 * sustain pieces.
+	 */
+	LookIdlePreview = 'look_idle_preview',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -91,6 +99,7 @@ export enum OutputLayer {
 	Script = 'script',
 }
 
+/** Output layer a piece on `layer` should land on when not set explicitly. */
 export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 	switch (layer) {
 		case SourceLayer.Script:
@@ -119,6 +128,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.DVE_RETAIN:
 		case SourceLayer.VmixRecording:
 		case SourceLayer.CountupHold:
+		case SourceLayer.LookIdlePreview:
 			return OutputLayer.Aux
 		default:
 			return OutputLayer.Pgm

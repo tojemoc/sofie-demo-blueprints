@@ -384,6 +384,42 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 	})
 
+	it('previews the incoming look clip paused on the off-air channel (foreground, not LOADBG)', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-sjv')
+		const intermediate = convertIngestData(mockIngestContext, ingest)
+		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
+
+		// Part 0 claims idle A; part 1 claims B — part 0 must carry a paused
+		// foreground preview of part 1's clip on the B clip layer (playing:false,
+		// priority above the outgoing-channel EMPTYs, muted volume).
+		const preview = generated.parts[0].pieces.find((piece) => piece.externalId?.endsWith('_lookidlepreview'))
+		expect(preview).toBeDefined()
+		expect(preview?.sourceLayerId).toBe(SourceLayer.LookIdlePreview)
+		expect(preview?.lifespan).toBe(PieceLifespan.WithinPart)
+		const previewObj = preview?.content.timelineObjects?.find(
+			(obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B
+		)
+		expect(previewObj).toBeDefined()
+		const media = previewObj?.content as TSR.TimelineContentCCGMedia
+		expect(media.playing).toBe(false)
+		expect(media.mixer?.volume).toBe(0)
+		expect(previewObj?.priority).toBe(3)
+
+		// Same file as the incoming part's own clip object — the take then diffs
+		// media-identical paused producers: no swap, just RESUME.
+		const incomingClip = generated.parts[1].pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGClipPlayer2B &&
+					(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
+			)
+		expect(incomingClip).toBeDefined()
+		expect(media.file).toBe((incomingClip?.content as TSR.TimelineContentCCGMedia).file)
+	})
+
 	it('DoubleBox live CAM plays route://5 on look A (no DeckLink on look B)', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
