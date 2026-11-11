@@ -364,7 +364,7 @@ export function generateParts(
 		// Paused *foreground* preview of the incoming clip/ILU on the off-air channel:
 		// the vMix input shows a frozen frame for the whole part instead of `bg_loop`,
 		// and the take is a pure RESUME of an already-paused producer.
-		injectIdleLookPreviewPieces(parts, partLookSlots)
+		injectIdleLookPreviewPieces(studioConfig, parts, partLookSlots)
 	}
 
 	// Sofie holds previous look only for piece.postrollDuration into the next Take's

@@ -1921,28 +1921,39 @@ function emptyLookMediaObject(
 }
 
 /**
- * Paused **foreground** preview of the next part's clip / ILU on the off-air look
- * channel. Sofie lookahead can only arm nextUp (`LOADBG` — invisible on the
- * input), which is why the operator watched `bg_loop` on every A↔B swap. This
- * clones the *next* part's MEDIA objects into the *current* part with
- * `playing: false` and priority 3 (above the outgoing-channel EMPTYs at
- * priority 2): the paused clip replaces the outgoing producer the instant the
- * channel goes off air — muting its audio at the take boundary — and stays a
- * frozen frame on the vMix input for the whole part. At the take, the incoming
- * part's own `playing: false` object is media-identical → no producer swap →
- * the hot-PLAY keyframe is then a bare `RESUME`. Volume 0: a paused producer
- * is silent anyway, this only guards against a stray PLAY while off-air.
- * Priority 3 also beats the prio-2 EMPTY so a 404 `clearOn404` still leaves a
- * transparent layer rather than blinking `bg_loop`.
+ * Paused **foreground** preview of the next part's clip / ILU / `db_loop` on the
+ * off-air look channel. Sofie lookahead can only arm nextUp (`LOADBG` —
+ * invisible on the input), which is why the operator watched `bg_loop` on every
+ * A↔B swap. This clones the *next* part's MEDIA objects into the *current* part
+ * with `playing: false` and priority 3 (above the outgoing-channel EMPTYs at
+ * priority 2), enabled only once this part's incoming take has carried the
+ * previous channel off air (`previousPartKeepaliveDuration`) — ping-pong makes
+ * that just-vacated channel the very channel the preview targets, so enabling
+ * at Take would flash the paused frame over the outgoing look mid-transition.
+ * It then stays a frozen frame on the vMix input for the rest of the part. At
+ * the take, the incoming part's own `playing: false` object is media-identical
+ * → no producer swap → the hot-PLAY keyframe is then a bare `RESUME`. Volume 0:
+ * a paused producer is silent anyway, this only guards against a stray PLAY
+ * while off-air. Priority 3 also beats the prio-2 EMPTY so a 404 `clearOn404`
+ * still leaves a transparent layer rather than blinking `bg_loop`.
  */
 export function injectIdleLookPreviewPieces(
-	parts: Array<{ part: { externalId: string; invalid?: boolean; floated?: boolean }; pieces: IBlueprintPiece[] }>,
+	config: StudioConfig,
+	parts: Array<{
+		part: {
+			externalId: string
+			invalid?: boolean
+			floated?: boolean
+			inTransition?: { previousPartKeepaliveDuration?: number }
+		}
+		pieces: IBlueprintPiece[]
+	}>,
 	partLookSlots: Array<LookSlot | undefined>
 ): void {
-	/** Clip / ILU layers of the physical look channel claimed by `slot`. */
+	/** Clip / ILU / DoubleBox-frame layers of the physical look channel claimed by `slot`. */
 	const mediaLayersForSlot = (slot: LookSlot): CasparCGLayers[] => {
 		const layers = getLookLayers(slot)
-		return [layers.clip, layers.ilu]
+		return [layers.clip, layers.ilu, layers.doubleBoxLoop]
 	}
 
 	for (let i = 0; i < parts.length - 1; i++) {
@@ -1960,6 +1971,12 @@ export function injectIdleLookPreviewPieces(
 		// (peek part in between, or a broken ping-pong) must never put a paused
 		// clip onto the live channel.
 		if (nextSlot === undefined || nextSlot === currentSlot) continue
+
+		// Ping-pong makes the preview's target channel the one the previous part
+		// just vacated — which stays routed for previousPartKeepaliveDuration
+		// past this take. Reveal the clone only once it is off air, or the paused
+		// frame visibly replaces the outgoing look before the cover / hard cut.
+		const previewStartMs = Math.max(0, Math.floor(parts[i].part.inTransition?.previousPartKeepaliveDuration ?? 0))
 
 		const targetLayers = mediaLayersForSlot(nextSlot)
 		const seen = new Set<CasparCGLayers>()
@@ -1980,7 +1997,7 @@ export function injectIdleLookPreviewPieces(
 				previewObjects.push(
 					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 						id: '',
-						enable: { while: 1 },
+						enable: { start: previewStartMs },
 						layer: obj.layer,
 						priority: 3,
 						content: {
@@ -1994,19 +2011,21 @@ export function injectIdleLookPreviewPieces(
 		}
 		if (previewObjects.length === 0) continue
 
-		parts[i].pieces.push(
-			literal<IBlueprintPiece>({
-				enable: { start: 0 },
-				externalId: `${parts[i].part.externalId}_lookidlepreview`,
-				name: 'Idle look preview',
-				lifespan: PieceLifespan.WithinPart,
-				sourceLayerId: SourceLayer.LookIdlePreview,
-				outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LookIdlePreview),
-				content: {
-					timelineObjects: previewObjects,
-				},
-			})
-		)
+		const previewPiece = literal<IBlueprintPiece>({
+			enable: { start: 0 },
+			externalId: `${parts[i].part.externalId}_lookidlepreview`,
+			name: 'Idle look preview',
+			lifespan: PieceLifespan.WithinPart,
+			sourceLayerId: SourceLayer.LookIdlePreview,
+			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LookIdlePreview),
+			content: {
+				timelineObjects: previewObjects,
+			},
+		})
+		// A cloned db_loop keeps its transparent-background pairing on vMix — the
+		// preview must hide bg_loop for the same window like any DoubleBox look.
+		hideLookBgLoopUnderDoubleBox(config, [previewPiece])
+		parts[i].pieces.push(previewPiece)
 	}
 }
 
