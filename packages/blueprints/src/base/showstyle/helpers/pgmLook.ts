@@ -2103,6 +2103,10 @@ function appendPgmLayerClearPiece(
 export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: number = LOOK_MEDIA_POSTROLL_MS): void {
 	const minPostroll = Math.max(0, Math.floor(postrollMs))
 	for (const piece of pieces) {
+		// Idle-preview clones are WithinPart paused duplicates of the *incoming*
+		// part's media — holding them past the take would shadow the incoming
+		// part's own objects on the same layers.
+		if (piece.sourceLayerId === (SourceLayer.LookIdlePreview as string)) continue
 		const objects = piece.content.timelineObjects ?? []
 		const keepPicture = objects.some((obj) => {
 			const layer = String(obj.layer)

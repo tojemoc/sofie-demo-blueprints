@@ -107,6 +107,11 @@ export function resolveLookSlotForPart(
 	return lookSlots.claimIdle()
 }
 
+/**
+ * Generate this segment's parts: per-type adapters, look-slot bookkeeping for
+ * the A/B ping-pong, then segment-level passes (idle-look preview injection,
+ * postroll raises, sport entrance pick) that need every part's pieces settled.
+ */
 export function generateParts(
 	context: ISegmentUserContext,
 	intermediateSegment: SegmentProps,
