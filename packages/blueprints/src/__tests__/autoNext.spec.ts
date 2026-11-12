@@ -276,16 +276,15 @@ describe('RE autoNext is the source of truth', () => {
 		const dveContext = new PartContext(
 			{
 				...segmentContext,
-				getShowStyleConfig: () =>
-					({
-						dvePresets: {
-							test: {
-								name: 'test',
-								boxes: 0,
-								preset: JSON.stringify({ boxes: [], properties: {}, border: {} }),
-							},
+				getShowStyleConfig: () => ({
+					dvePresets: {
+						test: {
+							name: 'test',
+							boxes: 0,
+							preset: JSON.stringify({ boxes: [], properties: {}, border: {} }),
 						},
-					}) as never,
+					},
+				}),
 			},
 			'part-auto'
 		)

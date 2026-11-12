@@ -235,7 +235,7 @@ function getTemplateAttributes(
 		delete mapped.cities
 		delete mapped.bypass
 		delete mapped.fileName
-		return mapped as GraphicObjectAttributes
+		return mapped
 	}
 
 	if (normalizedClip === 'gfx/headline') {
@@ -271,7 +271,7 @@ function hasHeadlineIluFile(object: GraphicObjectBase): boolean {
 
 /** True when any object is a headline ILU clip (for per-Take SFX, etc.). */
 export function partHasHeadlineIlu(objects: SomeObject[]): boolean {
-	return objects.some((obj) => obj.objectType === ObjectType.Graphic && hasHeadlineIluFile(obj as GraphicObjectBase))
+	return objects.some((obj) => obj.objectType === ObjectType.Graphic && hasHeadlineIluFile(obj))
 }
 
 /** Crop a full-frame 16:9 clip into the HTML #ilu-slide window (cover, no squish). */

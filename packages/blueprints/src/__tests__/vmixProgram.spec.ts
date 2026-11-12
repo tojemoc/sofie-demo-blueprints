@@ -219,7 +219,7 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 				},
 			},
 		]
-		finalizeHypercomposedPart(vmixContext(), vmixStudioConfig, part as never, 'l3d-only', [], pieces, 'B')
+		finalizeHypercomposedPart(vmixContext(), vmixStudioConfig, part, 'l3d-only', [], pieces, 'B')
 		expect(programObjects(pieces)[0]?.content.input).toBe(LOOK_B_INPUT)
 	})
 
@@ -405,8 +405,8 @@ describe('vMix studio beds + DoubleBox background (smoke rundown)', () => {
 
 	it('db_loop layers only carry phase-locked loops/db_loop objects (never EMPTY / paused)', () => {
 		const dbLoopLayers = new Set<string>([
-			CasparCGLayers.CasparCGPgmDoubleBoxLoop as string,
-			CasparCGLayers.CasparCGPgmDoubleBoxLoopB as string,
+			CasparCGLayers.CasparCGPgmDoubleBoxLoop,
+			CasparCGLayers.CasparCGPgmDoubleBoxLoopB,
 		])
 		let dbLoops = 0
 		for (const { externalId, pieces } of parts) {
@@ -524,22 +524,22 @@ describe('vMix feed mode (look feed inputs)', () => {
 	const parts = generateSmokeRundown(feedConfig)
 
 	const LOOK_COMPOSE_LAYERS = new Set<string>([
-		CasparCGLayers.CasparCGClipPlayer2 as string,
-		CasparCGLayers.CasparCGClipPlayer2B as string,
-		CasparCGLayers.CasparCGPgmCamera as string,
-		CasparCGLayers.CasparCGPgmCameraB as string,
-		CasparCGLayers.CasparCGPgmIluPlayer as string,
-		CasparCGLayers.CasparCGPgmIluPlayerB as string,
-		CasparCGLayers.CasparCGPgmDoubleBoxLoop as string,
-		CasparCGLayers.CasparCGPgmDoubleBoxLoopB as string,
+		CasparCGLayers.CasparCGClipPlayer2,
+		CasparCGLayers.CasparCGClipPlayer2B,
+		CasparCGLayers.CasparCGPgmCamera,
+		CasparCGLayers.CasparCGPgmCameraB,
+		CasparCGLayers.CasparCGPgmIluPlayer,
+		CasparCGLayers.CasparCGPgmIluPlayerB,
+		CasparCGLayers.CasparCGPgmDoubleBoxLoop,
+		CasparCGLayers.CasparCGPgmDoubleBoxLoopB,
 	])
 	const CLIP_ILU_LAYERS = new Set<string>([
-		CasparCGLayers.CasparCGClipPlayer2 as string,
-		CasparCGLayers.CasparCGClipPlayer2B as string,
-		CasparCGLayers.CasparCGPgmIluPlayer as string,
-		CasparCGLayers.CasparCGPgmIluPlayerB as string,
+		CasparCGLayers.CasparCGClipPlayer2,
+		CasparCGLayers.CasparCGClipPlayer2B,
+		CasparCGLayers.CasparCGPgmIluPlayer,
+		CasparCGLayers.CasparCGPgmIluPlayerB,
 	])
-	const LOOK_INPUT_LAYERS = new Set<string>([VMixLayers.VMixLookInputA as string, VMixLayers.VMixLookInputB as string])
+	const LOOK_INPUT_LAYERS = new Set<string>([VMixLayers.VMixLookInputA, VMixLayers.VMixLookInputB])
 
 	it('every look INPUT object keeps camera layer 1 and feed layer 2', () => {
 		let count = 0
@@ -613,10 +613,7 @@ describe('vMix feed mode (look feed inputs)', () => {
 	})
 
 	it('no look bg_loop outside the weather part', () => {
-		const bgLoopLayers = new Set<string>([
-			CasparCGLayers.CasparCGLookBgLoop as string,
-			CasparCGLayers.CasparCGLookBgLoopB as string,
-		])
+		const bgLoopLayers = new Set<string>([CasparCGLayers.CasparCGLookBgLoop, CasparCGLayers.CasparCGLookBgLoopB])
 		for (const { externalId, pieces } of parts) {
 			const isWeather = objectsOf(pieces).some((obj) =>
 				/pocasie/i.test(String((obj.content as { file?: string }).file ?? ''))

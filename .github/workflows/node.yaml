@@ -47,7 +47,7 @@ jobs:
       - name: Configure Yarn
         run: |
           mkdir -p .github/bin
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.18.1.cjs" "$@"' > .github/bin/yarn
           chmod +x .github/bin/yarn
           echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
@@ -86,7 +86,7 @@ jobs:
       - name: Configure Yarn
         run: |
           mkdir -p .github/bin
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.18.1.cjs" "$@"' > .github/bin/yarn
           chmod +x .github/bin/yarn
           echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
@@ -118,7 +118,7 @@ jobs:
       - name: Configure Yarn
         run: |
           mkdir -p .github/bin
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.18.1.cjs" "$@"' > .github/bin/yarn
           chmod +x .github/bin/yarn
           echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
@@ -231,7 +231,7 @@ jobs:
       - name: Configure Yarn
         run: |
           mkdir -p .github/bin
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.18.1.cjs" "$@"' > .github/bin/yarn
           chmod +x .github/bin/yarn
           echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment
@@ -311,7 +311,7 @@ jobs:
       - name: Configure Yarn
         run: |
           mkdir -p .github/bin
-          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.12.0.cjs" "$@"' > .github/bin/yarn
+          printf '%s\n' '#!/bin/sh' 'exec node "$GITHUB_WORKSPACE/.yarn/releases/yarn-4.18.1.cjs" "$@"' > .github/bin/yarn
           chmod +x .github/bin/yarn
           echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
       - name: Prepare Environment

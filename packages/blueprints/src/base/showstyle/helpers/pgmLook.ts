@@ -1533,7 +1533,7 @@ function applyVmixDoubleBoxPhaseLock(pieces: IBlueprintPiece[], lookSlot: LookSl
  * foreign-file MEDIA a clear path emitted on the look db_loop layers.
  */
 function stripVmixDoubleBoxLoopClears(pieces: IBlueprintPiece[]): void {
-	const dbLoopLayers = new Set<string>([LOOK_A_LAYERS.doubleBoxLoop as string, LOOK_B_LAYERS.doubleBoxLoop as string])
+	const dbLoopLayers = new Set<string>([LOOK_A_LAYERS.doubleBoxLoop, LOOK_B_LAYERS.doubleBoxLoop])
 	for (const piece of pieces) {
 		const objects = piece.content.timelineObjects
 		if (!objects) continue
@@ -1555,12 +1555,7 @@ function stripVmixDoubleBoxLoopClears(pieces: IBlueprintPiece[]): void {
  * cannot trigger a seek-forward reload (editorial `seek` is kept for LOADBG).
  */
 function normalizeVmixLookComposeObjects(pieces: IBlueprintPiece[]): void {
-	const clipIluLayers = new Set<string>([
-		LOOK_A_LAYERS.clip as string,
-		LOOK_B_LAYERS.clip as string,
-		LOOK_A_LAYERS.ilu as string,
-		LOOK_B_LAYERS.ilu as string,
-	])
+	const clipIluLayers = new Set<string>([LOOK_A_LAYERS.clip, LOOK_B_LAYERS.clip, LOOK_A_LAYERS.ilu, LOOK_B_LAYERS.ilu])
 	for (const piece of pieces) {
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
@@ -1721,7 +1716,7 @@ function rampVmixLookClipAudio(pieces: IBlueprintPiece[], stingCoverMs: number):
 								inTransition: transition,
 								changeTransition: transition,
 								outTransition: transition,
-							} as TSR.Mixer,
+							},
 						},
 					},
 				]

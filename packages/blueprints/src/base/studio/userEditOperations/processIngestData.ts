@@ -124,20 +124,10 @@ function processUpdateProps(
 	operationTarget: UserOperationTarget,
 	changes: UserOperationChange<BlueprintsUserOperations | DefaultUserOperations>
 ) {
-	if (operationTarget.pieceExternalId) {
-		return updatePieceProps(
-			context,
-			mutableIngestRundown,
-			{ ...operationTarget, pieceExternalId: operationTarget.pieceExternalId }, // sometimes typescript is kind of dumb >.>
-			changes
-		)
-	} else if (operationTarget.partExternalId) {
-		return updatePartProps(
-			context,
-			mutableIngestRundown,
-			{ ...operationTarget, partExternalId: operationTarget.partExternalId }, // sometimes typescript is kind of dumb >.>
-			changes
-		)
+	if ('pieceExternalId' in operationTarget && operationTarget.pieceExternalId) {
+		return updatePieceProps(context, mutableIngestRundown, operationTarget, changes)
+	} else if ('partExternalId' in operationTarget && operationTarget.partExternalId) {
+		return updatePartProps(context, mutableIngestRundown, operationTarget, changes)
 	} else if (operationTarget.segmentExternalId) {
 		return updateSegmentProps(
 			context,
@@ -178,9 +168,11 @@ function updateSegmentProps(
 function updatePartProps(
 	_context: IProcessIngestDataContext,
 	mutableIngestRundown: BlueprintMutableIngestRundown,
-	operationTarget: UserOperationTarget & { partExternalId: string },
+	operationTarget: { partExternalId: string | undefined },
 	changes: UserOperationChange<BlueprintsUserOperations | DefaultUserOperations>
 ) {
+	if (!operationTarget.partExternalId) return
+
 	const operation = changes.operation as DefaultUserOperationEditProperties
 
 	const partAndSegment = mutableIngestRundown.findPartAndSegment(operationTarget.partExternalId)
@@ -213,7 +205,7 @@ function updatePartProps(
 function updatePieceProps(
 	context: IProcessIngestDataContext,
 	mutableIngestRundown: BlueprintMutableIngestRundown,
-	operationTarget: UserOperationTarget & { pieceExternalId: string },
+	operationTarget: Extract<UserOperationTarget, { target: 'piece' }>,
 	changes: UserOperationChange<BlueprintsUserOperations | DefaultUserOperations>
 ) {
 	const operation = changes.operation as DefaultUserOperationEditProperties
@@ -252,16 +244,18 @@ function changeSource(
 	// 		"partExternalId":"5e4ea08d-7bbb-4180-a19a-14193fb00bdd"}
 	// }"
 
+	const operationTarget = changes.operationTarget
 	if (
 		changes.operation.id !== BlueprintUserOperationTypes.CHANGE_SOURCE ||
-		changes.operationTarget.partExternalId === undefined
+		!('partExternalId' in operationTarget) ||
+		operationTarget.partExternalId === undefined
 	) {
 		return
 	}
 
 	const newSourceType = changes.operation.payload.pieceTypeProperties.type
 	const newSource = changes.operation.payload.pieceTypeProperties.value.valueOnVariant
-	const part = mutableIngestRundown.findPart(changes.operationTarget.partExternalId)
+	const part = mutableIngestRundown.findPart(operationTarget.partExternalId)
 	if (part && part.payload) {
 		const newPayload: any = JSON.parse(JSON.stringify(part.payload))
 		let changed = false
