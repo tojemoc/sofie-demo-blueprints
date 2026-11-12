@@ -273,7 +273,7 @@ jobs:
           echo "release_tag=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
           files: |
@@ -347,7 +347,7 @@ jobs:
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Pre-release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.package.outputs.tag_name }}
           name: Pre-release ${{ steps.package.outputs.short_sha }}
