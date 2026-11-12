@@ -1,4 +1,5 @@
-import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-automation/blueprints-integration'
+import { BlueprintMapping, BlueprintMappings, LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../../common/util.js'
 import { BlueprintConfig, OutputConfig } from '../../helpers/config.js'
 import { AtemLayers } from '../../layers.js'

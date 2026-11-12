@@ -1,27 +1,29 @@
-import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { GraphicObjectAttributes, ObjectType } from '../common/definitions/objects.js'
-import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
+
+import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
+import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
+import { LOOK_B_LAYERS, SAME_SLOT_WIPE_AIR_CUT_LEAD_MS } from '../base/showstyle/helpers/pgmLook.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
-import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
-import { LOOK_B_LAYERS, SAME_SLOT_WIPE_AIR_CUT_LEAD_MS } from '../base/showstyle/helpers/pgmLook.js'
-
-const POCASIE_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_pocasie')
-const POCASIE_SAME_SLOT_LOOK_CUT_MS = POCASIE_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
-import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
+import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
-import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
+import { GraphicObjectAttributes, ObjectType } from '../common/definitions/objects.js'
 import {
 	loadSmokeRundownExport,
 	mockIngestContext,
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
+
+const POCASIE_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_pocasie')
+const POCASIE_SAME_SLOT_LOOK_CUT_MS = POCASIE_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
 
 const hybridCasparConfig: StudioConfig = {
 	previewRenderer: '',
@@ -641,7 +643,9 @@ describe('casparV2Graphics', () => {
 		expect(bgLoop?.priority).toBeGreaterThanOrEqual(3)
 		expect(
 			timeline.some(
-				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGPgmCameraB &&
+					(obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(true)
 		const weatherL3d = timeline.find(
@@ -676,7 +680,8 @@ describe('casparV2Graphics', () => {
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		const bg = timeline.find(
 			(obj) =>
-				obj.layer === LOOK_B_LAYERS.ilu && (obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
+				obj.layer === LOOK_B_LAYERS.ilu &&
+				(obj.content as TSR.TimelineContentCCGMedia).file === 'assets/bg_pocasie'
 		)
 		expect(bg?.enable).toEqual({ start: POCASIE_SAME_SLOT_LOOK_CUT_MS })
 		expect((bg?.content as TSR.TimelineContentCCGMedia).playing).not.toBe(false)
@@ -735,9 +740,9 @@ describe('casparV2Graphics', () => {
 		expect(bgMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 		const outroVideo = generatedOutro?.pieces.find((piece) => piece.name.startsWith('Outro |'))
 		expect(outroVideo?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
-		expect((outroVideo?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia | undefined)?.loop).toBe(
-			false
-		)
+		expect(
+			(outroVideo?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia | undefined)?.loop
+		).toBe(false)
 		const countupMute = generatedOutro?.pieces.find((piece) => piece.externalId?.endsWith('_countup_mute'))
 		expect(countupMute).toBeDefined()
 		expect(countupMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
@@ -1093,7 +1098,11 @@ describe('casparV2Graphics', () => {
 									objectTime: 0,
 									duration: 5,
 									clipName: '',
-									attributes: { template: 'l3d-predstavovak', headline: 'Gabi', subline: 'moderátorka' },
+									attributes: {
+										template: 'l3d-predstavovak',
+										headline: 'Gabi',
+										subline: 'moderátorka',
+									},
 								},
 							],
 						},

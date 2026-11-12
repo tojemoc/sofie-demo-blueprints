@@ -1,4 +1,5 @@
 import { Accessor, ExpectedPackage, ICommonContext } from '@sofie-automation/blueprints-integration'
+
 import { changeExtension, literal } from '../../../common/util.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 
@@ -116,7 +117,11 @@ export function getMediaPackagesConfig(config: StudioConfig): MediaPackagesConfi
 	return {
 		casparcgMediaFolder,
 		ingestMediaFolder,
-		httpProxyBaseUrl: (config.httpProxyBaseUrl ?? legacy?.httpProxyBaseUrl ?? 'http://localhost:8080/package').trim(),
+		httpProxyBaseUrl: (
+			config.httpProxyBaseUrl ??
+			legacy?.httpProxyBaseUrl ??
+			'http://localhost:8080/package'
+		).trim(),
 	}
 }
 

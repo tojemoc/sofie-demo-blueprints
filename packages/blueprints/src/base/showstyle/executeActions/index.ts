@@ -4,8 +4,9 @@ import {
 	IActionExecutionContext,
 	IDataStoreActionExecutionContext,
 } from '@sofie-automation/blueprints-integration'
-import { ActionId } from './actionDefinitions.js'
+
 import { SourceLayer } from '../applyconfig/layers.js'
+import { ActionId } from './actionDefinitions.js'
 import { ExampleGFXStepActionOptions, executeGraphicNextStep } from './steppedGraphicExample.js'
 
 export async function executeAction(
@@ -51,7 +52,12 @@ export async function executeDataStoreAction(
 ): Promise<void> {
 	const actionId = actionId0 as ActionId
 	context.logDebug(
-		'executeDataStoreAction id:' + actionId + ' userData: ' + JSON.stringify(userData) + ' Triggermode :' + triggerMode
+		'executeDataStoreAction id:' +
+			actionId +
+			' userData: ' +
+			JSON.stringify(userData) +
+			' Triggermode :' +
+			triggerMode
 	)
 }
 

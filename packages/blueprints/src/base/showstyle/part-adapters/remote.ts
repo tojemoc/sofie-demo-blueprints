@@ -1,18 +1,19 @@
 import { BlueprintResultPart, IBlueprintPiece, PieceLifespan } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
+import { ObjectType } from '../../../common/definitions/objects.js'
 import { AudioSourceType } from '../../studio/helpers/config.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { PartProps, RemoteProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
+import { finalizeHypercomposedPart, LookSlot } from '../helpers/pgmLook.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
-import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { ObjectType } from '../../../common/definitions/objects.js'
-import { parseConfig } from '../helpers/config.js'
-import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
-import { autoNextFromRe } from '../helpers/autoNext.js'
 
 /** Generate a REMOTE part — remote guest input peeked on the last claimed look slot. */
 export function generateRemotePart(
@@ -24,7 +25,9 @@ export function generateRemotePart(
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
 
-	const audioTlObj = getAudioPrimaryObject(config, [{ type: AudioSourceType.Remote, index: part.payload.input.id - 1 }]) // todo: all hosts?
+	const audioTlObj = getAudioPrimaryObject(config, [
+		{ type: AudioSourceType.Remote, index: part.payload.input.id - 1 },
+	]) // todo: all hosts?
 
 	const cameraPiece: IBlueprintPiece = {
 		enable: {

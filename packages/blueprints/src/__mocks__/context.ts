@@ -1,3 +1,5 @@
+import * as crypto from 'crypto'
+
 import {
 	BlueprintMappings,
 	ExtendedIngestRundown,
@@ -18,7 +20,6 @@ import {
 	IUserNotesContext,
 	PackageInfo,
 } from '@sofie-automation/blueprints-integration'
-import * as crypto from 'crypto'
 
 export function getHash(str: string): string {
 	const hash = crypto.createHash('sha1')

@@ -1,7 +1,9 @@
-import { JSONSchema } from '@sofie-automation/blueprints-integration'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { DemoStudioConfig } from '../main/studio/configs/demo.js'
+
+import { JSONSchema } from '@sofie-automation/blueprints-integration'
+
 import { getVmixLookFeedInput } from '../base/showstyle/helpers/visionMixer.js'
+import { DemoStudioConfig } from '../main/studio/configs/demo.js'
 
 interface JsonSchemaObject {
 	[key: string]: unknown
@@ -74,7 +76,14 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 			expect((programProperties[field] as JsonSchemaObject)?.minimum).toBe(1)
 		}
 		expect(vmixProgram.required).toEqual(
-			expect.arrayContaining(['cameraInput', 'lookAInput', 'lookBInput', 'cleanGfxInput', 'bedAInput', 'bedCInput'])
+			expect.arrayContaining([
+				'cameraInput',
+				'lookAInput',
+				'lookBInput',
+				'cleanGfxInput',
+				'bedAInput',
+				'bedCInput',
+			])
 		)
 		expect(schema.required).toEqual(expect.arrayContaining(['vmixProgram']))
 	})

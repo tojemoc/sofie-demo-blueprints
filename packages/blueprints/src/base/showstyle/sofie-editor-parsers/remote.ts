@@ -1,6 +1,6 @@
+import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { ObjectType, SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
-import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
 import { InvalidProps, PartProps, PartType, RemoteProps } from '../definitions/index.js'
 import { findSource } from '../helpers/sources.js'
@@ -15,7 +15,10 @@ export function parseRemote(ingestPart: EditorIngestPart): PartProps<RemoteProps
 
 	const input = findSource(remotePiece.attributes.input, SourceType.Remote)
 	if (!input) {
-		return createInvalidProps(t(`Could not find remote source for input ${remotePiece.attributes.input}`), ingestPart)
+		return createInvalidProps(
+			t(`Could not find remote source for input ${remotePiece.attributes.input}`),
+			ingestPart
+		)
 	}
 
 	return {

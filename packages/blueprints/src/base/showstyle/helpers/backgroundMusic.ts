@@ -1,13 +1,13 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
-import { ICommonContext } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPiece, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
+import { SiyfosSourceConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { createMediaFileExpectedPackage } from './mediaPackages.js'
-import { SiyfosSourceConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { createDualChannelAudioBedTimelineObjects } from './audioBedTimeline.js'
+import { createMediaFileExpectedPackage } from './mediaPackages.js'
 
 /** A-block background music (loops through rundown). */
 export const BG_MUSIC_A_FILE = 'loops/bg_music_a'
@@ -69,7 +69,12 @@ function vmixBedPlayObject(
 		enable,
 		layer: VMIX_BED_LAYERS[bed].input,
 		priority,
-		content: { deviceType: TSR.DeviceType.VMIX, type: TSR.TimelineContentTypeVMix.INPUT, playing: true, loop: true },
+		content: {
+			deviceType: TSR.DeviceType.VMIX,
+			type: TSR.TimelineContentTypeVMix.INPUT,
+			playing: true,
+			loop: true,
+		},
 	})
 }
 
@@ -145,7 +150,11 @@ export function createBackgroundMusicMutePiece(
 			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }
 			: undefined
 	const pieceDurationMs =
-		durationMs !== undefined && !persistAfterPart ? (label === 'Wipe' ? prerollMs + durationMs : durationMs) : undefined
+		durationMs !== undefined && !persistAfterPart
+			? label === 'Wipe'
+				? prerollMs + durationMs
+				: durationMs
+			: undefined
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
@@ -167,7 +176,9 @@ export function createBackgroundMusicMutePiece(
 					})
 				: (['A', 'C'] as const)
 						.filter(() => hasVmixBeds(config))
-						.map((bed) => vmixBedAudioObject(config, bed, timelineEnable ?? { start: 0 }, 2, { muted: true })),
+						.map((bed) =>
+							vmixBedAudioObject(config, bed, timelineEnable ?? { start: 0 }, 2, { muted: true })
+						),
 		},
 		expectedPackages: [],
 		prerollDuration: prerollMs,
@@ -269,7 +280,9 @@ export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDuration
 		const content = obj.content as TSR.TimelineContentCCGMedia | undefined
 		if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
 		const baseVolume =
-			typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+			typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume)
+				? content.mixer.volume
+				: 1
 		const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
 			TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
 		>

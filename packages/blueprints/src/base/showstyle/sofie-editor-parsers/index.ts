@@ -1,19 +1,19 @@
 import { IRundownUserContext, SofieIngestSegment } from '@sofie-automation/blueprints-integration'
-import { ObjectType } from '../../../common/definitions/objects.js'
+
+import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
+import { ObjectType, VideoObject } from '../../../common/definitions/objects.js'
 import {
+	DEFAULT_WIPE_FILE,
 	isRundownEditorGraphicPieceType,
 	normalizeRundownEditorLayeredVideoPieceType,
 	playLayerForVideoPieceType,
 	resolveSegmentType,
 } from '../../../common/definitions/rundownEditorTypes.js'
-import { DEFAULT_BG_LOOP_FILE, isLayeredVideoObject, normalizeLayeredVideoFileName } from '../helpers/clips.js'
-import { VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
-import { EditorIngestPart, EditorIngestSegment } from '../../../code-copy/rundown-editor/index.js'
 import { AllProps, PartProps, SegmentProps, SegmentType } from '../definitions/index.js'
-import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
-import { getDemoClipPath } from '../helpers/mediaPackages.js'
+import { DEFAULT_BG_LOOP_FILE, isLayeredVideoObject, normalizeLayeredVideoFileName } from '../helpers/clips.js'
 import { DEFAULT_OUTRO_FILE } from '../helpers/graphics.js'
+import { getDemoClipPath } from '../helpers/mediaPackages.js'
 import { createInvalidProps } from '../spreadsheet-parsers/invalid.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
@@ -158,7 +158,9 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: S
 			const partPayload = part.payload as EditorIngestPart
 
 			// Logo + countup: first DoubleBox Take PLAYs `assets/countup` (not baseline / not per-part gfx/logo-bug).
-			partPayload.pieces = partPayload.pieces.filter((piece) => piece.objectType.trim().toLowerCase() !== 'logo-bug')
+			partPayload.pieces = partPayload.pieces.filter(
+				(piece) => piece.objectType.trim().toLowerCase() !== 'logo-bug'
+			)
 
 			partPayload.pieces.forEach((piece) => {
 				if ((piece.objectType as ObjectType) === ObjectType.Graphic) {

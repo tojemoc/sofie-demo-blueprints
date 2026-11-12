@@ -1,6 +1,6 @@
+import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
-import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { InvalidProps, LayeredVideoProps, PartProps, PartType } from '../definitions/index.js'
 import { isLayeredVideoObject } from '../helpers/clips.js'
 import { parseBaseProps } from './base.js'

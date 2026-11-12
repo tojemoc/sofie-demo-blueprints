@@ -1,4 +1,5 @@
 import { ISourceLayer, SourceLayerType } from '@sofie-automation/blueprints-integration'
+
 import { SourceLayer } from './layers.js'
 
 /** Source-layer definitions registered with the showstyle (rundown editor pickers). */

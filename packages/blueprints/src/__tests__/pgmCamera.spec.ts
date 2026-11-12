@@ -1,5 +1,7 @@
-import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { TSR } from '@sofie-automation/blueprints-integration'
+
 import {
 	casparFormatToChannelFormat,
 	createCameraIngestBaselineTimeline,
@@ -13,8 +15,8 @@ import {
 	parseDecklinkProducer,
 	resolveDecklinkDeviceFormat,
 } from '../base/showstyle/helpers/pgmCamera.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
 import { StudioConfig } from '../base/studio/helpers/config.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'
 
 describe('pgmCamera helpers', () => {

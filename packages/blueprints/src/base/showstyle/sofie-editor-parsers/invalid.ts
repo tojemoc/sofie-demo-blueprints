@@ -1,6 +1,7 @@
 import { ITranslatableMessage } from '@sofie-automation/blueprints-integration'
-import { SomeObject } from '../../../common/definitions/objects.js'
+
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
+import { SomeObject } from '../../../common/definitions/objects.js'
 import { InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseBaseProps } from './base.js'
 

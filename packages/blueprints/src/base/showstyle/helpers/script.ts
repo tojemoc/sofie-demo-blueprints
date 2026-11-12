@@ -5,6 +5,7 @@ import {
 	ScriptContent,
 	WithTimeline,
 } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 

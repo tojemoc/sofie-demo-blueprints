@@ -1,8 +1,9 @@
 import { IngestSegment, IRundownUserContext } from '@sofie-automation/blueprints-integration'
-import { ObjectType } from '../../../common/definitions/objects.js'
+
+import { SpreadsheetIngestPart, SpreadsheetIngestSegment } from '../../../code-copy/spreadsheet-gateway/index.js'
+import { BaseObject, ObjectType } from '../../../common/definitions/objects.js'
 import { resolveSegmentType } from '../../../common/definitions/rundownEditorTypes.js'
 import { t } from '../../../common/util.js'
-import { SpreadsheetIngestPart, SpreadsheetIngestSegment } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { AllProps, PartProps, SegmentProps } from '../definitions/index.js'
 import { parseCamera } from './camera.js'
 import { parseDVE } from './dve.js'
@@ -12,7 +13,6 @@ import { parseRemote } from './remote.js'
 import { parseOpener } from './titles.js'
 import { parseVO } from './vo.js'
 import { parseVT } from './vt.js'
-import { BaseObject } from '../../../common/definitions/objects.js'
 
 function hasCameraPiece(part: SpreadsheetIngestPart): boolean {
 	return part.pieces.some((piece) => (piece.objectType as ObjectType) === ObjectType.Camera)

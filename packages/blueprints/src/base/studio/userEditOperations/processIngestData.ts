@@ -11,6 +11,9 @@ import {
 	UserOperationChange,
 	UserOperationTarget,
 } from '@sofie-automation/blueprints-integration'
+
+import { lockedElementApplyAllowedChanges } from './lockedElementApplyAllowedChanges.js'
+import { removeChangesForLockedElements } from './lockedElementsHandler.js'
 import {
 	BlueprintMutableIngestRundown,
 	BlueprintsUserOperationLockSegment,
@@ -18,8 +21,6 @@ import {
 	BlueprintsUserOperationUserEdited,
 	BlueprintUserOperationTypes,
 } from './types.js'
-import { removeChangesForLockedElements } from './lockedElementsHandler.js'
-import { lockedElementApplyAllowedChanges } from './lockedElementApplyAllowedChanges.js'
 
 export async function processIngestData(
 	context: IProcessIngestDataContext,

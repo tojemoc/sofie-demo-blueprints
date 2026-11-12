@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
+
 import { ICommonContext } from '@sofie-automation/blueprints-integration'
-import { segmentUsesLedBgLoopZoom, createLedBgLoopZoomPiece } from '../base/showstyle/helpers/ledBgLoopZoom.js'
+
+import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../base/showstyle/helpers/ledBgLoopZoom.js'
 import {
-	segmentUsesLedPodHeadline,
 	createLedPodHeadlinePiece,
 	LED_POD_HEADLINE_FILE,
+	segmentUsesLedPodHeadline,
 } from '../base/showstyle/helpers/ledPodHeadline.js'
-import { LED_BG_LOOP_TEMA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
+import { createLookSlotSequence } from '../base/showstyle/helpers/pgmLook.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { createLookSlotSequence } from '../base/showstyle/helpers/pgmLook.js'
+import { LED_BG_LOOP_TEMA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,

@@ -1,6 +1,6 @@
+import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { ObjectType, SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
-import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { SourceType } from '../../studio/helpers/config.js'
 import { CameraProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { findSource } from '../helpers/sources.js'

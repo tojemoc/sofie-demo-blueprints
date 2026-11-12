@@ -1,6 +1,6 @@
+import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { SomeObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
-import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { InvalidProps, PartProps, PartType, VOProps } from '../definitions/index.js'
 import { findMainVideoObject, parseClipEditorProps } from '../helpers/clips.js'
 import { parseBaseProps } from './base.js'

@@ -1,5 +1,5 @@
-import { SourceType, StudioConfig } from '../../studio/helpers/config.js'
 import { InputConfig, VisionMixerDevice, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
+import { SourceType, StudioConfig } from '../../studio/helpers/config.js'
 
 export interface RawSourceInfo {
 	type: SourceType

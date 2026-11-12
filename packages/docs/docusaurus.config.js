@@ -27,7 +27,8 @@ const config = {
 			({
 				docs: {
 					sidebarPath: require.resolve('./sidebars.js'),
-					editUrl: 'https://github.com/SuperFlyTV/sofie-demo-blueprints/tree/docs/docusaurus/packages/docs/docs',
+					editUrl:
+						'https://github.com/SuperFlyTV/sofie-demo-blueprints/tree/docs/docusaurus/packages/docs/docs',
 				},
 				theme: {
 					customCss: require.resolve('./src/css/custom.css'),
