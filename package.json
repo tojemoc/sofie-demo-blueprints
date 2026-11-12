@@ -24,7 +24,7 @@
         "@sofie-automation/code-standard-preset": "3.2.2",
         "eslint": "^9.39.2",
         "husky": "^9.1.7",
-        "lint-staged": "^16.2.7",
+        "lint-staged": "^17.0.0",
         "prettier": "^3.7.4",
         "typescript": "~5.9.0",
         "zx": "^8.8.5"
