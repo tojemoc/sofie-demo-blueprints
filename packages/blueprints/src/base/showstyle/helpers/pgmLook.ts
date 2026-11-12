@@ -6,6 +6,7 @@ import {
 	IBlueprintPieceGeneric,
 	IBlueprintPieceType,
 	ICommonContext,
+	IOnSetAsNextContext,
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
@@ -2146,89 +2147,180 @@ function emptyLookMediaObject(
 	})
 }
 
+/** externalId suffix of the dormant 'Idle look preview' placeholder piece. */
+export const IDLE_LOOK_PREVIEW_EXTERNAL_ID_SUFFIX = '_lookidlepreview'
+
+/**
+ * Dormant 'Idle look preview' placeholder, emitted on every playable part so
+ * `onSetAsNext` can later arm it with paused clones of the *actual* next part's
+ * look media. `insertPiece` cannot reach the on-air `'current'` part and
+ * `updatePieceInstance` can only mutate an existing piece, so the piece must
+ * already exist — it ships empty and is a no-op until armed.
+ */
+export function createIdleLookPreviewPiece(partExternalId: string): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: 0 },
+		externalId: `${partExternalId}${IDLE_LOOK_PREVIEW_EXTERNAL_ID_SUFFIX}`,
+		name: 'Idle look preview',
+		lifespan: PieceLifespan.WithinPart,
+		sourceLayerId: SourceLayer.LookIdlePreview,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LookIdlePreview),
+		content: {
+			timelineObjects: [] as TimelineBlueprintExt[],
+		},
+	})
+}
+
+/** Clip / ILU / `db_loop` layers a preview may clone on `slot` (vMix drops db_loop — it is phase-locked). */
+function idleLookMediaLayers(slot: LookSlot, vmixProgram: boolean): CasparCGLayers[] {
+	const layers = getLookLayers(slot)
+	return vmixProgram ? [layers.clip, layers.ilu] : [layers.clip, layers.ilu, layers.doubleBoxLoop]
+}
+
+/**
+ * Look slots on which `pieces` carry live look MEDIA — the channel currently on
+ * PGM. EMPTY clears and (vMix) the phase-locked opacity-0 `db_loop` re-assert
+ * don't count: they are placeholders, not the live signal. On vMix a look can
+ * also hold program with no Caspar MEDIA at all (camera-only parts drive the
+ * vMix input directly), so a `vmix_me_program` object targeting a look input
+ * marks that slot live too.
+ */
+function liveLookSlotsForPieces(
+	pieces: ReadonlyArray<{
+		content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> }
+	}>,
+	vmixProgram: boolean,
+	vmixLookInputs?: { a: number | undefined; b: number | undefined }
+): Set<LookSlot> {
+	const liveLayers = (slot: LookSlot): Set<string> => {
+		const layers = getLookLayers(slot)
+		return new Set<string>(
+			(vmixProgram
+				? [layers.clip, layers.camera, layers.ilu]
+				: [layers.clip, layers.camera, layers.ilu, layers.doubleBoxLoop]
+			).map(String)
+		)
+	}
+	const liveA = liveLayers('A')
+	const liveB = liveLayers('B')
+	const slots = new Set<LookSlot>()
+	for (const piece of pieces) {
+		for (const obj of piece.content?.timelineObjects ?? []) {
+			const layer = String(obj.layer)
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			if (isCasparMedia(content ?? {}) && content?.file && content.file !== 'EMPTY') {
+				if (liveA.has(layer)) slots.add('A')
+				else if (liveB.has(layer)) slots.add('B')
+				continue
+			}
+			if (vmixProgram && vmixLookInputs && layer === (VMixLayers.VMixMeProgram as string)) {
+				const program = obj.content as TSR.TimelineContentVMixProgram | undefined
+				if (
+					program?.deviceType === TSR.DeviceType.VMIX &&
+					program.type === TSR.TimelineContentTypeVMix.PROGRAM
+				) {
+					if (program.input === vmixLookInputs.a) slots.add('A')
+					else if (program.input === vmixLookInputs.b) slots.add('B')
+				}
+			}
+		}
+	}
+	return slots
+}
+
 /**
  * Paused **foreground** preview of the next part's clip / ILU / `db_loop` on the
- * off-air look channel. Sofie lookahead can only arm nextUp (`LOADBG` —
- * invisible on the input), which is why the operator watched `bg_loop` on every
- * A↔B swap. This clones the *next* part's MEDIA objects into the *current* part
- * with `playing: false` and priority 3 (above the outgoing-channel EMPTYs at
- * priority 2), enabled only once this part's incoming take has carried the
- * previous channel off air (`previousPartKeepaliveDuration`) — ping-pong makes
- * that just-vacated channel the very channel the preview targets, so enabling
- * at Take would flash the paused frame over the outgoing look mid-transition.
- * It then stays a frozen frame on the vMix input for the rest of the part. At
- * the take, the incoming part's own `playing: false` object is media-identical
- * → no producer swap → the hot-PLAY keyframe is then a bare `RESUME`. Volume 0:
- * a paused producer is silent anyway, this only guards against a stray PLAY
- * while off-air. Priority 3 also beats the prio-2 EMPTY so a 404 `clearOn404`
- * still leaves a transparent layer rather than blinking `bg_loop`.
+ * off-air look channel — the runtime half. Sofie lookahead can only arm nextUp
+ * (`LOADBG` — invisible on the input); this arms the dormant placeholder piece
+ * in the CURRENT part with `playing: false` clones of the NEXT part's real look
+ * MEDIA, enabled only once this part's incoming take has carried the previous
+ * channel off air (`previousPartKeepaliveDuration`; vMix: program cut − feed
+ * latency + margin). At the take, the incoming part's own `playing: false`
+ * object is media-identical → no producer swap → the hot-PLAY keyframe is a
+ * bare `RESUME`.
+ *
+ * Runs from `onSetAsNext`, so it follows the **actual** next — including a part
+ * in another segment (segment-scoped generation could never see it) and
+ * operator re-nexts / jumps — and clears the placeholder when the preview
+ * cannot or must not show: no next, no look media, or the next part's media
+ * targets the channel currently live on PGM (same-slot take the generation
+ * ping-pong could not foresee).
  */
-export function injectIdleLookPreviewPieces(
-	config: StudioConfig,
-	parts: Array<{
-		part: {
-			externalId: string
-			invalid?: boolean
-			floated?: boolean
-			inTransition?: { previousPartKeepaliveDuration?: number; blockTakeDuration?: number }
-		}
-		pieces: IBlueprintPiece[]
-	}>,
-	partLookSlots: Array<LookSlot | undefined>
-): void {
+export async function armIdleLookPreviewForNext(
+	context: Pick<IOnSetAsNextContext, 'getPartInstance' | 'getPieceInstances' | 'updatePieceInstance'>,
+	config: StudioConfig
+): Promise<void> {
+	const [currentPartInstance, nextPartInstance] = await Promise.all([
+		context.getPartInstance('current'),
+		context.getPartInstance('next'),
+	])
+	if (!currentPartInstance) return
+
+	const currentPieces = await context.getPieceInstances('current')
+	const previewInstance = currentPieces.find(
+		(instance) => instance.piece.sourceLayerId === (SourceLayer.LookIdlePreview as string)
+	)
+	if (!previewInstance) return
+
 	const vmixProgram = usesVmixProgram(config)
-	/** Clip / ILU layers of the look channel claimed by `slot` (vMix drops db_loop — it is phase-locked). */
-	const mediaLayersForSlot = (slot: LookSlot): CasparCGLayers[] => {
-		const layers = getLookLayers(slot)
-		return vmixProgram ? [layers.clip, layers.ilu] : [layers.clip, layers.ilu, layers.doubleBoxLoop]
-	}
+	const previewStartMs = vmixProgram
+		? vmixOutgoingOffAirMs(
+				config,
+				(currentPartInstance.part.inTransition?.blockTakeDuration ?? 0) > 0,
+				LOOK_HARD_CUT_KEEPALIVE_MS
+			)
+		: Math.max(0, Math.floor(currentPartInstance.part.inTransition?.previousPartKeepaliveDuration ?? 0))
+	const previewPriority = vmixProgram ? 1 : 3
 
-	for (let i = 0; i < parts.length - 1; i++) {
-		const currentSlot = partLookSlots[i]
-		if (currentSlot === undefined || parts[i].part.invalid || parts[i].part.floated) continue
+	const previewObjects: TimelineBlueprintExt[] = []
+	const seenLayers = new Set<string>()
+	let clonedInput = false
+	let vmixTargetLayer: VMixLayers | undefined
 
-		// The preview rides the *last on-air part*: a floated, skipped, or invalid
-		// part never takes, so scan past it to the next part that can actually go
-		// on air and clone that part's media instead.
-		let nextIdx = i + 1
-		while (nextIdx < parts.length && (parts[nextIdx].part.invalid || parts[nextIdx].part.floated)) nextIdx++
-		if (nextIdx >= parts.length) continue
-		const nextSlot = partLookSlots[nextIdx]
-		// Only when the next part actually claims the *idle* channel — same-slot
-		// (peek part in between, or a broken ping-pong) must never put a paused
-		// clip onto the live channel.
-		if (nextSlot === undefined || nextSlot === currentSlot) continue
+	if (nextPartInstance) {
+		const nextPieces = await context.getPieceInstances('next')
+		const nextObjects = nextPieces.flatMap((instance) => instance.piece.content?.timelineObjects ?? [])
 
-		// Ping-pong makes the preview's target channel the one the previous part
-		// just vacated. Reveal the clone only once it is off air, or the paused
-		// frame visibly replaces the outgoing look before the cover / hard cut.
-		// vMix: off air = this take's program cut − feed latency + margin
-		// (wiped when this part's incoming take was stung).
-		const previewStartMs = vmixProgram
-			? vmixOutgoingOffAirMs(
-					config,
-					(parts[i].part.inTransition?.blockTakeDuration ?? 0) > 0,
-					LOOK_HARD_CUT_KEEPALIVE_MS
-				)
-			: Math.max(0, Math.floor(parts[i].part.inTransition?.previousPartKeepaliveDuration ?? 0))
-		const previewPriority = vmixProgram ? 1 : 3
+		// Only real look MEDIA counts — outgoing EMPTY clears placed on the other
+		// slot's layers must not steer the preview to the wrong channel.
+		const isLookMedia = (obj: (typeof nextObjects)[number]): boolean => {
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			return (
+				content?.deviceType === TSR.DeviceType.CASPARCG &&
+				content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+				!!content.file &&
+				content.file !== 'EMPTY'
+			)
+		}
 
-		const targetLayers = mediaLayersForSlot(nextSlot)
-		const seen = new Set<CasparCGLayers>()
-		const previewObjects: TimelineBlueprintExt[] = []
-		for (const piece of parts[nextIdx].pieces) {
-			for (const obj of piece.content?.timelineObjects ?? []) {
-				const content = obj.content as TSR.TimelineContentCCGMedia | undefined
-				if (
-					content?.deviceType !== TSR.DeviceType.CASPARCG ||
-					content.type !== TSR.TimelineContentTypeCasparCg.MEDIA ||
-					!content.file ||
-					content.file === 'EMPTY' ||
-					!targetLayers.includes(obj.layer as CasparCGLayers) ||
-					seen.has(obj.layer as CasparCGLayers)
-				)
+		// The next part's look media layers already carry the slot it claimed at
+		// generation (A/B remapped layer ids) — take the slot they target.
+		const nextSlot: LookSlot | undefined = nextObjects.some(
+			(obj) => isLookMedia(obj) && idleLookMediaLayers('A', vmixProgram).includes(obj.layer as CasparCGLayers)
+		)
+			? 'A'
+			: nextObjects.some(
+						(obj) =>
+							isLookMedia(obj) &&
+							idleLookMediaLayers('B', vmixProgram).includes(obj.layer as CasparCGLayers)
+				  )
+				? 'B'
+				: undefined
+
+		// A previously-armed placeholder must not count as live media for the guard.
+		const liveSlots = liveLookSlotsForPieces(
+			currentPieces.filter((instance) => instance._id !== previewInstance._id).map((instance) => instance.piece),
+			vmixProgram,
+			vmixProgram ? { a: config.vmixProgram?.lookAInput, b: config.vmixProgram?.lookBInput } : undefined
+		)
+
+		if (nextSlot && !liveSlots.has(nextSlot)) {
+			const targetLayers = idleLookMediaLayers(nextSlot, vmixProgram).map(String)
+			for (const obj of nextObjects) {
+				if (!isLookMedia(obj) || !targetLayers.includes(String(obj.layer)) || seenLayers.has(String(obj.layer)))
 					continue
-				seen.add(obj.layer as CasparCGLayers)
+				const content = obj.content as TSR.TimelineContentCCGMedia
+				seenLayers.add(String(obj.layer))
 				previewObjects.push(
 					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 						id: '',
@@ -2243,16 +2335,12 @@ export function injectIdleLookPreviewPieces(
 					})
 				)
 			}
-		}
 
-		// vMix: also clone the next part's look-INPUT object onto the target input
-		// at the same start so the camera is pre-positioned off-air with the media.
-		let clonedInput = false
-		if (vmixProgram) {
-			const vmixTargetLayer = nextSlot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB
-			const sourceInput = parts[nextIdx].pieces
-				.flatMap((piece) => piece.content?.timelineObjects ?? [])
-				.find((obj) => {
+			// vMix: also clone the next part's look-INPUT object onto the target input
+			// at the same start so the camera is pre-positioned off-air with the media.
+			if (vmixProgram) {
+				vmixTargetLayer = nextSlot === 'A' ? VMixLayers.VMixLookInputA : VMixLayers.VMixLookInputB
+				const sourceInput = nextObjects.find((obj) => {
 					if (String(obj.layer) !== (vmixTargetLayer as string)) return false
 					const content = obj.content as TSR.TimelineContentVMixInput | undefined
 					return (
@@ -2260,64 +2348,63 @@ export function injectIdleLookPreviewPieces(
 						content.type === TSR.TimelineContentTypeVMix.INPUT
 					)
 				})
-			if (sourceInput) {
-				clonedInput = true
-				previewObjects.push(
-					literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
-						id: '',
-						enable: { start: previewStartMs },
-						layer: vmixTargetLayer,
-						priority: sourceInput.priority ?? previewPriority,
-						content: { ...(sourceInput.content as TSR.TimelineContentVMixInput) },
-					})
-				)
+				if (sourceInput) {
+					clonedInput = true
+					previewObjects.push(
+						literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+							id: '',
+							enable: { start: previewStartMs },
+							layer: vmixTargetLayer,
+							priority: sourceInput.priority ?? previewPriority,
+							content: { ...(sourceInput.content as TSR.TimelineContentVMixInput) },
+						})
+					)
+				}
 			}
+		}
+	}
 
-			// Same-layer outgoing EMPTYs / camera-clear INPUTs at the same start would
-			// tie on equal priority and resolve by id order — drop the ones the
-			// preview covers so the paused frame always wins the off-air channel.
-			const coveredCasparLayers = new Set<string>(seen as Set<string>)
-			for (const piece of parts[i].pieces) {
-				const objects = piece.content.timelineObjects
-				if (!objects) continue
-				piece.content.timelineObjects = objects.filter((obj) => {
-					if (!Array.isArray(obj.enable) && obj.enable?.start === previewStartMs) {
-						const content = obj.content as TSR.TimelineContentCCGMedia | undefined
-						if (
-							isCasparMedia(content ?? {}) &&
-							content?.file === 'EMPTY' &&
-							coveredCasparLayers.has(String(obj.layer))
-						) {
-							return false
-						}
-						if (
-							clonedInput &&
-							String(obj.layer) === (vmixTargetLayer as string) &&
-							(obj.content as { type?: string })?.type === TSR.TimelineContentTypeVMix.INPUT
-						) {
-							return false
-						}
+	// vMix: same-layer outgoing EMPTYs / camera-clear INPUTs at the same start
+	// would tie the priority-1 preview (equal priority resolves by id order) —
+	// drop the ones the preview covers so the paused frame always wins.
+	if (vmixProgram && previewObjects.length > 0) {
+		for (const instance of currentPieces) {
+			if (instance._id === previewInstance._id) continue
+			const objects = instance.piece.content?.timelineObjects
+			if (!objects?.length) continue
+			const filtered = objects.filter((obj) => {
+				if (!Array.isArray(obj.enable) && obj.enable?.start === previewStartMs) {
+					const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+					if (
+						isCasparMedia(content ?? {}) &&
+						content?.file === 'EMPTY' &&
+						seenLayers.has(String(obj.layer))
+					) {
+						return false
 					}
-					return true
+					if (
+						clonedInput &&
+						String(obj.layer) === (vmixTargetLayer as string) &&
+						(obj.content as { type?: string })?.type === TSR.TimelineContentTypeVMix.INPUT
+					) {
+						return false
+					}
+				}
+				return true
+			})
+			if (filtered.length !== objects.length) {
+				await context.updatePieceInstance(instance._id, {
+					content: { ...instance.piece.content, timelineObjects: filtered },
 				})
 			}
 		}
-
-		if (previewObjects.length === 0) continue
-
-		const previewPiece = literal<IBlueprintPiece>({
-			enable: { start: 0 },
-			externalId: `${parts[i].part.externalId}_lookidlepreview`,
-			name: 'Idle look preview',
-			lifespan: PieceLifespan.WithinPart,
-			sourceLayerId: SourceLayer.LookIdlePreview,
-			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LookIdlePreview),
-			content: {
-				timelineObjects: previewObjects,
-			},
-		})
-		parts[i].pieces.push(previewPiece)
 	}
+
+	const existingObjects = previewInstance.piece.content?.timelineObjects ?? []
+	if (existingObjects.length === 0 && previewObjects.length === 0) return
+	await context.updatePieceInstance(previewInstance._id, {
+		content: { ...previewInstance.piece.content, timelineObjects: previewObjects },
+	})
 }
 
 /**

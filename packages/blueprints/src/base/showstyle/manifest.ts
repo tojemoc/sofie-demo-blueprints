@@ -27,6 +27,7 @@ import { getShowStyleVariantId } from './getShowStyleVariantId.js'
 import { isOutroVideoFile } from './helpers/clips.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
+import { armIdleLookPreviewForNext } from './helpers/pgmLook.js'
 import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
 import { getRundown } from './rundown/index.js'
 import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
@@ -161,6 +162,11 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		}
 		if (playoutState.getKey('countupPaused')) {
 			await ensureCountupHoldPiece(context, nextPartInstance, config)
+		}
+		if (config.casparcg.hypercomposed) {
+			// Arm the on-air part's dormant preview piece with the actual next
+			// part's look media — follows re-nexts and crosses segment boundaries.
+			await armIdleLookPreviewForNext(context, config)
 		}
 		if (config.visionMixer.type !== VisionMixerDevice.VMix) return
 		if (!playoutState.getKey('vmixRecordingStarted')) return

@@ -53,10 +53,10 @@ import {
 	segmentUsesLedPodHeadline,
 } from '../helpers/ledPodHeadline.js'
 import {
+	createIdleLookPreviewPiece,
 	findWipeVideoObject,
 	getLookLayers,
 	getLookSlotSequenceForGeneration,
-	injectIdleLookPreviewPieces,
 	LookSlot,
 	LookSlotSequence,
 	raiseLookMediaPostrollForCrossSegmentWipe,
@@ -431,10 +431,14 @@ export function generateParts(
 				)
 			})
 		}
-		// Paused *foreground* preview of the incoming clip/ILU on the off-air channel:
-		// the vMix input shows a frozen frame for the whole part instead of `bg_loop`,
-		// and the take is a pure RESUME of an already-paused producer.
-		injectIdleLookPreviewPieces(studioConfig, parts, partLookSlots)
+		// Dormant 'Idle look preview' placeholder on every playable part — armed at
+		// runtime by `onSetAsNext` with the actual next part's look media, so the
+		// paused-foreground preview follows re-nexts and crosses segment boundaries
+		// that this segment-scoped generation can never see.
+		for (const generated of parts) {
+			if (generated.part.invalid || generated.part.floated) continue
+			generated.pieces.push(createIdleLookPreviewPiece(generated.part.externalId))
+		}
 	}
 
 	// Sofie holds previous look only for piece.postrollDuration into the next Take's
