@@ -27,7 +27,7 @@
 	"devDependencies": {
 		"@types/node": "^22.19.3",
 		"sofie-blueprint-tools": "^1.3.0",
-		"typescript": "~7.0.0",
+		"typescript": "~5.9.0",
 		"vitest": "^4.0.16"
 	},
 	"dependencies": {
