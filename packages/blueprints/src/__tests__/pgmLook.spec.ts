@@ -16,6 +16,8 @@ import {
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import {
+	armIdleLookPreviewForNext,
+	createIdleLookPreviewPiece,
 	createLookSlotSequence,
 	DEFAULT_LOOK_PREROLL_MS,
 	finalizeHypercomposedPart,
@@ -64,6 +66,66 @@ const TEMA_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: 420 }, 2500, 'wipes
 const THEMED_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_sjv')
 /** Leave-weather look/WX-hide cut = air + lag + 2f overlap under cover. */
 const LEAVE_WEATHER_HIDE_MS = WIPE_AIR_CUT_MS + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS + LOOK_HARD_CUT_OVERLAP_MS
+
+type ArmUpdate = { id: string; piece: { content?: { timelineObjects?: unknown[] } } }
+type ArmPart = {
+	part: { externalId: string; inTransition?: { previousPartKeepaliveDuration?: number } }
+	pieces: IBlueprintPiece[]
+}
+
+function armObjects(
+	update: ArmUpdate | undefined
+): Array<{ layer?: unknown; enable?: unknown; priority?: unknown; content?: unknown }> {
+	return (update?.piece.content?.timelineObjects ?? []) as Array<{
+		layer?: unknown
+		enable?: unknown
+		priority?: unknown
+		content?: unknown
+	}>
+}
+
+/** Minimal IOnSetAsNextContext stand-in for armIdleLookPreviewForNext. */
+function mockArmContext(current: ArmPart | undefined, next: ArmPart | undefined, updates: ArmUpdate[]): never {
+	const toInstances = (part: ArmPart | undefined) =>
+		(part?.pieces ?? []).map((piece, idx) => ({ _id: piece.externalId ?? `piece-${idx}`, piece }))
+	return {
+		getPartInstance: async (which: 'current' | 'next') => {
+			const part = which === 'current' ? current : next
+			return part ? { part: part.part } : undefined
+		},
+		getPieceInstances: async (which: 'current' | 'next') => toInstances(which === 'current' ? current : next),
+		updatePieceInstance: async (id: string, piece: { content?: { timelineObjects?: unknown[] } }) => {
+			updates.push({ id, piece })
+			return {}
+		},
+	} as never
+}
+
+function fakeLookMediaPiece(layer: string, file: string): IBlueprintPiece {
+	return {
+		externalId: `fake-${file}-${layer}`,
+		name: 'fake look media',
+		sourceLayerId: SourceLayer.VO as string,
+		outputLayerId: 'pgm',
+		lifespan: PieceLifespan.WithinPart,
+		enable: { start: 0 },
+		content: {
+			timelineObjects: [
+				{
+					id: '',
+					enable: { start: 0 },
+					layer,
+					priority: 1,
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						file,
+					},
+				},
+			],
+		},
+	} as unknown as IBlueprintPiece
+}
 
 function pgmRouteChannel(
 	pieces: ReadonlyArray<{
@@ -390,40 +452,132 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 	})
 
-	it('previews the incoming look clip paused on the off-air channel (foreground, not LOADBG)', () => {
+	it('emits a dormant idle-look preview placeholder on every playable part', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-sjv')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
 
-		// Part 0 claims idle A; part 1 claims B — part 0 must carry a paused
-		// foreground preview of part 1's clip on the B clip layer (playing:false,
-		// priority above the outgoing-channel EMPTYs, muted volume).
-		const preview = generated.parts[0].pieces.find((piece) => piece.externalId?.endsWith('_lookidlepreview'))
-		expect(preview).toBeDefined()
-		expect(preview?.sourceLayerId).toBe(SourceLayer.LookIdlePreview)
-		expect(preview?.lifespan).toBe(PieceLifespan.WithinPart)
-		const previewObj = preview?.content.timelineObjects?.find(
-			(obj) => obj.layer === CasparCGLayers.CasparCGClipPlayer2B
-		)
-		expect(previewObj).toBeDefined()
-		const media = previewObj?.content as TSR.TimelineContentCCGMedia
-		expect(media.playing).toBe(false)
-		expect(media.mixer?.volume).toBe(0)
-		expect(previewObj?.priority).toBe(3)
+		for (const part of generated.parts) {
+			if (part.part.invalid || part.part.floated) continue
+			const preview = part.pieces.find((piece) => piece.externalId?.endsWith('_lookidlepreview'))
+			expect(preview, `${part.part.externalId} preview placeholder`).toBeDefined()
+			expect(preview?.sourceLayerId).toBe(SourceLayer.LookIdlePreview)
+			expect(preview?.lifespan).toBe(PieceLifespan.WithinPart)
+			// Dormant until onSetAsNext arms it with the actual next part's media.
+			expect(preview?.content.timelineObjects).toEqual([])
+		}
+	})
 
-		// Same file as the incoming part's own clip object — the take then diffs
-		// media-identical paused producers: no swap, just RESUME.
-		const incomingClip = generated.parts[1].pieces
+	it('arms the idle-look preview from the actual next part — across segments', async () => {
+		const exportData = loadSmokeRundownExport()
+		const lookSlots = createLookSlotSequence()
+		const segA = generateParts(
+			mockSegmentContext(),
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-3')),
+			undefined,
+			lookSlots
+		)
+		const segB = generateParts(
+			mockSegmentContext(),
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-tema-4')),
+			undefined,
+			lookSlots
+		)
+		const current = segA.parts[segA.parts.length - 1]
+		const next = segB.parts[0]
+		// The next part lives in a *different* segment — the case segment-scoped
+		// generation could never see.
+		expect(current.part.externalId).not.toBe(next.part.externalId)
+
+		const updates: ArmUpdate[] = []
+		await armIdleLookPreviewForNext(mockArmContext(current, next, updates), hybridCasparConfig)
+
+		const arm = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+		expect(arm).toBeDefined()
+		const objects = armObjects(arm)
+		expect(objects.length).toBeGreaterThan(0)
+
+		// Every look-media object of the next part is cloned paused + muted at the
+		// preview start — media-identical to the incoming part's own objects, so
+		// the take diffs paused producers: no swap, just RESUME.
+		const lookLayers = [
+			LOOK_A_LAYERS.clip,
+			LOOK_A_LAYERS.ilu,
+			LOOK_A_LAYERS.doubleBoxLoop,
+			LOOK_B_LAYERS.clip,
+			LOOK_B_LAYERS.ilu,
+			LOOK_B_LAYERS.doubleBoxLoop,
+		] as string[]
+		const nextMedia = next.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
-			.find(
-				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGClipPlayer2B &&
-					(obj.content as TSR.TimelineContentCCGMedia).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
-					(obj.content as TSR.TimelineContentCCGMedia).file !== 'EMPTY'
-			)
-		expect(incomingClip).toBeDefined()
-		expect(media.file).toBe((incomingClip?.content as TSR.TimelineContentCCGMedia).file)
+			.filter((obj) => {
+				const content = obj.content as TSR.TimelineContentCCGMedia
+				return (
+					content?.deviceType === TSR.DeviceType.CASPARCG &&
+					content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					!!content.file &&
+					content.file !== 'EMPTY' &&
+					lookLayers.includes(String(obj.layer))
+				)
+			})
+		expect(nextMedia.length).toBeGreaterThan(0)
+		const expectedStart = Math.max(0, Math.floor(current.part.inTransition?.previousPartKeepaliveDuration ?? 0))
+		for (const source of nextMedia) {
+			const clone = objects.find((obj) => obj.layer === source.layer)
+			expect(clone, `preview clone on ${String(source.layer)}`).toBeDefined()
+			const media = clone?.content as TSR.TimelineContentCCGMedia
+			expect(media.file).toBe((source.content as TSR.TimelineContentCCGMedia).file)
+			expect(media.playing).toBe(false)
+			expect(media.mixer?.volume).toBe(0)
+			expect(clone?.priority).toBe(3)
+			expect(clone?.enable).toEqual({ start: expectedStart })
+		}
+	})
+
+	it('leaves the preview placeholder dormant when the next part has no look media', async () => {
+		const current = {
+			part: { externalId: 'part-current' },
+			pieces: [fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'clips/live'), createIdleLookPreviewPiece('part-current')],
+		}
+		const next = { part: { externalId: 'part-next' }, pieces: [] as IBlueprintPiece[] }
+		const updates: ArmUpdate[] = []
+		await armIdleLookPreviewForNext(mockArmContext(current, next, updates), hybridCasparConfig)
+		// Nothing to clone and nothing to clear — no mutation at all.
+		expect(updates).toEqual([])
+	})
+
+	it('clears a stale preview when the next part targets the live slot', async () => {
+		const placeholder = createIdleLookPreviewPiece('part-current')
+		// A previously-armed clone on slot B — must be cleared when re-nexting to
+		// a same-slot (live A) part.
+		placeholder.content.timelineObjects = [
+			{
+				id: '',
+				enable: { start: 0 },
+				layer: LOOK_B_LAYERS.clip,
+				priority: 3,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: 'clips/stale',
+					playing: false,
+				},
+			},
+		] as never
+		const current = {
+			part: { externalId: 'part-current' },
+			pieces: [fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'clips/live'), placeholder],
+		}
+		const next = {
+			part: { externalId: 'part-next' },
+			pieces: [fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'clips/next')],
+		}
+		const updates: ArmUpdate[] = []
+		await armIdleLookPreviewForNext(mockArmContext(current, next, updates), hybridCasparConfig)
+		const clear = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+		expect(clear).toBeDefined()
+		expect(armObjects(clear)).toEqual([])
 	})
 
 	it('DoubleBox live CAM plays route://5 on look A (no DeckLink on look B)', () => {

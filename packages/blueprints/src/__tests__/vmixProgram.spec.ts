@@ -6,6 +6,7 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
 import {
+	armIdleLookPreviewForNext,
 	createLookSlotSequence,
 	finalizeHypercomposedPart,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
@@ -642,27 +643,73 @@ describe('vMix feed mode (look feed inputs)', () => {
 		}
 	})
 
-	it('preview clones start at the outgoing off-air ms with no same-layer EMPTY at that start', () => {
+	it('preview clones start at the outgoing off-air ms with no same-layer EMPTY at that start', async () => {
+		// The preview is armed at runtime (onSetAsNext), not generated — replay
+		// consecutive parts through armIdleLookPreviewForNext and apply the
+		// updatePieceInstance writes the way Core would.
+		const exportData = loadSmokeRundownExport()
+		const seq = createLookSlotSequence()
+		const ctx = vmixContext(feedConfig)
+		const generatedParts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }> = []
+		for (const segId of [...new Set(exportData.parts.map((p) => p.segmentId))]) {
+			const intermediate = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segId))
+			generatedParts.push(...generateParts(ctx, intermediate, undefined, seq).parts)
+		}
+
 		let previews = 0
-		for (const { externalId, pieces } of parts) {
-			const objs = objectsOf(pieces)
-			for (const obj of objs) {
+		for (let i = 0; i < generatedParts.length - 1; i++) {
+			const current = generatedParts[i]
+			const next = generatedParts[i + 1]
+			if (current.part.invalid || current.part.floated || next.part.invalid || next.part.floated) continue
+
+			const updates: Array<{ id: string; piece: { content?: { timelineObjects?: unknown[] } } }> = []
+			const toInstances = (part: { pieces: IBlueprintPiece[] }) =>
+				part.pieces.map((piece, idx) => ({ _id: piece.externalId ?? `piece-${idx}`, piece }))
+			await armIdleLookPreviewForNext(
+				{
+					getPartInstance: async (which: 'current' | 'next') => ({
+						part: (which === 'current' ? current : next).part,
+					}),
+					getPieceInstances: async (which: 'current' | 'next') =>
+						toInstances(which === 'current' ? current : next),
+					updatePieceInstance: async (id: string, piece: { content?: { timelineObjects?: unknown[] } }) => {
+						updates.push({ id, piece })
+						return {}
+					},
+				} as never,
+				feedConfig
+			)
+
+			const arm = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+			const previewObjects = (arm?.piece.content?.timelineObjects ?? []) as TimelineBlueprintExt[]
+			// Apply the mutations to a copy of the current part's pieces.
+			const updatedPieces = current.pieces.map((piece) => {
+				const update = updates.find((u) => u.id === piece.externalId)
+				return update
+					? {
+							...piece,
+							content: { ...piece.content, timelineObjects: update.piece.content?.timelineObjects },
+						}
+					: piece
+			}) as IBlueprintPiece[]
+			const objs = objectsOf(updatedPieces)
+			for (const obj of previewObjects) {
 				if (!CLIP_ILU_LAYERS.has(String(obj.layer))) continue
 				const content = obj.content as TSR.TimelineContentCCGMedia
 				if (content?.file === 'EMPTY' || content?.playing !== false) continue
-				if (Array.isArray(obj.enable) || (obj.enable?.start ?? 0) === 0) continue
-				const start = obj.enable?.start
-				expect([240, 840, 900], `part ${externalId} preview on ${String(obj.layer)}`).toContain(start)
+				const start = (obj.enable as { start?: number })?.start
+				expect([240, 840, 900], `part ${current.part.externalId} preview on ${String(obj.layer)}`).toContain(
+					start
+				)
 				expect(
 					objs.some(
 						(other) =>
-							other !== obj &&
 							String(other.layer) === String(obj.layer) &&
 							!Array.isArray(other.enable) &&
-							other.enable?.start === start &&
+							(other.enable as { start?: number })?.start === start &&
 							(other.content as { file?: string }).file === 'EMPTY'
 					),
-					`part ${externalId} ${String(obj.layer)} outgoing EMPTY at ${JSON.stringify(start)}`
+					`part ${current.part.externalId} ${String(obj.layer)} outgoing EMPTY at ${JSON.stringify(start)}`
 				).toBe(false)
 				previews++
 			}
