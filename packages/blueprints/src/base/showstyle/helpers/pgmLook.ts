@@ -2265,13 +2265,29 @@ export async function armIdleLookPreviewForNext(
 		const nextPieces = await context.getPieceInstances('next')
 		const nextObjects = nextPieces.flatMap((instance) => instance.piece.content?.timelineObjects ?? [])
 
+		// Only real look MEDIA counts — outgoing EMPTY clears placed on the other
+		// slot's layers must not steer the preview to the wrong channel.
+		const isLookMedia = (obj: (typeof nextObjects)[number]): boolean => {
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			return (
+				content?.deviceType === TSR.DeviceType.CASPARCG &&
+				content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+				!!content.file &&
+				content.file !== 'EMPTY'
+			)
+		}
+
 		// The next part's look media layers already carry the slot it claimed at
 		// generation (A/B remapped layer ids) — take the slot they target.
-		const nextSlot: LookSlot | undefined = nextObjects.some((obj) =>
-			idleLookMediaLayers('A', vmixProgram).includes(obj.layer as CasparCGLayers)
+		const nextSlot: LookSlot | undefined = nextObjects.some(
+			(obj) => isLookMedia(obj) && idleLookMediaLayers('A', vmixProgram).includes(obj.layer as CasparCGLayers)
 		)
 			? 'A'
-			: nextObjects.some((obj) => idleLookMediaLayers('B', vmixProgram).includes(obj.layer as CasparCGLayers))
+			: nextObjects.some(
+						(obj) =>
+							isLookMedia(obj) &&
+							idleLookMediaLayers('B', vmixProgram).includes(obj.layer as CasparCGLayers)
+				  )
 				? 'B'
 				: undefined
 
@@ -2284,16 +2300,9 @@ export async function armIdleLookPreviewForNext(
 		if (nextSlot && !liveSlots.has(nextSlot)) {
 			const targetLayers = idleLookMediaLayers(nextSlot, vmixProgram).map(String)
 			for (const obj of nextObjects) {
-				const content = obj.content as TSR.TimelineContentCCGMedia | undefined
-				if (
-					content?.deviceType !== TSR.DeviceType.CASPARCG ||
-					content.type !== TSR.TimelineContentTypeCasparCg.MEDIA ||
-					!content.file ||
-					content.file === 'EMPTY' ||
-					!targetLayers.includes(String(obj.layer)) ||
-					seenLayers.has(String(obj.layer))
-				)
+				if (!isLookMedia(obj) || !targetLayers.includes(String(obj.layer)) || seenLayers.has(String(obj.layer)))
 					continue
+				const content = obj.content as TSR.TimelineContentCCGMedia
 				seenLayers.add(String(obj.layer))
 				previewObjects.push(
 					literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({

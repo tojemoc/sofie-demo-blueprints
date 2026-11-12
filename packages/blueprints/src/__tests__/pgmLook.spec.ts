@@ -547,6 +547,59 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(updates).toEqual([])
 	})
 
+	it('clears an armed preview when re-nexting to a part with no look media', async () => {
+		const placeholder = createIdleLookPreviewPiece('part-current')
+		// A previously-armed clone — must be cleared when the new next has no media.
+		placeholder.content.timelineObjects = [
+			{
+				id: '',
+				enable: { start: 0 },
+				layer: LOOK_B_LAYERS.clip,
+				priority: 3,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: 'clips/stale',
+					playing: false,
+				},
+			},
+		] as never
+		const current = {
+			part: { externalId: 'part-current' },
+			pieces: [fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'clips/live'), placeholder],
+		}
+		const next = { part: { externalId: 'part-next' }, pieces: [] as IBlueprintPiece[] }
+		const updates: ArmUpdate[] = []
+		await armIdleLookPreviewForNext(mockArmContext(current, next, updates), hybridCasparConfig)
+		const clear = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+		expect(clear).toBeDefined()
+		expect(armObjects(clear)).toEqual([])
+	})
+
+	it("selects the next part's media slot, ignoring outgoing EMPTY clears", async () => {
+		const current = {
+			part: { externalId: 'part-current' },
+			pieces: [fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'clips/live'), createIdleLookPreviewPiece('part-current')],
+		}
+		const next = {
+			part: { externalId: 'part-next' },
+			// An EMPTY clear on the live A clip layer must not select slot A —
+			// the real media on B is what the preview clones.
+			pieces: [
+				fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'EMPTY'),
+				fakeLookMediaPiece(LOOK_B_LAYERS.clip, 'clips/next'),
+			],
+		}
+		const updates: ArmUpdate[] = []
+		await armIdleLookPreviewForNext(mockArmContext(current, next, updates), hybridCasparConfig)
+		const arm = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+		expect(
+			armObjects(arm).some(
+				(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'clips/next'
+			)
+		).toBe(true)
+	})
+
 	it('clears a stale preview when the next part targets the live slot', async () => {
 		const placeholder = createIdleLookPreviewPiece('part-current')
 		// A previously-armed clone on slot B — must be cleared when re-nexting to
