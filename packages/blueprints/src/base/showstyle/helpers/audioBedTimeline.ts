@@ -1,7 +1,8 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
-import { CasparCGLayers } from '../../studio/layers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { CasparCGLayers } from '../../studio/layers.js'
 
 type AudioBedMixer = NonNullable<TSR.TimelineContentCCGMedia['mixer']>
 

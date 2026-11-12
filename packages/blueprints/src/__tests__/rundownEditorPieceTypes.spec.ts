@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
+
 import {
 	RUNDOWN_EDITOR_GRAPHIC_PIECE_TYPES,
 	RUNDOWN_EDITOR_LAYERED_VIDEO_PIECE_TYPES,
@@ -30,7 +32,10 @@ function isPayloadManifest(value: unknown): value is RundownEditorPayloadManifes
 	return (
 		typeof field.id === 'string' &&
 		typeof field.label === 'string' &&
-		(field.type === 'string' || field.type === 'number' || field.type === 'boolean' || field.type === 'mediaPick') &&
+		(field.type === 'string' ||
+			field.type === 'number' ||
+			field.type === 'boolean' ||
+			field.type === 'mediaPick') &&
 		(!('includeInName' in field) || typeof field.includeInName === 'boolean') &&
 		(!('subdir' in field) || (field.type === 'mediaPick' && typeof field.subdir === 'string'))
 	)
@@ -62,7 +67,9 @@ const assetsDir = resolve(resolveMegarepoAsset('sofie-rundown-editor-piece-types
 
 describe('sofie-rundown-editor-piece-types.json', () => {
 	it('matches Rundown Editor piece type import validation', () => {
-		const data: unknown = JSON.parse(readFileSync(resolve(assetsDir, 'sofie-rundown-editor-piece-types.json'), 'utf8'))
+		const data: unknown = JSON.parse(
+			readFileSync(resolve(assetsDir, 'sofie-rundown-editor-piece-types.json'), 'utf8')
+		)
 
 		expect(verifyRundownEditorTypesImport(data, 'piece')).toBe(true)
 	})
@@ -98,7 +105,9 @@ describe('sofie-rundown-editor-piece-types.json', () => {
 
 describe('sofie-rundown-editor-part-types.json', () => {
 	it('matches Rundown Editor part type import validation', () => {
-		const data: unknown = JSON.parse(readFileSync(resolve(assetsDir, 'sofie-rundown-editor-part-types.json'), 'utf8'))
+		const data: unknown = JSON.parse(
+			readFileSync(resolve(assetsDir, 'sofie-rundown-editor-part-types.json'), 'utf8')
+		)
 
 		expect(verifyRundownEditorTypesImport(data, 'part')).toBe(true)
 	})

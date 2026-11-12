@@ -1,11 +1,12 @@
 import { BlueprintMappings, ICommonContext, LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
-import { BlueprintConfig, VisionMixerDevice } from '../../helpers/config.js'
-import { getVMixMappings } from './vmix.js'
-import { getAtemMappings } from './atem.js'
-import { getSisyfosMappings } from './sisyfos.js'
-import { getCasparCGMappings } from './casparcg.js'
-import { AbstractLayers } from '../../layers.js'
+
 import { assertNever } from '../../../../common/util.js'
+import { BlueprintConfig, VisionMixerDevice } from '../../helpers/config.js'
+import { AbstractLayers } from '../../layers.js'
+import { getAtemMappings } from './atem.js'
+import { getCasparCGMappings } from './casparcg.js'
+import { getSisyfosMappings } from './sisyfos.js'
+import { getVMixMappings } from './vmix.js'
 
 export function getMappingsDefaults(context: ICommonContext, config: BlueprintConfig): BlueprintMappings {
 	const mappings: BlueprintMappings = {
@@ -26,7 +27,11 @@ export function getMappingsDefaults(context: ICommonContext, config: BlueprintCo
 		case VisionMixerDevice.VMix:
 			Object.assign(
 				mappings,
-				getVMixMappings(config.studio.vmixSources, config.studio.vmixProgram, config.studio.visionMixer.deviceId)
+				getVMixMappings(
+					config.studio.vmixSources,
+					config.studio.vmixProgram,
+					config.studio.visionMixer.deviceId
+				)
 			)
 			break
 		default:

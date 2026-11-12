@@ -1,24 +1,25 @@
 import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { literal, stripExtension } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { AudioSourceType } from '../../studio/helpers/config.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { PartProps, VTProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 import {
 	getClipPlayerInput,
 	getEditorialClipCasparLayer,
 	parseLayeredVideosFromObjects,
 	resolveClipPlayback,
 } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
+import { finalizeHypercomposedPart, LookSlot } from '../helpers/pgmLook.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
-import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { parseConfig } from '../helpers/config.js'
-import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
-import { autoNextFromRe } from '../helpers/autoNext.js'
 
 /** Generate a VT part — video clip on the look clip layer (SYN/VT). */
 export function generateVTPart(
@@ -79,7 +80,9 @@ export function generateVTPart(
 			seek: playback.seekMs > 0 ? playback.seekMs : undefined,
 		},
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [getEditorialClipCasparLayer(config)]),
+			createMediaFileExpectedPackage(context, part.payload.clipProps.fileName, [
+				getEditorialClipCasparLayer(config),
+			]),
 		],
 	}
 

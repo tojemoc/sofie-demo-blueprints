@@ -1,4 +1,5 @@
 import { ITranslatableMessage } from '@sofie-automation/blueprints-integration'
+
 import { GraphicObject, SomeObject } from '../../../common/definitions/objects.js'
 import { ClipProps } from '../helpers/clips.js'
 import { RawSourceInfo } from '../helpers/sources.js'

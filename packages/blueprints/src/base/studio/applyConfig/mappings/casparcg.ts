@@ -1,13 +1,14 @@
-import { BlueprintMappings, BlueprintMapping, TSR, LookaheadMode } from '@sofie-automation/blueprints-integration'
+import { BlueprintMapping, BlueprintMappings, LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../../common/util.js'
 import { BlueprintConfig, VisionMixerDevice } from '../../helpers/config.js'
 import { CasparCGLayers } from '../../layers.js'
 import {
 	BgChannelLayers,
 	CamIngestChannelLayers,
+	DEBUG_CHANNEL_LABEL_LAYER,
 	LedChannelLayers,
 	PgmChannelLayers,
-	DEBUG_CHANNEL_LABEL_LAYER,
 } from './casparcgLayers.js'
 
 export interface HypercomposedChannelMap {
@@ -210,7 +211,10 @@ function pgmWipeEffectsMappings(
 > {
 	return {
 		[CasparCGLayers.CasparCGPgmEffectsPlayer]: pgmWipeEffectsMapping(pgmChannel, PgmChannelLayers.EffectsPlayer),
-		[CasparCGLayers.CasparCGPgmEffectsPlayerSjv]: pgmWipeEffectsMapping(pgmChannel, PgmChannelLayers.EffectsPlayerSjv),
+		[CasparCGLayers.CasparCGPgmEffectsPlayerSjv]: pgmWipeEffectsMapping(
+			pgmChannel,
+			PgmChannelLayers.EffectsPlayerSjv
+		),
 		[CasparCGLayers.CasparCGPgmEffectsPlayerSport]: pgmWipeEffectsMapping(
 			pgmChannel,
 			PgmChannelLayers.EffectsPlayerSport
@@ -254,7 +258,10 @@ export function getCasparCGMappings(config: BlueprintConfig): BlueprintMappings 
 		[CasparCGLayers.CasparCGClipPlayerPreview]: casparLayerMapping(ledChannel, LedChannelLayers.ClipPreview),
 		[CasparCGLayers.CasparCGEffectsPlayer]: casparLayerMapping(ledChannel, LedChannelLayers.EffectsPlayer),
 		[CasparCGLayers.CasparCGGraphicsTicker]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsTicker),
-		[CasparCGLayers.CasparCGGraphicsLowerThird]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsLowerThird),
+		[CasparCGLayers.CasparCGGraphicsLowerThird]: casparLayerMapping(
+			ledChannel,
+			LedChannelLayers.GraphicsLowerThird
+		),
 		[CasparCGLayers.CasparCGGraphicsStrap]: casparLayerMapping(ledChannel, LedChannelLayers.GraphicsStrap),
 		[CasparCGLayers.CasparCGAudioBed]: casparLayerMapping(ledChannel, LedChannelLayers.AudioBed),
 

@@ -1,11 +1,12 @@
 import { IBlueprintPiece, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { createMediaFileExpectedPackage } from './mediaPackages.js'
 import { DEFAULT_BG_LOOP_FILE } from './clips.js'
+import { createMediaFileExpectedPackage } from './mediaPackages.js'
 
 /** Same media as LED baseline `LED_BACKGROUND_LOOP_FILE` — import clips, not baseline (cycle). */
 export const FULL_BG_LOOP_FILE = DEFAULT_BG_LOOP_FILE

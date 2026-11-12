@@ -1,13 +1,14 @@
 import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { IntroProps, PartProps } from '../definitions/index.js'
-import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
-import { parseGraphicsFromObjects } from '../helpers/graphics.js'
-import { createScriptPiece } from '../helpers/script.js'
-import { parseConfig } from '../helpers/config.js'
-import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
-import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
 import { autoNextForced, autoNextPublicData, FORCE_INTRO_AUTO_NEXT } from '../helpers/autoNext.js'
+import { createIntroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
+import { parseGraphicsFromObjects } from '../helpers/graphics.js'
+import { finalizeHypercomposedPart, LookSlot } from '../helpers/pgmLook.js'
+import { createScriptPiece } from '../helpers/script.js'
 
 /**
  * Intro part: overlay video on PGM IntroOverlay (layer 210) — above wipe / compose.

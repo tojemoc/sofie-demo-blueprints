@@ -5,17 +5,18 @@ import {
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { CasparCGLayers } from '../../studio/layers.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { PartProps, TitlesProps } from '../definitions/index.js'
+import { autoNextForced, autoNextPublicData, FORCE_TITLES_AUTO_NEXT } from '../helpers/autoNext.js'
 import { getClipPlayerInput } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
-import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { parseConfig } from '../helpers/config.js'
-import { autoNextForced, autoNextPublicData, FORCE_TITLES_AUTO_NEXT } from '../helpers/autoNext.js'
 
 export function generateOpenerPart(context: PartContext, part: PartProps<TitlesProps>): BlueprintResultPart {
 	const config = parseConfig(context).studio

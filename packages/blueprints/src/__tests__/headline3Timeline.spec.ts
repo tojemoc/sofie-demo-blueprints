@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
+
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { PartType } from '../base/showstyle/definitions/index.js'
-import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
-import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
 import {
 	loadSmokeRundownExport,
 	mockIngestContext,
@@ -48,7 +49,9 @@ describe('HEADLINES 1–3 timeline parity', () => {
 			expect(iluPiece?.expectedPackages?.[0]?.sideEffect).toEqual({})
 
 			const tl = result.pieces.flatMap((p) => p.content?.timelineObjects ?? [])
-			const ilu = tl.find((t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file)
+			const ilu = tl.find(
+				(t) => t.layer === CasparCGLayers.CasparCGIluPlayer && (t.content as { file?: string }).file
+			)
 			const l3d = tl.find(
 				(t) =>
 					t.layer === CasparCGLayers.CasparCGGraphicsHeadline &&

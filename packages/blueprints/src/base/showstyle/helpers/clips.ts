@@ -6,18 +6,19 @@ import {
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
+
+import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
 import { ObjectType, SomeObject, VideoObject, VideoPlayLayer } from '../../../common/definitions/objects.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { createVisionMixerObjects } from './visionMixer.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { InputConfig, VmixInputConfig } from '../../..//$schemas/generated/main-studio-config.js'
-import { createMediaFileExpectedPackage, isDemoMediaPath, toCasparPlayPath } from './mediaPackages.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { getWipeForceMuteChannels } from './backgroundMusic.js'
+import { createMediaFileExpectedPackage, isDemoMediaPath, toCasparPlayPath } from './mediaPackages.js'
+import { createVisionMixerObjects } from './visionMixer.js'
 
 export interface ClipProps {
 	fileName: string
@@ -613,7 +614,9 @@ export function parseLayeredVideosFromObjects(
 					}),
 				],
 				prerollDuration:
-					playLayer === 'wipe' ? Math.max(config.casparcgLatency, DEFAULT_WIPE_PREROLL_MS) : config.casparcgLatency,
+					playLayer === 'wipe'
+						? Math.max(config.casparcgLatency, DEFAULT_WIPE_PREROLL_MS)
+						: config.casparcgLatency,
 			}),
 		]
 	})

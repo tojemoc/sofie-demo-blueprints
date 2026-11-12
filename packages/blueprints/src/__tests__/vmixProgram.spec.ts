@@ -1,12 +1,15 @@
-import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
+import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
 import {
 	createLookSlotSequence,
 	finalizeHypercomposedPart,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
 } from '../base/showstyle/helpers/pgmLook.js'
-import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import {
 	VMIX_HARD_CUT_RESUME_LEAD_MS,
 	VMIX_STINGER_PREVIEW_LEAD_MS,
@@ -15,14 +18,13 @@ import {
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
-import { VMIX_RETIRED_CASPAR_LAYERS, getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
+import { getCasparCGMappings, VMIX_RETIRED_CASPAR_LAYERS } from '../base/studio/applyConfig/mappings/casparcg.js'
 import { BgChannelLayers, PgmChannelLayers } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
+import { TimelineBlueprintExt } from '../base/studio/customTypes.js'
 import { AudioSourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../base/studio/layers.js'
-import { TimelineBlueprintExt } from '../base/studio/customTypes.js'
 import { ObjectType, VideoObject } from '../common/definitions/objects.js'
 import {
 	hybridCasparConfig,
@@ -112,7 +114,9 @@ describe('vMix wipe ForceMute', () => {
 			const existingMutes =
 				branch === 'existing mutes'
 					? [AudioSourceType.Playback, AudioSourceType.Host].map((type, index) => ({
-							...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, [{ type, index: 0, isOn: false }]),
+							...getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, [
+								{ type, index: 0, isOn: false },
+							]),
 							id: `mute-${index}`,
 							enable: { start: 100 },
 							priority: 2,
@@ -187,7 +191,9 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 		for (const { externalId, pieces } of parts) {
 			const programs = programObjects(pieces)
 			expect(programs, `part ${externalId}`).toHaveLength(1)
-			expect([LOOK_A_INPUT, LOOK_B_INPUT, CAMERA_INPUT], `part ${externalId}`).toContain(programs[0].content.input)
+			expect([LOOK_A_INPUT, LOOK_B_INPUT, CAMERA_INPUT], `part ${externalId}`).toContain(
+				programs[0].content.input
+			)
 		}
 	})
 
@@ -273,9 +279,10 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 				start: 0,
 				duration: VMIX_STINGER_PREVIEW_LEAD_MS + duration + 40,
 			})
-			expect((lead?.content as TSR.TimelineContentVMixPreview).input, `part ${externalId} lead PREVIEW input`).toBe(
-				program.content.input
-			)
+			expect(
+				(lead?.content as TSR.TimelineContentVMixPreview).input,
+				`part ${externalId} lead PREVIEW input`
+			).toBe(program.content.input)
 			expect(program.enable, `part ${externalId} program start`).toEqual({
 				start: VMIX_STINGER_PREVIEW_LEAD_MS,
 			})
@@ -283,9 +290,10 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 				(obj) => !Array.isArray(obj.enable) && obj.enable.start === VMIX_STINGER_PREVIEW_LEAD_MS + duration + 40
 			)
 			expect(follow, `part ${externalId} follow PREVIEW`).toBeDefined()
-			expect((follow?.content as TSR.TimelineContentVMixPreview).input, `part ${externalId} follow PREVIEW input`).toBe(
-				program.content.input === LOOK_A_INPUT ? LOOK_B_INPUT : LOOK_A_INPUT
-			)
+			expect(
+				(follow?.content as TSR.TimelineContentVMixPreview).input,
+				`part ${externalId} follow PREVIEW input`
+			).toBe(program.content.input === LOOK_A_INPUT ? LOOK_B_INPUT : LOOK_A_INPUT)
 		}
 	})
 
@@ -317,7 +325,9 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 	it('no Caspar program-switch, wipe overlay or cam-ingest objects and no Caspar music beds remain', () => {
 		for (const { externalId, pieces } of parts) {
 			for (const obj of objectsOf(pieces)) {
-				expect(RETIRED_LAYERS.has(String(obj.layer)), `part ${externalId} layer ${String(obj.layer)}`).toBe(false)
+				expect(RETIRED_LAYERS.has(String(obj.layer)), `part ${externalId} layer ${String(obj.layer)}`).toBe(
+					false
+				)
 				const file = (obj.content as { file?: unknown }).file
 				expect(typeof file === 'string' && file.startsWith('route://'), `part ${externalId}`).toBe(false)
 				expect(CASPAR_MUSIC_BEDS.has(String(file)), `part ${externalId} file ${String(file)}`).toBe(false)
@@ -346,14 +356,18 @@ describe('vMix program switcher (smoke rundown, vMix studio)', () => {
 						? VMixLayers.VMixLookInputB
 						: undefined
 			const camera =
-				objs.find((obj) => obj.layer === programLayer && (obj.content as TSR.TimelineContentVMixInput).layers?.[1]) ??
-				objs.find((obj) => (obj.content as TSR.TimelineContentVMixInput).layers?.[1])
+				objs.find(
+					(obj) => obj.layer === programLayer && (obj.content as TSR.TimelineContentVMixInput).layers?.[1]
+				) ?? objs.find((obj) => (obj.content as TSR.TimelineContentVMixInput).layers?.[1])
 			const input = camera?.content as TSR.TimelineContentVMixInput
 			expect(input?.layers?.[1]?.input, `part ${externalId}`).toBe(CAMERA_INPUT)
 			// Legacy vMix (no look feed inputs): the camera INPUT object drops layer 2.
 			expect(input?.layers?.[2]?.input, `part ${externalId}`).toBeUndefined()
 			// No look bg_loop on A/B outside the weather part — vMix composites the look.
-			const bgLoopLayers = [CasparCGLayers.CasparCGLookBgLoop as string, CasparCGLayers.CasparCGLookBgLoopB as string]
+			const bgLoopLayers = [
+				CasparCGLayers.CasparCGLookBgLoop as string,
+				CasparCGLayers.CasparCGLookBgLoopB as string,
+			]
 			expect(
 				objs.some((obj) => bgLoopLayers.includes(String(obj.layer))),
 				`part ${externalId} must not carry look bg_loop`
@@ -429,7 +443,8 @@ describe('vMix studio beds + DoubleBox background (smoke rundown)', () => {
 			)
 			.find(
 				(obj) =>
-					dbLoopLayers.has(String(obj.layer)) && (obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity === 1
+					dbLoopLayers.has(String(obj.layer)) &&
+					(obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity === 1
 			)
 		expect(frameObj).toBeDefined()
 	})
@@ -462,7 +477,10 @@ describe('vMix studio baseline + mappings', () => {
 	})
 
 	it('plays bed A on its vMix input at bedVolume (no kolíska keyframes) with bed C muted', () => {
-		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedA)?.content).toMatchObject({ playing: true, loop: true })
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedA)?.content).toMatchObject({
+			playing: true,
+			loop: true,
+		})
 		const bedA = objs.find((obj) => obj.layer === VMixLayers.VMixBedAAudio)
 		expect(bedA?.content).toMatchObject({ muted: false, volume: 70 })
 		expect(bedA?.keyframes ?? []).toHaveLength(0)
@@ -576,7 +594,8 @@ describe('vMix feed mode (look feed inputs)', () => {
 			for (const obj of objectsOf(pieces)) {
 				if (!CLIP_ILU_LAYERS.has(String(obj.layer))) continue
 				const content = obj.content as TSR.TimelineContentCCGMedia
-				if (content?.file === 'EMPTY' || typeof content?.file !== 'string' || content.file === 'loops/db_loop') continue
+				if (content?.file === 'EMPTY' || typeof content?.file !== 'string' || content.file === 'loops/db_loop')
+					continue
 				if (!Array.isArray(obj.enable) && obj.enable?.start !== 0) continue
 				expect(content.noStarttime).toBe(true)
 				const resume = obj.keyframes?.find((kf) => (kf.content as { playing?: boolean }).playing === true)

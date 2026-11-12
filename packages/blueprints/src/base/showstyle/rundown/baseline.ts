@@ -1,21 +1,22 @@
 import { BlueprintResultBaseline, IShowStyleUserContext, TSR } from '@sofie-automation/blueprints-integration'
+
+import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { literal } from '../../../common/util.js'
+import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
+import {
+	PGM_DOUBLEBOX_CAMERA_FILL,
+	PGM_FULLSCREEN_CAMERA_FILL,
+} from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { AtemLayers, CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { getSisyfosBaseline } from '../helpers/audio.js'
-import { DVEDesigns, DVELayouts } from '../helpers/dve.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
-import { parseConfig } from '../helpers/config.js'
 import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
-import {
-	getVmixCameraInput,
-	getVmixCleanGfxInput,
-	getVmixLookFeedInput,
-	getVmixLookInput,
-	usesVmixProgram,
-} from '../helpers/visionMixer.js'
+import { parseConfig } from '../helpers/config.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
+import { DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
+import { DVEDesigns, DVELayouts } from '../helpers/dve.js'
+import { LED_POD_HEADLINE_FILE } from '../helpers/ledPodHeadline.js'
 import {
 	createCameraIngestBaselineTimeline,
 	createDoubleBoxBaselineCameraTimeline,
@@ -30,14 +31,14 @@ import {
 	createStickyWipeBaselineTimeline,
 	PGM_ROUTE_LAYERS,
 } from '../helpers/pgmLook.js'
-import { LED_POD_HEADLINE_FILE } from '../helpers/ledPodHeadline.js'
-import { DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
 import { CALIBRATION_FRAME_FILE, LED_TEST_FRAME_FILE } from '../helpers/studioCalibration.js'
 import {
-	PGM_DOUBLEBOX_CAMERA_FILL,
-	PGM_FULLSCREEN_CAMERA_FILL,
-} from '../../studio/applyConfig/mappings/casparcgLayers.js'
-import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
+	getVmixCameraInput,
+	getVmixCleanGfxInput,
+	getVmixLookFeedInput,
+	getVmixLookInput,
+	usesVmixProgram,
+} from '../helpers/visionMixer.js'
 
 /** Caspar PLAY path (no extension) for the LED background loop on clip layer 110. */
 export const LED_BACKGROUND_LOOP_FILE = 'loops/bg_loop'
@@ -84,21 +85,25 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 			...(config.casparcg.hypercomposed
 				? [
 						...(vmixProgram
-							? ([CasparCGLayers.CasparCGPgmDoubleBoxLoop, CasparCGLayers.CasparCGPgmDoubleBoxLoopB] as const).map(
-									(layer) =>
-										literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-											id: '',
-											enable: { while: 1 },
-											priority: 0,
-											layer,
-											content: {
-												deviceType: TSR.DeviceType.CASPARCG,
-												type: TSR.TimelineContentTypeCasparCg.MEDIA,
-												file: DOUBLEBOX_LOOP_FILE,
-												loop: true,
-												mixer: { opacity: 0 },
-											},
-										})
+							? (
+									[
+										CasparCGLayers.CasparCGPgmDoubleBoxLoop,
+										CasparCGLayers.CasparCGPgmDoubleBoxLoopB,
+									] as const
+								).map((layer) =>
+									literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+										id: '',
+										enable: { while: 1 },
+										priority: 0,
+										layer,
+										content: {
+											deviceType: TSR.DeviceType.CASPARCG,
+											type: TSR.TimelineContentTypeCasparCg.MEDIA,
+											file: DOUBLEBOX_LOOP_FILE,
+											loop: true,
+											mixer: { opacity: 0 },
+										},
+									})
 								)
 							: []),
 						...(vmixProgram
@@ -379,7 +384,9 @@ function getCasparProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] 
 
 /** ATEM baseline: DSK graphics overlay + audio mappings. */
 function getAtemBaseline(config: StudioConfig): TimelineBlueprintExt[] {
-	const dskInput = Object.values<InputConfig>(config.atemSources).find((source) => source.type === SourceType.Graphics)
+	const dskInput = Object.values<InputConfig>(config.atemSources).find(
+		(source) => source.type === SourceType.Graphics
+	)
 
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentAtemSsrcProps>>({

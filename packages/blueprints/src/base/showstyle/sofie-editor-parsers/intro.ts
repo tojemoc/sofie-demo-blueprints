@@ -1,6 +1,6 @@
+import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
 import { t } from '../../../common/util.js'
-import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
 import { IntroProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { isLayeredVideoObject, parseClipEditorProps } from '../helpers/clips.js'
 import { parseBaseProps } from './base.js'
@@ -24,7 +24,10 @@ export function findIntroOverlayVideo(ingestPart: EditorIngestPart): VideoObject
 export function parseIntro(ingestPart: EditorIngestPart): PartProps<IntroProps | InvalidProps> {
 	const introVideo = findIntroOverlayVideo(ingestPart)
 	if (!introVideo) {
-		return createInvalidProps(t('No intro overlay video. Add an Intro piece (plays on top of everything).'), ingestPart)
+		return createInvalidProps(
+			t('No intro overlay video. Add an Intro piece (plays on top of everything).'),
+			ingestPart
+		)
 	}
 
 	// Ensure timeline routing when recovering a plain video on a GFX part.

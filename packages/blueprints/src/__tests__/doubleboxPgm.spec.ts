@@ -1,22 +1,28 @@
-import { IBlueprintPieceType, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { PartType, CameraProps, PartProps } from '../base/showstyle/definitions/index.js'
+
+import { IBlueprintPieceType, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
+import { CameraProps, PartProps, PartType } from '../base/showstyle/definitions/index.js'
+import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
+import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
+import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
-import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { PartContext } from '../common/context.js'
-import { ObjectType } from '../common/definitions/objects.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
 import {
+	coverCropForFill,
 	PGM_DOUBLEBOX_CAMERA_CROP,
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_DOUBLEBOX_ILU_CROP,
 	PGM_DOUBLEBOX_ILU_FILL,
 	PGM_FULLSCREEN_CAMERA_FILL,
 	PgmChannelLayers,
-	coverCropForFill,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
+import { PartContext } from '../common/context.js'
+import { ObjectType } from '../common/definitions/objects.js'
+import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -24,10 +30,6 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
-import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
-import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
-import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
-import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 
@@ -196,7 +198,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(
 			dbPart?.objects.some(
 				(obj) =>
-					obj.clipName === 'gfx/doublebox-ilu' && typeof (obj.attributes as { iluFile?: string }).iluFile === 'string'
+					obj.clipName === 'gfx/doublebox-ilu' &&
+					typeof (obj.attributes as { iluFile?: string }).iluFile === 'string'
 			)
 		).toBe(true)
 
@@ -403,7 +406,10 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const iluOf = (pieces: typeof outgoing.pieces, file: string) =>
 			pieces
 				.flatMap((piece) => piece.content.timelineObjects ?? [])
-				.find((obj) => iluLayers.has(obj.layer as CasparCGLayers) && (obj.content as { file?: string }).file === file)
+				.find(
+					(obj) =>
+						iluLayers.has(obj.layer as CasparCGLayers) && (obj.content as { file?: string }).file === file
+				)
 
 		// First DB claims idle A (baseline peek B) — LOAD/PAUSE from Take.
 		const outgoingIlu = iluOf(outgoing.pieces, 'clips/ILU outgoing')
@@ -435,7 +441,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const incomingCam = incoming.pieces
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find(
-				(obj) => camLayers.has(obj.layer as CasparCGLayers) && (obj.content as { file?: string }).file === 'route://5'
+				(obj) =>
+					camLayers.has(obj.layer as CasparCGLayers) &&
+					(obj.content as { file?: string }).file === 'route://5'
 			)
 		expect(incomingCam?.enable).toEqual({ start: 0 })
 		expect((incomingCam?.content as TSR.TimelineContentCCGMedia).playing).toBe(false)
@@ -458,7 +466,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.filter(
 				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoopB && (obj.content as { file?: string }).file === 'EMPTY'
+					obj.layer === CasparCGLayers.CasparCGPgmDoubleBoxLoopB &&
+					(obj.content as { file?: string }).file === 'EMPTY'
 			)
 		expect(dbLoopEmpty).toHaveLength(0)
 	})
@@ -569,7 +578,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find(
 				(obj) =>
-					(obj.layer === CasparCGLayers.CasparCGPgmIluPlayer || obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB) &&
+					(obj.layer === CasparCGLayers.CasparCGPgmIluPlayer ||
+						obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB) &&
 					(obj.content as { file?: string }).file === 'clips/ILU incoming'
 			)
 		expect(incomingIlu?.enable).toEqual({ start: 0 })
@@ -731,7 +741,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(
 			timeline.some(
 				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer && (obj.content as { file?: string }).file !== 'EMPTY'
+					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
+					(obj.content as { file?: string }).file !== 'EMPTY'
 			)
 		).toBe(false)
 		const liveDbLoop = (layer: CasparCGLayers) =>
@@ -752,7 +763,9 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 		expect(
 			timeline.some(
-				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGPgmCameraB &&
+					(obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(false)
 		expect(

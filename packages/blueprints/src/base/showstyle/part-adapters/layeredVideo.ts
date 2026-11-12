@@ -1,12 +1,13 @@
 import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { LayeredVideoProps, PartProps } from '../definitions/index.js'
-import { parseLayeredVideosFromObjects, partHasOutroOverlay } from '../helpers/clips.js'
-import { createScriptPiece } from '../helpers/script.js'
-import { parseConfig } from '../helpers/config.js'
-import { LookSlot, finalizeHypercomposedPart, findWipeVideoObject } from '../helpers/pgmLook.js'
-import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { autoNextFromRe } from '../helpers/autoNext.js'
+import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
+import { parseLayeredVideosFromObjects, partHasOutroOverlay } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
+import { finalizeHypercomposedPart, findWipeVideoObject, LookSlot } from '../helpers/pgmLook.js'
+import { createScriptPiece } from '../helpers/script.js'
 
 /**
  * Video-only wipe / bg-loop parts (no graphic, no take-over VT/VO clip).

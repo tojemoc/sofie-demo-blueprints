@@ -1,5 +1,6 @@
-import { ShowStyleConfig } from '../../../base/showstyle/helpers/config.js'
 import { IShowStyleVariantConfigPreset } from '@sofie-automation/blueprints-integration'
+
+import { ShowStyleConfig } from '../../../base/showstyle/helpers/config.js'
 
 type VariantsConfig = Pick<ShowStyleConfig, 'dvePresets'>
 

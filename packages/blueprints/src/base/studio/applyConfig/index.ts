@@ -6,20 +6,21 @@ import {
 	ICommonContext,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
-import { BlueprintConfig, StudioConfig, VisionMixerDevice } from '../helpers/config.js'
-import { getMappingsDefaults } from './mappings/index.js'
-import { preprocessConfig } from '../preprocessConfig.js'
-import { literal } from '../../../common/util.js'
 // eslint-disable-next-line n/no-missing-import
 import { StudioPackageContainer } from '@sofie-automation/shared-lib/dist/core/model/PackageContainer.js'
 // eslint-disable-next-line n/no-missing-import
 import { ShelfButtonSize } from '@sofie-automation/shared-lib/dist/core/model/StudioSettings.js'
+
+import { literal } from '../../../common/util.js'
 import {
 	CASPARCG_PACKAGE_CONTAINER_ID,
 	getMediaPackagesConfig,
 	HTTP_PROXY_PACKAGE_CONTAINER_ID,
 	INGEST_PACKAGE_CONTAINER_ID,
 } from '../../showstyle/helpers/mediaPackages.js'
+import { BlueprintConfig, StudioConfig, VisionMixerDevice } from '../helpers/config.js'
+import { preprocessConfig } from '../preprocessConfig.js'
+import { getMappingsDefaults } from './mappings/index.js'
 
 export function applyConfig(
 	context: ICommonContext,

@@ -1,19 +1,21 @@
+import { dereferenceSync } from 'dereference-json-schema'
+
 import {
 	BlueprintManifestType,
 	JSONBlobStringify,
 	JSONSchema,
 	StudioBlueprintManifest,
 } from '@sofie-automation/blueprints-integration'
-import { getBaseline } from './getBaseline.js'
-import { getShowStyleId } from './getShowStyleId.js'
-import { validateConfig } from './validateConfig.js'
-import { preprocessConfig } from './preprocessConfig.js'
+
+import * as ConfigSchema from '../../$schemas/main-studio-config.json'
 //import { getRundownPlaylistInfo } from './getRundownPlaylistInfo.js'
 import { applyConfig } from './applyConfig/index.js'
-import * as ConfigSchema from '../../$schemas/main-studio-config.json'
+import { getBaseline } from './getBaseline.js'
+import { getShowStyleId } from './getShowStyleId.js'
 import { StudioConfig } from './helpers/config.js'
+import { preprocessConfig } from './preprocessConfig.js'
 import { processIngestData } from './userEditOperations/processIngestData.js'
-import { dereferenceSync } from 'dereference-json-schema'
+import { validateConfig } from './validateConfig.js'
 
 export const baseManifest: Omit<StudioBlueprintManifest<StudioConfig>, 'blueprintId' | 'configPresets'> = {
 	blueprintType: BlueprintManifestType.STUDIO,

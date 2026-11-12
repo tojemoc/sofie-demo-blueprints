@@ -1,27 +1,29 @@
-import { IBlueprintPieceType, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { PartType, VOProps, VTProps, PartProps } from '../base/showstyle/definitions/index.js'
+
+import { IBlueprintPieceType, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
+import { PartProps, PartType, VOProps, VTProps } from '../base/showstyle/definitions/index.js'
+import { normalizeLayeredVideoFileName, resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
+import { LOOK_B_LAYERS, LOOK_HARD_CUT_OVERLAP_MS } from '../base/showstyle/helpers/pgmLook.js'
+import { generateLayeredVideoPart } from '../base/showstyle/part-adapters/layeredVideo.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { generateVTPart } from '../base/showstyle/part-adapters/vt.js'
-import { generateLayeredVideoPart } from '../base/showstyle/part-adapters/layeredVideo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { AudioSourceType } from '../base/studio/helpers/config.js'
+import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
-import { CasparCGLayers, SisyfosLayers } from '../base/studio/layers.js'
-import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { normalizeLayeredVideoFileName, resolveWipeAirCutMs } from '../base/showstyle/helpers/clips.js'
-
-const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
-import { LOOK_B_LAYERS, LOOK_HARD_CUT_OVERLAP_MS } from '../base/showstyle/helpers/pgmLook.js'
-import { AudioSourceType } from '../base/studio/helpers/config.js'
+import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 import {
-	loadSmokeRundownExport,
 	hybridCasparConfig,
+	loadSmokeRundownExport,
 	mockIngestContext,
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
-import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
+
+const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 
 /** Smoke SYN parts are hard cuts — inject a wipe for wipe-routing unit tests. */
 function withWipeOnSyn(exportData: ReturnType<typeof loadSmokeRundownExport>, synExternalId?: string) {
@@ -73,7 +75,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 
 		expect(synPart?.type).toBe(PartType.VO)
 		const wipe = synPart?.objects.find(
-			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+			(obj) =>
+				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
 		expect(wipe?.clipName).toBe('wipes/wipe')
 		expect((wipe?.attributes as { transition?: string }).transition).toBe('ILU TO SYN CLUSTER')
@@ -163,7 +166,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 		if (!synPart) return
 
 		const wipe = synPart.objects.find(
-			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+			(obj) =>
+				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
 		expect((wipe?.attributes as { cutPoint?: number }).cutPoint).toBe(500)
 
@@ -331,7 +335,8 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const segment = convertIngestData(mockIngestContext, ingest)
 		const synPart = segment.parts.find((part) => part.payload.externalId === synExternalId)
 		const wipe = synPart?.objects.find(
-			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+			(obj) =>
+				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
 
 		expect(wipe?.clipName).toBe('wipes/wipe')
@@ -371,7 +376,9 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		expect(
 			timeline.some(
-				(obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file === 'EMPTY'
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGPgmCameraB &&
+					(obj.content as { file?: string }).file === 'EMPTY'
 			)
 		).toBe(true)
 	})

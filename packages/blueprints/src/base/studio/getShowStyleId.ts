@@ -1,5 +1,6 @@
-import { IBlueprintShowStyleBase, IngestRundown, IStudioContext } from '@sofie-automation/blueprints-integration'
 import type { ReadonlyDeep } from 'type-fest'
+
+import { IBlueprintShowStyleBase, IngestRundown, IStudioContext } from '@sofie-automation/blueprints-integration'
 
 export function getShowStyleId(
 	_context: IStudioContext,

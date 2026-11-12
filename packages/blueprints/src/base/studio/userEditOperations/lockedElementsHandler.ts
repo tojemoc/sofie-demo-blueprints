@@ -7,6 +7,7 @@ import {
 	NrcsIngestSegmentChangeDetailsEnum,
 	NrcsIngestSegmentChangeDetailsObject,
 } from '@sofie-automation/blueprints-integration'
+
 import {
 	BlueprintMutableIngestPart,
 	BlueprintMutableIngestRundown,

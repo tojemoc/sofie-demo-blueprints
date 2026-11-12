@@ -1,14 +1,15 @@
 import { BlueprintResultPart } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { GfxProps, PartProps } from '../definitions/index.js'
+import { autoNextFromRe, autoNextPublicData } from '../helpers/autoNext.js'
+import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects, partHasOutroOverlay } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
 import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
+import { finalizeHypercomposedPart, LookSlot } from '../helpers/pgmLook.js'
 import { createScriptPiece } from '../helpers/script.js'
-import { parseConfig } from '../helpers/config.js'
-import { LookSlot, finalizeHypercomposedPart } from '../helpers/pgmLook.js'
-import { createOutroBackgroundMusicMutePiece } from '../helpers/backgroundMusic.js'
-import { autoNextFromRe, autoNextPublicData } from '../helpers/autoNext.js'
 
 /** Generate a GFX part — L3D graphic plus optional look ILU underlay on the claimed slot. */
 export function generateGfxPart(

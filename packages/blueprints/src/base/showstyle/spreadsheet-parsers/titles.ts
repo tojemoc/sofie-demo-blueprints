@@ -1,5 +1,5 @@
-import { SomeObject } from '../../../common/definitions/objects.js'
 import { SpreadsheetIngestPart } from '../../../code-copy/spreadsheet-gateway/index.js'
+import { SomeObject } from '../../../common/definitions/objects.js'
 import { InvalidProps, PartProps, PartType, TitlesProps } from '../definitions/index.js'
 import { parseBaseProps } from './base.js'
 

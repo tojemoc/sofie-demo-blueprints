@@ -1,21 +1,22 @@
 import { BlueprintResultPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
+import { VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { PartContext } from '../../../common/context.js'
 import { assertUnreachable, literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { AudioSourceType, SourceType, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { AtemLayers, VMixLayers } from '../../studio/layers.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { DVEProps, PartProps } from '../definitions/index.js'
 import { getAudioPrimaryObject } from '../helpers/audio.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 import { getClipPlayerInput, parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
 import { dveLayoutToContent, parseSuperSourceLayout, parseSuperSourceProps } from '../helpers/dve.js'
 import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { getSourceInfoFromRaw } from '../helpers/sources.js'
 import { createVisionMixerObjects } from '../helpers/visionMixer.js'
-import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
-import { parseConfig } from '../helpers/config.js'
-import { autoNextFromRe } from '../helpers/autoNext.js'
 
 const SUPER_SOURCE_LATENCY = 80
 const SUPER_SOURCE_INPUT = 6000
@@ -28,12 +29,7 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 
 	const layout = parseSuperSourceLayout(context, part.payload)
 	const boxes: TSR.SuperSourceBox[] = part.payload.inputs.map((input, i) => {
-		let source = undefined
-		if ('fileName' in input) {
-			source = getClipPlayerInput(config)
-		} else {
-			source = getSourceInfoFromRaw(config, input)
-		}
+		const source = 'fileName' in input ? getClipPlayerInput(config) : getSourceInfoFromRaw(config, input)
 		return {
 			...layout[i],
 			source: source?.input || 0,
@@ -66,8 +62,8 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 	)
 
 	const vmixDVEInput =
-		Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.MultiView)?.input ??
-		-1
+		Object.values<VmixInputConfig>(config.vmixSources).find((source) => source.type === SourceType.MultiView)
+			?.input ?? -1
 	const dvePieceTimelineObjects: TimelineBlueprintExt[] = [
 		...createVisionMixerObjects(
 			config,

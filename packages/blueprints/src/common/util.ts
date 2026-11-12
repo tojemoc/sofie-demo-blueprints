@@ -1,3 +1,5 @@
+import type { SetRequired } from 'type-fest'
+
 import {
 	IBlueprintPiece,
 	IRundownContext,
@@ -7,7 +9,6 @@ import {
 	ITranslatableMessage,
 	PieceLifespan,
 } from '@sofie-automation/blueprints-integration'
-import type { SetRequired } from 'type-fest'
 
 export type ThisOrThat<T extends boolean, A, B> = T extends true ? A : B
 
