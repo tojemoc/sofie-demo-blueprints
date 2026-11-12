@@ -1,27 +1,26 @@
 import { BlueprintResultPart, IBlueprintPiece, PieceLifespan } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { ObjectType, StudioGuestObject } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
-import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
-import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
 import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_FULLSCREEN_CAMERA_FILL,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { AudioSourceType, StudioConfig } from '../../studio/helpers/config.js'
+import { CasparCGLayers, SisyfosLayers } from '../../studio/layers.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { CameraProps, PartProps } from '../definitions/index.js'
 import { getAudioObjectOnLayer, getAudioPrimaryObject } from '../helpers/audio.js'
+import { autoNextFromRe } from '../helpers/autoNext.js'
 import { parseClipsFromObjects, parseLayeredVideosFromObjects } from '../helpers/clips.js'
-import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
-import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
-import { createScriptPiece } from '../helpers/script.js'
-import { getSourceInfoFromRaw } from '../helpers/sources.js'
-import { createVisionMixerObjects, usesVmixProgram } from '../helpers/visionMixer.js'
-import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { parseConfig } from '../helpers/config.js'
+import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { createFullBgLoopPiece } from '../helpers/fullBgLoop.js'
-import { CountupRevealClaim, createCountupRevealPiece } from '../helpers/countupReveal.js'
+import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
+import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
 import { createLedPodHeadlineClearPiece } from '../helpers/ledPodHeadline.js'
 import {
 	createLookCameraTimelineContent,
@@ -29,8 +28,10 @@ import {
 	getPgmCameraProducer,
 	PgmCameraTimelineContent,
 } from '../helpers/pgmCamera.js'
-import { LookSlot, finalizeHypercomposedPart, isDoubleBoxLook } from '../helpers/pgmLook.js'
-import { autoNextFromRe } from '../helpers/autoNext.js'
+import { finalizeHypercomposedPart, isDoubleBoxLook, LookSlot } from '../helpers/pgmLook.js'
+import { createScriptPiece } from '../helpers/script.js'
+import { getSourceInfoFromRaw } from '../helpers/sources.js'
+import { createVisionMixerObjects, usesVmixProgram } from '../helpers/visionMixer.js'
 
 /** True when this camera part should compose under the DoubleBox frame (not fullscreen). */
 export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {

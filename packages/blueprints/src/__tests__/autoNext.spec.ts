@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import {
 	CameraProps,
 	DVEProps,
@@ -12,6 +13,7 @@ import {
 	VOProps,
 	VTProps,
 } from '../base/showstyle/definitions/index.js'
+import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { generateDVEPart } from '../base/showstyle/part-adapters/dve.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
@@ -23,10 +25,9 @@ import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { generateVTPart } from '../base/showstyle/part-adapters/vt.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { syncIngestUpdateToPartInstance } from '../base/showstyle/syncIngestUpdateToPartInstance.js'
-import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
+import { SourceType } from '../base/studio/helpers/config.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
-import { SourceType } from '../base/studio/helpers/config.js'
 import { mockIngestContext, mockSegmentContext } from './helpers/smokeRundownIngest.js'
 
 const ctx = () => new PartContext(mockSegmentContext(), 'part-auto')

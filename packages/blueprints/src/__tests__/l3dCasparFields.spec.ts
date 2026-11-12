@@ -1,5 +1,7 @@
-import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { TSR } from '@sofie-automation/blueprints-integration'
+
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'

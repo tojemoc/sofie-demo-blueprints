@@ -1,9 +1,11 @@
+import type { ReadonlyDeep } from 'type-fest'
+
 import {
 	ExtendedIngestRundown,
 	IBlueprintShowStyleVariant,
 	IStudioUserContext,
 } from '@sofie-automation/blueprints-integration'
-import type { ReadonlyDeep } from 'type-fest'
+
 // import _ = require('underscore')
 
 export function getShowStyleVariantId(

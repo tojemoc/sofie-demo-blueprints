@@ -1,52 +1,54 @@
-import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 import { beforeEach, describe, expect, it } from 'vitest'
+
+import { IBlueprintAdLibPiece, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import {
+	CameraProps,
+	IntroProps,
+	PartProps,
 	PartType,
+	RemoteProps,
+	SegmentProps,
 	SegmentType,
 	VOProps,
-	CameraProps,
-	RemoteProps,
-	PartProps,
-	SegmentProps,
-	IntroProps,
 } from '../base/showstyle/definitions/index.js'
-import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-adapters/index.js'
-import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
-import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
-import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
-import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { PartContext } from '../common/context.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
-import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { SourceType } from '../base/studio/helpers/config.js'
+import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import {
-	LOOK_A_LAYERS,
-	LOOK_B_LAYERS,
-	L3D_OUT_MS,
-	LOOK_MEDIA_POSTROLL_MS,
-	LOOK_HARD_CUT_POSTROLL_MS,
-	LOOK_HARD_CUT_OVERLAP_MS,
-	LOOK_HARD_CUT_INCOMING_DELAY_MS,
-	LOOK_HARD_CUT_KEEPALIVE_MS,
-	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
-	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
-	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
-	LOOK_ILU_HARD_CUT_CLEAR_MS,
-	DEFAULT_LOOK_PREROLL_MS,
 	createLookSlotSequence,
+	DEFAULT_LOOK_PREROLL_MS,
 	finalizeHypercomposedPart,
 	getLookCasparChannel,
 	isDoubleBoxLook,
+	L3D_OUT_MS,
+	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
+	LOOK_A_LAYERS,
+	LOOK_B_LAYERS,
+	LOOK_HARD_CUT_CASPAR_LATENCY_MS,
+	LOOK_HARD_CUT_INCOMING_DELAY_MS,
+	LOOK_HARD_CUT_KEEPALIVE_MS,
+	LOOK_HARD_CUT_OVERLAP_MS,
+	LOOK_HARD_CUT_POSTROLL_MS,
+	LOOK_HARD_CUT_ROUTE_HEADROOM_MS,
+	LOOK_ILU_HARD_CUT_CLEAR_MS,
+	LOOK_MEDIA_POSTROLL_MS,
 	lookSlotForKind,
 	parseRouteMediaChannel,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 	resetLookSlotGenerationForTests,
 } from '../base/showstyle/helpers/pgmLook.js'
-import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-adapters/index.js'
+import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
+import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
+import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { SourceType } from '../base/studio/helpers/config.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
+import { PartContext } from '../common/context.js'
 import { ObjectType, SomeObject } from '../common/definitions/objects.js'
-
+import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -54,7 +56,6 @@ import {
 	mockSegmentContext,
 	smokeExportToIngestSegment,
 } from './helpers/smokeRundownIngest.js'
-import { findLivePgmRouteObj, routeSwitchStartMs } from './helpers/pgmRouteTestUtils.js'
 
 const WIPE_AIR_CUT_MS = resolveWipeAirCutMs()
 /** Tema wipes in the smoke export set cutPoint 420 (editorial cover cut), shifting the air cut a frame later. */
@@ -67,7 +68,12 @@ const LEAVE_WEATHER_HIDE_MS = WIPE_AIR_CUT_MS + LEAVE_WEATHER_WIPE_AIR_CUT_LAG_M
 function pgmRouteChannel(
 	pieces: ReadonlyArray<{
 		content?: {
-			timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown; keyframes?: unknown; enable?: unknown }>
+			timelineObjects?: ReadonlyArray<{
+				layer?: unknown
+				content?: unknown
+				keyframes?: unknown
+				enable?: unknown
+			}>
 		}
 	}>
 ): number | undefined {
@@ -80,7 +86,12 @@ function pgmRouteChannel(
 function pgmRouteFile(
 	pieces: ReadonlyArray<{
 		content?: {
-			timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown; keyframes?: unknown; enable?: unknown }>
+			timelineObjects?: ReadonlyArray<{
+				layer?: unknown
+				content?: unknown
+				keyframes?: unknown
+				enable?: unknown
+			}>
 		}
 	}>
 ): string | undefined {
@@ -319,7 +330,9 @@ describe('pgmLook look-kind channels + route', () => {
 		).toBe(false)
 		expect(hl2Timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera)).toBe(true)
 
-		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(LOOK_HARD_CUT_KEEPALIVE_MS)
+		expect(generated.parts[1].part.inTransition?.previousPartKeepaliveDuration ?? 0).toBe(
+			LOOK_HARD_CUT_KEEPALIVE_MS
+		)
 		const hl2L3d = hl2Timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
@@ -343,7 +356,8 @@ describe('pgmLook look-kind channels + route', () => {
 		// clean-GFX feed.
 		const headlineEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline && (obj.content as { file?: string }).file === 'EMPTY'
+				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
+				(obj.content as { file?: string }).file === 'EMPTY'
 		)
 		expect(headlineEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
 		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
@@ -432,7 +446,9 @@ describe('pgmLook look-kind channels + route', () => {
 			file: 'route://5',
 		})
 		expect(
-			timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
+			timeline.some(
+				(obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+			)
 		).toBe(false)
 	})
 
@@ -521,7 +537,9 @@ describe('pgmLook look-kind channels + route', () => {
 			.flatMap((piece) => piece.content.timelineObjects ?? [])
 			.find((obj) => obj.layer === LOOK_A_LAYERS.ilu && (obj.content as { file?: string }).file !== 'EMPTY')
 		expect(iluObj).toBeDefined()
-		const iluHost = result.pieces.find((piece) => (piece.content.timelineObjects ?? []).some((obj) => obj === iluObj))
+		const iluHost = result.pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some((obj) => obj === iluObj)
+		)
 		expect(iluHost?.prerollDuration ?? 0).toBeLessThan(DEFAULT_LOOK_PREROLL_MS)
 		// Idle look: LOAD from Take (enable 0), hot PLAY before route:// flips.
 		expect(!Array.isArray(iluObj?.enable) && iluObj?.enable.start).toBe(0)
@@ -595,7 +613,9 @@ describe('pgmLook look-kind channels + route', () => {
 
 		expect(timeline.some((obj) => obj.layer === LOOK_B_LAYERS.clip)).toBe(true)
 		expect(
-			timeline.some((obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
+			timeline.some(
+				(obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+			)
 		).toBe(true)
 	})
 
@@ -794,7 +814,12 @@ describe('pgmLook look-kind channels + route', () => {
 			parts: [cameraPart('part-cam-1'), remotePart, cameraPart('part-cam-2')],
 		}
 
-		const generated = generateParts(mockSegmentContext(), segment, createCountupRevealClaim(), createLookSlotSequence())
+		const generated = generateParts(
+			mockSegmentContext(),
+			segment,
+			createCountupRevealClaim(),
+			createLookSlotSequence()
+		)
 		// Baseline peek B → cam-1 idle A (ch3); Remote peeks A; cam-2 claims idle B (ch4).
 		expect(pgmRouteChannel(generated.parts[0].pieces)).toBe(3)
 		expect(pgmRouteChannel(generated.parts[1].pieces)).toBe(3)
@@ -822,7 +847,12 @@ describe('pgmLook look-kind channels + route', () => {
 			],
 		}
 
-		const generated = generateParts(mockSegmentContext(), segment, createCountupRevealClaim(), createLookSlotSequence())
+		const generated = generateParts(
+			mockSegmentContext(),
+			segment,
+			createCountupRevealClaim(),
+			createLookSlotSequence()
+		)
 		expect(generated.parts[0].pieces.some((piece) => piece.externalId.endsWith('_led_bg_zoom'))).toBe(false)
 	})
 
@@ -943,7 +973,9 @@ describe('pgmLook look-kind channels + route', () => {
 			file: 'route://5',
 		})
 		expect(
-			timeline.some((obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY')
+			timeline.some(
+				(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
+			)
 		).toBe(false)
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
@@ -1138,7 +1170,9 @@ describe('pgmLook look-kind channels + route', () => {
 				expect(enable.start, `no ${layer} EMPTY before cover cut`).toBeGreaterThanOrEqual(WIPE_AIR_CUT_MS)
 			}
 			// Held under solid cover with the route — none may still clear at the bare air cut.
-			expect(empties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(false)
+			expect(empties.some((obj) => !Array.isArray(obj.enable) && obj.enable?.start === WIPE_AIR_CUT_MS)).toBe(
+				false
+			)
 			expect(
 				empties.length > 0 &&
 					empties.every((obj) => !Array.isArray(obj.enable) && obj.enable?.start === LEAVE_WEATHER_HIDE_MS)
@@ -1151,7 +1185,10 @@ describe('pgmLook look-kind channels + route', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-tema-1')
 		const syn = ingest.parts.find((part) => {
 			const payload = part.payload as { type?: string; pieces?: Array<{ objectType: string }> }
-			return payload.type === 'VO' || (payload.pieces ?? []).some((piece) => piece.objectType.toLowerCase() === 'video')
+			return (
+				payload.type === 'VO' ||
+				(payload.pieces ?? []).some((piece) => piece.objectType.toLowerCase() === 'video')
+			)
 		})
 		expect(syn, 'tema-1 should have a SYN/VO part').toBeDefined()
 		if (!syn) return
@@ -1203,7 +1240,8 @@ describe('pgmLook look-kind channels + route', () => {
 				(piece.content.timelineObjects ?? []).some(
 					(obj) =>
 						obj.layer === LOOK_B_LAYERS.lowerThird &&
-						(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+						(obj.content as TSR.TimelineContentCCGTemplate).type ===
+							TSR.TimelineContentTypeCasparCg.TEMPLATE
 				)
 			)
 			.reduce((min, piece) => {
@@ -1277,7 +1315,9 @@ describe('pgmLook look-kind channels + route', () => {
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-sport')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
 		const generated = generateParts(mockSegmentContext(), intermediate, undefined, createLookSlotSequence())
-		const sportFirst = generated.parts.find((part) => part.pieces.some((piece) => piece.name === 'BG music C (Šport)'))
+		const sportFirst = generated.parts.find((part) =>
+			part.pieces.some((piece) => piece.name === 'BG music C (Šport)')
+		)
 		expect(sportFirst).toBeDefined()
 		if (!sportFirst) return
 

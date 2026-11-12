@@ -1,8 +1,9 @@
 import { IBlueprintPiece, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 
@@ -61,7 +62,9 @@ export function createLedPodHeadlinePiece(
 		},
 		prerollDuration: config.casparcgLatency,
 		expectedPackages: [
-			createMediaFileExpectedPackage(context, LED_POD_HEADLINE_PACKAGE_FILE, [CasparCGLayers.CasparCGLedPodHeadline]),
+			createMediaFileExpectedPackage(context, LED_POD_HEADLINE_PACKAGE_FILE, [
+				CasparCGLayers.CasparCGLedPodHeadline,
+			]),
 		],
 	})
 }

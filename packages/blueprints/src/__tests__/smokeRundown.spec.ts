@@ -1,16 +1,18 @@
-import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { TSR } from '@sofie-automation/blueprints-integration'
+
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { CameraProps, GfxProps, PartProps, PartType, SegmentType } from '../base/showstyle/definitions/index.js'
-import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
-import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
 import { resolveSegmentType } from '../common/definitions/rundownEditorTypes.js'
-import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -265,7 +267,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		expect(weather.parts[0]?.type).toBe(PartType.GFX)
 		expect(weather.parts[0]?.objects.some((obj) => obj.clipName === 'gfx/pocasie')).toBe(true)
 		const weatherWipe = weather.parts[0]?.objects.find(
-			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+			(obj) =>
+				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 		)
 		expect(weatherWipe?.clipName).toBe('wipes/wipe_pocasie')
 		expect((weatherWipe?.attributes as { transition?: string }).transition).toBe('Pocasie')
@@ -283,7 +286,8 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 		const outro = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		expect(
 			outro.parts.some(
-				(part) => !part.rawType?.match(/doublebox/i) && part.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')
+				(part) =>
+					!part.rawType?.match(/doublebox/i) && part.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')
 			)
 		).toBe(true)
 		expect(
@@ -303,7 +307,9 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 			expect(synPart).toBeDefined()
 			expect(segment.parts[0]?.payload.externalId).toBe(synId)
 			const wipe = synPart?.objects.find(
-				(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'wipe'
+				(obj) =>
+					obj.objectType === ObjectType.Video &&
+					(obj.attributes as { playLayer?: string }).playLayer === 'wipe'
 			)
 			expect(wipe).toBeDefined()
 		}

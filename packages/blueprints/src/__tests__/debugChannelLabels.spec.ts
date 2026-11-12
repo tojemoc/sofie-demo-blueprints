@@ -1,5 +1,7 @@
-import { TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { TSR } from '@sofie-automation/blueprints-integration'
+
 import { createDebugChannelLabelTimeline } from '../base/showstyle/helpers/debugChannelLabels.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { hybridCasparConfig } from './helpers/smokeRundownIngest.js'

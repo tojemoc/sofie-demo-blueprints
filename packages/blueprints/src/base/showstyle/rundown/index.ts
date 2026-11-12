@@ -6,14 +6,15 @@ import {
 	PlaylistTimingForwardTime,
 	PlaylistTimingType,
 } from '@sofie-automation/blueprints-integration'
-import { literal } from '../../../common/util.js'
+
 import { SpreadsheetIngestRundown } from '../../../code-copy/spreadsheet-gateway/index.js'
+import { literal } from '../../../common/util.js'
+import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
 import { RundownMetadata } from '../helpers/metadata.js'
+import { beginLookSlotGeneration } from '../helpers/pgmLook.js'
 import { getBaseline } from './baseline.js'
 import { getGlobalActions } from './globalActions.js'
 import { getGlobalAdlibs } from './globalAdlibs.js'
-import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
-import { beginLookSlotGeneration } from '../helpers/pgmLook.js'
 
 export function getRundown(
 	context: IShowStyleUserContext,

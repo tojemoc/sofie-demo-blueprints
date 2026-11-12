@@ -1,16 +1,10 @@
-import { ExpectedPackage, ICommonContext, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { ExpectedPackage, ICommonContext, TSR } from '@sofie-automation/blueprints-integration'
+
 import { PartType } from '../base/showstyle/definitions/index.js'
-import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
-import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
-import { applyConfig } from '../base/studio/applyConfig/index.js'
-import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
-import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { PartContext } from '../common/context.js'
-import { ObjectType } from '../common/definitions/objects.js'
 import {
 	CASPARCG_PACKAGE_CONTAINER_ID,
 	getMediaPackagesConfig,
@@ -21,6 +15,14 @@ import {
 	toCasparPlayPath,
 	toPackageManagerPath,
 } from '../base/showstyle/helpers/mediaPackages.js'
+import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
+import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
+import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { applyConfig } from '../base/studio/applyConfig/index.js'
+import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
+import { PartContext } from '../common/context.js'
+import { ObjectType } from '../common/definitions/objects.js'
 import {
 	loadSmokeRundownExport,
 	mockIngestContext,
@@ -365,7 +367,12 @@ describe('applyConfig package containers', () => {
 	})
 
 	it('reads legacy nested mediaPackages when flat fields are absent', () => {
-		const { casparcgMediaFolder: _c, ingestMediaFolder: _i, httpProxyBaseUrl: _h, ...withoutFlat } = hybridCasparConfig
+		const {
+			casparcgMediaFolder: _c,
+			ingestMediaFolder: _i,
+			httpProxyBaseUrl: _h,
+			...withoutFlat
+		} = hybridCasparConfig
 		const config = {
 			...withoutFlat,
 			mediaPackages: {
@@ -423,7 +430,9 @@ describe('spravy-v3-smoke expectedPackages', () => {
 				const result = generateCameraPart(partContext, part as never, createCountupRevealClaim())
 				return result.pieces.flatMap(
 					(piece) =>
-						piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
+						piece.expectedPackages?.map((pkg) =>
+							'filePath' in pkg.content ? pkg.content.filePath : undefined
+						) ?? []
 				)
 			})
 			.filter((path): path is string => typeof path === 'string')
@@ -447,7 +456,9 @@ describe('spravy-v3-smoke expectedPackages', () => {
 			const result = generateVOPart(partContext, part as never)
 			return result.pieces.flatMap(
 				(piece) =>
-					piece.expectedPackages?.map((pkg) => ('filePath' in pkg.content ? pkg.content.filePath : undefined)) ?? []
+					piece.expectedPackages?.map((pkg) =>
+						'filePath' in pkg.content ? pkg.content.filePath : undefined
+					) ?? []
 			)
 		})
 		const synPaths = mediaPaths.filter((path): path is string => typeof path === 'string' && /\/SYN\b/i.test(path))

@@ -1,8 +1,9 @@
 import { BlueprintMapping, BlueprintMappings, LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
+
+import { VmixInputConfig } from '../../../../$schemas/generated/main-studio-config.js'
 import { literal } from '../../../../common/util.js'
 import { SourceType, StudioConfig } from '../../helpers/config.js'
 import { VMixLayers } from '../../layers.js'
-import { VmixInputConfig } from '../../../../$schemas/generated/main-studio-config.js'
 
 /** vMix INPUT/AUDIO/OVERLAY/PROGRAM/PREVIEW/RECORDING mappings for the studio's configured inputs. */
 export function getVMixMappings(

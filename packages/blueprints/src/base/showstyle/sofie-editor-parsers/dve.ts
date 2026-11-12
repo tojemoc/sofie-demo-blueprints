@@ -1,5 +1,5 @@
-import { ObjectType, SomeObject, SplitObject, VideoObject } from '../../../common/definitions/objects.js'
 import { EditorIngestPart } from '../../../code-copy/rundown-editor/index.js'
+import { ObjectType, SomeObject, SplitObject, VideoObject } from '../../../common/definitions/objects.js'
 import { SourceType } from '../../studio/helpers/config.js'
 import { DVEProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseClipEditorProps } from '../helpers/clips.js'

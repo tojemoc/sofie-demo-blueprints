@@ -1,11 +1,11 @@
-import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+import { IBlueprintPiece, ICommonContext, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
-import { ICommonContext } from '@sofie-automation/blueprints-integration'
 
 /** Caspar PLAY path for the DoubleBox compositing frame (alpha loop; bg_loop baked in).
  * Production file may be named `dp_loop.mov` — place/rename as `loops/db_loop` under media-path

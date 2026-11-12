@@ -1,8 +1,8 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+
 import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
-import { describe, beforeEach, expect, it } from 'vitest'
-import { PartType, CameraProps, PartProps, VOProps } from '../base/showstyle/definitions/index.js'
-import { generateCameraPart, partUsesDoubleBoxCamera } from '../base/showstyle/part-adapters/camera.js'
-import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
+
+import { CameraProps, PartProps, PartType, VOProps } from '../base/showstyle/definitions/index.js'
 import {
 	appendCountupSustainIfRevealed,
 	beginCountupRevealGeneration,
@@ -15,10 +15,12 @@ import {
 	partShouldPersistCountupMute,
 	resetCountupRevealGenerationForTests,
 } from '../base/showstyle/helpers/countupReveal.js'
+import { getHeadlineSfxVolume } from '../base/showstyle/helpers/headlineSfx.js'
+import { generateCameraPart, partUsesDoubleBoxCamera } from '../base/showstyle/part-adapters/camera.js'
+import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
+import { SourceType, VisionMixerDevice } from '../base/studio/helpers/config.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
-import { SourceType, VisionMixerDevice } from '../base/studio/helpers/config.js'
-import { getHeadlineSfxVolume } from '../base/showstyle/helpers/headlineSfx.js'
 import { hybridCasparConfig, mockSegmentContext } from './helpers/smokeRundownIngest.js'
 
 describe('countupReveal claim', () => {
@@ -201,7 +203,11 @@ describe('countupReveal claim', () => {
 
 		beginCountupRevealGeneration(rundownId)
 		const claim = getCountupRevealClaimForGeneration(rundownId)
-		const first = generateCameraPart(new PartContext(segmentContext, 'part-db-1'), doubleBoxPart('part-db-1'), claim)
+		const first = generateCameraPart(
+			new PartContext(segmentContext, 'part-db-1'),
+			doubleBoxPart('part-db-1'),
+			claim
+		)
 		expect(first.pieces.some((piece) => piece.externalId === 'part-db-1_countup_reveal')).toBe(true)
 
 		const synPart: PartProps<VOProps> = {
