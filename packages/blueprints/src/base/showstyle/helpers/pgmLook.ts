@@ -2180,13 +2180,17 @@ function idleLookMediaLayers(slot: LookSlot, vmixProgram: boolean): CasparCGLaye
 /**
  * Look slots on which `pieces` carry live look MEDIA — the channel currently on
  * PGM. EMPTY clears and (vMix) the phase-locked opacity-0 `db_loop` re-assert
- * don't count: they are placeholders, not the live signal.
+ * don't count: they are placeholders, not the live signal. On vMix a look can
+ * also hold program with no Caspar MEDIA at all (camera-only parts drive the
+ * vMix input directly), so a `vmix_me_program` object targeting a look input
+ * marks that slot live too.
  */
 function liveLookSlotsForPieces(
 	pieces: ReadonlyArray<{
 		content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> }
 	}>,
-	vmixProgram: boolean
+	vmixProgram: boolean,
+	vmixLookInputs?: { a: number | undefined; b: number | undefined }
 ): Set<LookSlot> {
 	const liveLayers = (slot: LookSlot): Set<string> => {
 		const layers = getLookLayers(slot)
@@ -2202,11 +2206,23 @@ function liveLookSlotsForPieces(
 	const slots = new Set<LookSlot>()
 	for (const piece of pieces) {
 		for (const obj of piece.content?.timelineObjects ?? []) {
-			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
-			if (!isCasparMedia(content ?? {}) || !content?.file || content.file === 'EMPTY') continue
 			const layer = String(obj.layer)
-			if (liveA.has(layer)) slots.add('A')
-			else if (liveB.has(layer)) slots.add('B')
+			const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+			if (isCasparMedia(content ?? {}) && content?.file && content.file !== 'EMPTY') {
+				if (liveA.has(layer)) slots.add('A')
+				else if (liveB.has(layer)) slots.add('B')
+				continue
+			}
+			if (vmixProgram && vmixLookInputs && layer === (VMixLayers.VMixMeProgram as string)) {
+				const program = obj.content as TSR.TimelineContentVMixProgram | undefined
+				if (
+					program?.deviceType === TSR.DeviceType.VMIX &&
+					program.type === TSR.TimelineContentTypeVMix.PROGRAM
+				) {
+					if (program.input === vmixLookInputs.a) slots.add('A')
+					else if (program.input === vmixLookInputs.b) slots.add('B')
+				}
+			}
 		}
 	}
 	return slots
@@ -2294,7 +2310,8 @@ export async function armIdleLookPreviewForNext(
 		// A previously-armed placeholder must not count as live media for the guard.
 		const liveSlots = liveLookSlotsForPieces(
 			currentPieces.filter((instance) => instance._id !== previewInstance._id).map((instance) => instance.piece),
-			vmixProgram
+			vmixProgram,
+			vmixProgram ? { a: config.vmixProgram?.lookAInput, b: config.vmixProgram?.lookBInput } : undefined
 		)
 
 		if (nextSlot && !liveSlots.has(nextSlot)) {

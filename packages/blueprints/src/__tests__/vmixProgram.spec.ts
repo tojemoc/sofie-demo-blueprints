@@ -7,6 +7,7 @@ import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
 import {
 	armIdleLookPreviewForNext,
+	createIdleLookPreviewPiece,
 	createLookSlotSequence,
 	finalizeHypercomposedPart,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
@@ -715,6 +716,120 @@ describe('vMix feed mode (look feed inputs)', () => {
 			}
 		}
 		expect(previews).toBeGreaterThan(0)
+	})
+
+	it('does not arm the preview onto a look input that is on program without Caspar MEDIA', async () => {
+		const placeholder = createIdleLookPreviewPiece('part-current')
+		// Stale armed clone — the guard must clear it, not re-arm onto the live input.
+		placeholder.content.timelineObjects = [
+			{
+				id: '',
+				enable: { start: 0 },
+				layer: CasparCGLayers.CasparCGClipPlayer2B,
+				priority: 1,
+				content: {
+					deviceType: TSR.DeviceType.CASPARCG,
+					type: TSR.TimelineContentTypeCasparCg.MEDIA,
+					file: 'clips/stale',
+					playing: false,
+				},
+			},
+		] as never
+		// Camera-only vMix look on input A: PROGRAM → lookAInput plus an INPUT on
+		// VMixLookInputA — but no Caspar MEDIA on the A compose layers.
+		const cameraOnlyLook = {
+			externalId: 'fake-vmix-look',
+			name: 'vMix look',
+			sourceLayerId: 'vmix_look',
+			outputLayerId: 'pgm',
+			lifespan: PieceLifespan.WithinPart,
+			enable: { start: 0 },
+			content: {
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: VMixLayers.VMixMeProgram,
+						priority: 1,
+						content: {
+							deviceType: TSR.DeviceType.VMIX,
+							type: TSR.TimelineContentTypeVMix.PROGRAM,
+							input: LOOK_A_INPUT,
+						},
+					},
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: VMixLayers.VMixLookInputA,
+						priority: 1,
+						content: {
+							deviceType: TSR.DeviceType.VMIX,
+							type: TSR.TimelineContentTypeVMix.INPUT,
+							input: LOOK_A_INPUT,
+							layers: { 1: { input: CAMERA_INPUT } },
+						},
+					},
+				],
+			},
+		} as unknown as IBlueprintPiece
+		// Same-slot next: look MEDIA on the A clip layer + INPUT on VMixLookInputA.
+		const nextLook = {
+			externalId: 'fake-next-look',
+			name: 'next look',
+			sourceLayerId: 'vo',
+			outputLayerId: 'pgm',
+			lifespan: PieceLifespan.WithinPart,
+			enable: { start: 0 },
+			content: {
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGClipPlayer2,
+						priority: 1,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/next',
+						},
+					},
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: VMixLayers.VMixLookInputA,
+						priority: 1,
+						content: {
+							deviceType: TSR.DeviceType.VMIX,
+							type: TSR.TimelineContentTypeVMix.INPUT,
+							input: LOOK_A_INPUT,
+						},
+					},
+				],
+			},
+		} as unknown as IBlueprintPiece
+
+		const current = { part: { externalId: 'part-current' }, pieces: [cameraOnlyLook, placeholder] }
+		const next = { part: { externalId: 'part-next' }, pieces: [nextLook] }
+		const updates: Array<{ id: string; piece: { content?: { timelineObjects?: unknown[] } } }> = []
+		const toInstances = (part: { pieces: IBlueprintPiece[] }) =>
+			part.pieces.map((piece, idx) => ({ _id: piece.externalId ?? `piece-${idx}`, piece }))
+		await armIdleLookPreviewForNext(
+			{
+				getPartInstance: async (which: 'current' | 'next') => ({
+					part: (which === 'current' ? current : next).part,
+				}),
+				getPieceInstances: async (which: 'current' | 'next') =>
+					toInstances(which === 'current' ? current : next),
+				updatePieceInstance: async (id: string, piece: { content?: { timelineObjects?: unknown[] } }) => {
+					updates.push({ id, piece })
+					return {}
+				},
+			} as never,
+			feedConfig
+		)
+		const clear = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+		expect(clear).toBeDefined()
+		expect(clear?.piece.content?.timelineObjects).toEqual([])
 	})
 
 	it('clip player maps to Caspar layer 120 on vMix studios', () => {
