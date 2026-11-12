@@ -3,7 +3,6 @@
 	"exclude": ["node_modules/**", "src/**/__tests__/*", "src/**/__mocks__/*", "dist/**"],
 	"compilerOptions": {
 		"outDir": "./dist",
-		"baseUrl": "./",
 		"ignoreDeprecations": "6.0",
 		"paths": {
 			"*": ["./node_modules/*"]
