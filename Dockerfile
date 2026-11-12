@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:experimental
 # BUILD IMAGE
-FROM node:22-alpine as build
+FROM node:26-alpine as build
 RUN apk add --no-cache git
 WORKDIR /blueprints
 COPY . .
