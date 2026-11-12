@@ -21,6 +21,7 @@
     },
     "prettier": "@sofie-automation/code-standard-preset/.prettierrc.json",
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@sofie-automation/code-standard-preset": "3.2.2",
         "eslint": "^10.0.0",
         "husky": "^9.1.7",
@@ -32,6 +33,10 @@
     "workspaces": [
         "packages/*"
     ],
+    "resolutions": {
+        "@sofie-automation/eslint-plugin/@typescript-eslint/utils": "^8.72.2",
+        "eslint-plugin-jest/@typescript-eslint/utils": "^8.72.2"
+    },
     "private": true,
     "engines": {
         "node": ">=22.0.0"

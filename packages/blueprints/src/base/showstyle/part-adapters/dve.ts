@@ -28,12 +28,7 @@ export function generateDVEPart(context: PartContext, part: PartProps<DVEProps>)
 
 	const layout = parseSuperSourceLayout(context, part.payload)
 	const boxes: TSR.SuperSourceBox[] = part.payload.inputs.map((input, i) => {
-		let source = undefined
-		if ('fileName' in input) {
-			source = getClipPlayerInput(config)
-		} else {
-			source = getSourceInfoFromRaw(config, input)
-		}
+		const source = 'fileName' in input ? getClipPlayerInput(config) : getSourceInfoFromRaw(config, input)
 		return {
 			...layout[i],
 			source: source?.input || 0,

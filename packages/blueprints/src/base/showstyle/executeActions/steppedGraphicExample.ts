@@ -166,7 +166,7 @@ export async function executeGraphicNextStep(
 export function createAdLibHotkeyWithTriggerMode(rankCounter: number): IBlueprintTriggeredActions {
 	return {
 		_id: 'custom_adLib_hotkey_example',
-		_rank: rankCounter++ * 1000,
+		_rank: rankCounter * 1000,
 		actions: {
 			[PlayoutActions.adlib]: {
 				action: PlayoutActions.adlib,
