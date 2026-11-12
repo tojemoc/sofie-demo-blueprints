@@ -134,7 +134,7 @@ describe('spravy-v3-smoke-rundown.json (muster)', () => {
 					attributes: { headline: 'A', subline: 'B' },
 				},
 			},
-		} as PartProps<GfxProps>)
+		})
 
 		expect(result.part.expectedDuration).toBe(8000)
 		expect(result.part.autoNext).toBe(false)

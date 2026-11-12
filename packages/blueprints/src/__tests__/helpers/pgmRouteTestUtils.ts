@@ -42,14 +42,11 @@ type TimelineObj = {
 /** Live (opacity≥1) dual PGM route object from a flat timeline or piece list. */
 export function findLivePgmRouteObj(
 	piecesOrTimeline:
-		| ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<TimelineObj> } }>
-		| ReadonlyArray<TimelineObj>
+		ReadonlyArray<{ content?: { timelineObjects?: ReadonlyArray<TimelineObj> } }> | ReadonlyArray<TimelineObj>
 ): TimelineObj | undefined {
 	const routes: TimelineObj[] = []
 	const first = piecesOrTimeline[0] as
-		| TimelineObj
-		| { content?: { timelineObjects?: ReadonlyArray<TimelineObj> } }
-		| undefined
+		TimelineObj | { content?: { timelineObjects?: ReadonlyArray<TimelineObj> } } | undefined
 	const isFlat =
 		first !== undefined &&
 		'layer' in first &&

@@ -20,7 +20,6 @@ import {
 	GfxProps,
 	IntroProps,
 	InvalidProps,
-	LayeredVideoProps,
 	PartProps,
 	PartType,
 	SegmentProps,
@@ -201,12 +200,7 @@ export function generateParts(
 				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>, lookSlot, previousLookSlot)
 				break
 			case PartType.LayeredVideo:
-				newPart = generateLayeredVideoPart(
-					partContext,
-					rawPart as unknown as PartProps<LayeredVideoProps>,
-					lookSlot,
-					previousLookSlot
-				)
+				newPart = generateLayeredVideoPart(partContext, rawPart, lookSlot, previousLookSlot)
 				break
 			case PartType.Invalid:
 				newPart = {

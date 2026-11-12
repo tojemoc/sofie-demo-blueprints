@@ -249,15 +249,7 @@ describe('pgmLook look-kind channels + route', () => {
 				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
 			},
 		]
-		finalizeHypercomposedPart(
-			context,
-			hybridCasparConfig,
-			part as never,
-			'overlay-wiped',
-			objects as never,
-			pieces,
-			'A'
-		)
+		finalizeHypercomposedPart(context, hybridCasparConfig, part, 'overlay-wiped', objects as never, pieces, 'A')
 		const routePiece = pieces.find((p) => p.sourceLayerId === (SourceLayer.PgmWipe as string))
 		expect(routePiece).toBeDefined()
 		if (!routePiece) return
@@ -283,7 +275,7 @@ describe('pgmLook look-kind channels + route', () => {
 		finalizeHypercomposedPart(
 			context,
 			hybridCasparConfig,
-			part as never,
+			part,
 			'adlib-l3d',
 			[],
 			pieces,
@@ -1038,7 +1030,7 @@ describe('pgmLook look-kind channels + route', () => {
 			},
 		]
 		const pieces = [headlineIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
-		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'gfx-wiped', objects as never, pieces, 'B')
+		finalizeHypercomposedPart(context, hybridCasparConfig, part, 'gfx-wiped', objects as never, pieces, 'B')
 		const led = pieces[0].content.timelineObjects?.[0]
 		// Headline ILU stays at Take — ad-lib zaver must not trigger LED delay.
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(0)
@@ -1091,7 +1083,7 @@ describe('pgmLook look-kind channels + route', () => {
 			},
 		]
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
-		finalizeHypercomposedPart(context, hybridCasparConfig, part as never, 'zaver-wiped', objects as never, pieces, 'B')
+		finalizeHypercomposedPart(context, hybridCasparConfig, part, 'zaver-wiped', objects as never, pieces, 'B')
 		const led = pieces[0].content.timelineObjects?.[0]
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
 	})

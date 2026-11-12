@@ -142,8 +142,8 @@ export function generateOpenerPart(context: PartContext, part: PartProps<TitlesP
 					// HACK: Disable preview and thumbnail generation.
 					// Once release39 is out, we can remove the "as any" from these values, and it will no longer be a hack.
 					// https://github.com/nrkno/tv-automation-server-core/commit/5e0a9c36c628be92370c035f78c8a8f278debbfa
-					previewContainerId: null as any,
-					thumbnailContainerId: null as any,
+					previewContainerId: null,
+					thumbnailContainerId: null,
 				},
 			}),
 		],
