@@ -1,9 +1,10 @@
 import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
-import { StudioConfig } from '../../studio/helpers/config.js'
-import { CasparCGLayers } from '../../studio/layers.js'
 import { LED_BG_LOOP_TEMA_CROP, LED_BG_LOOP_TEMA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { StudioConfig } from '../../studio/helpers/config.js'
+import { CasparCGLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 

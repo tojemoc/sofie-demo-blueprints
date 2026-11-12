@@ -1,3 +1,5 @@
+import { beforeAll, describe, expect, it } from 'vitest'
+
 import {
 	BlueprintPlayoutPersistentStore,
 	IBlueprintPiece,
@@ -6,23 +8,23 @@ import {
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
-import { beforeAll, describe, expect, it } from 'vitest'
+
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import {
 	CALIBRATION_FRAME_FILE,
-	LED_TEST_FRAME_FILE,
 	createStudioCalibrationClearPiece,
 	createVmixRecordingPiece,
+	LED_TEST_FRAME_FILE,
 } from '../base/showstyle/helpers/studioCalibration.js'
-import { PGM_DOUBLEBOX_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
-import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
-import { getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
-import { StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
-import { CasparCGLayers, VMixLayers } from '../base/studio/layers.js'
-import { TimelineBlueprintExt } from '../base/studio/customTypes.js'
+import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { generateParts } from '../base/showstyle/part-adapters/index.js'
+import { getCasparCGMappings } from '../base/studio/applyConfig/mappings/casparcg.js'
+import { PGM_DOUBLEBOX_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { getVMixMappings } from '../base/studio/applyConfig/mappings/vmix.js'
+import { TimelineBlueprintExt } from '../base/studio/customTypes.js'
+import { StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { CasparCGLayers, VMixLayers } from '../base/studio/layers.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -199,7 +201,10 @@ describe('vMix recording', () => {
 			isRehearsal,
 			getPartInstance: async (_part: 'current' | 'next') => ({ rehearsal: isRehearsal, part: {} }),
 			getPieceInstances: async (_part: 'current' | 'next') =>
-				nextSourceLayerIds.map((sourceLayerId) => ({ _id: sourceLayerId, piece: { sourceLayerId, content: {} } })),
+				nextSourceLayerIds.map((sourceLayerId) => ({
+					_id: sourceLayerId,
+					piece: { sourceLayerId, content: {} },
+				})),
 			insertPiece: async (_part: 'current' | 'next', piece: IBlueprintPiece) => {
 				inserted.push(piece)
 				return {}
@@ -345,7 +350,9 @@ describe('vMix recording', () => {
 		 */
 		const contextFactory = (
 			sourceLayerIds: string[] = [],
-			pieces: Array<{ _id: string; piece: { name?: string; sourceLayerId: string; content: object } }> = [outroPiece]
+			pieces: Array<{ _id: string; piece: { name?: string; sourceLayerId: string; content: object } }> = [
+				outroPiece,
+			]
 		) => {
 			const inserted: IBlueprintPiece[] = []
 			const removed: string[] = []

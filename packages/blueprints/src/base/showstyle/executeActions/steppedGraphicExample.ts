@@ -1,21 +1,22 @@
 import {
+	ExtendedIngestRundown,
 	IActionExecutionContext,
-	WithTimeline,
-	NoraContent,
 	IAdLibFilterLink,
+	IBlueprintActionManifest,
 	IBlueprintTriggeredActions,
 	IGUIContextFilterLink,
 	IRundownPlaylistFilterLink,
+	JSONBlobStringify,
+	NoraContent,
 	PlayoutActions,
 	TriggerType,
-	IBlueprintActionManifest,
-	JSONBlobStringify,
-	ExtendedIngestRundown,
+	WithTimeline,
 } from '@sofie-automation/blueprints-integration'
+
 import { literal, t } from '../../../common/util.js'
-import { SourceLayer, getOutputLayerForSourceLayer } from '../applyconfig/layers.js'
-import { ActionId } from './actionDefinitions.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { getResolvedCurrentlyPlayingPieceInstances } from '../helpers/pieces.js'
+import { ActionId } from './actionDefinitions.js'
 
 /**
  * Defines an AdLib Action that steps through a Stepped Graphic.

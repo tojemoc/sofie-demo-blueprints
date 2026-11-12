@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
+
 import { ISegmentUserContext } from '@sofie-automation/blueprints-integration'
+
 import { convertIngestData } from '../../base/showstyle/sofie-editor-parsers/index.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../base/studio/helpers/config.js'
 import { resolveMegarepoAsset } from './megarepoAssets.js'

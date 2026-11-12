@@ -5,6 +5,7 @@ import {
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
+
 import {
 	GraphicObject,
 	GraphicObjectAttributes,
@@ -14,18 +15,19 @@ import {
 	SteppedGraphicObject,
 } from '../../../common/definitions/objects.js'
 import { literal } from '../../../common/util.js'
+import {
+	coverCropForFill,
+	PGM_DOUBLEBOX_ILU_CROP,
+	PGM_DOUBLEBOX_ILU_FILL,
+} from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { getClipPlayerInput, parseClipVolume } from './clips.js'
-import { createVisionMixerObjects } from './visionMixer.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
-import {
-	PGM_DOUBLEBOX_ILU_CROP,
-	PGM_DOUBLEBOX_ILU_FILL,
-	coverCropForFill,
-} from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { createVisionMixerObjects } from './visionMixer.js'
+
 export interface GraphicsResult {
 	pieces: IBlueprintPiece[]
 	adLibPieces: IBlueprintAdLibPiece[]
@@ -122,7 +124,11 @@ function getTemplateAttributes(
 		return mapped
 	}
 
-	if (normalizedClip === 'gfx/l3d-tema' || normalizedClip === 'gfx/l3d-odporucanie' || normalizedClip === 'gfx/outro') {
+	if (
+		normalizedClip === 'gfx/l3d-tema' ||
+		normalizedClip === 'gfx/l3d-odporucanie' ||
+		normalizedClip === 'gfx/outro'
+	) {
 		const mapped: GraphicObjectAttributes = { ...templateAttributes }
 		if (mapped.headline === undefined && mapped.title !== undefined) {
 			mapped.headline = mapped.title
@@ -219,7 +225,11 @@ function getTemplateAttributes(
 			if (entry.name !== undefined) mapped[`${region}_name`] = entry.name
 			if (entry.delay !== undefined) mapped[`${region}_delay`] = entry.delay
 			const image =
-				entry.image !== undefined ? entry.image : typeof entry.condition === 'string' ? entry.condition : undefined
+				entry.image !== undefined
+					? entry.image
+					: typeof entry.condition === 'string'
+						? entry.condition
+						: undefined
 			if (image !== undefined) mapped[`${region}_img`] = image
 		}
 
@@ -584,7 +594,9 @@ function getGraphicTlObject(
 				useStopCommand: true,
 			},
 		}),
-		...(isFullscreen ? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency) : []),
+		...(isFullscreen
+			? createVisionMixerObjects(config, fullscreenAtemInput?.input || 0, config.casparcgLatency)
+			: []),
 	]
 }
 function isHeadlineWithIlu(object: GraphicObjectBase): boolean {
@@ -629,9 +641,14 @@ function getIluExpectedPackages(context: ICommonContext | undefined, object: Gra
 	}
 
 	return [
-		createMediaFileExpectedPackage(context, object.attributes.iluFile as string, [CasparCGLayers.CasparCGIluPlayer], {
-			includeSideEffects: false,
-		}),
+		createMediaFileExpectedPackage(
+			context,
+			object.attributes.iluFile as string,
+			[CasparCGLayers.CasparCGIluPlayer],
+			{
+				includeSideEffects: false,
+			}
+		),
 	]
 }
 

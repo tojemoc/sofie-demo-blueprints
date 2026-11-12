@@ -3,6 +3,7 @@ import {
 	IBlueprintActionManifest,
 	IShowStyleUserContext,
 } from '@sofie-automation/blueprints-integration'
+
 import { literal, t } from '../../../common/util.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { ActionId } from '../executeActions/actionDefinitions.js'

@@ -1,5 +1,5 @@
-import { ObjectType, SomeObject, SplitObject, VideoObject } from '../../../common/definitions/objects.js'
 import { SpreadsheetIngestPart } from '../../../code-copy/spreadsheet-gateway/index.js'
+import { ObjectType, SomeObject, SplitObject, VideoObject } from '../../../common/definitions/objects.js'
 import { SourceType } from '../../studio/helpers/config.js'
 import { DVEProps, InvalidProps, PartProps, PartType } from '../definitions/index.js'
 import { parseClipProps } from '../helpers/clips.js'

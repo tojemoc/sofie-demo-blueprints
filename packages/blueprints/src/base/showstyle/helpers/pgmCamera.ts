@@ -1,14 +1,15 @@
 import { TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
-import { StudioConfig } from '../../studio/helpers/config.js'
-import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
-import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
+import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_FULLSCREEN_CAMERA_FILL,
 } from '../../studio/applyConfig/mappings/casparcgLayers.js'
-import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { StudioConfig } from '../../studio/helpers/config.js'
+import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
+import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
 
 /** Caspar MEDIA or DeckLink INPUT — always derived from studio `pgmCameraProducer`. */
 export type PgmCameraTimelineContent = TSR.TimelineContentCCGMedia | TSR.TimelineContentCCGInput

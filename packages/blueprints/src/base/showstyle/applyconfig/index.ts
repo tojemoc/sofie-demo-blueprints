@@ -1,4 +1,5 @@
 import { BlueprintResultApplyShowStyleConfig, ICommonContext } from '@sofie-automation/blueprints-integration'
+
 import { ShowStyleConfig } from '../../../$schemas/generated/main-showstyle-config.js'
 import { getOutputLayer } from './outputlayers.js'
 import { getSourceLayer } from './sourcelayers.js'

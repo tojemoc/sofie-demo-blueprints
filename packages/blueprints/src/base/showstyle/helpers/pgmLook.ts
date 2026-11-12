@@ -9,47 +9,48 @@ import {
 	PieceLifespan,
 	TSR,
 } from '@sofie-automation/blueprints-integration'
-import { GraphicObject, SomeObject, VideoObject, ObjectType } from '../../../common/definitions/objects.js'
+
+import { GraphicObject, ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
+import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { literal } from '../../../common/util.js'
+import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { getHypercomposedChannels } from '../../studio/applyConfig/mappings/casparcg.js'
-import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
-import {
-	DEFAULT_WIPE_DURATION_MS,
-	DEFAULT_WIPE_PREROLL_MS,
-	WIPE_FRAME_MS,
-	getVideoPlayLayer,
-	normalizeLayeredVideoFileName,
-	resolveWipeAirCutMs,
-	resolveWipeDurationMs,
-	wipePlayoutLatencyFromConfig,
-	pgmWipeEffectsLayerForFile,
-	isPgmWipeEffectsLayer,
-	applyCrossSlotWipeAirCutBias,
-	isWipePocasieFile,
-	partHasOutroOverlay,
-} from './clips.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
-import { delayCountupRevealToWipeCut } from './countupReveal.js'
-import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
-import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
-import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
-	VMIX_HARD_CUT_RESUME_LEAD_MS,
-	VMIX_STINGER_PREVIEW_LEAD_MS,
+	applyCrossSlotWipeAirCutBias,
+	DEFAULT_WIPE_DURATION_MS,
+	DEFAULT_WIPE_PREROLL_MS,
+	getVideoPlayLayer,
+	isPgmWipeEffectsLayer,
+	isWipePocasieFile,
+	normalizeLayeredVideoFileName,
+	partHasOutroOverlay,
+	pgmWipeEffectsLayerForFile,
+	resolveWipeAirCutMs,
+	resolveWipeDurationMs,
+	WIPE_FRAME_MS,
+	wipePlayoutLatencyFromConfig,
+} from './clips.js'
+import { delayCountupRevealToWipeCut } from './countupReveal.js'
+import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
+import { createFullBgLoopPiece } from './fullBgLoop.js'
+import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
+import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
+import {
 	createVMixTakeTimelineObjects,
 	getVmixCameraInput,
 	getVmixLookFeedInput,
 	getVmixLookInput,
 	usesVmixProgram,
+	VMIX_HARD_CUT_RESUME_LEAD_MS,
+	VMIX_STINGER_PREVIEW_LEAD_MS,
 	vmixOutgoingOffAirMs,
 	vmixStingerForWipeFile,
 } from './visionMixer.js'
-import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
 
 export type LookSlot = 'A' | 'B'
 
@@ -375,7 +376,8 @@ export function isLookComposeLayer(layer: string): boolean {
 
 export function findWipeVideoObject(objects: SomeObject[]): VideoObject | undefined {
 	return objects.find(
-		(object): object is VideoObject => object.objectType === ObjectType.Video && getVideoPlayLayer(object) === 'wipe'
+		(object): object is VideoObject =>
+			object.objectType === ObjectType.Video && getVideoPlayLayer(object) === 'wipe'
 	)
 }
 
@@ -503,7 +505,10 @@ function delayHardCutLookMedia(pieces: IBlueprintPiece[], delayMs: number): void
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
 			const content = obj.content as { type?: string; file?: string }
 			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
-			if (layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string)) {
+			if (
+				layer === (LOOK_A_LAYERS.doubleBoxLoop as string) ||
+				layer === (LOOK_B_LAYERS.doubleBoxLoop as string)
+			) {
 				continue
 			}
 			shiftEnableStartIfAtTake(obj, delayMs)
@@ -530,7 +535,10 @@ function applyHardCutIdleLookHotCue(pieces: IBlueprintPiece[], playAtMs: number)
 			if (!isLookComposeLayer(layer) || L3D_TEMPLATE_LAYERS.has(layer)) continue
 			const content = obj.content as { type?: string; file?: string; seek?: number }
 			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
-			if (layer === (LOOK_A_LAYERS.doubleBoxLoop as string) || layer === (LOOK_B_LAYERS.doubleBoxLoop as string)) {
+			if (
+				layer === (LOOK_A_LAYERS.doubleBoxLoop as string) ||
+				layer === (LOOK_B_LAYERS.doubleBoxLoop as string)
+			) {
 				continue
 			}
 			const isRoute = typeof content.file === 'string' && content.file.startsWith('route://')
@@ -766,7 +774,9 @@ function applyCasparHotPlayCue(
 	if (options?.seekMs !== undefined) {
 		content.seek = options.seekMs
 	}
-	const existing = (obj.keyframes ?? []) as NonNullable<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']>
+	const existing = (obj.keyframes ?? []) as NonNullable<
+		TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
+	>
 	obj.keyframes = [
 		...existing,
 		{
@@ -1088,7 +1098,9 @@ export function finalizeHypercomposedPart(
 			blockTakeDuration: stingCoverMs,
 			// vMix holds the outgoing look until at least the off-air point (cut −
 			// feed latency + margin) so the stinger never cuts to an EMPTYed channel.
-			previousPartKeepaliveDuration: vmixProgram ? Math.max(leaveWeatherHideMs, vmixOffAirMs) : leaveWeatherHideMs,
+			previousPartKeepaliveDuration: vmixProgram
+				? Math.max(leaveWeatherHideMs, vmixOffAirMs)
+				: leaveWeatherHideMs,
 			partContentDelayDuration: 0,
 		}
 		if (vmixProgram) {
@@ -1191,7 +1203,9 @@ export function finalizeHypercomposedPart(
 		// claimed again later. On wiped Takes hold it with the outgoing picture until
 		// the route cut under cover — same rule as the other-slot clears below.
 		const otherSlotL3dClearStartMs =
-			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : l3dClearStartMs
+			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot
+				? wipeRouteCutMs
+				: l3dClearStartMs
 		clearObjects.push(...buildL3dLayerClearObjects(idleOtherSlot, undefined, otherSlotL3dClearStartMs))
 	}
 	// Full wipe onto a *new* look channel: EMPTY stale CAM / db_loop on the incoming
@@ -1220,8 +1234,11 @@ export function finalizeHypercomposedPart(
 	// off-air, clear at Take.
 	// ZAVER also CLEARs the other channel's ILU/CAM/L3D (ilu-zaver is LED-only).
 	if (hasWipe && lookKind === 'full') {
-		const dbLoopClearStartMs = previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : 0
-		clearObjects.push(emptyLookMediaObject(getLookLayers(idleOtherSlot).doubleBoxLoop, undefined, dbLoopClearStartMs))
+		const dbLoopClearStartMs =
+			previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : 0
+		clearObjects.push(
+			emptyLookMediaObject(getLookLayers(idleOtherSlot).doubleBoxLoop, undefined, dbLoopClearStartMs)
+		)
 	}
 	if (lookKind === 'full' && partHasActiveIluZaver(pieces)) {
 		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeRouteCutMs
@@ -1467,7 +1484,9 @@ function attachVmixTake(
 		literal<IBlueprintPiece>({
 			enable: { start: 0 },
 			externalId: `${partExternalId}_pgm_route`,
-			name: wipeFile ? `Wipe${transitionLabel ? ` · ${transitionLabel}` : ''} | ${label}` : `PGM ${slot} | ${label}`,
+			name: wipeFile
+				? `Wipe${transitionLabel ? ` · ${transitionLabel}` : ''} | ${label}`
+				: `PGM ${slot} | ${label}`,
 			lifespan: PieceLifespan.WithinPart,
 			sourceLayerId,
 			outputLayerId: getOutputLayerForSourceLayer(sourceLayerId),
@@ -1506,7 +1525,9 @@ function applyVmixDoubleBoxPhaseLock(pieces: IBlueprintPiece[], lookSlot: LookSl
 		for (const obj of claimedObjects) {
 			const content = obj.content as TSR.TimelineContentCCGMedia
 			content.mixer = { ...(content.mixer ?? {}), opacity: 1 }
-			obj.keyframes = (obj.keyframes ?? []).filter((kf) => (kf.content as { playing?: boolean }).playing !== false)
+			obj.keyframes = (obj.keyframes ?? []).filter(
+				(kf) => (kf.content as { playing?: boolean }).playing !== false
+			)
 		}
 		const base = claimedObjects[0]
 		objects.push(
@@ -1555,7 +1576,12 @@ function stripVmixDoubleBoxLoopClears(pieces: IBlueprintPiece[]): void {
  * cannot trigger a seek-forward reload (editorial `seek` is kept for LOADBG).
  */
 function normalizeVmixLookComposeObjects(pieces: IBlueprintPiece[]): void {
-	const clipIluLayers = new Set<string>([LOOK_A_LAYERS.clip, LOOK_B_LAYERS.clip, LOOK_A_LAYERS.ilu, LOOK_B_LAYERS.ilu])
+	const clipIluLayers = new Set<string>([
+		LOOK_A_LAYERS.clip,
+		LOOK_B_LAYERS.clip,
+		LOOK_A_LAYERS.ilu,
+		LOOK_B_LAYERS.ilu,
+	])
 	for (const piece of pieces) {
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
@@ -1698,7 +1724,9 @@ function rampVmixLookClipAudio(pieces: IBlueprintPiece[], stingCoverMs: number):
 
 			if (VMIX_RAMP_AUDIO_LOOK_LAYERS.has(layer)) {
 				const baseVolume =
-					typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+					typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume)
+						? content.mixer.volume
+						: 1
 				content.mixer = { ...(content.mixer ?? {}), volume: 0 }
 				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
 					TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
@@ -1726,7 +1754,9 @@ function rampVmixLookClipAudio(pieces: IBlueprintPiece[], stingCoverMs: number):
 			// LED ilu-zaver keeps the legacy mute-until-cut behaviour.
 			if (layer === (CasparCGLayers.CasparCGIluPlayer as string)) {
 				const baseVolume =
-					typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+					typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume)
+						? content.mixer.volume
+						: 1
 				const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
 					TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
 				>
@@ -1766,7 +1796,9 @@ function muteEditorialClipAudioDuringWipe(pieces: IBlueprintPiece[], wipeDuratio
 			if (!content || content.type !== TSR.TimelineContentTypeCasparCg.MEDIA) continue
 
 			const baseVolume =
-				typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume) ? content.mixer.volume : 1
+				typeof content.mixer?.volume === 'number' && Number.isFinite(content.mixer.volume)
+					? content.mixer.volume
+					: 1
 
 			const existing = ((obj as TimelineBlueprintExt).keyframes ?? []) as NonNullable<
 				TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
@@ -2223,7 +2255,10 @@ export function injectIdleLookPreviewPieces(
 				.find((obj) => {
 					if (String(obj.layer) !== (vmixTargetLayer as string)) return false
 					const content = obj.content as TSR.TimelineContentVMixInput | undefined
-					return content?.deviceType === TSR.DeviceType.VMIX && content.type === TSR.TimelineContentTypeVMix.INPUT
+					return (
+						content?.deviceType === TSR.DeviceType.VMIX &&
+						content.type === TSR.TimelineContentTypeVMix.INPUT
+					)
 				})
 			if (sourceInput) {
 				clonedInput = true

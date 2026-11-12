@@ -11,9 +11,13 @@ import {
 	UserEditingDefinitionAction,
 	UserEditingType,
 } from '@sofie-automation/blueprints-integration'
+
 import { PartContext } from '../../../common/context.js'
 import { SomeObject } from '../../../common/definitions/objects.js'
 import { literal, t } from '../../../common/util.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
+import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import {
 	CameraProps,
 	DVEProps,
@@ -27,6 +31,39 @@ import {
 	VOProps,
 	VTProps,
 } from '../definitions/index.js'
+import {
+	createSportBackgroundMusicPiece,
+	duckAudioBedPieceDuringWipe,
+	isSportSegmentName,
+} from '../helpers/backgroundMusic.js'
+import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
+import { parseConfig } from '../helpers/config.js'
+import {
+	appendCountupSustainIfRevealed,
+	CountupRevealClaim,
+	getCountupRevealClaimForGeneration,
+	partShouldMuteCountup,
+	partShouldPersistCountupMute,
+} from '../helpers/countupReveal.js'
+import { createVmixDbLoopOpacityZeroObject, DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
+import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
+import {
+	createLedPodHeadlineClearPiece,
+	createLedPodHeadlinePiece,
+	segmentUsesLedPodHeadline,
+} from '../helpers/ledPodHeadline.js'
+import {
+	findWipeVideoObject,
+	getLookLayers,
+	getLookSlotSequenceForGeneration,
+	injectIdleLookPreviewPieces,
+	LookSlot,
+	LookSlotSequence,
+	raiseLookMediaPostrollForCrossSegmentWipe,
+	raiseLookMediaPostrollForNextKeepalive,
+} from '../helpers/pgmLook.js'
+import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
+import { usesVmixProgram } from '../helpers/visionMixer.js'
 import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
@@ -36,42 +73,6 @@ import { generateRemotePart } from './remote.js'
 import { generateOpenerPart as generateTitlesPart } from './titles.js'
 import { generateVOPart } from './vo.js'
 import { generateVTPart } from './vt.js'
-import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
-import {
-	createSportBackgroundMusicPiece,
-	duckAudioBedPieceDuringWipe,
-	isSportSegmentName,
-} from '../helpers/backgroundMusic.js'
-import { parseConfig } from '../helpers/config.js'
-import {
-	CountupRevealClaim,
-	appendCountupSustainIfRevealed,
-	getCountupRevealClaimForGeneration,
-	partShouldMuteCountup,
-	partShouldPersistCountupMute,
-} from '../helpers/countupReveal.js'
-import {
-	LookSlot,
-	LookSlotSequence,
-	findWipeVideoObject,
-	getLookLayers,
-	getLookSlotSequenceForGeneration,
-	injectIdleLookPreviewPieces,
-	raiseLookMediaPostrollForCrossSegmentWipe,
-	raiseLookMediaPostrollForNextKeepalive,
-} from '../helpers/pgmLook.js'
-import { usesVmixProgram } from '../helpers/visionMixer.js'
-import { DOUBLEBOX_LOOP_FILE, createVmixDbLoopOpacityZeroObject } from '../helpers/doubleboxLoop.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
-import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
-import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
-import {
-	createLedPodHeadlinePiece,
-	createLedPodHeadlineClearPiece,
-	segmentUsesLedPodHeadline,
-} from '../helpers/ledPodHeadline.js'
-import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
-import { SourceLayer, getOutputLayerForSourceLayer } from '../applyconfig/layers.js'
 
 /** Part types that compose a story look on BG A/B. */
 function isLookBearingPartType(type: PartType | null): boolean {
@@ -148,7 +149,13 @@ export function generateParts(
 		// first look-bearing Take claims idle A and LOADBGs off-air before the route flips.
 		// Until the first claim, previousLookSlot is undefined (baseline underlay only).
 		const previousLookSlot = lookSlots.hasClaimed() ? lookSlots.peek() : undefined
-		const lookSlot = resolveLookSlotForPart(rawPart.type, rawPart.objects, lookSlots, rawPart.rawType, floatedOrSkipped)
+		const lookSlot = resolveLookSlotForPart(
+			rawPart.type,
+			rawPart.objects,
+			lookSlots,
+			rawPart.rawType,
+			floatedOrSkipped
+		)
 		partLookSlots.push(lookSlot)
 		let newPart: BlueprintResultPart
 
@@ -171,17 +178,29 @@ export function generateParts(
 				)
 				break
 			case PartType.VT:
-				newPart = generateVTPart(partContext, rawPart as unknown as PartProps<VTProps>, lookSlot, previousLookSlot)
+				newPart = generateVTPart(
+					partContext,
+					rawPart as unknown as PartProps<VTProps>,
+					lookSlot,
+					previousLookSlot
+				)
 				break
 			case PartType.VO:
-				newPart = generateVOPart(partContext, rawPart as unknown as PartProps<VOProps>, lookSlot, previousLookSlot)
+				newPart = generateVOPart(
+					partContext,
+					rawPart as unknown as PartProps<VOProps>,
+					lookSlot,
+					previousLookSlot
+				)
 				break
 			case PartType.Titles:
 				newPart = generateTitlesPart(partContext, rawPart as unknown as PartProps<TitlesProps>)
 				break
 			case PartType.Intro: {
 				// Intro overlay on PGM (210); underlay claims idle so the next Take stays cross-slot.
-				const introLook: LookSlot = floatedOrSkipped ? (previousLookSlot ?? lookSlots.peek()) : lookSlots.claimIdle()
+				const introLook: LookSlot = floatedOrSkipped
+					? (previousLookSlot ?? lookSlots.peek())
+					: lookSlots.claimIdle()
 				// resolveLookSlotForPart only peeked for Intro — record the slot it
 				// actually claimed so the idle-preview same-slot guard sees it.
 				partLookSlots[partLookSlots.length - 1] = introLook
@@ -197,7 +216,12 @@ export function generateParts(
 				newPart = generateDVEPart(partContext, rawPart as unknown as PartProps<DVEProps>)
 				break
 			case PartType.GFX:
-				newPart = generateGfxPart(partContext, rawPart as unknown as PartProps<GfxProps>, lookSlot, previousLookSlot)
+				newPart = generateGfxPart(
+					partContext,
+					rawPart as unknown as PartProps<GfxProps>,
+					lookSlot,
+					previousLookSlot
+				)
 				break
 			case PartType.LayeredVideo:
 				newPart = generateLayeredVideoPart(partContext, rawPart, lookSlot, previousLookSlot)

@@ -1,13 +1,15 @@
-import { PieceLifespan } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
+
+import { PieceLifespan } from '@sofie-automation/blueprints-integration'
+
+import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { IntroProps, PartProps, PartType } from '../base/showstyle/definitions/index.js'
-import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { parseLayeredVideosFromObjects } from '../base/showstyle/helpers/clips.js'
+import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
 import { ObjectType } from '../common/definitions/objects.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
-import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import {
 	hybridCasparConfig,
 	loadSmokeRundownExport,
@@ -26,11 +28,14 @@ describe('intro overlay + bg-loop layered videos', () => {
 		expect(introPart?.type).toBe(PartType.Intro)
 
 		const overlay = introPart?.objects.find(
-			(obj) => obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'effects'
+			(obj) =>
+				obj.objectType === ObjectType.Video &&
+				(obj.attributes as { playLayer?: string }).playLayer === 'effects'
 		)
 		const bgLoop = introPart?.objects.find(
 			(obj) =>
-				obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'background'
+				obj.objectType === ObjectType.Video &&
+				(obj.attributes as { playLayer?: string }).playLayer === 'background'
 		)
 
 		expect(overlay?.clipName).toContain('assets/intro_michal')
@@ -99,7 +104,8 @@ describe('intro overlay + bg-loop layered videos', () => {
 		expect(
 			recovered?.objects.some(
 				(obj) =>
-					obj.objectType === ObjectType.Video && (obj.attributes as { playLayer?: string }).playLayer === 'effects'
+					obj.objectType === ObjectType.Video &&
+					(obj.attributes as { playLayer?: string }).playLayer === 'effects'
 			)
 		).toBe(true)
 	})

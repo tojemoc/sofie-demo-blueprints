@@ -1,12 +1,13 @@
 import { IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
+
 import { literal } from '../../../common/util.js'
+import { PGM_FULLSCREEN_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
-import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
-import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
 import { vmixLayerTransformFromFill } from './pgmCamera.js'
-import { PGM_FULLSCREEN_CAMERA_FILL } from '../../studio/applyConfig/mappings/casparcgLayers.js'
+import { getVmixCameraInput, getVmixLookFeedInput } from './visionMixer.js'
 
 /**
  * Caspar PLAY path (no extension) for the pre-first-Take LED calibration frame.

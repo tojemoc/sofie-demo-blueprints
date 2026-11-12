@@ -1,27 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { ObjectType, VideoObject } from '../common/definitions/objects.js'
+
 import {
+	applyCrossSlotWipeAirCutBias,
+	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
+	getVideoPlayLayer,
+	isClassicalWipeFile,
 	parseClipEditorProps,
 	parseClipProps,
-	resolveClipPlayback,
-	getVideoPlayLayer,
-	resolveWipeCutPointMs,
-	resolveWipeAirCutMs,
-	resolveWipeDurationMs,
-	applyCrossSlotWipeAirCutBias,
 	pgmWipeEffectsLayerForFile,
+	resolveClipPlayback,
+	resolveWipeAirCutMs,
+	resolveWipeCutPointMs,
+	resolveWipeDurationMs,
 	snapMsToFrame,
-	isClassicalWipeFile,
 	THEMED_WIPE_ANIMATION_MS,
-	WIPE_CUT_POINT_MS,
-	WIPE_PLAYOUT_LATENCY_MS,
 	WIPE_COVER_CENTER_OFFSET_MS,
-	WIPE_FILE_COVER_START_MS,
+	WIPE_CUT_POINT_MS,
 	WIPE_FILE_COVER_CENTER_MS,
+	WIPE_FILE_COVER_START_MS,
 	WIPE_FRAME_MS,
-	CROSS_SLOT_WIPE_AIR_CUT_BIAS_MS,
+	WIPE_PLAYOUT_LATENCY_MS,
 } from '../base/showstyle/helpers/clips.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
+import { ObjectType, VideoObject } from '../common/definitions/objects.js'
 
 function makeVideo(overrides: Partial<VideoObject> & { attributes?: VideoObject['attributes'] }): VideoObject {
 	return {
@@ -216,7 +217,9 @@ describe('resolveWipeDurationMs', () => {
 	it('caps themed story wipes so Sofie does not freeze the last mov frame', () => {
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sjv.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sjv'])
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe_sport')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_sport'])
-		expect(resolveWipeDurationMs(2500, 'wipes/wipe_pocasie.mov')).toBe(THEMED_WIPE_ANIMATION_MS['wipes/wipe_pocasie'])
+		expect(resolveWipeDurationMs(2500, 'wipes/wipe_pocasie.mov')).toBe(
+			THEMED_WIPE_ANIMATION_MS['wipes/wipe_pocasie']
+		)
 		// Generic wipe.mov keeps the RE / default length.
 		expect(resolveWipeDurationMs(2500, 'wipes/wipe.mov')).toBe(2500)
 		expect(resolveWipeDurationMs(undefined)).toBe(2500)

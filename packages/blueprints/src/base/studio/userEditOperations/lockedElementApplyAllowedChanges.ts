@@ -9,6 +9,7 @@ import {
 	NrcsIngestSegmentChangeDetails,
 	NrcsIngestSegmentChangeDetailsEnum,
 } from '@sofie-automation/blueprints-integration'
+
 import { BlueprintMutableIngestPart, BlueprintUserOperationTypes } from './types.js'
 
 /**
@@ -55,7 +56,9 @@ export function lockedElementApplyAllowedChanges(
 
 				if (!segmentChange.partChanges) break
 
-				for (const [partId, partChanges] of Object.entries<NrcsIngestPartChangeDetails>(segmentChange.partChanges)) {
+				for (const [partId, partChanges] of Object.entries<NrcsIngestPartChangeDetails>(
+					segmentChange.partChanges
+				)) {
 					if (!partChanges) continue
 
 					// Ignore deletion

@@ -1,9 +1,10 @@
 import { BlueprintResultStudioBaseline, IStudioContext, TSR } from '@sofie-automation/blueprints-integration'
+
+import { OutputConfig, SiyfosSourceConfig } from '../../$schemas/generated/main-studio-config.js'
 import { literal } from '../../common/util.js'
+import { TimelineBlueprintExt } from './customTypes.js'
 import { AudioSourceType, StudioConfig } from './helpers/config.js'
 import { SisyfosLayers } from './layers.js'
-import { TimelineBlueprintExt } from './customTypes.js'
-import { OutputConfig, SiyfosSourceConfig } from '../../$schemas/generated/main-studio-config.js'
 
 function getSisyfosBaseline(config: StudioConfig): (TSR.SisyfosChannelOptions & { mappedLayer: string })[] {
 	const channels: (TSR.SisyfosChannelOptions & { mappedLayer: string })[] = []

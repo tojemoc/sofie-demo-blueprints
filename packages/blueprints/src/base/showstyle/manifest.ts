@@ -1,35 +1,36 @@
+import { dereferenceSync } from 'dereference-json-schema'
+
 import {
 	BlueprintManifestType,
-	ShowStyleBlueprintManifest,
-	JSONBlobStringify,
-	JSONSchema,
-	IRundownActivationContext,
-	IOnTakeContext,
-	IOnSetAsNextContext,
-	ICommonContext,
 	BlueprintPlayoutPersistentStore,
 	IBlueprintPartInstance,
 	IBlueprintPieceInstance,
+	ICommonContext,
+	IOnSetAsNextContext,
+	IOnTakeContext,
+	IRundownActivationContext,
+	JSONBlobStringify,
+	JSONSchema,
+	ShowStyleBlueprintManifest,
 } from '@sofie-automation/blueprints-integration'
+
+import * as ConfigSchema from '../../$schemas/main-showstyle-config.json'
+import { StudioConfig, VisionMixerDevice } from '../studio/helpers/config.js'
+import { CasparCGLayers, VMixLayers } from '../studio/layers.js'
+import { applyConfig } from './applyconfig/index.js'
+import { SourceLayer } from './applyconfig/layers.js'
 import { executeAction, executeDataStoreAction } from './executeActions/index.js'
+import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getAdlibItem } from './getAdlibItem.js'
 import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
-import { parseConfig, ShowStyleConfig } from './helpers/config.js'
-import { StudioConfig } from '../studio/helpers/config.js'
-import { VisionMixerDevice } from '../studio/helpers/config.js'
-import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
-import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
-import { SourceLayer } from './applyconfig/layers.js'
-import { CasparCGLayers, VMixLayers } from '../studio/layers.js'
 import { isOutroVideoFile } from './helpers/clips.js'
-import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
+import { parseConfig, ShowStyleConfig } from './helpers/config.js'
+import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
+import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
 import { getRundown } from './rundown/index.js'
 import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
 import { validateConfig } from './validateConfig.js'
-import { applyConfig } from './applyconfig/index.js'
-import * as ConfigSchema from '../../$schemas/main-showstyle-config.json'
-import { dereferenceSync } from 'dereference-json-schema'
 
 export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'blueprintId' | 'configPresets'> = {
 	/** The type of this blueprint */

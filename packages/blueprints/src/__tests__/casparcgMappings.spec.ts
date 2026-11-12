@@ -1,15 +1,17 @@
-import { LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
 import { describe, expect, it } from 'vitest'
-import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
-import { CasparCGLayers } from '../base/studio/layers.js'
-import { getCasparCGMappings, getHypercomposedChannels } from '../base/studio/applyConfig/mappings/casparcg.js'
+
+import { LookaheadMode, TSR } from '@sofie-automation/blueprints-integration'
+
 import { applyConfig } from '../base/studio/applyConfig/index.js'
+import { getCasparCGMappings, getHypercomposedChannels } from '../base/studio/applyConfig/mappings/casparcg.js'
 import {
 	BgChannelLayers,
 	CamIngestChannelLayers,
 	LedChannelLayers,
 	PgmChannelLayers,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { SourceType, StudioConfig, VisionMixerDevice } from '../base/studio/helpers/config.js'
+import { CasparCGLayers } from '../base/studio/layers.js'
 
 const baseStudioConfig: StudioConfig = {
 	previewRenderer: '',
@@ -329,7 +331,9 @@ describe('casparcgMappings', () => {
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThird]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(mappings[CasparCGLayers.CasparCGGraphicsPgmLowerThirdB]?.lookahead).toBe(LookaheadMode.NONE)
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayer).layer).toBe(PgmChannelLayers.EffectsPlayer)
-		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayerSjv).layer).toBe(PgmChannelLayers.EffectsPlayerSjv)
+		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayerSjv).layer).toBe(
+			PgmChannelLayers.EffectsPlayerSjv
+		)
 		expect(getMappingOptions(CasparCGLayers.CasparCGPgmEffectsPlayerSport).layer).toBe(
 			PgmChannelLayers.EffectsPlayerSport
 		)
