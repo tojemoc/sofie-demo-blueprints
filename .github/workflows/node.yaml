@@ -37,7 +37,7 @@ jobs:
       - name: Use Node.js 22.x
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 26.x
       - name: restore node_modules
         uses: actions/cache@v6
         with:
@@ -76,7 +76,7 @@ jobs:
       - name: Use Node.js 22.x
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 26.x
       - name: restore node_modules
         uses: actions/cache@v6
         with:
@@ -114,7 +114,7 @@ jobs:
       - name: Use Node.js 22.x
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 26.x
       - name: Configure Yarn
         run: |
           mkdir -p .github/bin
@@ -219,7 +219,7 @@ jobs:
       - name: Use Node.js 22.x
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 26.x
 
       - name: restore node_modules
         uses: actions/cache@v6
@@ -273,7 +273,7 @@ jobs:
           echo "release_tag=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.package.outputs.release_tag }}
           files: |
@@ -299,7 +299,7 @@ jobs:
       - name: Use Node.js 22.x
         uses: actions/setup-node@v7
         with:
-          node-version: 22.x
+          node-version: 26.x
 
       - name: restore node_modules
         uses: actions/cache@v6
@@ -347,7 +347,7 @@ jobs:
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Pre-release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.package.outputs.tag_name }}
           name: Pre-release ${{ steps.package.outputs.short_sha }}
