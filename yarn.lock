@@ -4483,7 +4483,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*":
+"@types/node@npm:*, @types/node@npm:^26.0.0":
   version: 26.6.6
   resolution: "@types/node@npm:26.6.6"
   dependencies:
@@ -4496,15 +4496,6 @@ __metadata:
   version: 17.0.45
   resolution: "@types/node@npm:17.0.45"
   checksum: 10c0/0db377133d709b33a47892581a21a41cd7958f22723a3cc6c71d55ac018121382de42fbfc7970d5ae3e7819dbe5f40e1c6a5174aedf7e7964e9cb8fa72b580b0
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^22.19.3":
-  version: 22.20.5
-  resolution: "@types/node@npm:22.20.5"
-  dependencies:
-    undici-types: "npm:~6.21.0"
-  checksum: 10c0/0cf61a89c6a69917ab49f976a6bb11a29e3b348a6ae19f5827ceb91d3ade781faab58dcf3b8fa625f975f5d7536b9166ff94e8250c29272c667164f77c28fa88
   languageName: node
   linkType: hard
 
@@ -5904,7 +5895,7 @@ __metadata:
   resolution: "blueprints@workspace:packages/blueprints"
   dependencies:
     "@sofie-automation/blueprints-integration": "npm:26.9.3"
-    "@types/node": "npm:^22.19.3"
+    "@types/node": "npm:^26.0.0"
     dereference-json-schema: "npm:^0.2.1"
     sofie-blueprint-tools: "npm:^1.3.0"
     type-fest: "npm:^4.33.0"
@@ -17118,13 +17109,6 @@ __metadata:
     sprintf-js: "npm:^1.1.1"
     util-deprecate: "npm:^1.0.2"
   checksum: 10c0/172319c7ef5436587e6f0fb5afe0b2e6b50f723a4070c7fb3454c5dfa5398ed3b7042c049eac2826bdd44d37cbd16b2b965d0ccc1597fde354b1d3a846fd4a39
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:~6.21.0":
-  version: 6.21.0
-  resolution: "undici-types@npm:6.21.0"
-  checksum: 10c0/c01ed51829b10aa72fc3ce64b747f8e74ae9b60eafa19a7b46ef624403508a54c526ffab06a14a26b3120d055e1104d7abe7c9017e83ced038ea5cf52f8d5e04
   languageName: node
   linkType: hard
 
