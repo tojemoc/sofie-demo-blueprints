@@ -122,3 +122,14 @@ Caspar PLAY paths are relative to the studio **CasparCG media folder** (default
 Rundown Editor `mediaPick` `subdir` values (`loops`, `wipes`, `clips`) are picker
 hints under the ingest media root — the piece `fileName` payload should already
 include that prefix (e.g. `loops/bg_loop`). Two levels only: `<subdir>/<file>`.
+
+### Ingest contract (RE → blueprints)
+
+Rundown Editor sends `dataRundownUpdate` payloads whose part/piece `payload` fields are the
+piece-type manifests in the megarepo `assets/` — field names there are what
+`sofie-editor-parsers` (`packages/blueprints/src/base/showstyle/sofie-editor-parsers/`)
+reads (`fileName`, `sourceLayer`, `itemDuration`, `duration`, `cutPoint`, wipe modes, …).
+Part/piece `externalId` is the RE row id. End-to-end field/layer map:
+megarepo `docs/integration/RUNDOWN-SCHEMA-AND-LAYOUT.md`. When adding a piece type or
+payload field: update the megarepo manifest, the parser, and the demo-assets template's
+`update()` keys together.
