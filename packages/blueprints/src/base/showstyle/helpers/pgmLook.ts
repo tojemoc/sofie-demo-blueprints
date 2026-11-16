@@ -1151,7 +1151,6 @@ export function finalizeHypercomposedPart(
 	const hasIncomingHeadlineL3d = partHasIncomingL3dTemplate(pieces, HEADLINE_L3D_TEMPLATE_LAYERS)
 	const hasIncomingL3d = hasIncomingLookL3d || hasIncomingHeadlineL3d
 	const earliestLookL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces, LOOK_L3D_TEMPLATE_LAYERS)
-	const earliestHeadlineL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces, HEADLINE_L3D_TEMPLATE_LAYERS)
 	// CLEAR until the first incoming L3D is on-air. Wiped Takes: that is max(wipeEnd,
 	// earliest objectTime) so start:1s under wipe_sport cannot gap-fill previous CG.
 	// wipe_pocasie lands weather GFX at the cover cut with bg_pocasie.
@@ -1164,7 +1163,6 @@ export function finalizeHypercomposedPart(
 				: Math.max(wipeDurationMs, earliestObjectTimeMs)
 			: L3D_OUT_MS + earliestObjectTimeMs
 	const l3dClearDurationMs = hasIncomingLookL3d ? l3dOnAirMs(earliestLookL3dObjectTimeMs) : undefined
-	const headlineClearDurationMs = hasIncomingHeadlineL3d ? l3dOnAirMs(earliestHeadlineL3dObjectTimeMs) : undefined
 	// Leave-weather into wiped ZAVER: hold previous weather L3D until cover is solid —
 	// not cleared at Take while wipe overlay is still loading. Wipe-only GFX shells
 	// keep L3D CLEAR at Take. Require an *active* on-air ilu-zaver piece — an
@@ -1180,11 +1178,6 @@ export function finalizeHypercomposedPart(
 	// the outgoing slot has its own clear below. Only an L3D-free Take keeps the
 	// keepalive hold so a stale template cannot reappear mid-transition.
 	const l3dClearHoldMs = hasIncomingLookL3d ? clearHoldFor(l3dClearDurationMs, l3dClearStartMs) : staleL3dHoldMs
-	// Dedicated channel: the EMPTY must end at the incoming headline's ADD —
-	// holding it to the look keepalive would suppress a short scheduled headline.
-	const headlineClearHoldMs = hasIncomingHeadlineL3d
-		? clearHoldFor(headlineClearDurationMs, l3dClearStartMs)
-		: staleL3dHoldMs
 
 	// Kill any keepalive'd / leftover L3D before the delayed ADD. Same-template Takes
 	// (SJV→SJV, ŠPORT→ŠPORT) otherwise become CG UPDATE (text swap, no IN anim).
@@ -1196,9 +1189,14 @@ export function finalizeHypercomposedPart(
 		// when that is later), but end it afterwards so an ad-lib L3D later in the part
 		// can still play.
 		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
-		clearObjects.push(
-			emptyLookMediaObject(CasparCGLayers.CasparCGGraphicsHeadline, headlineClearHoldMs, l3dClearStartMs)
-		)
+		// An incoming headline keeps the dedicated channel TEMPLATE→TEMPLATE so its
+		// Take is a CG UPDATE (l3d-headline.update() animates the swap); an EMPTY here
+		// would force a fresh CEF ADD that briefly replays the previous text.
+		if (!hasIncomingHeadlineL3d) {
+			clearObjects.push(
+				emptyLookMediaObject(CasparCGLayers.CasparCGGraphicsHeadline, staleL3dHoldMs, l3dClearStartMs)
+			)
+		}
 		// The previous on-air L3D sits on the *other* look slot (Takes ping-pong).
 		// Open-ended EMPTY so its keepalive'd template cannot resume when that feed is
 		// claimed again later. On wiped Takes hold it with the outgoing picture until
@@ -1325,11 +1323,11 @@ export function finalizeHypercomposedPart(
 		resumeClipIluAtTake: vmixProgram,
 	})
 
-	// Wiped ZAVER: LED `ilu-zaver` must land with WX hide under cover — not at Take
-	// (before the sting covers PGM). Ad-lib-only ingest must not delay other LED ILU
-	// (e.g. headline) sitting on the same Caspar layer.
+	// Wiped ZAVER: LED `ilu-zaver` lands at the wipe air cut under cover — not at Take
+	// and not as late as the delayed WX hide. Ad-lib-only ingest must not delay other
+	// LED ILU (e.g. headline) sitting on the same Caspar layer.
 	if (hasWipe && partHasActiveIluZaver(pieces)) {
-		delayLedIluZaverToWipeCut(pieces, leaveWeatherHideMs)
+		delayLedIluZaverToWipeCut(pieces, wipeCutPointMs)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
@@ -1924,6 +1922,7 @@ function applyL3dTakeOffsets(
 			typeof piece.enable?.start === 'number' && Number.isFinite(piece.enable.start)
 				? Math.max(0, Math.floor(piece.enable.start))
 				: 0
+		let l3dDurationPadMs = 0
 
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
@@ -1946,6 +1945,9 @@ function applyL3dTakeOffsets(
 						// Already after the sting — piece.enable.start is enough.
 						l3dInDelay = 0
 					}
+				}
+				if (l3dInDelay > 0 && obj.enable && !Array.isArray(obj.enable) && obj.enable.start === 0) {
+					l3dDurationPadMs = Math.max(l3dDurationPadMs, l3dInDelay)
 				}
 				shiftEnableStartIfAtTake(obj, l3dInDelay)
 				continue
@@ -1985,6 +1987,16 @@ function applyL3dTakeOffsets(
 			// Live look channel (same-slot wipe): delayed PLAY only — do not LOAD/PAUSE
 			// over the on-air outgoing clip under the sting.
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
+		}
+
+		// The shifted ADD eats into a finite piece window — pad it so the strap still
+		// gets its full declared on-air duration (a wiped Take otherwise hides it ~2s early).
+		if (
+			l3dDurationPadMs > 0 &&
+			typeof piece.enable?.duration === 'number' &&
+			Number.isFinite(piece.enable.duration)
+		) {
+			piece.enable.duration += l3dDurationPadMs
 		}
 	}
 }
@@ -2150,6 +2162,9 @@ function emptyLookMediaObject(
 /** externalId suffix of the dormant 'Idle look preview' placeholder piece. */
 export const IDLE_LOOK_PREVIEW_EXTERNAL_ID_SUFFIX = '_lookidlepreview'
 
+/** Extra hold after the computed off-air point before re-arming that channel with the next look. */
+export const IDLE_LOOK_PREVIEW_REARM_DELAY_MS = 1500
+
 /**
  * Dormant 'Idle look preview' placeholder, emitted on every playable part so
  * `onSetAsNext` can later arm it with paused clones of the *actual* next part's
@@ -2233,9 +2248,9 @@ function liveLookSlotsForPieces(
  * off-air look channel — the runtime half. Sofie lookahead can only arm nextUp
  * (`LOADBG` — invisible on the input); this arms the dormant placeholder piece
  * in the CURRENT part with `playing: false` clones of the NEXT part's real look
- * MEDIA, enabled only once this part's incoming take has carried the previous
- * channel off air (`previousPartKeepaliveDuration`; vMix: program cut − feed
- * latency + margin). At the take, the incoming part's own `playing: false`
+ * MEDIA, enabled once this part's incoming take has carried the previous
+ * channel off air plus {@link IDLE_LOOK_PREVIEW_REARM_DELAY_MS}, so a slightly
+ * late physical cut cannot expose the re-arm. At the take, the incoming part's own `playing: false`
  * object is media-identical → no producer swap → the hot-PLAY keyframe is a
  * bare `RESUME`.
  *
@@ -2263,17 +2278,19 @@ export async function armIdleLookPreviewForNext(
 	if (!previewInstance) return
 
 	const vmixProgram = usesVmixProgram(config)
-	const previewStartMs = vmixProgram
+	const offAirMs = vmixProgram
 		? vmixOutgoingOffAirMs(
 				config,
 				(currentPartInstance.part.inTransition?.blockTakeDuration ?? 0) > 0,
 				LOOK_HARD_CUT_KEEPALIVE_MS
 			)
 		: Math.max(0, Math.floor(currentPartInstance.part.inTransition?.previousPartKeepaliveDuration ?? 0))
+	const previewStartMs = offAirMs + IDLE_LOOK_PREVIEW_REARM_DELAY_MS
 	const previewPriority = vmixProgram ? 1 : 3
 
 	const previewObjects: TimelineBlueprintExt[] = []
 	const seenLayers = new Set<string>()
+	let previewSlot: LookSlot | undefined
 	let clonedInput = false
 	let vmixTargetLayer: VMixLayers | undefined
 
@@ -2315,6 +2332,7 @@ export async function armIdleLookPreviewForNext(
 		)
 
 		if (nextSlot && !liveSlots.has(nextSlot)) {
+			previewSlot = nextSlot
 			const targetLayers = idleLookMediaLayers(nextSlot, vmixProgram).map(String)
 			for (const obj of nextObjects) {
 				if (!isLookMedia(obj) || !targetLayers.includes(String(obj.layer)) || seenLayers.has(String(obj.layer)))
@@ -2364,35 +2382,37 @@ export async function armIdleLookPreviewForNext(
 		}
 	}
 
-	// vMix: same-layer outgoing EMPTYs / camera-clear INPUTs at the same start
-	// would tie the priority-1 preview (equal priority resolves by id order) —
-	// drop the ones the preview covers so the paused frame always wins.
-	if (vmixProgram && previewObjects.length > 0) {
+	// Delay the whole off-air-channel re-arm, not just the preview clone: media
+	// layers the preview covers are replaced at previewStartMs, while uncovered
+	// clears (CAM / L3D / stale layers) move to the same safe point.
+	if (previewObjects.length > 0 && previewSlot) {
+		const offAirLayers = new Set(Object.values<CasparCGLayers>(getLookLayers(previewSlot)).map(String))
 		for (const instance of currentPieces) {
 			if (instance._id === previewInstance._id) continue
 			const objects = instance.piece.content?.timelineObjects
 			if (!objects?.length) continue
-			const filtered = objects.filter((obj) => {
-				if (!Array.isArray(obj.enable) && obj.enable?.start === previewStartMs) {
-					const content = obj.content as TSR.TimelineContentCCGMedia | undefined
-					if (
-						isCasparMedia(content ?? {}) &&
-						content?.file === 'EMPTY' &&
-						seenLayers.has(String(obj.layer))
-					) {
-						return false
-					}
-					if (
-						clonedInput &&
-						String(obj.layer) === (vmixTargetLayer as string) &&
-						(obj.content as { type?: string })?.type === TSR.TimelineContentTypeVMix.INPUT
-					) {
-						return false
-					}
+			let changed = false
+			const filtered = objects.flatMap((obj) => {
+				if (Array.isArray(obj.enable) || obj.enable?.start !== offAirMs) return [obj]
+				const media = obj.content as TSR.TimelineContentCCGMedia | undefined
+				if (isCasparMedia(media ?? {}) && media?.file === 'EMPTY' && offAirLayers.has(String(obj.layer))) {
+					changed = true
+					return seenLayers.has(String(obj.layer))
+						? []
+						: [{ ...obj, enable: { ...obj.enable, start: previewStartMs } }]
 				}
-				return true
+				const input = obj.content as TSR.TimelineContentVMixInput | undefined
+				if (
+					String(obj.layer) === (vmixTargetLayer as string) &&
+					input?.type === TSR.TimelineContentTypeVMix.INPUT &&
+					Object.keys(input.layers ?? {}).length === 0
+				) {
+					changed = true
+					return clonedInput ? [] : [{ ...obj, enable: { ...obj.enable, start: previewStartMs } }]
+				}
+				return [obj]
 			})
-			if (filtered.length !== objects.length) {
+			if (changed) {
 				await context.updatePieceInstance(instance._id, {
 					content: { ...instance.piece.content, timelineObjects: filtered },
 				})
@@ -2524,12 +2544,25 @@ export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: nu
  * cover the next on-air part's `previousPartKeepaliveDuration` (RE wipe cutPoint).
  * Needed when that cut exceeds {@link LOOK_MEDIA_POSTROLL_MS} (default sting floor) —
  * Sofie cannot hold the previous picture past piece postroll even if keepalive is longer.
+ * Cross-slot Takes also reserve the delayed idle-preview re-arm window; same-slot
+ * keeps the shorter postroll so old media cannot shadow the incoming look.
  */
 export function raiseLookMediaPostrollForNextKeepalive(
-	parts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }>
+	parts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }>,
+	config: StudioConfig
 ): void {
+	const vmixProgram = usesVmixProgram(config)
+	const vmixLookInputs = vmixProgram
+		? { a: config.vmixProgram?.lookAInput, b: config.vmixProgram?.lookBInput }
+		: undefined
+	const liveSlot = (pieces: IBlueprintPiece[]): LookSlot | undefined => {
+		const slots = liveLookSlotsForPieces(pieces, vmixProgram, vmixLookInputs)
+		return slots.size === 1 ? [...slots][0] : undefined
+	}
+
 	for (let i = 0; i < parts.length; i++) {
 		let nextKeepalive = 0
+		let nextSlot: LookSlot | undefined
 		for (let j = i + 1; j < parts.length; j++) {
 			const next = parts[j].part
 			if (next.invalid || next.floated) continue
@@ -2537,10 +2570,16 @@ export function raiseLookMediaPostrollForNextKeepalive(
 			if (typeof keepalive === 'number' && Number.isFinite(keepalive) && keepalive > 0) {
 				nextKeepalive = Math.floor(keepalive)
 			}
+			nextSlot = liveSlot(parts[j].pieces)
 			break
 		}
 		if (nextKeepalive > 0) {
-			applyLookMediaPostroll(parts[i].pieces, nextKeepalive)
+			const currentSlot = liveSlot(parts[i].pieces)
+			const minPostroll =
+				currentSlot && nextSlot && currentSlot !== nextSlot
+					? Math.max(nextKeepalive, IDLE_LOOK_PREVIEW_REARM_DELAY_MS)
+					: nextKeepalive
+			applyLookMediaPostroll(parts[i].pieces, minPostroll)
 		}
 	}
 }

@@ -469,6 +469,12 @@ function isPgmL3dGraphic(object: GraphicObjectBase): boolean {
 	return PGM_L3D_CLIP_NAMES.has(normalizeGraphicClipName(object.clipName))
 }
 
+/** SJV/ŠPORT straps ride the whole manual part — the next Take's EMPTY clears them. */
+const HOLD_L3D_CLIP_NAMES = new Set(['gfx/l3d-sjv', 'gfx/l3d-sport'])
+
+/** Postroll that lets the outgoing headline template reach the next part's ADD as CG UPDATE. */
+const HEADLINE_L3D_POSTROLL_MS = 3000
+
 function getGraphicSourceLayer(object: GraphicObjectBase): SourceLayer {
 	if (isDoubleboxIlu(object) || isIluZaver(object)) {
 		// Media-only piece (no HTML); keep off the exclusive pgm group used by Camera/VT.
@@ -686,6 +692,13 @@ function parseGraphic(
 	// even with loop:false (hold-last-frame only applies while the object is active).
 	const holdIluUntilTake = isHeadlineWithIlu(object) || isDoubleboxIlu(object) || isIluZaver(object)
 
+	// SJV/ŠPORT straps: a finite RE duration hides the L3D mid-part on overrun and
+	// adds a second piece countdown in the UI. The part is manual — hold to Take.
+	const holdL3dUntilTake = HOLD_L3D_CLIP_NAMES.has(normalizeGraphicClipName(object.clipName))
+
+	// Pure l3d-headline template piece (not the headline ILU media piece).
+	const headlineL3d = !hasHeadlineIluFile(object) && normalizeGraphicClipName(object.clipName) === 'gfx/l3d-headline'
+
 	return {
 		externalId: object.id,
 		name: `${object.clipName} | ${Object.values<any>(object.attributes)
@@ -720,8 +733,13 @@ function parseGraphic(
 		},
 		enable: {
 			start: object.objectTime,
-			duration: holdIluUntilTake ? undefined : object.duration > 0 ? object.duration : undefined,
+			duration:
+				holdIluUntilTake || holdL3dUntilTake ? undefined : object.duration > 0 ? object.duration : undefined,
 		},
+		// Bridge the part boundary so a headline part following a headline part sends
+		// CG UPDATE (animated text swap) instead of re-ADDing the template — a fresh
+		// CEF instance briefly replays the previous text.
+		postrollDuration: headlineL3d ? HEADLINE_L3D_POSTROLL_MS : undefined,
 		prerollDuration: config.casparcgLatency,
 		expectedPackages: getIluExpectedPackages(context, object),
 	}

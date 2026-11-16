@@ -22,6 +22,7 @@ import {
 	DEFAULT_LOOK_PREROLL_MS,
 	finalizeHypercomposedPart,
 	getLookCasparChannel,
+	IDLE_LOOK_PREVIEW_REARM_DELAY_MS,
 	isDoubleBoxLook,
 	L3D_OUT_MS,
 	LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS,
@@ -279,8 +280,55 @@ describe('pgmLook look-kind channels + route', () => {
 				pieces: [],
 			},
 		]
-		raiseLookMediaPostrollForNextKeepalive(parts)
+		raiseLookMediaPostrollForNextKeepalive(parts, hybridCasparConfig)
 		expect(lookClipPiece.postrollDuration).toBeGreaterThanOrEqual(3000)
+	})
+
+	it('extends hard-cut postroll for delayed idle preview only when the next look uses the other slot', () => {
+		const lookClipPiece = {
+			postrollDuration: LOOK_HARD_CUT_POSTROLL_MS,
+			content: {
+				timelineObjects: [
+					{
+						layer: LOOK_B_LAYERS.clip,
+						content: { type: TSR.TimelineContentTypeCasparCg.MEDIA, file: 'clips/live.mp4' },
+					},
+				],
+			},
+		}
+		const nextPiece = (layer: CasparCGLayers) => ({
+			content: {
+				timelineObjects: [
+					{
+						layer,
+						content: { type: TSR.TimelineContentTypeCasparCg.MEDIA, file: 'clips/next.mp4' },
+					},
+				],
+			},
+		})
+		const makeParts = (nextLayer: CasparCGLayers) => [
+			{ part: { externalId: 'current', title: 'Current' }, pieces: [lookClipPiece as never] },
+			{
+				part: {
+					externalId: 'next',
+					title: 'Next',
+					inTransition: {
+						previousPartKeepaliveDuration: LOOK_HARD_CUT_KEEPALIVE_MS,
+						blockTakeDuration: 0,
+						partContentDelayDuration: 0,
+					},
+				},
+				pieces: [nextPiece(nextLayer) as never],
+			},
+		]
+
+		lookClipPiece.postrollDuration = LOOK_HARD_CUT_POSTROLL_MS
+		raiseLookMediaPostrollForNextKeepalive(makeParts(LOOK_A_LAYERS.clip), hybridCasparConfig)
+		expect(lookClipPiece.postrollDuration).toBeGreaterThanOrEqual(IDLE_LOOK_PREVIEW_REARM_DELAY_MS)
+
+		lookClipPiece.postrollDuration = LOOK_HARD_CUT_POSTROLL_MS
+		raiseLookMediaPostrollForNextKeepalive(makeParts(LOOK_B_LAYERS.clip), hybridCasparConfig)
+		expect(lookClipPiece.postrollDuration).toBe(LOOK_HARD_CUT_POSTROLL_MS)
 	})
 
 	it('raises last on-air part postroll for cross-segment wipe keepalive', () => {
@@ -413,15 +461,24 @@ describe('pgmLook look-kind channels + route', () => {
 			start: 0,
 			duration: LOOK_HARD_CUT_KEEPALIVE_MS + LOOK_HARD_CUT_OVERLAP_MS,
 		})
-		// Dedicated-channel EMPTY ends at the incoming headline ADD — holding it to
-		// the look keepalive would suppress the scheduled headline on the live
-		// clean-GFX feed.
+		// No dedicated-channel EMPTY on a headline→headline Take: the outgoing
+		// template's postroll bridges the boundary so the layer stays
+		// TEMPLATE→TEMPLATE and the Take is a CG UPDATE (animated text swap), not a
+		// fresh CEF ADD that replays the previous text.
 		const headlineEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
 				(obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(headlineEmpty?.enable).toEqual({ start: 0, duration: L3D_OUT_MS })
+		expect(headlineEmpty).toBeUndefined()
+		const outgoingHeadlinePiece = generated.parts[0].pieces.find((piece) =>
+			(piece.content.timelineObjects ?? []).some(
+				(obj) =>
+					obj.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
+					(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+			)
+		)
+		expect(outgoingHeadlinePiece?.postrollDuration).toBeGreaterThanOrEqual(L3D_OUT_MS)
 		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
 		// keepalive-end CG STOP cannot animate out stacked under the incoming template.
 		const otherSlotL3dEmpty = l3dClear?.content.timelineObjects?.find(
@@ -522,7 +579,9 @@ describe('pgmLook look-kind channels + route', () => {
 				)
 			})
 		expect(nextMedia.length).toBeGreaterThan(0)
-		const expectedStart = Math.max(0, Math.floor(current.part.inTransition?.previousPartKeepaliveDuration ?? 0))
+		const expectedStart =
+			Math.max(0, Math.floor(current.part.inTransition?.previousPartKeepaliveDuration ?? 0)) +
+			IDLE_LOOK_PREVIEW_REARM_DELAY_MS
 		for (const source of nextMedia) {
 			const clone = objects.find((obj) => obj.layer === source.layer)
 			expect(clone, `preview clone on ${String(source.layer)}`).toBeDefined()
@@ -598,6 +657,48 @@ describe('pgmLook look-kind channels + route', () => {
 				(obj) => obj.layer === LOOK_B_LAYERS.clip && (obj.content as { file?: string }).file === 'clips/next'
 			)
 		).toBe(true)
+	})
+
+	it('moves uncovered off-air clears to the delayed preview start', async () => {
+		const offAirMs = LOOK_HARD_CUT_KEEPALIVE_MS
+		const emptyOnLayer = (layer: CasparCGLayers) => {
+			const obj = fakeLookMediaPiece(layer, 'EMPTY').content.timelineObjects[0]
+			if (!obj) throw new Error('missing fake EMPTY object')
+			return { ...obj, enable: { start: offAirMs } }
+		}
+		const clearPiece: IBlueprintPiece = {
+			...fakeLookMediaPiece(LOOK_B_LAYERS.clip, 'EMPTY'),
+			externalId: 'clear-outgoing',
+			sourceLayerId: SourceLayer.PgmLayerClear,
+			content: {
+				timelineObjects: [emptyOnLayer(LOOK_B_LAYERS.clip), emptyOnLayer(LOOK_B_LAYERS.camera)],
+			},
+		}
+		const current = {
+			part: {
+				externalId: 'part-current',
+				inTransition: { previousPartKeepaliveDuration: offAirMs },
+			},
+			pieces: [
+				fakeLookMediaPiece(LOOK_A_LAYERS.clip, 'clips/live'),
+				clearPiece,
+				createIdleLookPreviewPiece('part-current'),
+			],
+		}
+		const next = {
+			part: { externalId: 'part-next' },
+			pieces: [fakeLookMediaPiece(LOOK_B_LAYERS.clip, 'clips/next')],
+		}
+		const updates: ArmUpdate[] = []
+		await armIdleLookPreviewForNext(mockArmContext(current, next, updates), hybridCasparConfig)
+
+		const updatedClear = updates.find((update) => update.id === 'clear-outgoing')
+		expect(updatedClear).toBeDefined()
+		const objects = armObjects(updatedClear)
+		expect(objects.some((obj) => obj.layer === LOOK_B_LAYERS.clip)).toBe(false)
+		expect(objects.find((obj) => obj.layer === LOOK_B_LAYERS.camera)?.enable).toEqual({
+			start: offAirMs + IDLE_LOOK_PREVIEW_REARM_DELAY_MS,
+		})
 	})
 
 	it('clears a stale preview when the next part targets the live slot', async () => {
@@ -1127,6 +1228,24 @@ describe('pgmLook look-kind channels + route', () => {
 				expect(l3dClear?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
 				expect(l3dClear?.sourceLayerId).not.toBe(SourceLayer.GFX)
 			}
+			// SJV/ŠPORT straps hold until the next manual Take — a finite enable.duration
+			// hid them mid-part on overrun and showed a second piece countdown.
+			const straps = generated.parts.flatMap((part) =>
+				part.pieces.filter((piece) =>
+					(piece.content.timelineObjects ?? []).some(
+						(obj) =>
+							(obj.content as TSR.TimelineContentCCGTemplate).type ===
+								TSR.TimelineContentTypeCasparCg.TEMPLATE &&
+							/gfx\/l3d-(sjv|sport)/.test(
+								String((obj.content as TSR.TimelineContentCCGTemplate).name ?? '')
+							)
+					)
+				)
+			)
+			expect(straps.length, `${segmentId} strap pieces`).toBeGreaterThanOrEqual(2)
+			for (const strap of straps) {
+				expect(Array.isArray(strap.enable) ? undefined : strap.enable?.duration).toBeUndefined()
+			}
 		}
 	})
 
@@ -1214,7 +1333,7 @@ describe('pgmLook look-kind channels + route', () => {
 				(obj.content as { file?: string }).file !== 'EMPTY' &&
 				String((obj.content as { file?: string }).file || '').length > 0
 		)
-		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(leaveWeatherHideMs)
+		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(WIPE_AIR_CUT_MS)
 		const wipeOverlay = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer &&
@@ -1324,7 +1443,7 @@ describe('pgmLook look-kind channels + route', () => {
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
 		finalizeHypercomposedPart(context, hybridCasparConfig, part, 'zaver-wiped', objects as never, pieces, 'B')
 		const led = pieces[0].content.timelineObjects?.[0]
-		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS)
 	})
 
 	it('wiped ZAVER after DoubleBox holds other-slot clears + route until cover (no early clear)', () => {

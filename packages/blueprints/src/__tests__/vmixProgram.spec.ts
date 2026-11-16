@@ -10,6 +10,8 @@ import {
 	createIdleLookPreviewPiece,
 	createLookSlotSequence,
 	finalizeHypercomposedPart,
+	getLookLayers,
+	IDLE_LOOK_PREVIEW_REARM_DELAY_MS,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
 } from '../base/showstyle/helpers/pgmLook.js'
 import {
@@ -644,7 +646,7 @@ describe('vMix feed mode (look feed inputs)', () => {
 		}
 	})
 
-	it('preview clones start at the outgoing off-air ms with no same-layer EMPTY at that start', async () => {
+	it('preview clones delay re-arm past off-air and suppress the covered-layer EMPTY', async () => {
 		// The preview is armed at runtime (onSetAsNext), not generated — replay
 		// consecutive parts through armIdleLookPreviewForNext and apply the
 		// updatePieceInstance writes the way Core would.
@@ -699,18 +701,29 @@ describe('vMix feed mode (look feed inputs)', () => {
 				const content = obj.content as TSR.TimelineContentCCGMedia
 				if (content?.file === 'EMPTY' || content?.playing !== false) continue
 				const start = (obj.enable as { start?: number })?.start
-				expect([240, 840, 900], `part ${current.part.externalId} preview on ${String(obj.layer)}`).toContain(
-					start
+				expect(
+					[240, 840, 900].map((offAir) => offAir + IDLE_LOOK_PREVIEW_REARM_DELAY_MS),
+					`part ${current.part.externalId} preview on ${String(obj.layer)}`
+				).toContain(start)
+				const offAir = (start ?? 0) - IDLE_LOOK_PREVIEW_REARM_DELAY_MS
+				const offAirLayers = new Set(
+					Object.values<CasparCGLayers>(
+						getLookLayers(
+							Object.values<CasparCGLayers>(getLookLayers('A')).map(String).includes(String(obj.layer))
+								? 'A'
+								: 'B'
+						)
+					).map(String)
 				)
 				expect(
 					objs.some(
 						(other) =>
-							String(other.layer) === String(obj.layer) &&
+							offAirLayers.has(String(other.layer)) &&
 							!Array.isArray(other.enable) &&
-							(other.enable as { start?: number })?.start === start &&
+							(other.enable as { start?: number })?.start === offAir &&
 							(other.content as { file?: string }).file === 'EMPTY'
 					),
-					`part ${current.part.externalId} ${String(obj.layer)} outgoing EMPTY at ${JSON.stringify(start)}`
+					`part ${current.part.externalId} outgoing EMPTY at ${JSON.stringify(offAir)}`
 				).toBe(false)
 				previews++
 			}
