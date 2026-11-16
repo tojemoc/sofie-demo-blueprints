@@ -54,6 +54,7 @@ import {
 } from '../helpers/ledPodHeadline.js'
 import {
 	createIdleLookPreviewPiece,
+	createLookAudioResetPiece,
 	findWipeVideoObject,
 	getLookLayers,
 	getLookSlotSequenceForGeneration,
@@ -435,9 +436,17 @@ export function generateParts(
 		// runtime by `onSetAsNext` with the actual next part's look media, so the
 		// paused-foreground preview follows re-nexts and crosses segment boundaries
 		// that this segment-scoped generation can never see.
-		for (const generated of parts) {
+		for (let i = 0; i < parts.length; i++) {
+			const generated = parts[i]
 			if (generated.part.invalid || generated.part.floated) continue
 			generated.pieces.push(createIdleLookPreviewPiece(generated.part.externalId))
+			// On-air audio reset: a take/cancel inside the re-arm mute window (or a
+			// rebuild that drops the armed unmute) leaves the input muted — the part
+			// that takes it on air unmutes it at Take.
+			const slot = partLookSlots[i]
+			if (slot !== undefined) {
+				generated.pieces.push(createLookAudioResetPiece(generated.part.externalId, slot))
+			}
 		}
 	}
 

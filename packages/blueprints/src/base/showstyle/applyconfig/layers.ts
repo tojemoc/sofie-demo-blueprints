@@ -85,6 +85,13 @@ export enum SourceLayer {
 	 * sustain pieces.
 	 */
 	LookIdlePreview = 'look_idle_preview',
+	/**
+	 * Hidden vMix look-input audio reset — unmutes the claimed look input at
+	 * Take so a take/cancel inside the idle-preview mute window can never
+	 * leave the on-air input's audio dead. Dedicated layer so Core pruning
+	 * can never drop it against other pieces.
+	 */
+	LookAudioReset = 'look_audio_reset',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -129,6 +136,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.VmixRecording:
 		case SourceLayer.CountupHold:
 		case SourceLayer.LookIdlePreview:
+		case SourceLayer.LookAudioReset:
 			return OutputLayer.Aux
 		default:
 			return OutputLayer.Pgm

@@ -2186,6 +2186,39 @@ export function createIdleLookPreviewPiece(partExternalId: string): IBlueprintPi
 	})
 }
 
+/**
+ * Hidden `AUDIO {muted:false}` on the claimed look input at Take — the on-air
+ * counterpart of the idle-preview mute window: a take/cancel inside
+ * {@link IDLE_LOOK_PREVIEW_REARM_DELAY_MS} (or a timeline rebuild that drops the
+ * armed unmute) can leave the input muted, so the part that takes it on air
+ * always restores its audio itself. Emitted on every look-claiming part.
+ */
+export function createLookAudioResetPiece(partExternalId: string, slot: LookSlot): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: 0 },
+		externalId: `${partExternalId}_look_audio_reset`,
+		name: 'Look audio reset',
+		lifespan: PieceLifespan.WithinPart,
+		sourceLayerId: SourceLayer.LookAudioReset,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.LookAudioReset),
+		content: {
+			timelineObjects: [
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixAudio>>({
+					id: '',
+					enable: { start: 0 },
+					layer: slot === 'A' ? VMixLayers.VMixLookInputAAudio : VMixLayers.VMixLookInputBAudio,
+					priority: 1,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.AUDIO,
+						muted: false,
+					},
+				}),
+			] as TimelineBlueprintExt[],
+		},
+	})
+}
+
 /** Clip / ILU / `db_loop` layers a preview may clone on `slot` (vMix drops db_loop — it is phase-locked). */
 function idleLookMediaLayers(slot: LookSlot, vmixProgram: boolean): CasparCGLayers[] {
 	const layers = getLookLayers(slot)
