@@ -57,11 +57,15 @@ export function getVMixMappings(
 			lookahead: LookaheadMode.NONE,
 			options: { mappingType: TSR.MappingVmixType.Input, index: '' + input },
 		})
+		// disableDefaults: without it every resolved state carries the default
+		// {muted:true} audio state for this input — an empty layer would keep
+		// the look input muted while it is on air. The channel only owns the
+		// input's audio while an AUDIO object lives on the layer.
 		mappings[audioLayer] = literal<BlueprintMapping<TSR.MappingVmixAudioChannel>>({
 			device: TSR.DeviceType.VMIX,
 			deviceId,
 			lookahead: LookaheadMode.NONE,
-			options: { mappingType: TSR.MappingVmixType.AudioChannel, index: '' + input },
+			options: { mappingType: TSR.MappingVmixType.AudioChannel, index: '' + input, disableDefaults: true },
 		})
 	}
 
