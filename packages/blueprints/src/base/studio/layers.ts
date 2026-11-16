@@ -15,6 +15,10 @@ export enum VMixLayers {
 	VMixLookInputA = 'vmix_look_input_a',
 	/** Look B feed input — camera layer composited under the Caspar look. */
 	VMixLookInputB = 'vmix_look_input_b',
+	/** Look A input audio channel — mute window while the off-air channel re-arms. */
+	VMixLookInputAAudio = 'vmix_look_input_a_audio',
+	/** Look B input audio channel — mute window while the off-air channel re-arms. */
+	VMixLookInputBAudio = 'vmix_look_input_b_audio',
 	/** Kolíska A bed (`bg_music_a`) input playback. */
 	VMixBedA = 'vmix_bed_a',
 	/** Kolíska C bed (`bg_music_c`, Šport onward) input playback. */

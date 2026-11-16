@@ -47,15 +47,21 @@ export function getVMixMappings(
 		}),
 	}
 
-	for (const [layer, input] of [
-		[VMixLayers.VMixLookInputA, vmixProgram.lookAInput],
-		[VMixLayers.VMixLookInputB, vmixProgram.lookBInput],
+	for (const [inputLayer, audioLayer, input] of [
+		[VMixLayers.VMixLookInputA, VMixLayers.VMixLookInputAAudio, vmixProgram.lookAInput],
+		[VMixLayers.VMixLookInputB, VMixLayers.VMixLookInputBAudio, vmixProgram.lookBInput],
 	] as const) {
-		mappings[layer] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
+		mappings[inputLayer] = literal<BlueprintMapping<TSR.MappingVmixInput>>({
 			device: TSR.DeviceType.VMIX,
 			deviceId,
 			lookahead: LookaheadMode.NONE,
 			options: { mappingType: TSR.MappingVmixType.Input, index: '' + input },
+		})
+		mappings[audioLayer] = literal<BlueprintMapping<TSR.MappingVmixAudioChannel>>({
+			device: TSR.DeviceType.VMIX,
+			deviceId,
+			lookahead: LookaheadMode.NONE,
+			options: { mappingType: TSR.MappingVmixType.AudioChannel, index: '' + input },
 		})
 	}
 

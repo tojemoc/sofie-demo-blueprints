@@ -2386,6 +2386,36 @@ export async function armIdleLookPreviewForNext(
 	// layers the preview covers are replaced at previewStartMs, while uncovered
 	// clears (CAM / L3D / stale layers) move to the same safe point.
 	if (previewObjects.length > 0 && previewSlot) {
+		if (vmixProgram) {
+			// The delayed EMPTYs also used to stop the outgoing clip/ILU audio at
+			// offAirMs — hold the off-air look INPUT muted for the delay window so
+			// the still-playing media cannot leak audio onto the program bus.
+			const audioLayer = previewSlot === 'A' ? VMixLayers.VMixLookInputAAudio : VMixLayers.VMixLookInputBAudio
+			previewObjects.push(
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixAudio>>({
+					id: '',
+					enable: { start: offAirMs, duration: IDLE_LOOK_PREVIEW_REARM_DELAY_MS },
+					layer: audioLayer,
+					priority: previewPriority,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.AUDIO,
+						muted: true,
+					},
+				}),
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixAudio>>({
+					id: '',
+					enable: { start: previewStartMs },
+					layer: audioLayer,
+					priority: previewPriority,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.AUDIO,
+						muted: false,
+					},
+				})
+			)
+		}
 		const offAirLayers = new Set(Object.values<CasparCGLayers>(getLookLayers(previewSlot)).map(String))
 		for (const instance of currentPieces) {
 			if (instance._id === previewInstance._id) continue
