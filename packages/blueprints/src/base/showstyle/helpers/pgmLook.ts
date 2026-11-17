@@ -2165,6 +2165,9 @@ export const IDLE_LOOK_PREVIEW_EXTERNAL_ID_SUFFIX = '_lookidlepreview'
 /** Extra hold after the computed off-air point before re-arming that channel with the next look. */
 export const IDLE_LOOK_PREVIEW_REARM_DELAY_MS = 1500
 
+/** Preview-piece content key holding the pre-mutation clears of pieces an arm delayed/deleted. */
+const IDLE_PREVIEW_CLEARS_STASH = 'idlePreviewClearsStash'
+
 /**
  * Dormant 'Idle look preview' placeholder, emitted on every playable part so
  * `onSetAsNext` can later arm it with paused clones of the *actual* next part's
@@ -2310,6 +2313,26 @@ export async function armIdleLookPreviewForNext(
 	)
 	if (!previewInstance) return
 
+	// Restore clears mutated by a previous arm before anything else — a
+	// cancelled or re-nexted run must rebuild from the unmodified objects.
+	type PieceTimelineObjects = NonNullable<typeof previewInstance.piece.content>['timelineObjects']
+	type PreviewContent = typeof previewInstance.piece.content & {
+		[IDLE_PREVIEW_CLEARS_STASH]?: Record<string, PieceTimelineObjects>
+	}
+	const stash = (previewInstance.piece.content as PreviewContent | undefined)?.[IDLE_PREVIEW_CLEARS_STASH]
+	const restoredObjects = new Map<string, PieceTimelineObjects>()
+	if (stash) {
+		for (const instance of currentPieces) {
+			if (instance._id === previewInstance._id) continue
+			const original = stash[instance._id]
+			if (!original) continue
+			restoredObjects.set(instance._id, original)
+			await context.updatePieceInstance(instance._id, {
+				content: { ...instance.piece.content, timelineObjects: original },
+			})
+		}
+	}
+
 	const vmixProgram = usesVmixProgram(config)
 	const offAirMs = vmixProgram
 		? vmixOutgoingOffAirMs(
@@ -2450,9 +2473,14 @@ export async function armIdleLookPreviewForNext(
 			)
 		}
 		const offAirLayers = new Set(Object.values<CasparCGLayers>(getLookLayers(previewSlot)).map(String))
+		const newStash: Record<string, PieceTimelineObjects> = {}
+		const mutations: Array<{
+			instance: (typeof currentPieces)[number]
+			filtered: PieceTimelineObjects
+		}> = []
 		for (const instance of currentPieces) {
 			if (instance._id === previewInstance._id) continue
-			const objects = instance.piece.content?.timelineObjects
+			const objects = restoredObjects.get(instance._id) ?? instance.piece.content?.timelineObjects
 			if (!objects?.length) continue
 			let changed = false
 			const filtered = objects.flatMap((obj) => {
@@ -2476,17 +2504,35 @@ export async function armIdleLookPreviewForNext(
 				return [obj]
 			})
 			if (changed) {
-				await context.updatePieceInstance(instance._id, {
-					content: { ...instance.piece.content, timelineObjects: filtered },
-				})
+				newStash[instance._id] = objects
+				mutations.push({ instance, filtered })
 			}
 		}
+		// Write the stash with the preview before mutating other pieces — if a
+		// later update fails, the next run still has the originals to restore.
+		await context.updatePieceInstance(previewInstance._id, {
+			content: {
+				...previewInstance.piece.content,
+				timelineObjects: previewObjects,
+				[IDLE_PREVIEW_CLEARS_STASH]: newStash,
+			} as PreviewContent,
+		})
+		for (const { instance, filtered } of mutations) {
+			await context.updatePieceInstance(instance._id, {
+				content: { ...instance.piece.content, timelineObjects: filtered },
+			})
+		}
+		return
 	}
 
 	const existingObjects = previewInstance.piece.content?.timelineObjects ?? []
-	if (existingObjects.length === 0 && previewObjects.length === 0) return
+	if (existingObjects.length === 0 && previewObjects.length === 0 && stash === undefined) return
 	await context.updatePieceInstance(previewInstance._id, {
-		content: { ...previewInstance.piece.content, timelineObjects: previewObjects },
+		content: {
+			...previewInstance.piece.content,
+			timelineObjects: previewObjects,
+			[IDLE_PREVIEW_CLEARS_STASH]: undefined,
+		} as PreviewContent,
 	})
 }
 
@@ -2626,6 +2672,7 @@ export function raiseLookMediaPostrollForNextKeepalive(
 	for (let i = 0; i < parts.length; i++) {
 		let nextKeepalive = 0
 		let nextSlot: LookSlot | undefined
+		let nextPart: IBlueprintPart | undefined
 		for (let j = i + 1; j < parts.length; j++) {
 			const next = parts[j].part
 			if (next.invalid || next.floated) continue
@@ -2634,14 +2681,24 @@ export function raiseLookMediaPostrollForNextKeepalive(
 				nextKeepalive = Math.floor(keepalive)
 			}
 			nextSlot = liveSlot(parts[j].pieces)
+			nextPart = next
 			break
 		}
 		if (nextKeepalive > 0) {
 			const currentSlot = liveSlot(parts[i].pieces)
-			const minPostroll =
-				currentSlot && nextSlot && currentSlot !== nextSlot
-					? Math.max(nextKeepalive, IDLE_LOOK_PREVIEW_REARM_DELAY_MS)
-					: nextKeepalive
+			const crossSlot = currentSlot && nextSlot && currentSlot !== nextSlot
+			// Cross-slot re-arm lands at offAirMs + delay — same derivation as
+			// armIdleLookPreviewForNext on the incoming part.
+			const offAirMs = vmixProgram
+				? vmixOutgoingOffAirMs(
+						config,
+						(nextPart?.inTransition?.blockTakeDuration ?? 0) > 0,
+						LOOK_HARD_CUT_KEEPALIVE_MS
+					)
+				: Math.max(0, Math.floor(nextPart?.inTransition?.previousPartKeepaliveDuration ?? 0))
+			const minPostroll = crossSlot
+				? Math.max(nextKeepalive, offAirMs + IDLE_LOOK_PREVIEW_REARM_DELAY_MS)
+				: nextKeepalive
 			applyLookMediaPostroll(parts[i].pieces, minPostroll)
 		}
 	}
