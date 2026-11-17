@@ -336,15 +336,16 @@ function secondsAttributeToMs(value: unknown): number | undefined {
  * The RE volume field is perceived loudness percent, but Caspar `MIXER VOLUME`
  * is linear amplitude — sending the raw fraction made 0.1 sound like half of
  * 1.0. Perceptual taper: each halving of the value should halve loudness
- * (~−10 dB per halving → amplitude = value^log2(10)). 100 % → unity,
- * 50 % → −10 dB ≈ half loudness, 0 → muted.
+ * (~−10 dB per halving → amplitude = value^(log2(10)/2)). 100 % → unity,
+ * 50 % → −10 dB ≈ half loudness, 0 → muted. Callers must not re-parse an
+ * already-parsed `ClipProps.volume` — the curve is not idempotent.
  */
 export function parseClipVolume(value: unknown): number {
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		return 1
 	}
 	const fraction = value > 1 && value <= 100 ? value / 100 : value
-	return Math.min(1, Math.max(0, Math.pow(fraction, Math.LOG2E * Math.LN10)))
+	return Math.min(1, Math.max(0, Math.pow(fraction, (Math.LOG2E * Math.LN10) / 2)))
 }
 
 export interface ClipPlayback {
@@ -365,7 +366,7 @@ export interface ClipPlayback {
 export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
 	const seekMs = clip.trimInMs && clip.trimInMs > 0 ? clip.trimInMs : 0
 	const trimOutMs = clip.trimOutMs && clip.trimOutMs > 0 ? clip.trimOutMs : 0
-	const volume = clip.volume === undefined ? 1 : parseClipVolume(clip.volume)
+	const volume = clip.volume ?? 1
 	const baseMs = clip.duration && clip.duration > 0 ? clip.duration : undefined
 
 	return {

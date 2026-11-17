@@ -87,7 +87,21 @@ describe('parseClipEditorProps', () => {
 
 		expect(props?.trimInMs).toBe(1500)
 		expect(props?.trimOutMs).toBe(500)
-		expect(props?.volume).toBe(0.8)
+		// Perceptual taper: 80% loudness ≈ −3.2 dB → amplitude ~0.69.
+		expect(props?.volume).toBeCloseTo(0.6904, 3)
+	})
+
+	it('maps 50% to −10 dB (half loudness) and 0% to mute', () => {
+		const props = (volume: number) =>
+			parseClipEditorProps(
+				makeVideo({
+					duration: 20000,
+					attributes: { fileName: 'clips/syn.mp4', volume },
+				})
+			)?.volume
+		expect(props(100)).toBe(1)
+		expect(props(50)).toBeCloseTo(0.3162, 3)
+		expect(props(0)).toBe(0)
 	})
 })
 
@@ -111,7 +125,7 @@ describe('resolveClipPlayback', () => {
 				sourceDuration: 12000,
 				trimInMs: 1000,
 			})
-		).toEqual({ seekMs: 1000, durationMs: 4000, sourceDurationMs: 4000, volume: 1 })
+		).toEqual({ seekMs: 1000, durationMs: 4000, sourceDurationMs: 5000, volume: 1 })
 	})
 
 	it('uses a longer editorial On air; probed sourceDuration is ignored', () => {

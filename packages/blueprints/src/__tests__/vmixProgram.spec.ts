@@ -480,15 +480,10 @@ describe('vMix studio baseline + mappings', () => {
 		})
 	})
 
-	it('plays bed A on its vMix input at bedVolume (no kolíska keyframes) with bed C muted', () => {
-		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedA)?.content).toMatchObject({
-			playing: true,
-			loop: true,
-		})
-		const bedA = objs.find((obj) => obj.layer === VMixLayers.VMixBedAAudio)
-		expect(bedA?.content).toMatchObject({ muted: false, volume: 70 })
-		expect(bedA?.keyframes ?? []).toHaveLength(0)
-		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedCAudio)?.content).toMatchObject({ muted: true })
+	it('plays no beds in the baseline — bed A starts on the first Take via the inserted piece', () => {
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedA)).toBeUndefined()
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedAAudio)).toBeUndefined()
+		expect(objs.find((obj) => obj.layer === VMixLayers.VMixBedCAudio)).toBeUndefined()
 		const mappings = getVMixMappings(vmixStudioConfig.vmixSources, vmixStudioConfig.vmixProgram, 'vmix0')
 		expect(mappings[VMixLayers.VMixBedA]?.options).toMatchObject({ index: String(BED_A_INPUT) })
 		expect(mappings[VMixLayers.VMixBedCAudio]?.options).toMatchObject({ index: String(BED_C_INPUT) })
