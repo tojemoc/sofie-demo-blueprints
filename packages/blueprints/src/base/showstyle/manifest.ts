@@ -24,6 +24,7 @@ import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getAdlibItem } from './getAdlibItem.js'
 import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
+import { createBackgroundMusicStartPiece } from './helpers/backgroundMusic.js'
 import { isOutroVideoFile } from './helpers/clips.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
@@ -114,6 +115,12 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		if (playoutState.getKey('countupPaused')) {
 			await ensureCountupHoldPiece(context, nextPartInstance, config)
 		}
+		// First Take starts the kolíska A-bed (every Take in rehearsal too — the
+		// bed is part of the show being rehearsed). Flag drives the onSetAsNext
+		// arming so the bed survives auto-next transitions the same way the
+		// recording piece does.
+		await ensureBgMusicAStartPiece(context, nextPartInstance, config)
+		playoutState.setKey('bgMusicAStarted', true)
 		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
 		await ensureVmixRecordingPiece(context, nextPartInstance)
 		playoutState.setKey('vmixRecordingStarted', true)
@@ -168,6 +175,9 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 			// part's look media — follows re-nexts and crosses segment boundaries.
 			await armIdleLookPreviewForNext(context, config)
 		}
+		if (playoutState.getKey('bgMusicAStarted') && nextPartInstance) {
+			await ensureBgMusicAStartPiece(context, nextPartInstance, config)
+		}
 		if (config.visionMixer.type !== VisionMixerDevice.VMix) return
 		if (!playoutState.getKey('vmixRecordingStarted')) return
 		if (!nextPartInstance || nextPartInstance.rehearsal) return
@@ -183,6 +193,8 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 
 interface SpravyPlayoutState {
 	vmixRecordingStarted?: boolean
+	/** First Take happened — kolíska A-bed is running; arm every nexted part. */
+	bgMusicAStarted?: boolean
 	/** Latched by `manuallySelected` onSetAsNext — pauses `assets/countup` for the rest of the show. */
 	countupPaused?: boolean
 	/** Underlying Part id of the last auto-selected natural next — a manual selection differing from it breaks order. */
@@ -205,6 +217,22 @@ async function ensureCountupHoldPiece(
 	const nextPieces = await context.getPieceInstances('next')
 	if (nextPieces.some((instance) => instance.piece.externalId?.endsWith(COUNTUP_HOLD_EXTERNAL_ID_SUFFIX))) return
 	await context.insertPiece('next', createCountupHoldPiece(context, partInstance.part.externalId, studioConfig))
+}
+
+/**
+ * Insert the kolíska A-bed start piece into 'next' unless it already carries
+ * one. Shared by `onTake` (first Take starts the bed) and `onSetAsNext`
+ * (keeps the bed alive across auto-nexts where `onTake` never runs).
+ */
+async function ensureBgMusicAStartPiece(
+	context: Pick<IOnSetAsNextContext, 'getPieceInstances' | 'insertPiece'> & ICommonContext,
+	partInstance: IBlueprintPartInstance | undefined,
+	studioConfig: StudioConfig
+): Promise<void> {
+	if (!partInstance) return
+	const nextPieces = await context.getPieceInstances('next')
+	if (nextPieces.some((instance) => instance.piece.externalId === 'first_take_bg_music_a')) return
+	await context.insertPiece('next', createBackgroundMusicStartPiece(context, studioConfig))
 }
 
 /**

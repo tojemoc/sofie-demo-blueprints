@@ -87,23 +87,39 @@ describe('parseClipEditorProps', () => {
 
 		expect(props?.trimInMs).toBe(1500)
 		expect(props?.trimOutMs).toBe(500)
-		expect(props?.volume).toBe(0.8)
+		// Perceptual taper: 80% loudness ≈ −3.2 dB → amplitude ~0.69.
+		expect(props?.volume).toBeCloseTo(0.6904, 3)
+	})
+
+	it('maps 50% to −10 dB (half loudness) and 0% to mute', () => {
+		const props = (volume: number) =>
+			parseClipEditorProps(
+				makeVideo({
+					duration: 20000,
+					attributes: { fileName: 'clips/syn.mp4', volume },
+				})
+			)?.volume
+		expect(props(100)).toBe(1)
+		expect(props(50)).toBeCloseTo(0.3162, 3)
+		expect(props(0)).toBe(0)
+		// Negative ingest volume must clamp to mute — pow of a negative base is NaN.
+		expect(props(-20)).toBe(0)
 	})
 })
 
 describe('resolveClipPlayback', () => {
-	it('subtracts trim in/out from source duration', () => {
+	it('subtracts trim in/out from the editorial duration', () => {
 		expect(
 			resolveClipPlayback({
 				fileName: 'clips/syn.mp4',
-				sourceDuration: 12000,
+				duration: 12000,
 				trimInMs: 2000,
 				trimOutMs: 1000,
 			})
 		).toEqual({ seekMs: 2000, durationMs: 9000, sourceDurationMs: 11000, volume: 1 })
 	})
 
-	it('prefers probed file length over a shorter editorial duration', () => {
+	it('uses a shorter editorial On air; probed sourceDuration is ignored', () => {
 		expect(
 			resolveClipPlayback({
 				fileName: 'clips/syn.mp4',
@@ -111,10 +127,10 @@ describe('resolveClipPlayback', () => {
 				sourceDuration: 12000,
 				trimInMs: 1000,
 			})
-		).toEqual({ seekMs: 1000, durationMs: 11000, sourceDurationMs: 12000, volume: 1 })
+		).toEqual({ seekMs: 1000, durationMs: 4000, sourceDurationMs: 5000, volume: 1 })
 	})
 
-	it('prefers probed file length over a longer editorial duration', () => {
+	it('uses a longer editorial On air; probed sourceDuration is ignored', () => {
 		expect(
 			resolveClipPlayback({
 				fileName: 'clips/syn.mp4',
@@ -122,24 +138,14 @@ describe('resolveClipPlayback', () => {
 				sourceDuration: 12000,
 				trimOutMs: 2000,
 			})
-		).toEqual({ seekMs: 0, durationMs: 10000, sourceDurationMs: 10000, volume: 1 })
+		).toEqual({ seekMs: 0, durationMs: 18000, sourceDurationMs: 18000, volume: 1 })
 	})
 
-	it('falls back to editorial minus trims when sourceDuration is absent', () => {
+	it('leaves duration undefined when no editorial duration is sent — even with a probe', () => {
 		expect(
 			resolveClipPlayback({
 				fileName: 'clips/syn.mp4',
-				duration: 10000,
-				trimInMs: 1500,
-				trimOutMs: 500,
-			})
-		).toEqual({ seekMs: 1500, durationMs: 8000, sourceDurationMs: 9500, volume: 1 })
-	})
-
-	it('leaves duration undefined when neither probe nor editorial exists', () => {
-		expect(
-			resolveClipPlayback({
-				fileName: 'clips/syn.mp4',
+				sourceDuration: 12000,
 				trimInMs: 500,
 			})
 		).toEqual({ seekMs: 500, durationMs: undefined, sourceDurationMs: undefined, volume: 1 })
@@ -149,12 +155,12 @@ describe('resolveClipPlayback', () => {
 		expect(
 			resolveClipPlayback({
 				fileName: 'clips/syn.mp4',
-				duration: 10000,
-				sourceDuration: 3000,
+				duration: 2500,
+				sourceDuration: 30000,
 				trimInMs: 2000,
 				trimOutMs: 1500,
 			})
-		).toEqual({ seekMs: 2000, durationMs: 0, sourceDurationMs: 1500, volume: 1 })
+		).toEqual({ seekMs: 2000, durationMs: 0, sourceDurationMs: 1000, volume: 1 })
 	})
 })
 

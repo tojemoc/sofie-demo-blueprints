@@ -768,7 +768,7 @@ export function createStickyWipeBaselineTimeline(): TimelineBlueprintExt<TSR.Tim
 function applyCasparHotPlayCue(
 	obj: TimelineBlueprintExt,
 	playAtMs: number,
-	options?: { seekMs?: number; revealMixer?: boolean }
+	options?: { seekMs?: number; revealMixer?: boolean; revealVolume?: number }
 ): void {
 	const content = obj.content as TSR.TimelineContentCCGMedia
 	content.playing = false
@@ -787,16 +787,30 @@ function applyCasparHotPlayCue(
 				deviceType: TSR.DeviceType.CASPARCG,
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				playing: true,
-				...(options?.revealMixer ? { mixer: { opacity: 1, volume: 1 } } : {}),
+				...(options?.revealMixer ? { mixer: { opacity: 1, volume: options.revealVolume ?? 1 } } : {}),
 			},
 		},
 	]
 }
 
+/**
+ * Studio `audioLevels.wipeSfxVolume` (0–1 Caspar mixer) — wipe sting loudness.
+ * Unset: 1 (full). vMix stinger audio lives inside the vMix inputs; this only
+ * affects the Caspar EffectsPlayer path.
+ */
+export function getWipeSfxVolume(config: StudioConfig): number {
+	const raw = config.audioLevels?.wipeSfxVolume
+	if (typeof raw === 'number' && Number.isFinite(raw)) {
+		return Math.min(1, Math.max(0, raw))
+	}
+	return 1
+}
+
 function createPgmWipeOverlayTimelineObject(
 	wipeFile: string,
 	wipeDurationMs: number,
-	startMs: number = 0
+	startMs: number = 0,
+	sfxVolume: number = 1
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	const overlay = literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -824,7 +838,7 @@ function createPgmWipeOverlayTimelineObject(
 	// Sofie PRELOAD while Next strips this keyframe → paused LOADBG on EffectsPlayer.
 	// After duration ends, sticky baseline (opacity 0, playing false) resumes on this
 	// layer — never LOADBG EMPTY — so the next PRELOAD of this file stays hot.
-	applyCasparHotPlayCue(overlay, 0, { seekMs: 0, revealMixer: true })
+	applyCasparHotPlayCue(overlay, 0, { seekMs: 0, revealMixer: true, revealVolume: sfxVolume })
 	return overlay
 }
 
@@ -873,7 +887,7 @@ function createPgmRoutePiece(
 	const timelineObjects: TimelineBlueprintExt[] = []
 	if (hasWipe && wipeFile) {
 		// Overlay from Take (0) — never leave a naked hard-cut window before the sting.
-		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0))
+		timelineObjects.push(createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0, getWipeSfxVolume(config)))
 	}
 	timelineObjects.push(
 		...createPgmRouteTimelineObjects(config, slot, {
@@ -943,7 +957,7 @@ function attachRouteToWipePiece(
 	}
 	const routeLayers = [PGM_ROUTE_LAYERS.A, PGM_ROUTE_LAYERS.B]
 	wipePiece.content.timelineObjects = [
-		createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0),
+		createPgmWipeOverlayTimelineObject(wipeFile, wipeDurationMs, 0, getWipeSfxVolume(config)),
 		...createPgmRouteTimelineObjects(config, slot, {
 			routeStartMs: wipeCutPointMs,
 			previousSlot: previousSlot ?? otherLookSlot(slot),

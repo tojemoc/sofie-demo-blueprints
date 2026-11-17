@@ -146,6 +146,7 @@ export interface VmixProgramConfig {
 export interface AudioLevelsConfig {
 	headlineSfxVolume?: number
 	countupVolume?: number
+	wipeSfxVolume?: number
 }
 
 /**

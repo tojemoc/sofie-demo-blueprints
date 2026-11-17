@@ -330,15 +330,23 @@ function secondsAttributeToMs(value: unknown): number | undefined {
 	return Math.round(value * 1000)
 }
 
-/** Caspar mixer volume. Values in (1, 100] are treated as percent. */
+/**
+ * Caspar mixer volume. Values in (1, 100] are treated as percent.
+ *
+ * The RE volume field is perceived loudness percent, but Caspar `MIXER VOLUME`
+ * is linear amplitude — sending the raw fraction made 0.1 sound like half of
+ * 1.0. Perceptual taper: each halving of the value should halve loudness
+ * (~−10 dB per halving → amplitude = value^(log2(10)/2)). 100 % → unity,
+ * 50 % → −10 dB ≈ half loudness, 0 → muted. Callers must not re-parse an
+ * already-parsed `ClipProps.volume` — the curve is not idempotent.
+ */
 export function parseClipVolume(value: unknown): number {
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		return 1
 	}
-	if (value > 1 && value <= 100) {
-		return Math.min(1, Math.max(0, value / 100))
-	}
-	return Math.min(1, Math.max(0, value))
+	// Clamp before pow: a fractional exponent on a negative base is NaN.
+	const fraction = Math.min(1, Math.max(0, value > 1 && value <= 100 ? value / 100 : value))
+	return Math.pow(fraction, (Math.LOG2E * Math.LN10) / 2)
 }
 
 export interface ClipPlayback {
@@ -351,18 +359,16 @@ export interface ClipPlayback {
 }
 
 /**
- * Apply trim-in / trim-out to the playable window.
- * The probed `sourceDuration` is the duration source of truth; editorial
- * `duration` only substitutes when no probe data exists (clip stays
- * "not ready" until a duration is filled).
+ * Apply trim-in / trim-out to the editorial `duration` (RE On air).
+ * RE owns probe-vs-override resolution and always sends On air filled when a
+ * probe succeeds — blueprints only trims what it is given. The probed
+ * `sourceDuration` attribute stays informational; it is never a fallback.
  */
 export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
 	const seekMs = clip.trimInMs && clip.trimInMs > 0 ? clip.trimInMs : 0
 	const trimOutMs = clip.trimOutMs && clip.trimOutMs > 0 ? clip.trimOutMs : 0
-	const volume = clip.volume === undefined ? 1 : parseClipVolume(clip.volume)
-	const editorial = clip.duration && clip.duration > 0 ? clip.duration : undefined
-
-	const baseMs = clip.sourceDuration !== undefined && clip.sourceDuration > 0 ? clip.sourceDuration : editorial
+	const volume = clip.volume ?? 1
+	const baseMs = clip.duration && clip.duration > 0 ? clip.duration : undefined
 
 	return {
 		seekMs,

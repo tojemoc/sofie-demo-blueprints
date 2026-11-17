@@ -391,6 +391,13 @@
 					"ui:description": "Caspar mixer volume (0–1) for the 360 countup SFX (assets/countup). Unset: 0.5 on vMix-program studios, 1 on other studios.",
 					"minimum": 0,
 					"maximum": 1
+				},
+				"wipeSfxVolume": {
+					"type": "number",
+					"ui:title": "Wipe SFX volume",
+					"ui:description": "Caspar mixer volume (0–1) for wipe stings (wipes/wipe*) on the PGM EffectsPlayer. Unset: 1 (full). vMix stinger audio lives inside the vMix inputs — this does not affect vMix-program studios.",
+					"minimum": 0,
+					"maximum": 1
 				}
 			},
 			"additionalProperties": false

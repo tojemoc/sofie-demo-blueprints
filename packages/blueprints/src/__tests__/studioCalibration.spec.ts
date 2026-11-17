@@ -104,13 +104,17 @@ describe('studio calibration baseline', () => {
 		})
 		// No Caspar camera route on vMix studios — the camera is a vMix input.
 		expect(objs.find((obj) => obj.layer === CasparCGLayers.CasparCGLookCalibCam)).toBeUndefined()
-		const lookB = objs.find((obj) => obj.layer === VMixLayers.VMixLookInputB)
-		const layers = (lookB?.content as TSR.TimelineContentVMixInput)?.layers
-		// Feed mode: camera on layer 1 + look feed on layer 2 (baseline B keeps the
-		// pre-first-Take calibration camera on layer 3).
-		expect(layers?.[1]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
-		expect(layers?.[2]?.input).toBe(vmixStudioConfig.vmixProgram.lookBFeedInput)
-		expect(layers?.[3]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
+		// Look B carries rehearsal + on-air variants; both keep the camera UNDER
+		// the feed on layer 2 — the db_loop frame inside the feed keys Cam1 into
+		// the DoubleBox window (never a cam-over-feed layer).
+		const lookBObjs = objs.filter((obj) => obj.layer === VMixLayers.VMixLookInputB)
+		expect(lookBObjs).toHaveLength(2)
+		for (const lookB of lookBObjs) {
+			const layers = (lookB.content as TSR.TimelineContentVMixInput).layers
+			expect(layers?.[1]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
+			expect(layers?.[2]?.input).toBe(vmixStudioConfig.vmixProgram.lookBFeedInput)
+			expect(layers?.[3]).toBeUndefined()
+		}
 		const lookA = objs.find((obj) => obj.layer === VMixLayers.VMixLookInputA)
 		const layersA = (lookA?.content as TSR.TimelineContentVMixInput)?.layers
 		expect(layersA?.[1]?.input).toBe(vmixStudioConfig.vmixProgram.cameraInput)
@@ -198,6 +202,7 @@ describe('vMix recording', () => {
 		const context = {
 			getStudioConfig: () => ({ studio: config }),
 			getShowStyleConfig: () => ({ dvePresets: {} }),
+			getHashId: (origin: string) => `hash_${origin}`,
 			isRehearsal,
 			getPartInstance: async (_part: 'current' | 'next') => ({ rehearsal: isRehearsal, part: {} }),
 			getPieceInstances: async (_part: 'current' | 'next') =>
@@ -220,14 +225,15 @@ describe('vMix recording', () => {
 		const playoutPersistentState = makePersistentState()
 		const onAir = makeTakeContext(vmixStudioConfig, false)
 		await baseManifest.onTake?.(onAir.context, playoutPersistentState)
-		expect(onAir.inserted).toHaveLength(1)
+		// First Take also inserts the bed-A start piece — count only recording.
+		expect(onAir.inserted.filter((p) => p.externalId === 'first_take_vmix_recording')).toHaveLength(1)
 		expect(playoutPersistentState.getKey('vmixRecordingStarted')).toBe(true)
 
 		// Next take: still inserts if the taken part lacks one (auto-next can
 		// land on a part that was nexted before the flag existed).
 		const secondTake = makeTakeContext(vmixStudioConfig, false)
 		await baseManifest.onTake?.(secondTake.context, makePersistentState({ vmixRecordingStarted: true }))
-		expect(secondTake.inserted).toHaveLength(1)
+		expect(secondTake.inserted.filter((p) => p.externalId === 'first_take_vmix_recording')).toHaveLength(1)
 
 		// If the taken part already carries a recording piece (e.g. armed by
 		// onSetAsNext or continued as an infinite), nothing is inserted — but
@@ -235,20 +241,20 @@ describe('vMix recording', () => {
 		const freshState = makePersistentState()
 		const continued = makeTakeContext(vmixStudioConfig, false, [SourceLayer.VmixRecording])
 		await baseManifest.onTake?.(continued.context, freshState)
-		expect(continued.inserted).toHaveLength(0)
+		expect(continued.inserted.filter((p) => p.name === 'vMix recording')).toHaveLength(0)
 		expect(freshState.getKey('vmixRecordingStarted')).toBe(true)
 
-		// Rehearsal take → no recording, no flag.
+		// Rehearsal take → no recording, no flag (the bed-A start piece may still land).
 		const rehearsal = makeTakeContext(vmixStudioConfig, true)
 		const rehearsalState = makePersistentState()
 		await baseManifest.onTake?.(rehearsal.context, rehearsalState)
-		expect(rehearsal.inserted).toHaveLength(0)
+		expect(rehearsal.inserted.filter((p) => p.name === 'vMix recording')).toHaveLength(0)
 		expect(rehearsalState.getKey('vmixRecordingStarted')).toBeUndefined()
 
 		// Non-vMix studio → no recording.
 		const atem = makeTakeContext(hybridCasparConfig, false)
 		await baseManifest.onTake?.(atem.context, makePersistentState())
-		expect(atem.inserted).toHaveLength(0)
+		expect(atem.inserted.filter((p) => p.name === 'vMix recording')).toHaveLength(0)
 	})
 
 	it('onSetAsNext arms nexted parts with the recording piece once the show is on air', async () => {
@@ -417,7 +423,8 @@ describe('vMix recording', () => {
 			takeAfterArm.context as unknown as IOnTakeContext,
 			makePersistentState({ vmixRecordingStarted: true })
 		)
-		expect(takeAfterArm.inserted).toHaveLength(1)
+		// onTake may add the bed-A start piece; assert no extra recording copy.
+		expect(takeAfterArm.inserted.filter((p) => p.name === 'vMix recording')).toHaveLength(1)
 
 		// Explicit outro identity survives normalization on the piece name — caps
 		// even when the file no longer matches the outro regex.

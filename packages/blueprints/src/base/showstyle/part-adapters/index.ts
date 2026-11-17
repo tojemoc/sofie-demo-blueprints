@@ -33,8 +33,10 @@ import {
 } from '../definitions/index.js'
 import {
 	createSportBackgroundMusicPiece,
+	createZaverBackgroundMusicPiece,
 	duckAudioBedPieceDuringWipe,
 	isSportSegmentName,
+	isZaverSegmentName,
 } from '../helpers/backgroundMusic.js'
 import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
 import { parseConfig } from '../helpers/config.js'
@@ -286,11 +288,15 @@ export function generateParts(
 			})
 		) {
 			newPart.pieces.push(createLedPodHeadlinePiece(partContext, studioConfig, rawPart.payload.externalId))
-		} else if (studioConfig.casparcg.hypercomposed && isLookBearingPartType(rawPart.type)) {
+		} else if (
+			studioConfig.casparcg.hypercomposed &&
+			(isLookBearingPartType(rawPart.type) || rawPart.type === PartType.Intro)
+		) {
 			// Baseline PLAYs pod_headline forever (prio 0). DoubleBox CLEAR is OutOnRundownEnd,
 			// but Sofie timeline rebuilds between SJV/ŠPORT Takes briefly let baseline win —
 			// operators saw pod_headline.png flash on the LED. Re-assert EMPTY on every
-			// non-headline look part so layer 112 stays dark.
+			// non-headline look part so layer 112 stays dark. Intro hides the pod the
+			// moment the znelka starts playing (pod lives only through the headlines).
 			newPart.pieces.push(createLedPodHeadlineClearPiece(rawPart.payload.externalId))
 		}
 		if (studioConfig.casparcg.hypercomposed) {
@@ -490,6 +496,20 @@ export function generateParts(
 			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration, wipeFile), 0)
 		}
 		entrancePart.pieces.push(sportMusic)
+	}
+
+	if (isZaverSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
+		// Back to kolíska A for ZAVER+AVIZO (C owned the bed since Šport). Put it
+		// on the first playable part so the swap lands with the first ZAVER Take.
+		const zaverEntranceIdx = Math.max(
+			0,
+			parts.findIndex((part) => !part.part.invalid && !part.part.floated)
+		)
+		const zaverEntrancePart = parts[zaverEntranceIdx] ?? parts[0]
+		const zaverEntranceRaw = intermediateSegment.parts[zaverEntranceIdx] ?? intermediateSegment.parts[0]
+		zaverEntrancePart.pieces.push(
+			createZaverBackgroundMusicPiece(context, studioConfig, zaverEntranceRaw?.payload.externalId ?? 'zaver')
+		)
 	}
 
 	return {

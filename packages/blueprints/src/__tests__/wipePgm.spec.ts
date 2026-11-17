@@ -495,13 +495,15 @@ describe('wipe piece type → PGM route / overlay', () => {
 		const mutePreroll = configWithPlayback.casparcgLatency
 		expect(bgMute?.enable).toEqual({ start: 0, duration: mutePreroll + 2500 })
 		expect(bgMute?.prerollDuration).toBe(mutePreroll)
+		// EMPTY (not volume 0) — the EMPTY→bed media diff re-PLAYs the bed from
+		// the start when the mute window ends.
 		expect(
 			(bgMute?.content.timelineObjects ?? []).every(
 				(obj) =>
 					!Array.isArray(obj.enable) &&
 					obj.enable.start === mutePreroll &&
 					obj.enable.duration === 2500 &&
-					(obj.content as TSR.TimelineContentCCGMedia).mixer?.volume === 0
+					(obj.content as TSR.TimelineContentCCGMedia).file === 'EMPTY'
 			)
 		).toBe(true)
 	})

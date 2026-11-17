@@ -1,4 +1,9 @@
-import { BlueprintResultBaseline, IShowStyleUserContext, TSR } from '@sofie-automation/blueprints-integration'
+import {
+	BlueprintResultBaseline,
+	IShowStyleUserContext,
+	TimelineObjClassesCore,
+	TSR,
+} from '@sofie-automation/blueprints-integration'
 
 import { InputConfig, OutputConfig, VmixInputConfig } from '../../../$schemas/generated/main-studio-config.js'
 import { literal } from '../../../common/util.js'
@@ -11,7 +16,6 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { AtemLayers, CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { getSisyfosBaseline } from '../helpers/audio.js'
-import { createBackgroundMusicBaselineTimeline } from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import { DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
@@ -169,13 +173,16 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 								loop: true,
 							},
 						}),
-						// Studio calibration until the first Take — killed by the per-part
-						// OutOnRundownEnd EMPTY (createStudioCalibrationClearPiece). LED gets
-						// the presenter-alignment test frame; the on-air look channel (B)
+						// Studio calibration until the first Take — rehearsal only
+						// (`.rundown_rehersal` class on the core rundown_status object).
+						// On air the LED keeps bg_loop + pod_headline and look B stays
+						// bg_loop. Killed at first Take by the per-part OutOnRundownEnd
+						// EMPTY (createStudioCalibrationClearPiece). LED gets the
+						// presenter-alignment test frame; the on-air look channel (B)
 						// gets the DoubleBox frame so framing can be checked live on PGM.
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',
-							enable: { while: 1 },
+							enable: { while: `.${TimelineObjClassesCore.RundownRehearsal}` },
 							priority: 0,
 							layer: CasparCGLayers.CasparCGLedTestframe,
 							content: {
@@ -186,7 +193,7 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 						}),
 						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 							id: '',
-							enable: { while: 1 },
+							enable: { while: `.${TimelineObjClassesCore.RundownRehearsal}` },
 							priority: 0,
 							layer: CasparCGLayers.CasparCGLookCalibFrame,
 							content: {
@@ -221,8 +228,6 @@ export function getBaseline(context: IShowStyleUserContext): BlueprintResultBase
 				},
 			}),
 
-			...createBackgroundMusicBaselineTimeline(config),
-
 			...createDebugChannelLabelTimeline(config),
 
 			literal<TimelineBlueprintExt<TSR.TimelineContentSisyfosChannels>>({
@@ -255,7 +260,7 @@ function createLookBCalibrationCameraTimeline(
 	if (!producer) return undefined
 	return literal<TimelineBlueprintExt<PgmCameraTimelineContent>>({
 		id: '',
-		enable: { while: 1 },
+		enable: { while: `.${TimelineObjClassesCore.RundownRehearsal}` },
 		priority: 0,
 		layer: CasparCGLayers.CasparCGLookCalibCam,
 		content: createLookCameraTimelineContent(config, producer, {
@@ -288,7 +293,7 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				input: lookB,
 			},
 		}),
-		...lookInputs.map((layer) => {
+		...lookInputs.flatMap((layer): TimelineBlueprintExt[] => {
 			const slot = layer === VMixLayers.VMixLookInputA ? 'A' : 'B'
 			const feedInput = getVmixLookFeedInput(config, slot)
 			const cameraInput = getVmixCameraInput(config)
@@ -304,28 +309,37 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				}
 				layers[2] = { input: feedInput }
 			}
-			// Pre-first-Take framing aid on the baseline on-air look (B): camera in the
-			// DoubleBox window, drawn ABOVE the NDI feed. Any Take that claims look B
-			// replaces this baseline INPUT object, clearing the calibration layer.
+			const inputObject = (enable: TimelineBlueprintExt['enable'], layers: TSR.VMixLayers) =>
+				literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+					id: '',
+					enable,
+					priority: 0,
+					layer,
+					content: {
+						deviceType: TSR.DeviceType.VMIX,
+						type: TSR.TimelineContentTypeVMix.INPUT,
+						layers,
+					},
+				})
+			// Pre-first-Take calibration monoscope on the baseline on-air look (B),
+			// REHEARSAL ONLY: camera UNDER the NDI feed on layer 1, framed into the
+			// DoubleBox window — the rehearsal-only db_loop frame (Caspar look-B 119)
+			// is inside the feed, so the frame keys the camera into the window (Cam1
+			// under db_loop). Any Take that claims look B replaces this baseline
+			// INPUT object, clearing the calibration layer. On air the monoscope
+			// must never show: only bg_loop + pod_headline until the first Take.
 			if (cameraInput > 0 && slot === 'B') {
-				layers[feedInput > 0 ? 3 : 1] = {
+				const rehearsalLayers: TSR.VMixLayers = { ...layers }
+				rehearsalLayers[1] = {
 					input: cameraInput,
 					...vmixLayerTransformFromFill(PGM_DOUBLEBOX_CAMERA_FILL),
 				}
+				return [
+					inputObject({ while: `.${TimelineObjClassesCore.RundownRehearsal}` }, rehearsalLayers),
+					inputObject({ while: `.${TimelineObjClassesCore.RundownActive}` }, layers),
+				]
 			}
-			return literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
-				id: '',
-				enable: { while: 1 },
-				priority: 0,
-				layer,
-				content: {
-					deviceType: TSR.DeviceType.VMIX,
-					type: TSR.TimelineContentTypeVMix.INPUT,
-					// No camera layer at rest; keep the NDI look feed on layer 2 above
-					// the (now empty) camera layer when feed inputs are configured.
-					layers,
-				},
-			})
+			return [inputObject({ while: 1 }, layers)]
 		}),
 		// Stingers transition the Preview input — seed it with look A so the first
 		// stung Take (to A — B is on air) airs the right feed even before the lead PREVIEW lands.
