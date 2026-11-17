@@ -102,6 +102,8 @@ describe('parseClipEditorProps', () => {
 		expect(props(100)).toBe(1)
 		expect(props(50)).toBeCloseTo(0.3162, 3)
 		expect(props(0)).toBe(0)
+		// Negative ingest volume must clamp to mute — pow of a negative base is NaN.
+		expect(props(-20)).toBe(0)
 	})
 })
 

@@ -344,8 +344,9 @@ export function parseClipVolume(value: unknown): number {
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		return 1
 	}
-	const fraction = value > 1 && value <= 100 ? value / 100 : value
-	return Math.min(1, Math.max(0, Math.pow(fraction, (Math.LOG2E * Math.LN10) / 2)))
+	// Clamp before pow: a fractional exponent on a negative base is NaN.
+	const fraction = Math.min(1, Math.max(0, value > 1 && value <= 100 ? value / 100 : value))
+	return Math.pow(fraction, (Math.LOG2E * Math.LN10) / 2)
 }
 
 export interface ClipPlayback {
