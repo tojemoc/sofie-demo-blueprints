@@ -351,18 +351,16 @@ export interface ClipPlayback {
 }
 
 /**
- * Apply trim-in / trim-out to the playable window.
- * The probed `sourceDuration` is the duration source of truth; editorial
- * `duration` only substitutes when no probe data exists (clip stays
- * "not ready" until a duration is filled).
+ * Apply trim-in / trim-out to the editorial `duration` (RE On air).
+ * RE owns probe-vs-override resolution and always sends On air filled when a
+ * probe succeeds — blueprints only trims what it is given. The probed
+ * `sourceDuration` attribute stays informational; it is never a fallback.
  */
 export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
 	const seekMs = clip.trimInMs && clip.trimInMs > 0 ? clip.trimInMs : 0
 	const trimOutMs = clip.trimOutMs && clip.trimOutMs > 0 ? clip.trimOutMs : 0
 	const volume = clip.volume === undefined ? 1 : parseClipVolume(clip.volume)
-	const editorial = clip.duration && clip.duration > 0 ? clip.duration : undefined
-
-	const baseMs = clip.sourceDuration !== undefined && clip.sourceDuration > 0 ? clip.sourceDuration : editorial
+	const baseMs = clip.duration && clip.duration > 0 ? clip.duration : undefined
 
 	return {
 		seekMs,
