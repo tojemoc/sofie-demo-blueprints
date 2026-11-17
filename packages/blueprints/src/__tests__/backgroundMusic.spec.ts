@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest'
 import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 
 import {
-	createBackgroundMusicBaselineTimeline,
+	createBackgroundMusicStartPiece,
 	createSportBackgroundMusicPiece,
 	createWipeBackgroundMusicMutePiece,
 	duckAudioBedPieceDuringWipe,
 	isSportSegmentName,
+	isZaverSegmentName,
 	KOLISKA_BED_VOLUME,
 	KOLISKA_HIT_DURATION_MS,
 	KOLISKA_HIT_VOLUME,
@@ -38,7 +39,9 @@ describe('isSportSegmentName', () => {
 
 describe('koliska bed envelope', () => {
 	it('starts loud then ducks after the hit window on LED and PGM', () => {
-		const timelines = createBackgroundMusicBaselineTimeline(hybridCasparConfig)
+		const piece = createBackgroundMusicStartPiece(mockContext, hybridCasparConfig)
+		expect(piece.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
+		const timelines = piece.content?.timelineObjects ?? []
 		expect(timelines).toHaveLength(2)
 		expect(timelines.map((tl) => tl.layer)).toEqual([
 			CasparCGLayers.CasparCGAudioBed,
@@ -71,7 +74,7 @@ describe('koliska bed envelope', () => {
 		expect(KOLISKA_HIT_DURATION_MS).toBe(2000)
 	})
 
-	it('mutes LED+PGM beds for the wipe SFX window', () => {
+	it('mutes LED+PGM beds for the wipe SFX window, then EMPTY→bed diff restarts it from 0', () => {
 		const piece = createWipeBackgroundMusicMutePiece(hybridCasparConfig, 'part-sport-1', 2500)
 		expect(piece.name).toBe('BG music mute (Wipe)')
 		const preroll = hybridCasparConfig.casparcgLatency
@@ -82,9 +85,17 @@ describe('koliska bed envelope', () => {
 		for (const tl of piece.content?.timelineObjects ?? []) {
 			// Take-relative: object start offsets piece preroll so mute covers the full sting.
 			expect(tl.enable).toEqual({ start: preroll, duration: 2500 })
-			expect((tl.content as TSR.TimelineContentCCGMedia).mixer?.volume).toBe(0)
+			// EMPTY (not volume 0) — the media diff back to the bed file re-PLAYs it from 0.
+			expect((tl.content as TSR.TimelineContentCCGMedia).file).toBe('EMPTY')
 			expect(tl.priority).toBe(2)
 		}
+	})
+
+	it('detects ZAVER+AVIZO segment names for the C→A bed swap', () => {
+		expect(isZaverSegmentName('ZÁVER + AVIZO')).toBe(true)
+		expect(isZaverSegmentName('Zaver')).toBe(true)
+		expect(isZaverSegmentName('POČASIE')).toBe(false)
+		expect(isZaverSegmentName('Headlines')).toBe(false)
 	})
 
 	it('ducks sport C during wipe then restores the koliska bed volume at wipe CLEAR', () => {

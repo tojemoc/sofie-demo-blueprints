@@ -106,33 +106,117 @@ function hasVmixBeds(config: StudioConfig): boolean {
 	return config.visionMixer.type === VisionMixerDevice.VMix
 }
 
-/** Baseline kolíska bed objects — vMix bed inputs on vMix studios, Caspar audio-bed layers otherwise. */
-export function createBackgroundMusicBaselineTimeline(config: StudioConfig): TimelineBlueprintExt[] {
-	if (!casparOwnsMusicBeds(config)) {
-		return [
-			...(hasVmixBeds(config)
-				? [
-						vmixBedPlayObject('A', { while: 1 }, 0),
-						vmixBedAudioObject(config, 'A', { while: 1 }, 0, { unmuted: true }),
-						vmixBedAudioObject(config, 'C', { while: 1 }, 0, { muted: true }),
-					]
-				: []),
-		]
-	}
-	return createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
-		enable: { while: 1 },
-		volume: KOLISKA_HIT_VOLUME,
-		keyframes: koliskaMixerKeyframes(),
+/**
+ * Kolíska bed A starter — OutOnRundownEnd piece inserted into the taken part by
+ * `onTake` on the first Take and armed into every nexted part by `onSetAsNext`
+ * (same pattern as the vMix recording piece). The bed must not play from
+ * Activate/Rehearsal — it begins exactly when the first part goes on air.
+ */
+export function createBackgroundMusicStartPiece(context: ICommonContext, config: StudioConfig): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: 0 },
+		externalId: 'first_take_bg_music_a',
+		name: 'BG music A (first Take)',
+		lifespan: PieceLifespan.OutOnRundownEnd,
+		sourceLayerId: SourceLayer.AudioBed,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		content: {
+			fileName: BG_MUSIC_A_FILE,
+			timelineObjects: casparOwnsMusicBeds(config)
+				? createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
+						volume: KOLISKA_HIT_VOLUME,
+						priority: 0,
+						keyframes: koliskaMixerKeyframes(),
+					})
+				: (['A', 'C'] as const)
+						.filter(() => hasVmixBeds(config))
+						.flatMap((bed) => [
+							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 0)] : []),
+							vmixBedAudioObject(
+								config,
+								bed,
+								{ while: 1 },
+								0,
+								bed === 'A' ? { unmuted: true } : { muted: true }
+							),
+						]),
+		},
+		expectedPackages: !casparOwnsMusicBeds(config)
+			? []
+			: [
+					createMediaFileExpectedPackage(
+						context,
+						BG_MUSIC_A_FILE,
+						[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
+						{ includeSideEffects: true }
+					),
+				],
+		prerollDuration: config.casparcgLatency,
+	})
+}
+
+/**
+ * Back to the A-bed for ZAVER+AVIZO (C plays from Šport onward). Priority 1.5:
+ * above the sport C objects (1) and the first-Take A objects (0), below the
+ * WithinPart wipe / headline / outro mutes (2). The A media diff also re-PLAYs
+ * the file from 0 with the kolíska hit→duck envelope.
+ */
+export function createZaverBackgroundMusicPiece(
+	context: ICommonContext,
+	config: StudioConfig,
+	partExternalId: string
+): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: 0 },
+		externalId: `${partExternalId}_bg_music_a`,
+		name: 'BG music A (ZAVER+AVIZO)',
+		lifespan: PieceLifespan.OutOnRundownEnd,
+		sourceLayerId: SourceLayer.AudioBed,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		content: {
+			fileName: BG_MUSIC_A_FILE,
+			timelineObjects: casparOwnsMusicBeds(config)
+				? createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
+						volume: KOLISKA_HIT_VOLUME,
+						priority: 1.5,
+						keyframes: koliskaMixerKeyframes(),
+					})
+				: (['A', 'C'] as const)
+						.filter(() => hasVmixBeds(config))
+						.flatMap((bed) => [
+							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 1.5)] : []),
+							vmixBedAudioObject(
+								config,
+								bed,
+								{ while: 1 },
+								1.5,
+								bed === 'A' ? { unmuted: true } : { muted: true }
+							),
+						]),
+		},
+		expectedPackages: !casparOwnsMusicBeds(config)
+			? []
+			: [
+					createMediaFileExpectedPackage(
+						context,
+						BG_MUSIC_A_FILE,
+						[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
+						{ includeSideEffects: true }
+					),
+				],
+		prerollDuration: config.casparcgLatency,
 	})
 }
 
 /**
  * Mute LED+PGM kolíska beds (A and C) while an overlay owns the soundtrack.
- * Priority 2 beats the C-bed (priority 1) and baseline A-bed.
+ * Priority 2 beats the ZAVER A-bed (1.5), C-bed (1) and the first-Take A-bed (0).
  *
  * Outro mute is OutOnRundownEnd so beds stay quiet after the jingle (no restart).
  * Intro mute is WithinPart so the first DoubleBox reveal can bring audio back.
- * Wipe mute is WithinPart for the sting window so `bg_music_c` does not fight wipe SFX.
+ * Wipe mute EMPTYs the bed layers for the sting window: when it ends, the
+ * media diff (EMPTY → bed file) re-PLAYs the bed from position 0 — the bed
+ * restarts from the beginning on unmute, not resumes mid-loop.
  */
 export function createBackgroundMusicMutePiece(
 	config: StudioConfig,
@@ -149,12 +233,18 @@ export function createBackgroundMusicMutePiece(
 		durationMs !== undefined && !persistAfterPart
 			? { start: label === 'Wipe' ? prerollMs : 0, duration: durationMs }
 			: undefined
+	const restoreAtMs = prerollMs + (durationMs ?? 0)
+	// vMix beds restart via a seek-0 INPUT object at the unmute instant — the piece
+	// needs a short tail so that object is inside the piece window. Caspar restarts
+	// via the EMPTY→bed media diff, no tail needed.
+	const restartTailMs = label === 'Wipe' && durationMs !== undefined && !casparOwnsMusicBeds(config) ? 1000 : 0
 	const pieceDurationMs =
 		durationMs !== undefined && !persistAfterPart
 			? label === 'Wipe'
-				? prerollMs + durationMs
+				? prerollMs + durationMs + restartTailMs
 				: durationMs
 			: undefined
+	const restartBeds = label === 'Wipe' && durationMs !== undefined
 	return literal<IBlueprintPiece>({
 		enable: {
 			start: 0,
@@ -166,19 +256,43 @@ export function createBackgroundMusicMutePiece(
 		sourceLayerId: SourceLayer.AudioBed,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
 		content: {
-			fileName: BG_MUSIC_A_FILE,
+			fileName: label === 'Wipe' ? 'EMPTY' : BG_MUSIC_A_FILE,
 			ignoreAudioFormat: true,
 			timelineObjects: casparOwnsMusicBeds(config)
-				? createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
-						volume: 0,
-						priority: 2,
-						...(timelineEnable ? { enable: timelineEnable } : {}),
-					})
+				? label === 'Wipe'
+					? createDualChannelAudioBedTimelineObjects('EMPTY', {
+							priority: 2,
+							...(timelineEnable ? { enable: timelineEnable } : {}),
+						})
+					: createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
+							volume: 0,
+							priority: 2,
+							...(timelineEnable ? { enable: timelineEnable } : {}),
+						})
 				: (['A', 'C'] as const)
 						.filter(() => hasVmixBeds(config))
-						.map((bed) =>
-							vmixBedAudioObject(config, bed, timelineEnable ?? { start: 0 }, 2, { muted: true })
-						),
+						.flatMap((bed) => [
+							vmixBedAudioObject(config, bed, timelineEnable ?? { start: 0 }, 2, { muted: true }),
+							// Restart the bed input from 0 at unmute — the AUDIO toggle
+							// leaves the input's position running, so seek it back.
+							...(restartBeds
+								? [
+										literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
+											id: '',
+											enable: { start: restoreAtMs },
+											layer: VMIX_BED_LAYERS[bed].input,
+											priority: 2,
+											content: {
+												deviceType: TSR.DeviceType.VMIX,
+												type: TSR.TimelineContentTypeVMix.INPUT,
+												playing: true,
+												loop: true,
+												seek: 0,
+											},
+										}),
+									]
+								: []),
+						]),
 		},
 		expectedPackages: [],
 		prerollDuration: prerollMs,
@@ -342,6 +456,12 @@ export function isSportSegmentName(name: string): boolean {
 	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 	// Word-start match only — avoid false positives like "Transport".
 	return /^sport(?:\b|$)/u.test(normalized)
+}
+
+/** True for the closing segment ("ZÁVER + AVIZO") — swaps the bed back C → A. */
+export function isZaverSegmentName(name: string): boolean {
+	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+	return /^(?:zaver|avizo)(?:\b|$)/u.test(normalized)
 }
 
 /** Sisyfos ForceMute channel entries for every configured Playback source. */

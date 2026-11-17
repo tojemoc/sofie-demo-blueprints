@@ -330,15 +330,21 @@ function secondsAttributeToMs(value: unknown): number | undefined {
 	return Math.round(value * 1000)
 }
 
-/** Caspar mixer volume. Values in (1, 100] are treated as percent. */
+/**
+ * Caspar mixer volume. Values in (1, 100] are treated as percent.
+ *
+ * The RE volume field is perceived loudness percent, but Caspar `MIXER VOLUME`
+ * is linear amplitude — sending the raw fraction made 0.1 sound like half of
+ * 1.0. Perceptual taper: each halving of the value should halve loudness
+ * (~−10 dB per halving → amplitude = value^log2(10)). 100 % → unity,
+ * 50 % → −10 dB ≈ half loudness, 0 → muted.
+ */
 export function parseClipVolume(value: unknown): number {
 	if (typeof value !== 'number' || !Number.isFinite(value)) {
 		return 1
 	}
-	if (value > 1 && value <= 100) {
-		return Math.min(1, Math.max(0, value / 100))
-	}
-	return Math.min(1, Math.max(0, value))
+	const fraction = value > 1 && value <= 100 ? value / 100 : value
+	return Math.min(1, Math.max(0, Math.pow(fraction, Math.LOG2E * Math.LN10)))
 }
 
 export interface ClipPlayback {
