@@ -194,6 +194,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			isHidden: true,
 		},
 		{
+			_id: SourceLayer.LookAudioReset,
+			type: SourceLayerType.UNKNOWN,
+			_rank: 210,
+			name: 'Look audio reset',
+			abbreviation: 'Lar',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

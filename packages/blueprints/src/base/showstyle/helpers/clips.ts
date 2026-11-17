@@ -343,13 +343,18 @@ export function parseClipVolume(value: unknown): number {
 
 export interface ClipPlayback {
 	seekMs: number
+	/** Playable window after trims — piece duration / expectedDuration fallback. */
 	durationMs: number | undefined
+	/** File position where playable content ends — the countdown's `content.sourceDuration`. */
+	sourceDurationMs: number | undefined
 	volume: number
 }
 
 /**
- * Apply trim-in / trim-out / editorial duration to the playable window.
- * `sourceDuration` is ms; missing source falls back to editorial `duration`.
+ * Apply trim-in / trim-out to the playable window.
+ * The probed `sourceDuration` is the duration source of truth; editorial
+ * `duration` only substitutes when no probe data exists (clip stays
+ * "not ready" until a duration is filled).
  */
 export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
 	const seekMs = clip.trimInMs && clip.trimInMs > 0 ? clip.trimInMs : 0
@@ -357,22 +362,14 @@ export function resolveClipPlayback(clip: ClipProps): ClipPlayback {
 	const volume = clip.volume === undefined ? 1 : parseClipVolume(clip.volume)
 	const editorial = clip.duration && clip.duration > 0 ? clip.duration : undefined
 
-	let sourceWindow: number | undefined
-	if (clip.sourceDuration !== undefined && clip.sourceDuration > 0) {
-		sourceWindow = clip.sourceDuration > seekMs + trimOutMs ? clip.sourceDuration - seekMs - trimOutMs : 0
-	} else if (editorial !== undefined) {
-		const trimmedEditorial = editorial - seekMs - trimOutMs
-		sourceWindow = trimmedEditorial > 0 ? trimmedEditorial : 0
-	}
+	const baseMs = clip.sourceDuration !== undefined && clip.sourceDuration > 0 ? clip.sourceDuration : editorial
 
-	let durationMs: number | undefined
-	if (sourceWindow !== undefined && editorial !== undefined) {
-		durationMs = Math.min(sourceWindow, editorial)
-	} else {
-		durationMs = sourceWindow ?? editorial
+	return {
+		seekMs,
+		durationMs: baseMs !== undefined ? Math.max(0, baseMs - seekMs - trimOutMs) : undefined,
+		sourceDurationMs: baseMs !== undefined ? Math.max(0, baseMs - trimOutMs) : undefined,
+		volume,
 	}
-
-	return { seekMs, durationMs, volume }
 }
 
 export function getClipPlayerInput(config: StudioConfig): StudioConfig['atemSources'][any] | undefined {

@@ -76,7 +76,7 @@ export function generateVTPart(
 				audioTlObj,
 			],
 
-			sourceDuration: part.payload.clipProps.sourceDuration,
+			sourceDuration: playback.sourceDurationMs,
 			seek: playback.seekMs > 0 ? playback.seekMs : undefined,
 		},
 		expectedPackages: [

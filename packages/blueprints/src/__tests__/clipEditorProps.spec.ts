@@ -100,10 +100,10 @@ describe('resolveClipPlayback', () => {
 				trimInMs: 2000,
 				trimOutMs: 1000,
 			})
-		).toEqual({ seekMs: 2000, durationMs: 9000, volume: 1 })
+		).toEqual({ seekMs: 2000, durationMs: 9000, sourceDurationMs: 11000, volume: 1 })
 	})
 
-	it('uses the shorter of editorial duration and trimmed source', () => {
+	it('prefers probed file length over a shorter editorial duration', () => {
 		expect(
 			resolveClipPlayback({
 				fileName: 'clips/syn.mp4',
@@ -111,7 +111,18 @@ describe('resolveClipPlayback', () => {
 				sourceDuration: 12000,
 				trimInMs: 1000,
 			})
-		).toEqual({ seekMs: 1000, durationMs: 5000, volume: 1 })
+		).toEqual({ seekMs: 1000, durationMs: 11000, sourceDurationMs: 12000, volume: 1 })
+	})
+
+	it('prefers probed file length over a longer editorial duration', () => {
+		expect(
+			resolveClipPlayback({
+				fileName: 'clips/syn.mp4',
+				duration: 20000,
+				sourceDuration: 12000,
+				trimOutMs: 2000,
+			})
+		).toEqual({ seekMs: 0, durationMs: 10000, sourceDurationMs: 10000, volume: 1 })
 	})
 
 	it('falls back to editorial minus trims when sourceDuration is absent', () => {
@@ -122,7 +133,16 @@ describe('resolveClipPlayback', () => {
 				trimInMs: 1500,
 				trimOutMs: 500,
 			})
-		).toEqual({ seekMs: 1500, durationMs: 8000, volume: 1 })
+		).toEqual({ seekMs: 1500, durationMs: 8000, sourceDurationMs: 9500, volume: 1 })
+	})
+
+	it('leaves duration undefined when neither probe nor editorial exists', () => {
+		expect(
+			resolveClipPlayback({
+				fileName: 'clips/syn.mp4',
+				trimInMs: 500,
+			})
+		).toEqual({ seekMs: 500, durationMs: undefined, sourceDurationMs: undefined, volume: 1 })
 	})
 
 	it('represents a fully consumed trim as an empty window', () => {
@@ -134,7 +154,7 @@ describe('resolveClipPlayback', () => {
 				trimInMs: 2000,
 				trimOutMs: 1500,
 			})
-		).toEqual({ seekMs: 2000, durationMs: 0, volume: 1 })
+		).toEqual({ seekMs: 2000, durationMs: 0, sourceDurationMs: 1500, volume: 1 })
 	})
 })
 

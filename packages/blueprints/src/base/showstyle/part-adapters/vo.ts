@@ -79,7 +79,7 @@ export function generateVOPart(
 
 			timelineObjects,
 
-			sourceDuration: playback.durationMs ?? part.payload.clipProps.sourceDuration,
+			sourceDuration: playback.sourceDurationMs,
 			seek: playback.seekMs > 0 ? playback.seekMs : undefined,
 		},
 
