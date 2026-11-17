@@ -128,8 +128,10 @@ include that prefix (e.g. `loops/bg_loop`). Two levels only: `<subdir>/<file>`.
 Rundown Editor sends `dataRundownUpdate` payloads whose part/piece `payload` fields are the
 piece-type manifests in the megarepo `assets/` — field names there are what
 `sofie-editor-parsers` (`packages/blueprints/src/base/showstyle/sofie-editor-parsers/`)
-reads (`fileName`, `sourceLayer`, `itemDuration`, `duration`, `cutPoint`, wipe modes, …).
-Part/piece `externalId` is the RE row id. End-to-end field/layer map:
+reads (`attributes.fileName`, `duration` — read on both pieces and parts — wipe
+`attributes.playLayer` modes, …). `attributes.cutPoint` is an RE field too, but read
+downstream by the wipe helpers (`helpers/clips.ts`), not by the parser. Part/piece
+`externalId` is the RE row id. End-to-end field/layer map:
 megarepo `docs/integration/RUNDOWN-SCHEMA-AND-LAYOUT.md`. When adding a piece type or
 payload field: update the megarepo manifest, the parser, and the demo-assets template's
 `update()` keys together.
