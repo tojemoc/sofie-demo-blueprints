@@ -202,6 +202,7 @@ describe('vMix recording', () => {
 		const context = {
 			getStudioConfig: () => ({ studio: config }),
 			getShowStyleConfig: () => ({ dvePresets: {} }),
+			getHashId: (origin: string) => `hash_${origin}`,
 			isRehearsal,
 			getPartInstance: async (_part: 'current' | 'next') => ({ rehearsal: isRehearsal, part: {} }),
 			getPieceInstances: async (_part: 'current' | 'next') =>
