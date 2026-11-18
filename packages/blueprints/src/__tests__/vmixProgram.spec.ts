@@ -871,16 +871,16 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		>
 	const PREROLL = vmixStudioConfig.casparcgLatency
 
-	// The seek/restart trigger lands on both beds; only the active bed also gets
-	// the un-mute hit→fade-down envelope (volume 100 object).
-	const bedRestartedBy = (pieces: IBlueprintPiece[]): 'A' | 'C' | 'none' => {
+	// The restart trigger lands on both beds; only the active bed also gets the
+	// un-mute hit→fade-down envelope (volume 100 object). Returning the set, not
+	// a first-match — an envelope on both beds must fail, not pass as "C".
+	const bedLayersWithHitEnvelope = (pieces: IBlueprintPiece[]): Set<VMixLayers> => {
 		const mutePiece = pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
-		const objects = objectsOf(mutePiece ? [mutePiece] : [])
-		const hitsVol100 = (layer: VMixLayers) =>
-			objects.some((obj) => obj.layer === layer && (obj.content as TSR.TimelineContentVMixAudio).volume === 100)
-		if (hitsVol100(VMixLayers.VMixBedCAudio)) return 'C'
-		if (hitsVol100(VMixLayers.VMixBedAAudio)) return 'A'
-		return 'none'
+		return new Set(
+			objectsOf(mutePiece ? [mutePiece] : [])
+				.filter((obj) => (obj.content as TSR.TimelineContentVMixAudio).volume === 100)
+				.map((obj) => obj.layer as VMixLayers)
+		)
 	}
 
 	it('maps wipe files to their SFX start offsets', () => {
@@ -954,9 +954,13 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		// Šport generated before the lower-ranked story: first-seen ordering
 		// would wrongly resolve C for the story — rank order must give it A.
 		generate('seg-sport', 8)
-		expect(bedRestartedBy(generate('seg-tema-1', 2).flatMap((p) => p.pieces))).toBe('A')
+		expect(bedLayersWithHitEnvelope(generate('seg-tema-1', 2).flatMap((p) => p.pieces))).toEqual(
+			new Set([VMixLayers.VMixBedAAudio])
+		)
 		// Počasie sits after Šport editorially even though it generates later.
-		expect(bedRestartedBy(generate('seg-weather', 9).flatMap((p) => p.pieces))).toBe('C')
+		expect(bedLayersWithHitEnvelope(generate('seg-weather', 9).flatMap((p) => p.pieces))).toEqual(
+			new Set([VMixLayers.VMixBedCAudio])
+		)
 	})
 
 	it('restores bed history from rundown privateData for a lone regenerated segment', () => {
@@ -984,7 +988,7 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 			ctx as Parameters<typeof getSegment>[0],
 			smokeExportToIngestSegment(exportData, 'seg-weather')
 		).parts.flatMap((part) => part.pieces)
-		expect(bedRestartedBy(pieces)).toBe('C')
+		expect(bedLayersWithHitEnvelope(pieces)).toEqual(new Set([VMixLayers.VMixBedCAudio]))
 	})
 
 	it('ramps the mod mic down 150ms into Intro mute pieces; micInput 0 disables it', () => {
