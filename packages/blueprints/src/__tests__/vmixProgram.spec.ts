@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
+import { getSegment } from '../base/showstyle/getSegment.js'
 import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import {
 	BG_MUSIC_A_FILE,
@@ -29,6 +30,7 @@ import {
 } from '../base/showstyle/helpers/visionMixer.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
+import { getRundown } from '../base/showstyle/rundown/index.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import { applyConfig } from '../base/studio/applyConfig/index.js'
 import { getCasparCGMappings, VMIX_RETIRED_CASPAR_LAYERS } from '../base/studio/applyConfig/mappings/casparcg.js'
@@ -869,6 +871,18 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		>
 	const PREROLL = vmixStudioConfig.casparcgLatency
 
+	// The seek/restart trigger lands on both beds; only the active bed also gets
+	// the un-mute hit→fade-down envelope (volume 100 object).
+	const bedRestartedBy = (pieces: IBlueprintPiece[]): 'A' | 'C' | 'none' => {
+		const mutePiece = pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
+		const objects = objectsOf(mutePiece ? [mutePiece] : [])
+		const hitsVol100 = (layer: VMixLayers) =>
+			objects.some((obj) => obj.layer === layer && (obj.content as TSR.TimelineContentVMixAudio).volume === 100)
+		if (hitsVol100(VMixLayers.VMixBedCAudio)) return 'C'
+		if (hitsVol100(VMixLayers.VMixBedAAudio)) return 'A'
+		return 'none'
+	}
+
 	it('maps wipe files to their SFX start offsets', () => {
 		// wipe.mov SFX lands ~frame 10/11; themed files start on frame 1–2.
 		expect(getWipeSfxStartMs(vmixStudioConfig, 'wipes/wipe.mov')).toBe(400)
@@ -937,25 +951,40 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 			const intermediate = convertIngestData(mockIngestContext, ingest)
 			return generateParts(ctx, intermediate, undefined, seq).parts
 		}
-		const bedRestartedBy = (pieces: IBlueprintPiece[]): 'A' | 'C' | 'none' => {
-			const mutePiece = pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
-			// The seek-0 restart lands on both beds; only the active bed also gets
-			// the un-mute hit→fade-down envelope (volume 100 object).
-			const objects = objectsOf(mutePiece ? [mutePiece] : [])
-			const hitsVol100 = (layer: VMixLayers) =>
-				objects.some(
-					(obj) => obj.layer === layer && (obj.content as TSR.TimelineContentVMixAudio).volume === 100
-				)
-			if (hitsVol100(VMixLayers.VMixBedCAudio)) return 'C'
-			if (hitsVol100(VMixLayers.VMixBedAAudio)) return 'A'
-			return 'none'
-		}
 		// Šport generated before the lower-ranked story: first-seen ordering
 		// would wrongly resolve C for the story — rank order must give it A.
 		generate('seg-sport', 8)
 		expect(bedRestartedBy(generate('seg-tema-1', 2).flatMap((p) => p.pieces))).toBe('A')
 		// Počasie sits after Šport editorially even though it generates later.
 		expect(bedRestartedBy(generate('seg-weather', 9).flatMap((p) => p.pieces))).toBe('C')
+	})
+
+	it('restores bed history from rundown privateData for a lone regenerated segment', () => {
+		// Worker restart: module state is empty — getSegment must rehydrate the
+		// editorial order persisted by getRundown, or Počasie resolves A.
+		const exportData = loadSmokeRundownExport()
+		const generated = getRundown(vmixContext(), {
+			externalId: 'spravy-v3-smoke',
+			type: 'sofie-rundown-editor',
+			name: 'smoke',
+			payload: {},
+			userEditStates: {},
+			segments: exportData.segments.map((seg, rank) => ({
+				externalId: seg.id,
+				name: seg.name,
+				rank,
+				payload: {},
+				parts: [],
+				userEditStates: {},
+			})),
+		} as unknown as Parameters<typeof getRundown>[1])
+		resetVmixBedGenerationForTests()
+		const ctx = { ...vmixContext(), rundown: generated.rundown }
+		const pieces = getSegment(
+			ctx as Parameters<typeof getSegment>[0],
+			smokeExportToIngestSegment(exportData, 'seg-weather')
+		).parts.flatMap((part) => part.pieces)
+		expect(bedRestartedBy(pieces)).toBe('C')
 	})
 
 	it('ramps the mod mic down 150ms into Intro mute pieces; micInput 0 disables it', () => {

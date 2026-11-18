@@ -179,7 +179,9 @@ function vmixBedRestartEnvelope(
 			volume: getVmixBedHitVolume(config),
 			fade: rampUpMs,
 		}),
+		// muted must be explicit — TSR only emits AUDIO_ON for a defined false.
 		vmixBedAudioObject(bed, { start: startMs + rampUpMs + holdMs }, priority, {
+			muted: false,
 			volume: getVmixBedVolume(config),
 			fade: getVmixBedRampDownMs(config),
 		}),
@@ -579,7 +581,10 @@ export function createBackgroundMusicMutePiece(
 									? [vmixBedAudioObject(bed, vmixMuteEnable ?? { start: 0 }, 2, { muted: true })]
 									: []),
 								// Restart the bed input from 0 at unmute — the AUDIO toggle
-								// leaves the input's position running, so seek it back.
+								// leaves the input's position running. `restart` carries a
+								// per-part string: RESTART_INPUT only fires on a truthy value
+								// change, while seek:0 would emit nothing on a second
+								// identical wipe (SET_POSITION diffs by value).
 								...(restartBeds
 									? [
 											literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
@@ -592,7 +597,7 @@ export function createBackgroundMusicMutePiece(
 													type: TSR.TimelineContentTypeVMix.INPUT,
 													playing: true,
 													loop: true,
-													seek: 0,
+													restart: partExternalId,
 												},
 											}),
 										]
