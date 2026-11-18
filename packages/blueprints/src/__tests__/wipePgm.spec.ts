@@ -496,13 +496,15 @@ describe('wipe piece type → PGM route / overlay', () => {
 		expect(bgMute?.enable).toEqual({ start: 0, duration: mutePreroll + 2500 })
 		expect(bgMute?.prerollDuration).toBe(mutePreroll)
 		// EMPTY (not volume 0) — the EMPTY→bed media diff re-PLAYs the bed from
-		// the start when the mute window ends.
+		// the start when the mute window ends. `wipes/wipe` SFX starts ~400 ms in,
+		// so the bed stays live under the silent head and mutes only for the sting tail.
+		const sfxOffsetMs = 400
 		expect(
 			(bgMute?.content.timelineObjects ?? []).every(
 				(obj) =>
 					!Array.isArray(obj.enable) &&
-					obj.enable.start === mutePreroll &&
-					obj.enable.duration === 2500 &&
+					obj.enable.start === mutePreroll + sfxOffsetMs &&
+					obj.enable.duration === 2500 - sfxOffsetMs &&
 					(obj.content as TSR.TimelineContentCCGMedia).file === 'EMPTY'
 			)
 		).toBe(true)
