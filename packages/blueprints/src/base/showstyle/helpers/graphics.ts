@@ -732,7 +732,11 @@ function parseGraphic(
 			previewRenderer: config.previewRenderer,
 		},
 		enable: {
-			start: object.objectTime,
+			// Počasie fills the wipe cover — RE sends start:2 to outlive the sting,
+			// which lands the map ~2s late and the CG ~2.8s after Take. The wipe
+			// already covers the transition, so anchor the piece at Take instead;
+			// applyL3dTakeOffsets lands the template at the cover cut.
+			start: isPocasieGraphic(object) ? 0 : object.objectTime,
 			duration:
 				holdIluUntilTake || holdL3dUntilTake ? undefined : object.duration > 0 ? object.duration : undefined,
 		},

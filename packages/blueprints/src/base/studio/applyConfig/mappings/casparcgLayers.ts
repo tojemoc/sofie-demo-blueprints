@@ -139,7 +139,7 @@ export const PGM_DOUBLEBOX_CAMERA_FILL = {
 /** Starting FILL for DoubleBox story ILU window (left — measured from db_loop.mov). */
 export const PGM_DOUBLEBOX_ILU_FILL = {
 	x: 0.0219,
-	y: 0.0769,
+	y: 0.075,
 	xScale: 0.6802,
 	yScale: 0.6824,
 } as const
@@ -153,18 +153,16 @@ export const PGM_FULLSCREEN_CAMERA_FILL = {
 } as const
 
 /**
- * LED `bg_loop` during tema / SJV / ŠPORT / Počasie (DoubleBox window on LED).
- * vMix shift factor **1.085** where **1.0 = 50% of screen width** → pan 0.5425 right;
- * scale grows by the same amount so the frame still covers after the pan (covers the
- * camera cutout visible in DoubleBox).
+ * LED `bg_loop` during tema / SJV / ŠPORT (DoubleBox window on LED).
+ * Shifted half a screen right at native size: the left half of the LED is black and
+ * the right half shows the LEFT half of bg_loop (the right half hangs off-screen).
+ * Returns to fullscreen for Počasie onward so the weather map / ZAVER frame normally.
  */
-export const LED_BG_LOOP_RIGHT_SHIFT = 1.085 * 0.5
-
 export const LED_BG_LOOP_TEMA_FILL = {
-	x: -LED_BG_LOOP_RIGHT_SHIFT,
-	y: -(LED_BG_LOOP_RIGHT_SHIFT * 0.5),
-	xScale: 1 + LED_BG_LOOP_RIGHT_SHIFT,
-	yScale: 1 + LED_BG_LOOP_RIGHT_SHIFT,
+	x: 0.5,
+	y: 0,
+	xScale: 1,
+	yScale: 1,
 } as const
 
 export type MixerFillRect = {

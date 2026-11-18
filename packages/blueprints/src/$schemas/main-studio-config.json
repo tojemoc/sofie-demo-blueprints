@@ -362,10 +362,96 @@
 				"bedVolume": {
 					"type": "integer",
 					"ui:title": "Bed volume (0–100)",
-					"ui:description": "vMix AUDIO volume for the kolíska beds (A and C) while unmuted — a single constant level, no hit-then-duck envelope.",
+					"ui:description": "vMix AUDIO volume for the kolíska beds (A and C) while unmuted — the quieter underscore level the beds sit at for most of the rundown.",
 					"minimum": 0,
 					"maximum": 100,
 					"default": 70
+				},
+				"bedHitVolume": {
+					"type": "integer",
+					"ui:title": "Bed hit volume (0–100)",
+					"ui:description": "vMix AUDIO volume the kolíska bed ramps UP to right after each reset (first Take, wipe unmute, A/C swap), before fading back down to Bed volume.",
+					"minimum": 0,
+					"maximum": 100,
+					"default": 100
+				},
+				"bedRampUpMs": {
+					"type": "integer",
+					"ui:title": "Bed ramp-up (ms)",
+					"ui:description": "vMix SetVolumeFade length for the ramp up to Bed hit volume when a bed (re)starts.",
+					"minimum": 0,
+					"default": 400
+				},
+				"bedHitHoldMs": {
+					"type": "integer",
+					"ui:title": "Bed hit hold (ms)",
+					"ui:description": "How long the bed stays at Bed hit volume before fading back down.",
+					"minimum": 0,
+					"default": 300
+				},
+				"bedRampDownMs": {
+					"type": "integer",
+					"ui:title": "Bed ramp-down (ms)",
+					"ui:description": "vMix SetVolumeFade length for the fade from Bed hit volume down to Bed volume.",
+					"minimum": 0,
+					"default": 1500
+				},
+				"wipeSfxStartMs": {
+					"type": "object",
+					"ui:title": "Wipe SFX start offsets (ms)",
+					"ui:description": "Offset (ms from stinger start) where each wipe's audio SFX actually begins — beds stay live until then and mute only for the SFX window.",
+					"properties": {
+						"wipe": {
+							"type": "integer",
+							"ui:title": "wipe.mov",
+							"ui:description": "wipe.mov SFX starts around frame 10/11.",
+							"minimum": 0,
+							"default": 400
+						},
+						"wipe_sjv": {
+							"type": "integer",
+							"ui:title": "wipe_sjv.mov",
+							"ui:description": "wipe_sjv.mov SFX starts on the second frame.",
+							"minimum": 0,
+							"default": 40
+						},
+						"wipe_sport": {
+							"type": "integer",
+							"ui:title": "wipe_sport.mov",
+							"ui:description": "wipe_sport.mov SFX starts on the first frame.",
+							"minimum": 0,
+							"default": 0
+						},
+						"wipe_pocasie": {
+							"type": "integer",
+							"ui:title": "wipe_pocasie.mov",
+							"ui:description": "wipe_pocasie.mov SFX starts on the second frame.",
+							"minimum": 0,
+							"default": 40
+						}
+					},
+					"additionalProperties": false
+				},
+				"micInput": {
+					"type": "integer",
+					"ui:title": "Moderator mic input",
+					"ui:description": "vMix input number of the moderator mic (Audio In). Ramped down under SYN / Intro / Outro. 0 disables mic ducking.",
+					"minimum": 0,
+					"default": 0
+				},
+				"micRampDelayMs": {
+					"type": "integer",
+					"ui:title": "Mic ramp delay (ms)",
+					"ui:description": "Delay into SYN / Intro / Outro before the mic starts ramping down — keeps the tail of a finishing syllable instead of cutting it.",
+					"minimum": 0,
+					"default": 150
+				},
+				"micRampMs": {
+					"type": "integer",
+					"ui:title": "Mic ramp (ms)",
+					"ui:description": "vMix SetVolumeFade length for the mic ramp-down (and the ramp back up when the piece ends).",
+					"minimum": 0,
+					"default": 150
 				}
 			},
 			"required": ["cameraInput", "lookAInput", "lookBInput", "cleanGfxInput", "bedAInput", "bedCInput"],

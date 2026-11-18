@@ -54,6 +54,8 @@ export const DemoStudioConfig: StudioConfig = {
 		cleanGfxInput: 4,
 		bedAInput: 5,
 		bedCInput: 6,
+		// Audio Channel 31 In (preset input 17) — ramps down under SYN / Intro / Outro.
+		micInput: 17,
 	},
 	atemOutputs: {},
 	atemSources: {

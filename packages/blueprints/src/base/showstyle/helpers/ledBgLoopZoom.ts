@@ -9,24 +9,26 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
 
 /**
- * Segments where LED `bg_loop` should be zoomed/cropped (tema + section blocks).
- * Matches smoke ids (`seg-tema-*` / `seg-sjv` / …) and display-name tokens (ŠPORT / Počasie).
+ * Segments where LED `bg_loop` should be right-shifted (tema + section blocks).
+ * Matches smoke ids (`seg-tema-*` / `seg-sjv` / `seg-sport`) and display-name tokens.
  * Display-name alternatives use Unicode letter boundaries so `sport` does not match
- * inside names like `Transport`. Tip / avízo / outro keep the baseline fullscreen loop.
+ * inside names like `Transport`. Weather onward (Počasie / tip / avízo / outro) keeps
+ * the baseline fullscreen loop so the ZAVER frame is normal again.
  */
 export function segmentUsesLedBgLoopZoom(segment: { name?: string; externalId?: string }): boolean {
 	const haystack = `${segment.externalId ?? ''} ${segment.name ?? ''}`.trim()
 	if (!haystack) return false
 	// Ids: `seg-tema-1` etc. (`\b` after tema still holds before `-1`).
-	if (/\bseg-(?:tema|sjv|sport|weather)\b/i.test(haystack)) return true
+	if (/\bseg-(?:tema|sjv|sport)\b/i.test(haystack)) return true
 	// Display names: complete tokens only (JS `\b` is ASCII-only; use \p{L}).
-	return /(?<![\p{L}\p{N}])(?:tema|sjv|sport|šport|pocasie|počasie|weather)(?![\p{L}\p{N}])/iu.test(haystack)
+	return /(?<![\p{L}\p{N}])(?:tema|sjv|sport|šport)(?![\p{L}\p{N}])/iu.test(haystack)
 }
 
 /**
- * Re-assert LED baseline `loops/bg_loop` with right-shifted FILL+CROP on ClipPlayer1
- * (vMix shift 1.085 where 1.0 = 50% screen → Caspar FILL x≈-0.5425, scale≈1.5425).
- * WithinPart — baseline fullscreen returns when the part ends (tip/outro/avízo).
+ * Re-assert LED baseline `loops/bg_loop` shifted half a screen right on ClipPlayer1:
+ * left half of the LED is black, the right half shows the LEFT half of bg_loop at
+ * native scale (FILL x=0.5, scale 1 — right half hangs off-screen). WithinPart —
+ * baseline fullscreen returns when the part ends (weather / tip / outro / avízo).
  */
 export function createLedBgLoopZoomPiece(config: StudioConfig, partExternalId: string): IBlueprintPiece {
 	return literal<IBlueprintPiece>({

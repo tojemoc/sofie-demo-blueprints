@@ -98,6 +98,7 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 			cleanGfxInput: 4,
 			bedAInput: 5,
 			bedCInput: 6,
+			micInput: 17,
 		})
 	})
 

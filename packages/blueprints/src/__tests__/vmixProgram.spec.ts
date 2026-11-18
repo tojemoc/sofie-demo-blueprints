@@ -4,7 +4,14 @@ import { IBlueprintPart, IBlueprintPiece, PieceLifespan, TSR } from '@sofie-auto
 
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
-import { BG_MUSIC_A_FILE, BG_MUSIC_C_FILE } from '../base/showstyle/helpers/backgroundMusic.js'
+import {
+	BG_MUSIC_A_FILE,
+	BG_MUSIC_C_FILE,
+	createIntroBackgroundMusicMutePiece,
+	createVmixMicRampDownTimelineObjects,
+	createWipeBackgroundMusicMutePiece,
+	getWipeSfxStartMs,
+} from '../base/showstyle/helpers/backgroundMusic.js'
 import {
 	armIdleLookPreviewForNext,
 	createIdleLookPreviewPiece,
@@ -847,5 +854,112 @@ describe('vMix feed mode (look feed inputs)', () => {
 		const casparMappings = getCasparCGMappings({ studio: hybridCasparConfig })
 		expect(casparMappings[CasparCGLayers.CasparCGClipPlayer2]?.options).toMatchObject({ layer: 111 })
 		expect(casparMappings[CasparCGLayers.CasparCGClipPlayer2B]?.options).toMatchObject({ layer: 111 })
+	})
+})
+
+describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
+	const MIC_CONFIG: StudioConfig = {
+		...vmixStudioConfig,
+		vmixProgram: { ...vmixStudioConfig.vmixProgram, micInput: 17 },
+	}
+	const audioOnLayer = (pieces: IBlueprintPiece[], layer: VMixLayers) =>
+		objectsOf(pieces).filter((obj) => obj.layer === layer) as Array<
+			TimelineBlueprintExt<TSR.TimelineContentVMixAudio>
+		>
+	const PREROLL = vmixStudioConfig.casparcgLatency
+
+	it('maps wipe files to their SFX start offsets', () => {
+		// wipe.mov SFX lands ~frame 10/11; themed files start on frame 1–2.
+		expect(getWipeSfxStartMs(vmixStudioConfig, 'wipes/wipe.mov')).toBe(400)
+		expect(getWipeSfxStartMs(vmixStudioConfig, 'wipes/wipe_sjv.mov')).toBe(40)
+		expect(getWipeSfxStartMs(vmixStudioConfig, 'wipes/wipe_sport.mov')).toBe(0)
+		expect(getWipeSfxStartMs(vmixStudioConfig, 'wipes/wipe_pocasie.mov')).toBe(40)
+	})
+
+	it('keeps beds live until the wipe SFX starts, then restarts into the hit envelope', () => {
+		const piece = createWipeBackgroundMusicMutePiece(vmixStudioConfig, 'part', 2340, 'wipes/wipe.mov', 'A')
+		const bedAudio = audioOnLayer([piece], VMixLayers.VMixBedAAudio)
+		const muted = bedAudio.find((obj) => obj.content.muted === true)
+		// Mute begins at the SFX start (Take + 400ms for wipe.mov), not at Take.
+		expect(muted?.enable).toMatchObject({ start: PREROLL + 400, duration: 2340 - 400 })
+
+		const seek0 = objectsOf([piece]).find((obj) => obj.layer === VMixLayers.VMixBedA)
+		expect(seek0?.enable).toMatchObject({ start: PREROLL + 2340 })
+
+		const hit = bedAudio.find((obj) => obj.content.volume === 100)
+		expect(hit?.enable).toMatchObject({ start: PREROLL + 2340 })
+		expect(hit?.content).toMatchObject({ muted: false, fade: 400, audioBuses: 'M,B' })
+
+		const settle = bedAudio.find((obj) => obj.content.volume === 70)
+		expect(settle?.enable).toMatchObject({ start: PREROLL + 2340 + 400 + 300 })
+		expect(settle?.content.fade).toBe(1500)
+	})
+
+	it('restarts the active C bed after a wipe inside Šport', () => {
+		const piece = createWipeBackgroundMusicMutePiece(vmixStudioConfig, 'part', 2000, 'wipes/wipe_sport.mov', 'C')
+		// wipe_sport SFX starts on frame 1 — full-window mute like before.
+		const mutedC = audioOnLayer([piece], VMixLayers.VMixBedCAudio).find((obj) => obj.content.muted === true)
+		expect(mutedC?.enable).toMatchObject({ start: PREROLL })
+		// Only the active C bed un-mutes into the envelope; A stays muted.
+		const hitC = audioOnLayer([piece], VMixLayers.VMixBedCAudio).find((obj) => obj.content.volume === 100)
+		expect(hitC?.enable).toMatchObject({ start: PREROLL + 2000 })
+		expect(audioOnLayer([piece], VMixLayers.VMixBedAAudio).some((obj) => obj.content.volume === 100)).toBe(false)
+	})
+
+	it('ramps the mod mic down 150ms into Intro mute pieces; micInput 0 disables it', () => {
+		const intro = createIntroBackgroundMusicMutePiece(MIC_CONFIG, 'intro', 3000)
+		const mic = audioOnLayer([intro], VMixLayers.VMixMicAudio)
+		expect(mic).toHaveLength(1)
+		// Piece timeline starts preroll before Take → object lands at Take + delay.
+		expect(mic[0].enable).toMatchObject({ start: MIC_CONFIG.casparcgLatency + 150 })
+		expect(mic[0].content).toMatchObject({ muted: false, volume: 0, fade: 150, audioBuses: 'M' })
+		expect(createVmixMicRampDownTimelineObjects(vmixStudioConfig, 0, 1)).toEqual([])
+	})
+
+	it('maps the mic input to a vMix audio channel only when configured', () => {
+		const mappings = getVMixMappings(MIC_CONFIG.vmixSources, MIC_CONFIG.vmixProgram, 'vmix0')
+		expect(mappings[VMixLayers.VMixMicAudio]?.options).toMatchObject({
+			index: '17',
+			disableDefaults: true,
+		})
+		expect(
+			getVMixMappings(vmixStudioConfig.vmixSources, vmixStudioConfig.vmixProgram, 'vmix0')[
+				VMixLayers.VMixMicAudio
+			]
+		).toBeUndefined()
+	})
+
+	it('keeps the mic live in the baseline and ramps it down on SYN parts', () => {
+		const baseline = getBaseline({
+			getStudioConfig: () => ({ studio: MIC_CONFIG }),
+			getShowStyleConfig: () => ({ dvePresets: {} }),
+			logDebug: () => undefined,
+			logInfo: () => undefined,
+			logWarning: () => undefined,
+			logError: () => undefined,
+		} as unknown as Parameters<typeof getBaseline>[0])
+		const micBaseline = (baseline.timelineObjects ?? []).find((obj) => obj.layer === VMixLayers.VMixMicAudio)
+		expect(micBaseline?.content).toMatchObject({ muted: false, volume: 100, audioBuses: 'M' })
+
+		const parts = generateSmokeRundown(MIC_CONFIG)
+		const micDown = parts.find(({ pieces }) =>
+			audioOnLayer(pieces, VMixLayers.VMixMicAudio).some((obj) => obj.content.volume === 0)
+		)
+		expect(micDown).toBeDefined()
+	})
+
+	it('un-mutes look inputs onto bus A + Master', () => {
+		const parts = generateSmokeRundown()
+		const unmuted = parts
+			.flatMap(({ pieces }) => objectsOf(pieces))
+			.filter(
+				(obj) =>
+					(obj.layer === VMixLayers.VMixLookInputAAudio || obj.layer === VMixLayers.VMixLookInputBAudio) &&
+					(obj.content as TSR.TimelineContentVMixAudio).muted === false
+			)
+		expect(unmuted.length).toBeGreaterThan(0)
+		for (const obj of unmuted) {
+			expect((obj.content as TSR.TimelineContentVMixAudio).audioBuses).toBe('M,A')
+		}
 	})
 })

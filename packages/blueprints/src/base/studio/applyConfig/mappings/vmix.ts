@@ -87,6 +87,21 @@ export function getVMixMappings(
 		})
 	}
 
+	// Moderator mic — ramps down under SYN / Intro / Outro. disableDefaults: an
+	// empty layer must not carry the default {muted:true} and silence the mic.
+	if (typeof vmixProgram.micInput === 'number' && vmixProgram.micInput > 0) {
+		mappings[VMixLayers.VMixMicAudio] = literal<BlueprintMapping<TSR.MappingVmixAudioChannel>>({
+			device: TSR.DeviceType.VMIX,
+			deviceId,
+			lookahead: LookaheadMode.NONE,
+			options: {
+				mappingType: TSR.MappingVmixType.AudioChannel,
+				index: '' + vmixProgram.micInput,
+				disableDefaults: true,
+			},
+		})
+	}
+
 	const multiviewSource = Object.values<VmixInputConfig>(vmixSources).find(
 		(source) => source.type === SourceType.MultiView
 	)

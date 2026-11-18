@@ -8,7 +8,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { PartProps, VOProps } from '../definitions/index.js'
 import { getAudioObjectOnLayer } from '../helpers/audio.js'
 import { autoNextFromRe } from '../helpers/autoNext.js'
-import { getHostForceMuteChannels } from '../helpers/backgroundMusic.js'
+import { createVmixMicRampDownTimelineObjects, getHostForceMuteChannels } from '../helpers/backgroundMusic.js'
 import {
 	getClipPlayerInput,
 	getEditorialClipCasparLayer,
@@ -61,6 +61,8 @@ export function generateVOPart(
 	if (hostMutes.length > 0) {
 		timelineObjects.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, hostMutes))
 	}
+	// vMix mic ramps down micRampDelayMs into the SYN — never an abrupt mute.
+	timelineObjects.push(...createVmixMicRampDownTimelineObjects(config, 0, 1))
 
 	const cameraPiece: IBlueprintPiece = {
 		// No piece.enable.duration — ending the piece CLEARs Caspar even with loop:false.
