@@ -16,6 +16,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../studio/helpers/config.js'
 import { AtemLayers, CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { getSisyfosBaseline } from '../helpers/audio.js'
+import { createVmixMicBaselineAudioObject } from '../helpers/backgroundMusic.js'
 import { parseConfig } from '../helpers/config.js'
 import { createDebugChannelLabelTimeline } from '../helpers/debugChannelLabels.js'
 import { DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
@@ -281,6 +282,7 @@ function createLookBCalibrationCameraTimeline(
 function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 	const lookB = getVmixLookInput(config, 'B')
 	const lookInputs = [VMixLayers.VMixLookInputA, VMixLayers.VMixLookInputB] as const
+	const micBaseline = createVmixMicBaselineAudioObject(config)
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentVMixProgram>>({
 			id: '',
@@ -354,6 +356,9 @@ function getVMixProgramBaseline(config: StudioConfig): TimelineBlueprintExt[] {
 				input: getVmixLookInput(config, 'A'),
 			},
 		}),
+		// Moderator mic live at full volume — SYN / Intro / Outro ramp pieces
+		// shadow this (higher priority) and the baseline restores on their end.
+		...(micBaseline ? [micBaseline] : []),
 	]
 }
 

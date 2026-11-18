@@ -26,10 +26,13 @@ describe('segmentUsesLedBgLoopZoom', () => {
 		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-tema-1', name: 'Obchodný register' })).toBe(true)
 		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-sjv', name: 'SPRÁVY JEDNOU VETOU' })).toBe(true)
 		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-sport', name: 'ŠPORT' })).toBe(true)
-		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-weather', name: 'POČASIE' })).toBe(true)
 		expect(segmentUsesLedBgLoopZoom({ name: 'ŠPORT' })).toBe(true)
-		expect(segmentUsesLedBgLoopZoom({ name: 'Počasie' })).toBe(true)
 		expect(segmentUsesLedBgLoopZoom({ name: 'sport' })).toBe(true)
+	})
+
+	it('does not match weather / Počasie (bg_loop returns to fullscreen from weather onward)', () => {
+		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-weather', name: 'POČASIE' })).toBe(false)
+		expect(segmentUsesLedBgLoopZoom({ name: 'Počasie' })).toBe(false)
 	})
 
 	it('does not match Transport (sport as an interior substring)', () => {
@@ -45,13 +48,12 @@ describe('segmentUsesLedBgLoopZoom', () => {
 })
 
 describe('LED_BG_LOOP_TEMA_FILL', () => {
-	it('pans ~1.085×50% screen right with matching scale (covers DoubleBox cam cutout)', () => {
-		const shift = 1.085 * 0.5
+	it('shifts bg_loop half a screen right at native scale (left half black, right half = left half of loop)', () => {
 		expect(LED_BG_LOOP_TEMA_FILL).toEqual({
-			x: -shift,
-			y: -(shift * 0.5),
-			xScale: 1 + shift,
-			yScale: 1 + shift,
+			x: 0.5,
+			y: 0,
+			xScale: 1,
+			yScale: 1,
 		})
 	})
 

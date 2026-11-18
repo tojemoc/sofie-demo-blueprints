@@ -75,16 +75,23 @@ describe('koliska bed envelope', () => {
 	})
 
 	it('mutes LED+PGM beds for the wipe SFX window, then EMPTY→bed diff restarts it from 0', () => {
-		const piece = createWipeBackgroundMusicMutePiece(hybridCasparConfig, 'part-sport-1', 2500)
+		const piece = createWipeBackgroundMusicMutePiece(hybridCasparConfig, 'part-sport-1', 2500, 'wipes/wipe')
 		expect(piece.name).toBe('BG music mute (Wipe)')
 		const preroll = hybridCasparConfig.casparcgLatency
 		// Piece duration includes preroll so Sofie does not truncate the Take-relative mute.
 		expect(piece.enable).toEqual({ start: 0, duration: preroll + 2500 })
 		expect(piece.lifespan).toBe(PieceLifespan.WithinPart)
 		expect(piece.prerollDuration).toBe(preroll)
-		for (const tl of piece.content?.timelineObjects ?? []) {
-			// Take-relative: object start offsets piece preroll so mute covers the full sting.
-			expect(tl.enable).toEqual({ start: preroll, duration: 2500 })
+		// `wipe.mov` SFX starts ~400 ms in — the bed stays live under the silent head.
+		const sfxOffsetMs = 400
+		const timelines = piece.content?.timelineObjects ?? []
+		expect(timelines.map((tl) => tl.layer)).toEqual([
+			CasparCGLayers.CasparCGAudioBed,
+			CasparCGLayers.CasparCGAudioBedPgm,
+		])
+		for (const tl of timelines) {
+			// Take-relative: object start offsets piece preroll so mute covers the sting tail.
+			expect(tl.enable).toEqual({ start: preroll + sfxOffsetMs, duration: 2500 - sfxOffsetMs })
 			// EMPTY (not volume 0) — the media diff back to the bed file re-PLAYs it from 0.
 			expect((tl.content as TSR.TimelineContentCCGMedia).file).toBe('EMPTY')
 			expect(tl.priority).toBe(2)

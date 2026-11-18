@@ -24,7 +24,7 @@ import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getAdlibItem } from './getAdlibItem.js'
 import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
-import { createBackgroundMusicStartPiece } from './helpers/backgroundMusic.js'
+import { createBackgroundMusicHitPiece, createBackgroundMusicStartPiece } from './helpers/backgroundMusic.js'
 import { isOutroVideoFile } from './helpers/clips.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
@@ -118,8 +118,15 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 		// First Take starts the kolíska A-bed (every Take in rehearsal too — the
 		// bed is part of the show being rehearsed). Flag drives the onSetAsNext
 		// arming so the bed survives auto-next transitions the same way the
-		// recording piece does.
+		// recording piece does. The hit envelope is a one-shot piece gated on the
+		// flag — the re-armed start piece must stay constant or it replays the
+		// ramp on every Take.
+		const bgMusicAlreadyStarted = playoutState.getKey('bgMusicAStarted')
 		await ensureBgMusicAStartPiece(context, nextPartInstance, config)
+		if (!bgMusicAlreadyStarted && nextPartInstance) {
+			const hitPiece = createBackgroundMusicHitPiece(config)
+			if (hitPiece) await context.insertPiece('next', hitPiece)
+		}
 		playoutState.setKey('bgMusicAStarted', true)
 		if (config.visionMixer.type !== VisionMixerDevice.VMix || context.isRehearsal) return
 		await ensureVmixRecordingPiece(context, nextPartInstance)

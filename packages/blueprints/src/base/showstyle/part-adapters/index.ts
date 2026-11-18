@@ -35,8 +35,10 @@ import {
 	createSportBackgroundMusicPiece,
 	createZaverBackgroundMusicPiece,
 	duckAudioBedPieceDuringWipe,
+	getWipeSfxStartMs,
 	isSportSegmentName,
 	isZaverSegmentName,
+	setVmixActiveBedForGeneration,
 } from '../helpers/backgroundMusic.js'
 import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
 import { parseConfig } from '../helpers/config.js'
@@ -130,6 +132,13 @@ export function generateParts(
 ): BlueprintResultSegment {
 	context.logDebug('Generating parts for intermediateSegment: ' + JSON.stringify(intermediateSegment, null, 2))
 	const studioConfig = parseConfig(context).studio
+	// Wipe mute pieces ask which bed the segment owns (C from Šport onward).
+	setVmixActiveBedForGeneration(
+		context.rundownId,
+		intermediateSegment.payload.externalId,
+		intermediateSegment.payload.name ?? '',
+		intermediateSegment.payload.rank
+	)
 	// Create Segment UserEditOperations:
 	const userEditOperationsOnSegment: UserEditingDefinitionAction[] = [
 		{
@@ -485,7 +494,8 @@ export function generateParts(
 			entranceRaw?.payload.externalId ?? 'sport'
 		)
 		// Sport C is appended after finalize — duck it for wipe_sport on the entrance Take.
-		// muteFrom 0: bed must be at intended level the moment wipe CLEAR (not latency-shifted).
+		// Duck from the SFX start (not Take — keeps the bed under the wipe's silent head),
+		// restore at sting end so the bed is back when the wipe CLEARs.
 		const wipe = findWipeVideoObject(entranceRaw?.objects ?? [])
 		if (wipe) {
 			const rawWipeFile =
@@ -493,7 +503,11 @@ export function generateParts(
 				(typeof wipe.clipName === 'string' && wipe.clipName.trim()) ||
 				''
 			const wipeFile = rawWipeFile ? normalizeLayeredVideoFileName('wipe', rawWipeFile) : undefined
-			duckAudioBedPieceDuringWipe(sportMusic, resolveWipeDurationMs(wipe.duration, wipeFile), 0)
+			duckAudioBedPieceDuringWipe(
+				sportMusic,
+				resolveWipeDurationMs(wipe.duration, wipeFile),
+				getWipeSfxStartMs(studioConfig, wipeFile)
+			)
 		}
 		entrancePart.pieces.push(sportMusic)
 	}

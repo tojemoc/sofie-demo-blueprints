@@ -41,10 +41,10 @@ Baseline pre-warms **both** look channels with `bg_loop` + `route://5` so the fi
 | ZAVER + AVIZO | Full | opacity swap | hard cut / wipe | LED: windowed `ilu-zaver`; PGM: CAM + L3DO |
 | Outro | Full | hold | `outro.mov` on PGM 210 | beds muted OutOnRundownEnd |
 
-**LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT / Počasie parts apply a
-right-shifted FILL+CROP (`FILL -0.5425 -0.27125 1.5425 1.5425` — vMix shift 1.085 where
-1.0 = 50% of screen) so the loop covers the DoubleBox camera cutout. Tip / avízo / outro
-return to fullscreen. Headlines also PLAY `assets/pod_headline` on LED layer **112**
+**LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT parts apply a
+half-screen right shift (`FILL 0.5 0 1 1` — left half of the LED is black, the right
+half shows the left half of the loop at native scale). Weather onward (Počasie / tip /
+avízo / outro) returns to fullscreen. Headlines also PLAY `assets/pod_headline` on LED layer **112**
 (above bg_loop 110, under ILU 115).
 
 **L3D:** Take EMPTYs look layer 121 before the delayed CG ADD (`L3D_OUT_MS` / wipe cut) so

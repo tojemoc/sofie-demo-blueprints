@@ -11,6 +11,7 @@ import {
 	TSR,
 } from '@sofie-automation/blueprints-integration'
 
+import { PartContext } from '../../../common/context.js'
 import { GraphicObject, ObjectType, SomeObject, VideoObject } from '../../../common/definitions/objects.js'
 import { DEFAULT_WIPE_FILE } from '../../../common/definitions/rundownEditorTypes.js'
 import { literal } from '../../../common/util.js'
@@ -20,7 +21,11 @@ import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { getAudioObjectOnLayer } from './audio.js'
-import { createWipeBackgroundMusicMutePiece, getWipeForceMuteChannels } from './backgroundMusic.js'
+import {
+	createWipeBackgroundMusicMutePiece,
+	getVmixActiveBedForGeneration,
+	getWipeForceMuteChannels,
+} from './backgroundMusic.js'
 import {
 	applyCrossSlotWipeAirCutBias,
 	DEFAULT_WIPE_DURATION_MS,
@@ -1124,7 +1129,20 @@ export function finalizeHypercomposedPart(
 			muteEditorialClipAudioDuringWipe(pieces, stingCoverMs)
 		}
 		// Kolíska beds ride Caspar audio layers (or vMix bed inputs) — Sisyfos ForceMute does not duck them.
-		pieces.push(createWipeBackgroundMusicMutePiece(config, partExternalId, stingCoverMs))
+		// vMix stingers fire VMIX_STINGER_PREVIEW_LEAD_MS after Take, so their SFX
+		// lands that late — the bed mute must start at lead + file offset, not at
+		// the file offset alone (dead air for the lead duration). Caspar wipes
+		// play from Take → no lead.
+		pieces.push(
+			createWipeBackgroundMusicMutePiece(
+				config,
+				partExternalId,
+				stingCoverMs,
+				wipeFile,
+				getVmixActiveBedForGeneration('rundownId' in context ? (context as PartContext).rundownId : undefined),
+				vmixProgram ? VMIX_STINGER_PREVIEW_LEAD_MS : 0
+			)
+		)
 		// Countup reveal must land under the cover with the route cut — not at Take
 		// (AMCP showed PLAY countup → route:// → wipe first-frame when reveal was at 0).
 		// Leave-weather uses wipeRouteCutMs so the countup appears with the (lagged) route.
@@ -2229,6 +2247,7 @@ export function createLookAudioResetPiece(partExternalId: string, slot: LookSlot
 						deviceType: TSR.DeviceType.VMIX,
 						type: TSR.TimelineContentTypeVMix.AUDIO,
 						muted: false,
+						audioBuses: 'M,A',
 					},
 				}),
 			] as TimelineBlueprintExt[],
@@ -2482,6 +2501,7 @@ export async function armIdleLookPreviewForNext(
 						deviceType: TSR.DeviceType.VMIX,
 						type: TSR.TimelineContentTypeVMix.AUDIO,
 						muted: false,
+						audioBuses: 'M,A',
 					},
 				})
 			)

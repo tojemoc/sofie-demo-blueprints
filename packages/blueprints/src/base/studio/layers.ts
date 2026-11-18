@@ -25,6 +25,8 @@ export enum VMixLayers {
 	VMixBedC = 'vmix_bed_c',
 	VMixBedAAudio = 'vmix_bed_a_audio',
 	VMixBedCAudio = 'vmix_bed_c_audio',
+	/** Moderator mic (`vmixProgram.micInput`) — ramped down under SYN / Intro / Outro. */
+	VMixMicAudio = 'vmix_mic_audio',
 	/**
 	 * vMix recording toggle — `RECORDING { on: true }` piece inserted on the
 	 * first on-air Take; leaving the timeline at rundown end stops it

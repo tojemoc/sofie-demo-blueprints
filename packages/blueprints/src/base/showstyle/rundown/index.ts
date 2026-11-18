@@ -9,6 +9,7 @@ import {
 
 import { SpreadsheetIngestRundown } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { literal } from '../../../common/util.js'
+import { beginVmixBedGeneration } from '../helpers/backgroundMusic.js'
 import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
 import { RundownMetadata } from '../helpers/metadata.js'
 import { beginLookSlotGeneration } from '../helpers/pgmLook.js'
@@ -23,10 +24,19 @@ export function getRundown(
 	context.logDebug(
 		'------------------------------- getRundown ----------------------------------------------------------------'
 	)
+	const bedSegments = ingestRundown.segments.map((segment) => ({
+		externalId: segment.externalId,
+		rank: segment.rank,
+		name: segment.name,
+	}))
 	beginCountupRevealGeneration(ingestRundown.externalId)
 	beginLookSlotGeneration(ingestRundown.externalId)
+	beginVmixBedGeneration(ingestRundown.externalId, bedSegments)
 	const rundownMetadata: RundownMetadata = {
 		ingestType: ingestRundown.type,
+		// Persists on the rundown document — getSegment rehydrates it for
+		// lone segment regenerations after a worker restart.
+		vmixBedSegments: bedSegments,
 	}
 
 	const timing: PlaylistTimingForwardTime = {

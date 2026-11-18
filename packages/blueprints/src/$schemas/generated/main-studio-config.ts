@@ -139,6 +139,23 @@ export interface VmixProgramConfig {
 	bedCInput: number
 	stingerCutPointMs?: number
 	bedVolume?: number
+	bedHitVolume?: number
+	bedRampUpMs?: number
+	bedHitHoldMs?: number
+	bedRampDownMs?: number
+	wipeSfxStartMs?: WipeSfxStartMs
+	micInput?: number
+	micRampDelayMs?: number
+	micRampMs?: number
+}
+/**
+ * Offset (ms from stinger start) where each wipe's audio SFX actually begins — beds stay live until then and mute only for the SFX window.
+ */
+export interface WipeSfxStartMs {
+	wipe?: number
+	wipe_sjv?: number
+	wipe_sport?: number
+	wipe_pocasie?: number
 }
 /**
  * Mixer volume levels for show SFX (0–1 Caspar mixer scale)
