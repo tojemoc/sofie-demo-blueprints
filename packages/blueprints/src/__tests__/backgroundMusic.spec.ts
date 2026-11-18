@@ -84,7 +84,12 @@ describe('koliska bed envelope', () => {
 		expect(piece.prerollDuration).toBe(preroll)
 		// `wipe.mov` SFX starts ~400 ms in — the bed stays live under the silent head.
 		const sfxOffsetMs = 400
-		for (const tl of piece.content?.timelineObjects ?? []) {
+		const timelines = piece.content?.timelineObjects ?? []
+		expect(timelines.map((tl) => tl.layer)).toEqual([
+			CasparCGLayers.CasparCGAudioBed,
+			CasparCGLayers.CasparCGAudioBedPgm,
+		])
+		for (const tl of timelines) {
 			// Take-relative: object start offsets piece preroll so mute covers the sting tail.
 			expect(tl.enable).toEqual({ start: preroll + sfxOffsetMs, duration: 2500 - sfxOffsetMs })
 			// EMPTY (not volume 0) — the media diff back to the bed file re-PLAYs it from 0.

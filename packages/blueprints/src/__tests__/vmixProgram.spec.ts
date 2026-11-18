@@ -942,10 +942,13 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		expect(micBaseline?.content).toMatchObject({ muted: false, volume: 100, audioBuses: 'M' })
 
 		const parts = generateSmokeRundown(MIC_CONFIG)
-		const micDown = parts.find(({ pieces }) =>
-			audioOnLayer(pieces, VMixLayers.VMixMicAudio).some((obj) => obj.content.volume === 0)
-		)
-		expect(micDown).toBeDefined()
+		// The ramp must come from a SYN part — searching every part could be
+		// satisfied by the Intro mute piece alone.
+		const syn = parts.find(({ externalId }) => /syn/i.test(externalId))
+		expect(syn).toBeDefined()
+		const micRamp = audioOnLayer(syn?.pieces ?? [], VMixLayers.VMixMicAudio).find((obj) => obj.content.volume === 0)
+		expect(micRamp?.enable).toMatchObject({ start: 150 })
+		expect(micRamp?.content).toMatchObject({ muted: false, volume: 0, fade: 150, audioBuses: 'M' })
 	})
 
 	it('un-mutes look inputs onto bus A + Master', () => {

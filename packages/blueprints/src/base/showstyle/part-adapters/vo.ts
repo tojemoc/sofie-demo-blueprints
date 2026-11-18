@@ -20,7 +20,7 @@ import { parseGraphicsFromObjects } from '../helpers/graphics.js'
 import { createMediaFileExpectedPackage } from '../helpers/mediaPackages.js'
 import { finalizeHypercomposedPart, LookSlot } from '../helpers/pgmLook.js'
 import { createScriptPiece } from '../helpers/script.js'
-import { createVisionMixerObjects } from '../helpers/visionMixer.js'
+import { createVisionMixerObjects, usesVmixProgram } from '../helpers/visionMixer.js'
 
 /** Generate a VO part — voice-over clip on the look clip layer with muted camera audio. */
 export function generateVOPart(
@@ -61,8 +61,8 @@ export function generateVOPart(
 	if (hostMutes.length > 0) {
 		timelineObjects.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, hostMutes))
 	}
-	// vMix mic ramps down micRampDelayMs into the SYN — never an abrupt mute.
-	timelineObjects.push(...createVmixMicRampDownTimelineObjects(config, 0, 1))
+	// Mic ramp lives on its own piece below — the clip piece earns look-media
+	// postroll, which would hold the mic at 0 past the SYN part boundary.
 
 	const cameraPiece: IBlueprintPiece = {
 		// No piece.enable.duration — ending the piece CLEARs Caspar even with loop:false.
@@ -93,6 +93,25 @@ export function generateVOPart(
 	}
 
 	const pieces = [cameraPiece]
+	if (usesVmixProgram(config)) {
+		// vMix mic ramps down micRampDelayMs into the SYN — never an abrupt mute.
+		// WithinPart with no look-compose media → no postroll; the baseline
+		// volume-100 object restores the mic exactly at the part boundary.
+		pieces.push(
+			literal<IBlueprintPiece>({
+				enable: { start: 0 },
+				externalId: `${part.payload.externalId}_vmix_mic_ramp`,
+				name: 'VMix mic ramp (SYN)',
+				lifespan: PieceLifespan.WithinPart,
+				sourceLayerId: SourceLayer.AudioBed,
+				outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+				content: {
+					timelineObjects: createVmixMicRampDownTimelineObjects(config, 0, 1),
+				},
+				expectedPackages: [],
+			})
+		)
+	}
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)
 	if (scriptPiece) pieces.push(scriptPiece)
 

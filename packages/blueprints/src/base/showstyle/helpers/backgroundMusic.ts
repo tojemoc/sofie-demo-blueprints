@@ -190,12 +190,21 @@ function hasVmixBeds(config: StudioConfig): boolean {
 	return config.visionMixer.type === VisionMixerDevice.VMix
 }
 
-/** Which kolíska bed the segment owns — C from Šport onward, A elsewhere (ZAVER swaps back). */
+/**
+ * Which kolíska bed the segment owns — ordered transitions only: C from Šport
+ * onward (kept through Počasie), back to A from ZÁVER. Other segment names
+ * leave the previous bed alone — a bare `isSport ? C : A` would wrongly flip
+ * Počasie back to A mid-run.
+ */
 const vmixActiveBedByRundownId = new Map<string, VmixBed>()
 
 /** Called from `generateParts` with the segment name so part-level pieces know the active bed. */
 export function setVmixActiveBedForGeneration(rundownId: string, segmentName: string): void {
-	vmixActiveBedByRundownId.set(rundownId, isSportSegmentName(segmentName) ? 'C' : 'A')
+	if (isSportSegmentName(segmentName)) {
+		vmixActiveBedByRundownId.set(rundownId, 'C')
+	} else if (isZaverSegmentName(segmentName)) {
+		vmixActiveBedByRundownId.set(rundownId, 'A')
+	}
 }
 
 export function getVmixActiveBedForGeneration(rundownId: string | undefined): VmixBed {
@@ -414,7 +423,8 @@ export function createBackgroundMusicMutePiece(
 	label: 'Intro' | 'Outro' | 'Wipe',
 	durationMs?: number,
 	wipeFile?: string,
-	activeBed: VmixBed = 'A'
+	activeBed: VmixBed = 'A',
+	sfxDelayMs = 0
 ): IBlueprintPiece {
 	const persistAfterPart = label === 'Outro'
 	const prerollMs = config.casparcgLatency
@@ -423,27 +433,31 @@ export function createBackgroundMusicMutePiece(
 	// Piece enable.duration includes preroll so Sofie does not truncate the offset object.
 	// Beds stay live until the stinger's SFX actually starts (each wipe file's audio
 	// kicks in at its own offset — a mute at Take left dead air under the silent head).
+	// sfxDelayMs shifts the audible start later (vMix stingers fire after Take).
 	const sfxStartMs =
-		label === 'Wipe' && durationMs !== undefined ? Math.min(getWipeSfxStartMs(config, wipeFile), durationMs) : 0
+		label === 'Wipe' && durationMs !== undefined
+			? Math.min(sfxDelayMs + getWipeSfxStartMs(config, wipeFile), durationMs)
+			: 0
+	const muteWindowMs = durationMs !== undefined ? Math.max(0, durationMs - sfxStartMs) : 0
 	const timelineEnable =
-		durationMs !== undefined && !persistAfterPart
-			? { start: label === 'Wipe' ? prerollMs + sfxStartMs : 0, duration: durationMs - sfxStartMs }
+		durationMs !== undefined && !persistAfterPart && muteWindowMs > 0
+			? { start: label === 'Wipe' ? prerollMs + sfxStartMs : 0, duration: muteWindowMs }
 			: undefined
 	const restoreAtMs = prerollMs + (durationMs ?? 0)
+	// Seek-0 restart + hit envelope only make sense when the bed actually muted —
+	// an SFX offset that swallows the wipe must not restart a bed that kept playing.
+	const restartBeds = label === 'Wipe' && muteWindowMs > 0
 	// vMix beds restart via a seek-0 INPUT object at the unmute instant — the piece
 	// needs a tail covering the seek + the hit→fade-down envelope objects.
 	// Caspar restarts via the EMPTY→bed media diff, no tail needed.
 	const restartTailMs =
-		label === 'Wipe' && durationMs !== undefined && !casparOwnsMusicBeds(config)
-			? getVmixBedRampUpMs(config) + getVmixBedHitHoldMs(config) + 300
-			: 0
+		restartBeds && !casparOwnsMusicBeds(config) ? getVmixBedRampUpMs(config) + getVmixBedHitHoldMs(config) + 300 : 0
 	const pieceDurationMs =
 		durationMs !== undefined && !persistAfterPart
 			? label === 'Wipe'
 				? prerollMs + durationMs + restartTailMs
 				: durationMs
 			: undefined
-	const restartBeds = label === 'Wipe' && durationMs !== undefined
 	const vmixMuteEnable = timelineEnable
 	const micRampObjects =
 		!casparOwnsMusicBeds(config) && (label === 'Intro' || label === 'Outro')
@@ -464,10 +478,15 @@ export function createBackgroundMusicMutePiece(
 			ignoreAudioFormat: true,
 			timelineObjects: casparOwnsMusicBeds(config)
 				? label === 'Wipe'
-					? createDualChannelAudioBedTimelineObjects('EMPTY', {
-							priority: 2,
-							...(timelineEnable ? { enable: timelineEnable } : {}),
-						})
+					? // A wipe shorter than its SFX offset has no mute window — emit
+						// nothing rather than an unbounded EMPTY that kills the bed for
+						// the whole part.
+						timelineEnable
+						? createDualChannelAudioBedTimelineObjects('EMPTY', {
+								priority: 2,
+								enable: timelineEnable,
+							})
+						: []
 					: createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
 							volume: 0,
 							priority: 2,
@@ -477,7 +496,10 @@ export function createBackgroundMusicMutePiece(
 						...(['A', 'C'] as const)
 							.filter(() => hasVmixBeds(config))
 							.flatMap((bed) => [
-								...(vmixMuteEnable === undefined || vmixMuteEnable.duration > 0
+								// Intro/Outro: undefined enable = open-ended mute. Wipe without a
+								// positive mute window: emit nothing (unbounded mute would kill the
+								// bed for the whole part).
+								...(label !== 'Wipe' || vmixMuteEnable !== undefined
 									? [vmixBedAudioObject(bed, vmixMuteEnable ?? { start: 0 }, 2, { muted: true })]
 									: []),
 								// Restart the bed input from 0 at unmute — the AUDIO toggle
@@ -531,15 +553,29 @@ export function createOutroBackgroundMusicMutePiece(
 	return createBackgroundMusicMutePiece(config, partExternalId, 'Outro', durationMs)
 }
 
-/** Mute kolíska beds for the wipe SFX window (`wipe_sport` / themed stings). */
+/**
+ * Mute kolíska beds for the wipe SFX window (`wipe_sport` / themed stings).
+ * `sfxDelayMs` is the delay before the sting's audio starts beyond the file's
+ * own SFX offset — vMix stingers fire `VMIX_STINGER_PREVIEW_LEAD_MS` after
+ * Take, so their SFX lands that much later.
+ */
 export function createWipeBackgroundMusicMutePiece(
 	config: StudioConfig,
 	partExternalId: string,
 	wipeDurationMs: number,
 	wipeFile?: string,
-	activeBed: VmixBed = 'A'
+	activeBed: VmixBed = 'A',
+	sfxDelayMs = 0
 ): IBlueprintPiece {
-	return createBackgroundMusicMutePiece(config, partExternalId, 'Wipe', wipeDurationMs, wipeFile, activeBed)
+	return createBackgroundMusicMutePiece(
+		config,
+		partExternalId,
+		'Wipe',
+		wipeDurationMs,
+		wipeFile,
+		activeBed,
+		sfxDelayMs
+	)
 }
 
 /** Swap to C-bed from the first Take in Šport onward (same koliska hit → duck envelope). */
@@ -621,8 +657,12 @@ export function duckAudioBedPieceDuringWipe(piece: IBlueprintPiece, wipeDuration
 			TimelineBlueprintExt<TSR.TimelineContentCCGMedia>['keyframes']
 		>
 		const restoreVolume = mixerVolumeAtOrBefore(existing, baseVolume, restoreAt)
+		// Bed envelopes (e.g. the kolíska hit at 0) keep running until the mute
+		// actually starts — drop only keyframes inside the mute window.
+		const preservedKeyframes = existing.filter((kf) => keyframeStartMs(kf) < muteFrom)
 		const laterKeyframes = existing.filter((kf) => keyframeStartMs(kf) > restoreAt)
 		;(obj as TimelineBlueprintExt).keyframes = [
+			...preservedKeyframes,
 			{
 				id: '',
 				enable: { start: muteFrom, duration: muteDuration },

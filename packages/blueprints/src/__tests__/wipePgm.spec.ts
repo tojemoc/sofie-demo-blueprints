@@ -499,6 +499,7 @@ describe('wipe piece type → PGM route / overlay', () => {
 		// the start when the mute window ends. `wipes/wipe` SFX starts ~400 ms in,
 		// so the bed stays live under the silent head and mutes only for the sting tail.
 		const sfxOffsetMs = 400
+		expect(bgMute?.content.timelineObjects?.length ?? 0).toBeGreaterThan(0)
 		expect(
 			(bgMute?.content.timelineObjects ?? []).every(
 				(obj) =>

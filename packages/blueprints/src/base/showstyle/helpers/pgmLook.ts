@@ -1129,13 +1129,18 @@ export function finalizeHypercomposedPart(
 			muteEditorialClipAudioDuringWipe(pieces, stingCoverMs)
 		}
 		// Kolíska beds ride Caspar audio layers (or vMix bed inputs) — Sisyfos ForceMute does not duck them.
+		// vMix stingers fire VMIX_STINGER_PREVIEW_LEAD_MS after Take, so their SFX
+		// lands that late — the bed mute must start at lead + file offset, not at
+		// the file offset alone (dead air for the lead duration). Caspar wipes
+		// play from Take → no lead.
 		pieces.push(
 			createWipeBackgroundMusicMutePiece(
 				config,
 				partExternalId,
 				stingCoverMs,
 				wipeFile,
-				getVmixActiveBedForGeneration('rundownId' in context ? (context as PartContext).rundownId : undefined)
+				getVmixActiveBedForGeneration('rundownId' in context ? (context as PartContext).rundownId : undefined),
+				vmixProgram ? VMIX_STINGER_PREVIEW_LEAD_MS : 0
 			)
 		)
 		// Countup reveal must land under the cover with the route cut — not at Take
