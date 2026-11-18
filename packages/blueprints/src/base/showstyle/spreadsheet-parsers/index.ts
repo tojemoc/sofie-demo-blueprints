@@ -86,6 +86,8 @@ export function convertIngestData(context: IRundownUserContext, ingestSegment: I
 		parts,
 		payload: {
 			name: ingestSegment.name,
+			externalId: ingestSegment.externalId,
+			rank: ingestSegment.rank,
 		},
 	}
 }

@@ -9,6 +9,7 @@ import {
 
 import { SpreadsheetIngestRundown } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { literal } from '../../../common/util.js'
+import { beginVmixBedGeneration } from '../helpers/backgroundMusic.js'
 import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
 import { RundownMetadata } from '../helpers/metadata.js'
 import { beginLookSlotGeneration } from '../helpers/pgmLook.js'
@@ -25,6 +26,7 @@ export function getRundown(
 	)
 	beginCountupRevealGeneration(ingestRundown.externalId)
 	beginLookSlotGeneration(ingestRundown.externalId)
+	beginVmixBedGeneration(ingestRundown.externalId)
 	const rundownMetadata: RundownMetadata = {
 		ingestType: ingestRundown.type,
 	}

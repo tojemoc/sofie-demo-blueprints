@@ -55,6 +55,7 @@ export interface SegmentProps extends IntermediateSegment {
 	payload: {
 		name: string
 		externalId?: string
+		rank?: number
 	}
 }
 

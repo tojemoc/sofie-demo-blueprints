@@ -133,7 +133,12 @@ export function generateParts(
 	context.logDebug('Generating parts for intermediateSegment: ' + JSON.stringify(intermediateSegment, null, 2))
 	const studioConfig = parseConfig(context).studio
 	// Wipe mute pieces ask which bed the segment owns (C from Šport onward).
-	setVmixActiveBedForGeneration(context.rundownId, intermediateSegment.payload.name ?? '')
+	setVmixActiveBedForGeneration(
+		context.rundownId,
+		intermediateSegment.payload.externalId,
+		intermediateSegment.payload.name ?? '',
+		intermediateSegment.payload.rank
+	)
 	// Create Segment UserEditOperations:
 	const userEditOperationsOnSegment: UserEditingDefinitionAction[] = [
 		{

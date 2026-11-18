@@ -906,6 +906,56 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		expect(audioOnLayer([piece], VMixLayers.VMixBedAAudio).some((obj) => obj.content.volume === 100)).toBe(false)
 	})
 
+	it('shifts the generated wipe mute window by the vMix stinger preview lead', () => {
+		// Through finalizeHypercomposedPart the stinger fires LEAD ms after Take —
+		// the mute must start at LEAD + file offset and end at stinger end.
+		const mutePiece = generateSmokeRundown()
+			.flatMap((p) => p.pieces)
+			.find((piece) => piece.name === 'BG music mute (Wipe)')
+		expect(mutePiece).toBeDefined()
+		const muted = objectsOf(mutePiece ? [mutePiece] : []).find(
+			(obj) =>
+				obj.layer === VMixLayers.VMixBedAAudio && (obj.content as TSR.TimelineContentVMixAudio).muted === true
+		)
+		// wipe.mov: 40ms lead + 400ms file offset; window ends at stinger end
+		// (2500ms wipe + 40ms lead), not at wipe end.
+		expect(muted?.enable).toMatchObject({
+			start: PREROLL + VMIX_STINGER_PREVIEW_LEAD_MS + 400,
+			duration: 2500 + VMIX_STINGER_PREVIEW_LEAD_MS - (VMIX_STINGER_PREVIEW_LEAD_MS + 400),
+		})
+	})
+
+	it('resolves the wipe bed from editorial position, not the last generated segment', () => {
+		const exportData = loadSmokeRundownExport()
+		const ctx = vmixContext()
+		const seq = createLookSlotSequence()
+		const generate = (segId: string) => {
+			const intermediate = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segId))
+			return generateParts(ctx, intermediate, undefined, seq).parts
+		}
+		for (const segId of [...new Set(exportData.parts.map((p) => p.segmentId))]) generate(segId)
+
+		const bedRestartedBy = (segId: string): 'A' | 'C' | 'none' => {
+			const mutePiece = generate(segId)
+				.flatMap((p) => p.pieces)
+				.find((piece) => piece.name === 'BG music mute (Wipe)')
+			// The seek-0 restart lands on both beds; only the active bed also gets
+			// the un-mute hit→fade-down envelope (volume 100 object).
+			const objects = objectsOf(mutePiece ? [mutePiece] : [])
+			const hitsVol100 = (layer: VMixLayers) =>
+				objects.some(
+					(obj) => obj.layer === layer && (obj.content as TSR.TimelineContentVMixAudio).volume === 100
+				)
+			if (hitsVol100(VMixLayers.VMixBedCAudio)) return 'C'
+			if (hitsVol100(VMixLayers.VMixBedAAudio)) return 'A'
+			return 'none'
+		}
+		// Full pass ends on ZÁVER (bed A). Regenerating Počasie alone must still
+		// own C; an early wiped story must not inherit A from the tail state.
+		expect(bedRestartedBy('seg-weather')).toBe('C')
+		expect(bedRestartedBy('seg-tema-1')).toBe('A')
+	})
+
 	it('ramps the mod mic down 150ms into Intro mute pieces; micInput 0 disables it', () => {
 		const intro = createIntroBackgroundMusicMutePiece(MIC_CONFIG, 'intro', 3000)
 		const mic = audioOnLayer([intro], VMixLayers.VMixMicAudio)
