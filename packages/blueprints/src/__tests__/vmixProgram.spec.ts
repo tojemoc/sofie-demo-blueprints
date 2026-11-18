@@ -11,6 +11,7 @@ import {
 	createVmixMicRampDownTimelineObjects,
 	createWipeBackgroundMusicMutePiece,
 	getWipeSfxStartMs,
+	resetVmixBedGenerationForTests,
 } from '../base/showstyle/helpers/backgroundMusic.js'
 import {
 	armIdleLookPreviewForNext,
@@ -925,20 +926,19 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		})
 	})
 
-	it('resolves the wipe bed from editorial position, not the last generated segment', () => {
+	it('resolves the wipe bed from editorial rank, not generation order', () => {
+		resetVmixBedGenerationForTests()
 		const exportData = loadSmokeRundownExport()
 		const ctx = vmixContext()
 		const seq = createLookSlotSequence()
-		const generate = (segId: string) => {
-			const intermediate = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segId))
+		const generate = (segId: string, rank: number) => {
+			const ingest = smokeExportToIngestSegment(exportData, segId)
+			ingest.rank = rank
+			const intermediate = convertIngestData(mockIngestContext, ingest)
 			return generateParts(ctx, intermediate, undefined, seq).parts
 		}
-		for (const segId of [...new Set(exportData.parts.map((p) => p.segmentId))]) generate(segId)
-
-		const bedRestartedBy = (segId: string): 'A' | 'C' | 'none' => {
-			const mutePiece = generate(segId)
-				.flatMap((p) => p.pieces)
-				.find((piece) => piece.name === 'BG music mute (Wipe)')
+		const bedRestartedBy = (pieces: IBlueprintPiece[]): 'A' | 'C' | 'none' => {
+			const mutePiece = pieces.find((piece) => piece.name === 'BG music mute (Wipe)')
 			// The seek-0 restart lands on both beds; only the active bed also gets
 			// the un-mute hit→fade-down envelope (volume 100 object).
 			const objects = objectsOf(mutePiece ? [mutePiece] : [])
@@ -950,10 +950,12 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 			if (hitsVol100(VMixLayers.VMixBedAAudio)) return 'A'
 			return 'none'
 		}
-		// Full pass ends on ZÁVER (bed A). Regenerating Počasie alone must still
-		// own C; an early wiped story must not inherit A from the tail state.
-		expect(bedRestartedBy('seg-weather')).toBe('C')
-		expect(bedRestartedBy('seg-tema-1')).toBe('A')
+		// Šport generated before the lower-ranked story: first-seen ordering
+		// would wrongly resolve C for the story — rank order must give it A.
+		generate('seg-sport', 8)
+		expect(bedRestartedBy(generate('seg-tema-1', 2).flatMap((p) => p.pieces))).toBe('A')
+		// Počasie sits after Šport editorially even though it generates later.
+		expect(bedRestartedBy(generate('seg-weather', 9).flatMap((p) => p.pieces))).toBe('C')
 	})
 
 	it('ramps the mod mic down 150ms into Intro mute pieces; micInput 0 disables it', () => {

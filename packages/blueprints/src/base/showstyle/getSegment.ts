@@ -6,6 +6,7 @@ import {
 } from '@sofie-automation/blueprints-integration'
 
 import { SegmentProps } from './definitions/index.js'
+import { restoreVmixBedHistoryForGeneration } from './helpers/backgroundMusic.js'
 import { getCountupRevealClaimForGeneration } from './helpers/countupReveal.js'
 import { RundownMetadata } from './helpers/metadata.js'
 import { getLookSlotSequenceForGeneration } from './helpers/pgmLook.js'
@@ -37,6 +38,13 @@ export function getSegment(context: ISegmentUserContext, ingestSegment: SofieIng
 	}
 
 	context.logDebug('Intermediate segment: ' + JSON.stringify(intermediateSegment))
+
+	// Restore editorial segment history from the last getRundown — a lone
+	// regenerated segment must still resolve its bed against predecessors.
+	restoreVmixBedHistoryForGeneration(
+		context.rundownId,
+		(context.rundown as Readonly<IBlueprintRundown<RundownMetadata>>).privateData?.vmixBedSegments
+	)
 
 	return generateParts(
 		context,

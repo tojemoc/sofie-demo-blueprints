@@ -24,11 +24,19 @@ export function getRundown(
 	context.logDebug(
 		'------------------------------- getRundown ----------------------------------------------------------------'
 	)
+	const bedSegments = ingestRundown.segments.map((segment) => ({
+		externalId: segment.externalId,
+		rank: segment.rank,
+		name: segment.name,
+	}))
 	beginCountupRevealGeneration(ingestRundown.externalId)
 	beginLookSlotGeneration(ingestRundown.externalId)
-	beginVmixBedGeneration(ingestRundown.externalId)
+	beginVmixBedGeneration(ingestRundown.externalId, bedSegments)
 	const rundownMetadata: RundownMetadata = {
 		ingestType: ingestRundown.type,
+		// Persists on the rundown document — getSegment rehydrates it for
+		// lone segment regenerations after a worker restart.
+		vmixBedSegments: bedSegments,
 	}
 
 	const timing: PlaylistTimingForwardTime = {

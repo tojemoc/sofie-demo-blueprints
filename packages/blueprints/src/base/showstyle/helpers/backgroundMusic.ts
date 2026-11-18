@@ -8,6 +8,7 @@ import { CasparCGLayers, VMixLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import { createDualChannelAudioBedTimelineObjects } from './audioBedTimeline.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
+import { RundownMetadata } from './metadata.js'
 
 /** A-block background music (loops through rundown). */
 export const BG_MUSIC_A_FILE = 'loops/bg_music_a'
@@ -204,9 +205,46 @@ interface VmixBedGenerationState {
 }
 const vmixBedGenerationByRundownId = new Map<string, VmixBedGenerationState>()
 
-/** Fresh slate for a full rundown regeneration (called from getRundown). */
-export function beginVmixBedGeneration(rundownId: string): void {
-	vmixBedGenerationByRundownId.delete(rundownId)
+/** Fresh slate for a full rundown regeneration, seeded with the ingest segment order (called from getRundown). */
+export function beginVmixBedGeneration(
+	rundownId: string,
+	segments: ReadonlyArray<{ externalId: string; rank: number; name: string }>
+): void {
+	const state: VmixBedGenerationState = { segments: new Map(), currentBed: 'A', nextOrder: 0 }
+	vmixBedGenerationByRundownId.set(rundownId, state)
+	seedVmixBedSegments(state, segments)
+}
+
+function seedVmixBedSegments(
+	state: VmixBedGenerationState,
+	segments: ReadonlyArray<{ externalId: string; rank: number; name: string }>
+): void {
+	for (const seg of [...segments].sort((a, b) => a.rank - b.rank)) {
+		const existing = state.segments.get(seg.externalId)
+		if (!existing) {
+			state.segments.set(seg.externalId, { rank: seg.rank, order: state.nextOrder++, name: seg.name })
+		}
+	}
+}
+
+/**
+ * Rehydrate segment history persisted on the rundown (privateData) — Core can
+ * regenerate a single segment after a worker restart, and without predecessors
+ * a Počasie regen would silently resolve the default A bed.
+ */
+export function restoreVmixBedHistoryForGeneration(
+	rundownId: string,
+	segments: RundownMetadata['vmixBedSegments']
+): void {
+	if (!segments?.length) {
+		return
+	}
+	let state = vmixBedGenerationByRundownId.get(rundownId)
+	if (!state) {
+		state = { segments: new Map(), currentBed: 'A', nextOrder: 0 }
+		vmixBedGenerationByRundownId.set(rundownId, state)
+	}
+	seedVmixBedSegments(state, segments)
 }
 
 /** Called from `generateParts` with the segment identity so part-level pieces know the active bed. */
