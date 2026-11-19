@@ -92,6 +92,16 @@ export enum SourceLayer {
 	 * can never drop it against other pieces.
 	 */
 	LookAudioReset = 'look_audio_reset',
+	/**
+	 * Hidden first-Take kolíska hit — dedicated layer so a wiped first Take's
+	 * `AudioBed` mute piece cannot prune it at the same start.
+	 */
+	BgMusicHit = 'bg_music_hit',
+	/**
+	 * Hidden vMix mic ramp-down (SYN VO) — dedicated layer so it never shares
+	 * `AudioBed` with bed pieces Core could prune it against.
+	 */
+	VmixMicRamp = 'vmix_mic_ramp',
 	Strap = 'strap',
 	Ticker = 'ticker',
 	Logo = 'logo',
@@ -137,6 +147,8 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.CountupHold:
 		case SourceLayer.LookIdlePreview:
 		case SourceLayer.LookAudioReset:
+		case SourceLayer.BgMusicHit:
+		case SourceLayer.VmixMicRamp:
 			return OutputLayer.Aux
 		default:
 			return OutputLayer.Pgm

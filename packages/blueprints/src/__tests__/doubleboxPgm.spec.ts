@@ -740,7 +740,8 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		// The same avízo window also plays on the look ILU layer inside the shell.
 		const lookIlu = timeline.find(
 			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGPgmIluPlayer && (obj.content as { file?: string }).file !== 'EMPTY'
+				obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB &&
+				(obj.content as { file?: string }).file !== 'EMPTY'
 		)
 		expect(lookIlu?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,

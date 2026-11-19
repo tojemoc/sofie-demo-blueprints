@@ -28,7 +28,7 @@ import { createBackgroundMusicHitPiece, createBackgroundMusicStartPiece } from '
 import { isOutroVideoFile } from './helpers/clips.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
-import { armIdleLookPreviewForNext } from './helpers/pgmLook.js'
+import { armIdleLookPreviewForNext, armLastHeadlineHoldForNext } from './helpers/pgmLook.js'
 import { createVmixRecordingPiece, createVmixRecordingStopPiece } from './helpers/studioCalibration.js'
 import { getRundown } from './rundown/index.js'
 import { syncIngestUpdateToPartInstance } from './syncIngestUpdateToPartInstance.js'
@@ -181,6 +181,9 @@ export const baseManifest: Omit<ShowStyleBlueprintManifest<ShowStyleConfig>, 'bl
 			// Arm the on-air part's dormant preview piece with the actual next
 			// part's look media — follows re-nexts and crosses segment boundaries.
 			await armIdleLookPreviewForNext(context, config)
+			// Arm the dormant headline-hold PAUSE when the actual next part is the
+			// intro — only that headline freezes; re-nexts disarm it again.
+			await armLastHeadlineHoldForNext(context)
 		}
 		if (playoutState.getKey('bgMusicAStarted') && nextPartInstance) {
 			await ensureBgMusicAStartPiece(context, nextPartInstance, config)

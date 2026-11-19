@@ -20,6 +20,7 @@ import { TimelineBlueprintExt } from '../../studio/customTypes.js'
 import { StudioConfig } from '../../studio/helpers/config.js'
 import { CasparCGLayers, SisyfosLayers, VMixLayers } from '../../studio/layers.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
+import { PartType } from '../definitions/index.js'
 import { getAudioObjectOnLayer } from './audio.js'
 import {
 	createWipeBackgroundMusicMutePiece,
@@ -44,7 +45,11 @@ import {
 import { delayCountupRevealToWipeCut } from './countupReveal.js'
 import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
-import { LAST_HEADLINE_HOLD_INTO_INTRO_MS } from './graphics.js'
+import {
+	createLastHeadlineHoldMediaObject,
+	LAST_HEADLINE_HOLD_INTO_INTRO_MS,
+	LAST_HEADLINE_HOLD_PIECE_SUFFIX,
+} from './graphics.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import {
@@ -1080,9 +1085,10 @@ export function finalizeHypercomposedPart(
 	// Leave-weather into wiped ZAVER: detect early so look cut / keepalive / WX hide
 	// can wait for solid cover (not Take, not a bare air-cut while the sting is still
 	// incomplete — and not same-slot lead, which made Počasie→AVIZO 6f early).
-	const leaveWeatherUnderWipe = Boolean(
-		hasWipe && !partHasLookIluMedia(pieces, lookSlot) && partHasActiveIluZaver(pieces)
-	)
+	// ZAVER now owns look ILU media (the avízo window) — `partHasLookIluMedia`
+	// alone can no longer exclude it. Only the active ilu-zaver LED piece marks a
+	// wiped ZAVER take; weather parts never carry one.
+	const leaveWeatherUnderWipe = Boolean(hasWipe && partHasActiveIluZaver(pieces))
 	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
 	// After look ping-pong this path is rare — every look-bearing Take claims idle.
 	// Lead the look cut so first frame meets cover — except leave-weather, which lags
@@ -1379,11 +1385,13 @@ export function finalizeHypercomposedPart(
 		resumeClipIluAtTake: vmixProgram,
 	})
 
-	// Wiped ZAVER: LED `ilu-zaver` lands at the wipe air cut under cover — not at Take
-	// and not as late as the delayed WX hide. Ad-lib-only ingest must not delay other
-	// LED ILU (e.g. headline) sitting on the same Caspar layer.
+	// Wiped ZAVER: LED `ilu-zaver` lands at leaveWeatherHideMs under cover — with the
+	// WX hide and route flip, not at Take before wipe frame 0. Ad-lib-only ingest
+	// must not delay other LED ILU (e.g. headline) sitting on the same Caspar layer.
 	if (hasWipe && partHasActiveIluZaver(pieces)) {
-		delayLedIluZaverToWipeCut(pieces, wipeCutPointMs)
+		// Land the LED window with the rest of the leave-weather teardown — the
+		// route flip, WX hide and look ILU PLAY all share leaveWeatherHideMs.
+		delayLedIluZaverToWipeCut(pieces, leaveWeatherHideMs)
 	}
 
 	const alreadyRouted = pieces.some((piece) =>
@@ -2595,6 +2603,60 @@ export async function armIdleLookPreviewForNext(
 }
 
 /**
+ * Arm the on-air part's dormant `_headline_hold` piece when the actual next
+ * part is the intro — write a `PAUSE` clone of the live headline ILU into it so
+ * the clip freezes inside its hold instead of playing the baked slide-out.
+ * Runs from `onSetAsNext`, so it follows the real rundown order across segment
+ * boundaries and re-nexts: re-nexting to a non-intro part restores the empty
+ * objects, letting the clip slide normally.
+ */
+export async function armLastHeadlineHoldForNext(
+	context: Pick<IOnSetAsNextContext, 'getPartInstance' | 'getPieceInstances' | 'updatePieceInstance'>
+): Promise<void> {
+	const [currentPartInstance, nextPartInstance] = await Promise.all([
+		context.getPartInstance('current'),
+		context.getPartInstance('next'),
+	])
+	if (!currentPartInstance) return
+
+	const currentPieces = await context.getPieceInstances('current')
+	const holdInstance = currentPieces.find(
+		(instance) =>
+			typeof instance.piece.externalId === 'string' &&
+			instance.piece.externalId.endsWith(LAST_HEADLINE_HOLD_PIECE_SUFFIX)
+	)
+	if (!holdInstance) return
+
+	const nextIsIntro =
+		(nextPartInstance?.part.privateData as { partType?: string } | undefined)?.partType === PartType.Intro
+
+	// The live headline ILU on LED 115 (scheduled media — the armed hold's own
+	// clone matches it too, but file/mixer are identical by construction).
+	const iluObject = currentPieces
+		.flatMap((instance) => instance.piece.content?.timelineObjects ?? [])
+		.find((obj) => {
+			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) return false
+			if ((obj.priority ?? 0) >= 10) return false
+			const content = obj.content as { type?: string; file?: string } | undefined
+			return (
+				content !== undefined &&
+				isCasparMedia(content) &&
+				typeof content.file === 'string' &&
+				content.file !== 'EMPTY'
+			)
+		})
+	const iluContent = iluObject?.content as { file?: string; mixer?: object } | undefined
+
+	const targetObjects =
+		nextIsIntro && iluContent?.file ? [createLastHeadlineHoldMediaObject(iluContent.file, iluContent.mixer)] : []
+	const existingObjects = holdInstance.piece.content?.timelineObjects ?? []
+	if (existingObjects.length === 0 && targetObjects.length === 0) return
+	await context.updatePieceInstance(holdInstance._id, {
+		content: { ...holdInstance.piece.content, timelineObjects: targetObjects },
+	})
+}
+
+/**
  * EMPTY the look L3D layer at Take (or `clearStartMs`) so a keepalive'd previous
  * template cannot stack under the wipe / hard-cut gap. Duration covers until the
  * delayed CG ADD; omit duration when there is no incoming L3D (wiped Take into a
@@ -2791,13 +2853,10 @@ function delayLedIluZaverToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: nu
 	for (const piece of pieces) {
 		if (!isActiveIluZaverPiece(piece)) continue
 		for (const obj of piece.content.timelineObjects ?? []) {
-			const layer = String(obj.layer)
-			if (
-				layer !== (CasparCGLayers.CasparCGIluPlayer as string) &&
-				layer !== (LOOK_A_LAYERS.ilu as string) &&
-				layer !== (LOOK_B_LAYERS.ilu as string)
-			)
-				continue
+			// LED layer only — the look ILU copy carries the idle-preload PLAY
+			// keyframe from applyL3dTakeOffsets (hot PLAY at the route cut); a
+			// shifted enable.start would cold-PLAY it instead.
+			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) continue
 			const content = obj.content as { type?: string; file?: string }
 			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
 			shiftEnableStartIfAtTake(obj, wipeCutPointMs)

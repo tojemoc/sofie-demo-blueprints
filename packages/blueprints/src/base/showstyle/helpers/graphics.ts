@@ -382,23 +382,26 @@ function getHeadlineIluMediaObject(
 }
 
 /**
- * The HEADLINEx.mov slide-out is baked into the clip — for the last headline
- * (which sits on screen into the intro) PAUSE it inside its hold so the frame
- * freezes instead of sliding left. `playing:false` + `noStarttime` makes
- * casparcg-state emit `PAUSE` on the same media; when this piece's postroll
- * ends (~1 s into the intro) the layer removal hard-clears it — no slide.
+ * The HEADLINEx.mov slide-out is baked into the clip — for the headline that
+ * sits on screen into the intro, PAUSE it inside its hold so the frame freezes
+ * instead of sliding left. `playing:false` + `noStarttime` makes casparcg-state
+ * emit `PAUSE` on the same media; when the piece's postroll ends (~1 s into the
+ * intro) the layer removal hard-clears it — no slide.
+ *
+ * Which headline is "last" is only knowable at runtime (segment-scoped
+ * generation cannot see the next segment's intro), so every headline part ships
+ * this piece DORMANT — empty timelineObjects, no-op until `onSetAsNext` arms it
+ * via `updatePieceInstance` when the actual next part is the intro (same
+ * pattern as {@link createIdleLookPreviewPiece}).
  */
 export const LAST_HEADLINE_HOLD_INTO_INTRO_MS = 1000
 
-export function createLastHeadlineHoldPiece(
-	partExternalId: string,
-	casparFile: string,
-	freezeAtMs: number,
-	mixer?: object
-): IBlueprintPiece {
+export const LAST_HEADLINE_HOLD_PIECE_SUFFIX = '_headline_hold'
+
+export function createLastHeadlineHoldPiece(partExternalId: string, freezeAtMs: number): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
 		enable: { start: freezeAtMs },
-		externalId: `${partExternalId}_headline_hold`,
+		externalId: `${partExternalId}${LAST_HEADLINE_HOLD_PIECE_SUFFIX}`,
 		name: 'Last headline hold',
 		lifespan: PieceLifespan.WithinPart,
 		// Carry across the segment boundary: the next part is the intro.
@@ -406,22 +409,31 @@ export function createLastHeadlineHoldPiece(
 		sourceLayerId: SourceLayer.PgmLayerClear,
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmLayerClear),
 		content: {
-			timelineObjects: [
-				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-					id: '',
-					enable: { start: 0 },
-					layer: CasparCGLayers.CasparCGIluPlayer,
-					priority: 2,
-					content: {
-						deviceType: TSR.DeviceType.CASPARCG,
-						type: TSR.TimelineContentTypeCasparCg.MEDIA,
-						file: casparFile,
-						playing: false,
-						noStarttime: true,
-						...(mixer ? { mixer } : {}),
-					},
-				}),
-			],
+			timelineObjects: [] as TimelineBlueprintExt[],
+		},
+	})
+}
+
+/**
+ * The PAUSE object `onSetAsNext` writes into the dormant hold piece — same file
+ * and mixer as the live headline ILU so the producer swap is a bare `PAUSE`.
+ */
+export function createLastHeadlineHoldMediaObject(
+	casparFile: string,
+	mixer?: object
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { start: 0 },
+		layer: CasparCGLayers.CasparCGIluPlayer,
+		priority: 2,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: casparFile,
+			playing: false,
+			noStarttime: true,
+			...(mixer ? { mixer } : {}),
 		},
 	})
 }

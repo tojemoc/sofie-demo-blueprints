@@ -33,6 +33,9 @@ describe('segmentUsesLedBgLoopZoom', () => {
 	it('does not match weather / Počasie (bg_loop returns to fullscreen from weather onward)', () => {
 		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-weather', name: 'POČASIE' })).toBe(false)
 		expect(segmentUsesLedBgLoopZoom({ name: 'Počasie' })).toBe(false)
+		// Recognized weather ids beat display-name tokens — `Počasie: šport` must
+		// keep the fullscreen loop even though `šport` is a zoom token.
+		expect(segmentUsesLedBgLoopZoom({ externalId: 'seg-weather', name: 'Počasie: šport' })).toBe(false)
 	})
 
 	it('does not match Transport (sport as an interior substring)', () => {
