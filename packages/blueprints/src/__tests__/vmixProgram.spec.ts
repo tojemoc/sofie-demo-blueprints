@@ -905,7 +905,7 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		expect(hit?.enable).toMatchObject({ start: PREROLL + 2340 })
 		expect(hit?.content).toMatchObject({ muted: false, fade: 400, audioBuses: 'M,B' })
 
-		const settle = bedAudio.find((obj) => obj.content.volume === 70)
+		const settle = bedAudio.find((obj) => obj.content.volume === 70 && obj.content.muted === false)
 		expect(settle?.enable).toMatchObject({ start: PREROLL + 2340 + 400 + 300 })
 		expect(settle?.content.fade).toBe(1500)
 	})
