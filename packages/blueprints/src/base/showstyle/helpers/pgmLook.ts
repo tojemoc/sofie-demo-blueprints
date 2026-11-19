@@ -44,6 +44,7 @@ import {
 import { delayCountupRevealToWipeCut } from './countupReveal.js'
 import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
+import { LAST_HEADLINE_HOLD_INTO_INTRO_MS } from './graphics.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
 import {
@@ -174,6 +175,18 @@ export const SAME_SLOT_WIPE_AIR_CUT_LEAD_MS = WIPE_FRAME_MS * 5
  */
 export const LEAVE_WEATHER_WIPE_AIR_CUT_LAG_MS = WIPE_FRAME_MS * 4
 
+/**
+ * `wipe_pocasie` Take: CG ADD lands this long after Take — early enough that
+ * CEF load + the template's own card cascade finish under the wipe cover, so
+ * the board is complete at the air cut instead of appearing ~5 s late.
+ */
+export const POCASIE_L3D_PRELOAD_MS = 400
+
+/** Intro parts hold the last headline's L3D + clip ~1 s past the boundary, then hard-cut. */
+function isIntroRawType(rawType: string | undefined): boolean {
+	return /intro/i.test(rawType || '')
+}
+
 export const LOOK_A_LAYERS = {
 	/** Sticky bg_loop underlay — remapped with the look; never hot-cued / EMPTYed. */
 	bgLoop: CasparCGLayers.CasparCGLookBgLoop,
@@ -276,14 +289,14 @@ export function lookKindForPart(rawType: string | undefined, objects: SomeObject
 
 /** True when this part should compose with the DoubleBox frame (FILL + db_loop). */
 export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
-	if (/doublebox|double-box/i.test(rawType || '')) return true
-	// ZAVER / závěr avízo uses LED `ilu-zaver` + Full-look CAM/`l3d-odporucanie`
-	// (route:// + route://5) — never DoubleBox / db_loop. Skip cam EMPTY when the
-	// part owns look CAM so Full CLEAR cannot kill the look camera layer.
+	if (/doublebox|double-box|ilu-zaver/i.test(rawType || '')) return true
+	// ZAVER / závěr avízo uses the same shell as DoubleBox: db_loop frame over a
+	// windowed avízo ILU (look ILU layer) + look CAM in the right window.
 	return objects.some((obj) => {
 		if (obj.objectType !== ObjectType.Graphic) return false
+		if ((obj as { isAdlib?: boolean }).isAdlib) return false
 		const clip = String((obj as GraphicObject).clipName || '').toLowerCase()
-		return clip === 'gfx/doublebox-ilu'
+		return clip === 'gfx/doublebox-ilu' || clip === 'gfx/ilu-zaver'
 	})
 }
 
@@ -1185,13 +1198,13 @@ export function finalizeHypercomposedPart(
 	const earliestLookL3dObjectTimeMs = minIncomingL3dPieceStartMs(pieces, LOOK_L3D_TEMPLATE_LAYERS)
 	// CLEAR until the first incoming L3D is on-air. Wiped Takes: that is max(wipeEnd,
 	// earliest objectTime) so start:1s under wipe_sport cannot gap-fill previous CG.
-	// wipe_pocasie lands weather GFX at the cover cut with bg_pocasie.
+	// wipe_pocasie preloads weather GFX early so its cascade plays under cover.
 	// Take-relative time the incoming L3D reaches air — after the wipe ends (or
-	// the weather cover cut for wipe_pocasie), or after L3D_OUT_MS on hard cuts.
+	// the weather preload lead for wipe_pocasie), or after L3D_OUT_MS on hard cuts.
 	const l3dOnAirMs = (earliestObjectTimeMs: number): number =>
 		hasWipe
 			? wipePocasie
-				? wipeCutPointMs + earliestObjectTimeMs
+				? POCASIE_L3D_PRELOAD_MS + earliestObjectTimeMs
 				: Math.max(wipeDurationMs, earliestObjectTimeMs)
 			: L3D_OUT_MS + earliestObjectTimeMs
 	const l3dClearDurationMs = hasIncomingLookL3d ? l3dOnAirMs(earliestLookL3dObjectTimeMs) : undefined
@@ -1225,8 +1238,17 @@ export function finalizeHypercomposedPart(
 		// Take is a CG UPDATE (l3d-headline.update() animates the swap); an EMPTY here
 		// would force a fresh CEF ADD that briefly replays the previous text.
 		if (!hasIncomingHeadlineL3d) {
+			// Intro keeps the last headline's postrolled L3D on screen ~1 s past the
+			// boundary: no take-time EMPTY (that killed + re-ADDed it = blink) — an
+			// open-ended EMPTY starting then hard-cuts it with no CG STOP slide.
+			const headlineClearStartMs = isIntroRawType(rawType) ? LAST_HEADLINE_HOLD_INTO_INTRO_MS : l3dClearStartMs
+			const headlineClearDurationMs = isIntroRawType(rawType) ? undefined : staleL3dHoldMs
 			clearObjects.push(
-				emptyLookMediaObject(CasparCGLayers.CasparCGGraphicsHeadline, staleL3dHoldMs, l3dClearStartMs)
+				emptyLookMediaObject(
+					CasparCGLayers.CasparCGGraphicsHeadline,
+					headlineClearDurationMs,
+					headlineClearStartMs
+				)
 			)
 		}
 		// The previous on-air L3D sits on the *other* look slot (Takes ping-pong).
@@ -1263,15 +1285,17 @@ export function finalizeHypercomposedPart(
 	// previous) channel. When that channel is still the outgoing PGM look, delay
 	// EMPTY to the route cut so the frame holds under the sting; when it is already
 	// off-air, clear at Take.
-	// ZAVER also CLEARs the other channel's ILU/CAM/L3D (ilu-zaver is LED-only).
-	if (hasWipe && lookKind === 'full') {
+	// ZAVER also CLEARs the other channel's frame the same way (ilu-zaver part).
+	if (hasWipe && (lookKind === 'full' || partHasActiveIluZaver(pieces))) {
 		const dbLoopClearStartMs =
 			previousLookSlot !== undefined && previousLookSlot === idleOtherSlot ? wipeRouteCutMs : 0
 		clearObjects.push(
 			emptyLookMediaObject(getLookLayers(idleOtherSlot).doubleBoxLoop, undefined, dbLoopClearStartMs)
 		)
 	}
-	if (lookKind === 'full' && partHasActiveIluZaver(pieces)) {
+	// ilu-zaver is 'doublebox' since the ZAVER shell — keep the other-slot teardown
+	// kind-agnostic so a leftover DoubleBox / weather stack cannot survive into závěr.
+	if (partHasActiveIluZaver(pieces)) {
 		// Wiped ZAVER after DoubleBox: db_loop EMPTY is already scheduled at wipeRouteCutMs
 		// above — do not also EMPTY it at Take via the bulk other-slot clear (that would kill
 		// the on-air frame under the sting before the route cut). Same delay for CAM / ILU /
@@ -1964,9 +1988,9 @@ function applyL3dTakeOffsets(
 				let l3dInDelay = L3D_OUT_MS
 				if (hasWipe) {
 					if (wipePocasie) {
-						// Weather GFX at the full air cut (CLEAR ends here) — not the
-						// same-slot look-MEDIA lead.
-						l3dInDelay = wipeAirCutMs
+						// Weather GFX ADDs early — its CEF load + card cascade runs
+						// under the wipe cover so the board is complete at the air cut.
+						l3dInDelay = POCASIE_L3D_PRELOAD_MS
 					} else if (pieceStartMs === 0) {
 						// After the sting ends.
 						l3dInDelay = wipeDurationMs
@@ -2767,7 +2791,13 @@ function delayLedIluZaverToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: nu
 	for (const piece of pieces) {
 		if (!isActiveIluZaverPiece(piece)) continue
 		for (const obj of piece.content.timelineObjects ?? []) {
-			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) continue
+			const layer = String(obj.layer)
+			if (
+				layer !== (CasparCGLayers.CasparCGIluPlayer as string) &&
+				layer !== (LOOK_A_LAYERS.ilu as string) &&
+				layer !== (LOOK_B_LAYERS.ilu as string)
+			)
+				continue
 			const content = obj.content as { type?: string; file?: string }
 			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
 			shiftEnableStartIfAtTake(obj, wipeCutPointMs)

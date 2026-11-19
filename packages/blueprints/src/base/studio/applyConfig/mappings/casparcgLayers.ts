@@ -136,12 +136,16 @@ export const PGM_DOUBLEBOX_CAMERA_FILL = {
 	yScale: 0.8,
 } as const
 
-/** Starting FILL for DoubleBox story ILU window (left — measured from db_loop.mov). */
+/**
+ * Starting FILL for DoubleBox story ILU window (left — measured from db_loop.mov).
+ * Slightly oversized on top/right: the db_loop frame (higher layer) hides the
+ * overshoot, so the clip never lets bg_loop seep through the cutout edges.
+ */
 export const PGM_DOUBLEBOX_ILU_FILL = {
 	x: 0.0219,
-	y: 0.075,
-	xScale: 0.6802,
-	yScale: 0.6824,
+	y: 0.062,
+	xScale: 0.698,
+	yScale: 0.7,
 } as const
 
 /** Fullscreen PGM camera (headlines / MOD after intro — no DoubleBox frame yet). */

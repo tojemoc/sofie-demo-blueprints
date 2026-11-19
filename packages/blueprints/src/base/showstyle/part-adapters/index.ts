@@ -16,6 +16,7 @@ import { PartContext } from '../../../common/context.js'
 import { SomeObject } from '../../../common/definitions/objects.js'
 import { literal, t } from '../../../common/util.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { CasparCGLayers } from '../../studio/layers.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import {
@@ -50,6 +51,7 @@ import {
 	partShouldPersistCountupMute,
 } from '../helpers/countupReveal.js'
 import { createVmixDbLoopOpacityZeroObject, DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
+import { createLastHeadlineHoldPiece, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlineClearPiece,
@@ -462,6 +464,39 @@ export function generateParts(
 			if (slot !== undefined) {
 				generated.pieces.push(createLookAudioResetPiece(generated.part.externalId, slot))
 			}
+		}
+	}
+
+	// Last headline before the intro: freeze the HEADLINEx.mov inside its hold
+	// (its slide-out is baked in) so it stays put through the intro start; the
+	// hold piece's postroll hard-clears it ~1 s into the intro — matching the
+	// delayed L3D EMPTY on the intro part. Earlier headlines keep their slide.
+	const headlinePartIdxs = intermediateSegment.parts
+		.map((raw, i) => (partHasHeadlineIlu(raw.objects ?? []) ? i : -1))
+		.filter((i) => i >= 0)
+	const lastHeadlineIdx = headlinePartIdxs.length ? headlinePartIdxs[headlinePartIdxs.length - 1] : -1
+	if (lastHeadlineIdx >= 0) {
+		const headlineIlu = parts[lastHeadlineIdx].pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					String(obj.layer) === (CasparCGLayers.CasparCGIluPlayer as string) &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA
+			)?.content as { file?: string; mixer?: object } | undefined
+		if (headlineIlu?.file) {
+			const durationMs = Number(intermediateSegment.parts[lastHeadlineIdx].payload?.duration) || 0
+			// shortcut: 3.5 s assumes the mov's in-anim ends ~1.5 s in and its baked
+			// slide-out starts no earlier than ~4.5 s; if headline files move the
+			// out-anim earlier, freeze earlier or measure per file.
+			const freezeAtMs = durationMs > 0 ? Math.min(3500, Math.max(0, durationMs - 1500)) : 3500
+			parts[lastHeadlineIdx].pieces.push(
+				createLastHeadlineHoldPiece(
+					intermediateSegment.parts[lastHeadlineIdx].payload.externalId,
+					headlineIlu.file,
+					freezeAtMs,
+					headlineIlu.mixer
+				)
+			)
 		}
 	}
 

@@ -381,6 +381,51 @@ function getHeadlineIluMediaObject(
 	return [createHeadlineIluMediaTimelineObject(iluFile, mode, isAdlib, resolveIluVolume(object))]
 }
 
+/**
+ * The HEADLINEx.mov slide-out is baked into the clip — for the last headline
+ * (which sits on screen into the intro) PAUSE it inside its hold so the frame
+ * freezes instead of sliding left. `playing:false` + `noStarttime` makes
+ * casparcg-state emit `PAUSE` on the same media; when this piece's postroll
+ * ends (~1 s into the intro) the layer removal hard-clears it — no slide.
+ */
+export const LAST_HEADLINE_HOLD_INTO_INTRO_MS = 1000
+
+export function createLastHeadlineHoldPiece(
+	partExternalId: string,
+	casparFile: string,
+	freezeAtMs: number,
+	mixer?: object
+): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: freezeAtMs },
+		externalId: `${partExternalId}_headline_hold`,
+		name: 'Last headline hold',
+		lifespan: PieceLifespan.WithinPart,
+		// Carry across the segment boundary: the next part is the intro.
+		postrollDuration: LAST_HEADLINE_HOLD_INTO_INTRO_MS,
+		sourceLayerId: SourceLayer.PgmLayerClear,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmLayerClear),
+		content: {
+			timelineObjects: [
+				literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+					id: '',
+					enable: { start: 0 },
+					layer: CasparCGLayers.CasparCGIluPlayer,
+					priority: 2,
+					content: {
+						deviceType: TSR.DeviceType.CASPARCG,
+						type: TSR.TimelineContentTypeCasparCg.MEDIA,
+						file: casparFile,
+						playing: false,
+						noStarttime: true,
+						...(mixer ? { mixer } : {}),
+					},
+				}),
+			],
+		},
+	})
+}
+
 function createDoubleboxIluMediaTimelineObject(
 	iluFile: string,
 	isAdlib?: boolean,
@@ -430,6 +475,14 @@ function getIluZaverTimelineObjects(
 	}
 
 	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not fullscreen.
+	// The same window also plays on the look channel's ILU layer (under db_loop) so
+	// ZAVER+AVIZO shows the avízo clip in the DoubleBox shell's left cutout on PGM.
+	const iluMixer = {
+		crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+		fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+		volume: resolveIluVolume(object),
+		opacity: 1,
+	}
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
@@ -441,12 +494,20 @@ function getIluZaverTimelineObjects(
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				file: toCasparPlayPath(iluFile),
 				loop: false,
-				mixer: {
-					crop: { ...PGM_DOUBLEBOX_ILU_CROP },
-					fill: { ...PGM_DOUBLEBOX_ILU_FILL },
-					volume: resolveIluVolume(object),
-					opacity: 1,
-				},
+				mixer: { ...iluMixer },
+			},
+		}),
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer: CasparCGLayers.CasparCGPgmIluPlayer,
+			priority: 1 + (isAdlib ? 10 : 0),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: toCasparPlayPath(iluFile),
+				loop: false,
+				mixer: { ...iluMixer },
 			},
 		}),
 	]

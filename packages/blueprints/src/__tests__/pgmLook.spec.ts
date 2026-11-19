@@ -15,6 +15,7 @@ import {
 } from '../base/showstyle/definitions/index.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
+import { LAST_HEADLINE_HOLD_INTO_INTRO_MS } from '../base/showstyle/helpers/graphics.js'
 import {
 	armIdleLookPreviewForNext,
 	createIdleLookPreviewPiece,
@@ -47,6 +48,7 @@ import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-ad
 import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
+import { PGM_DOUBLEBOX_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { SourceType } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
@@ -507,6 +509,63 @@ describe('pgmLook look-kind channels + route', () => {
 						(obj.content as { inputType?: string }).inputType === 'decklink')
 			)
 		).toBe(false)
+	})
+
+	it('last headline freezes on LED (PAUSE hold) and intro clears it ~1 s in', () => {
+		const exportData = loadSmokeRundownExport()
+		const context = mockSegmentContext()
+		const lookSlots = createLookSlotSequence()
+		const headlines = generateParts(
+			context,
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-headlines')),
+			undefined,
+			lookSlots
+		)
+		const intro = generateParts(
+			context,
+			convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-intro')),
+			undefined,
+			lookSlots
+		)
+
+		// Only the last headline gets the hold — earlier parts keep the baked slide-out.
+		for (const part of headlines.parts.slice(0, -1)) {
+			expect(part.pieces.some((piece) => piece.externalId?.endsWith('_headline_hold'))).toBe(false)
+		}
+		const last = headlines.parts[headlines.parts.length - 1]
+		const hold = last.pieces.find((piece) => piece.externalId?.endsWith('_headline_hold'))
+		expect(hold).toBeDefined()
+		expect(hold?.enable).toEqual({ start: 3500 })
+		expect(hold?.postrollDuration).toBe(LAST_HEADLINE_HOLD_INTO_INTRO_MS)
+		expect(hold?.lifespan).toBe(PieceLifespan.WithinPart)
+		expect(hold?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
+		const holdMedia = hold?.content.timelineObjects?.find((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
+		expect(holdMedia?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: 'clips/HEADLINE3',
+			playing: false,
+			noStarttime: true,
+		})
+		expect(holdMedia?.priority).toBe(2)
+		// The real clip piece carries no postroll — it dies at the boundary while the
+		// hold survives, so nothing can RESUME the slide-out under the intro.
+		const realIluPiece = last.pieces.find(
+			(piece) =>
+				!piece.externalId?.endsWith('_headline_hold') &&
+				(piece.content.timelineObjects ?? []).some((obj) => obj.layer === CasparCGLayers.CasparCGIluPlayer)
+		)
+		expect(realIluPiece).toBeDefined()
+		expect(realIluPiece?.postrollDuration ?? 0).toBe(0)
+
+		// The intro part's dedicated-channel EMPTY lands ~1 s in (open-ended hard
+		// cut — no CG STOP slide-out), keeping the postrolled L3D on screen until then.
+		const introClear = intro.parts[0].pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
+		const headlineEmpty = introClear?.content.timelineObjects?.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGGraphicsHeadline &&
+				(obj.content as { file?: string }).file === 'EMPTY'
+		)
+		expect(headlineEmpty?.enable).toEqual({ start: LAST_HEADLINE_HOLD_INTO_INTRO_MS })
 	})
 
 	it('emits a dormant idle-look preview placeholder on every playable part', () => {
@@ -1249,7 +1308,7 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 	})
 
-	it('ZAVER + AVIZO compose Full kind on idle look; no db_loop; EMPTYs look ILU so bg_pocasie dies', () => {
+	it('ZAVER + AVIZO composes the DoubleBox shell on idle look: db_loop frame, windowed avízo ILU, cam right', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -1276,12 +1335,11 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaverIngest).toBeDefined()
 		if (!zaverIngest) return
 
-		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
+		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(true)
 
 		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
-		// Fresh sequence: first look-bearing claims idle A → route://3. Full FILL + cam.
-		const routeChannel = pgmRouteChannel(zaver.pieces)
-		expect(routeChannel).toBe(3)
+		// Fresh sequence: first look-bearing claims idle A → route://3.
+		expect(pgmRouteChannel(zaver.pieces)).toBe(3)
 		expect(pgmRouteFile(zaver.pieces)).toBe('route://3')
 		const liveDbLoop = (layer: CasparCGLayers) =>
 			timeline.some(
@@ -1291,42 +1349,34 @@ describe('pgmLook look-kind channels + route', () => {
 					(obj.content as { file?: string }).file !== 'EMPTY' &&
 					String((obj.content as { file?: string }).file || '').length > 0
 			)
-		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(false)
+		// The shell: db_loop frame on the claimed slot — not on the off-air slot.
+		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(true)
 		expect(liveDbLoop(LOOK_B_LAYERS.doubleBoxLoop)).toBe(false)
-		const lookACam = timeline.find((obj) => obj.layer === LOOK_A_LAYERS.camera)
+		// Look CAM sits in the DoubleBox right window (route://5), not fullscreen.
+		const lookACam = timeline.find(
+			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file !== 'EMPTY'
+		)
 		expect(lookACam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
 		})
-		expect(
-			timeline.some(
-				(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
-			)
-		).toBe(false)
+		expect((lookACam?.content as { mixer?: { fill?: unknown } }).mixer?.fill).toEqual(PGM_DOUBLEBOX_CAMERA_FILL)
+		// Avízo clip fills the left cutout on the look ILU layer under the frame.
+		const lookIlu = timeline.find(
+			(obj) =>
+				obj.layer === LOOK_A_LAYERS.ilu &&
+				(obj.content as { file?: string }).file !== 'EMPTY' &&
+				String((obj.content as { file?: string }).file || '').length > 0
+		)
+		expect(lookIlu, 'ZAVER avízo must play on the look ILU layer inside the shell').toBeDefined()
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
-		// Other slot (B) db_loop cleared — stray DoubleBox cannot survive into závěr.
-		const lookBDbEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.doubleBoxLoop && (obj.content as { file?: string }).file === 'EMPTY'
-		)
-		expect(lookBDbEmpty, 'ZAVER must EMPTY other-slot db_loop (stray DoubleBox)').toBeDefined()
-		expect(lookBDbEmpty?.enable).toEqual({ start: 0 })
-		const lookBCamEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_B_LAYERS.camera && (obj.content as { file?: string }).file === 'EMPTY'
-		)
-		expect(lookBCamEmpty).toBeDefined()
+		// Other-slot ILU EMPTYed under the sting so bg_pocasie cannot linger into závěr.
 		const iluEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_A_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
+			(obj) => obj.layer === LOOK_B_LAYERS.ilu && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(iluEmpty).toBeDefined()
-		const leaveWeatherHideMs = LEAVE_WEATHER_HIDE_MS
-		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.start).toBe(leaveWeatherHideMs)
-		expect(!Array.isArray(iluEmpty?.enable) && iluEmpty?.enable.duration).toBeUndefined()
-		const l3dEmpty = clearPiece?.content.timelineObjects?.find(
-			(obj) => obj.layer === LOOK_A_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
-		)
-		expect(!Array.isArray(l3dEmpty?.enable) && l3dEmpty?.enable.start).toBe(leaveWeatherHideMs)
+		expect(iluEmpty, 'ZAVER must EMPTY other-slot look ILU (leftover weather map)').toBeDefined()
 		const ledZaver = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGIluPlayer &&
