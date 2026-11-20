@@ -202,6 +202,22 @@ export function getSourceLayer(): ISourceLayer[] {
 			isHidden: true,
 		},
 		{
+			_id: SourceLayer.BgMusicHit,
+			type: SourceLayerType.AUDIO,
+			_rank: 213,
+			name: 'BG music hit',
+			abbreviation: 'Hit',
+			isHidden: true,
+		},
+		{
+			_id: SourceLayer.VmixMicRamp,
+			type: SourceLayerType.AUDIO,
+			_rank: 214,
+			name: 'vMix mic ramp',
+			abbreviation: 'Mic',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.Strap,
 			type: SourceLayerType.GRAPHICS,
 			_rank: 201,

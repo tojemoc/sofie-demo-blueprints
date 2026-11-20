@@ -16,7 +16,11 @@ import { LED_BACKGROUND_LOOP_FILE } from '../rundown/baseline.js'
  * the baseline fullscreen loop so the ZAVER frame is normal again.
  */
 export function segmentUsesLedBgLoopZoom(segment: { name?: string; externalId?: string }): boolean {
-	const haystack = `${segment.externalId ?? ''} ${segment.name ?? ''}`.trim()
+	const externalId = segment.externalId ?? ''
+	// Recognized weather-onward ids win over display-name tokens: a weather
+	// segment named e.g. `Počasie: šport` must keep the fullscreen loop.
+	if (/\bseg-(?:weather|pocasie|tip|avizo|zaver|outro|end)\b/i.test(externalId)) return false
+	const haystack = `${externalId} ${segment.name ?? ''}`.trim()
 	if (!haystack) return false
 	// Ids: `seg-tema-1` etc. (`\b` after tema still holds before `-1`).
 	if (/\bseg-(?:tema|sjv|sport)\b/i.test(haystack)) return true

@@ -9,6 +9,7 @@ import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers
 import { createDualChannelAudioBedTimelineObjects } from './audioBedTimeline.js'
 import { createMediaFileExpectedPackage } from './mediaPackages.js'
 import { RundownMetadata } from './metadata.js'
+import { usesVmixProgram } from './visionMixer.js'
 
 /** A-block background music (loops through rundown). */
 export const BG_MUSIC_A_FILE = 'loops/bg_music_a'
@@ -116,11 +117,12 @@ export function getWipeSfxStartMs(config: StudioConfig, wipeFile: string | undef
 			: WIPE_SFX_START_DEFAULTS.wipe
 }
 
-/** INPUT `playing:true` object for a vMix kolíska bed input. */
+/** INPUT `playing:true` object for a vMix kolíska bed input. `restart` is a per-part truthy key — RESTART_INPUT fires on value change, restarting the track at its opening. */
 function vmixBedPlayObject(
 	bed: VmixBed,
 	enable: TimelineBlueprintExt['enable'],
-	priority: number
+	priority: number,
+	restart?: string
 ): TimelineBlueprintExt<TSR.TimelineContentVMixInput> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 		id: '',
@@ -132,6 +134,7 @@ function vmixBedPlayObject(
 			type: TSR.TimelineContentTypeVMix.INPUT,
 			playing: true,
 			loop: true,
+			...(restart ? { restart } : {}),
 		},
 	})
 }
@@ -223,7 +226,12 @@ function seedVmixBedSegments(
 ): void {
 	for (const seg of [...segments].sort((a, b) => a.rank - b.rank)) {
 		const existing = state.segments.get(seg.externalId)
-		if (!existing) {
+		if (existing) {
+			// The persisted snapshot is authoritative for rank — a reordered story
+			// must not resolve its bed against the stale warm-state rank. order/name
+			// are generation bookkeeping, not editorial position: keep them.
+			existing.rank = seg.rank
+		} else {
 			state.segments.set(seg.externalId, { rank: seg.rank, order: state.nextOrder++, name: seg.name })
 		}
 	}
@@ -426,8 +434,8 @@ export function createBackgroundMusicHitPiece(config: StudioConfig): IBlueprintP
 		externalId: 'first_take_bg_music_hit',
 		name: 'BG music hit (first Take)',
 		lifespan: PieceLifespan.WithinPart,
-		sourceLayerId: SourceLayer.AudioBed,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		sourceLayerId: SourceLayer.BgMusicHit,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.BgMusicHit),
 		content: {
 			fileName: BG_MUSIC_A_FILE,
 			timelineObjects: vmixBedRestartEnvelope(config, 'A', 0, 1.8),
@@ -445,7 +453,8 @@ export function createBackgroundMusicHitPiece(config: StudioConfig): IBlueprintP
 export function createZaverBackgroundMusicPiece(
 	context: ICommonContext,
 	config: StudioConfig,
-	partExternalId: string
+	partExternalId: string,
+	wiped = false
 ): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
 		enable: { start: 0 },
@@ -465,7 +474,14 @@ export function createZaverBackgroundMusicPiece(
 				: (['A', 'C'] as const)
 						.filter(() => hasVmixBeds(config))
 						.flatMap((bed) => [
-							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 1.5)] : []),
+							// A stayed muted-but-playing since Šport — `playing:true` alone
+							// resumes mid-loop, so unwiped swaps restart the track at its
+							// opening here. Wiped swaps get their restart from the wipe
+							// mute's unmute object instead (a restart at Take + one at
+							// unmute would re-seek the bed twice).
+							...(bed === 'A'
+								? [vmixBedPlayObject('A', { while: 1 }, 1.5, wiped ? undefined : partExternalId)]
+								: []),
 							...(bed === 'A'
 								? vmixBedRestartEnvelope(config, 'A', 0, 1.5)
 								: [vmixBedAudioObject(bed, { while: 1 }, 1.5, { muted: true })]),
@@ -537,8 +553,12 @@ export function createBackgroundMusicMutePiece(
 				: durationMs
 			: undefined
 	const vmixMuteEnable = timelineEnable
+	// Gate on the same predicate as the baseline mic volume-100 object
+	// (`usesVmixProgram` → getVMixProgramBaseline): on a vMix studio without the
+	// program path the baseline never restores the mic, so ramping here would
+	// leave the presenter's mic at 0 after the part ends.
 	const micRampObjects =
-		!casparOwnsMusicBeds(config) && (label === 'Intro' || label === 'Outro')
+		usesVmixProgram(config) && (label === 'Intro' || label === 'Outro')
 			? createVmixMicRampDownTimelineObjects(config, prerollMs, 2)
 			: []
 	return literal<IBlueprintPiece>({
@@ -578,7 +598,16 @@ export function createBackgroundMusicMutePiece(
 								// positive mute window: emit nothing (unbounded mute would kill the
 								// bed for the whole part).
 								...(label !== 'Wipe' || vmixMuteEnable !== undefined
-									? [vmixBedAudioObject(bed, vmixMuteEnable ?? { start: 0 }, 2, { muted: true })]
+									? [
+											// Explicit resting volume during the mute window — the unmute
+											// envelope diffs from a known state so every restart emits a
+											// real SetVolumeFade up to the hit volume (no volume field on
+											// the muted object = vMix may already sit at the target).
+											vmixBedAudioObject(bed, vmixMuteEnable ?? { start: 0 }, 2, {
+												muted: true,
+												volume: getVmixBedVolume(config),
+											}),
+										]
 									: []),
 								// Restart the bed input from 0 at unmute — the AUDIO toggle
 								// leaves the input's position running. `restart` carries a

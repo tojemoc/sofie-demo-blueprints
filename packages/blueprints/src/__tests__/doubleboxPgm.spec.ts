@@ -16,7 +16,6 @@ import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_DOUBLEBOX_ILU_CROP,
 	PGM_DOUBLEBOX_ILU_FILL,
-	PGM_FULLSCREEN_CAMERA_FILL,
 	PgmChannelLayers,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
@@ -713,13 +712,13 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 	})
 
-	it('ZAVER uses Full look B: LED ilu-zaver + fullscreen cam route://5; no db_loop; PGM route://4', () => {
+	it('ZAVER uses the DoubleBox shell on look B: LED + look ilu-zaver, DB cam route://5, db_loop frame; PGM route://4', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		const zaver = segment.parts.find((p) => p.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver'))
 		expect(zaver).toBeDefined()
 		if (!zaver) return
 		expect(zaver.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')).toBe(true)
-		expect(isDoubleBoxLook(zaver.rawType, zaver.objects)).toBe(false)
+		expect(isDoubleBoxLook(zaver.rawType, zaver.objects)).toBe(true)
 
 		const partContext = new PartContext(mockSegmentContext(), zaver.payload.externalId)
 		const result = generateCameraPart(partContext, zaver as PartProps<CameraProps>, createCountupRevealClaim(), 'B')
@@ -738,13 +737,19 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		// Hang through Outro — outro.mov wipe-IN needs the LED filled until cover.
 		expect(ledIluPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
-		expect(
-			timeline.some(
-				(obj) =>
-					obj.layer === CasparCGLayers.CasparCGPgmIluPlayer &&
-					(obj.content as { file?: string }).file !== 'EMPTY'
-			)
-		).toBe(false)
+		// The same avízo window also plays on the look ILU layer inside the shell.
+		const lookIlu = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB &&
+				(obj.content as { file?: string }).file !== 'EMPTY'
+		)
+		expect(lookIlu?.content).toMatchObject({
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			mixer: {
+				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+			},
+		})
 		const liveDbLoop = (layer: CasparCGLayers) =>
 			timeline.some(
 				(obj) =>
@@ -754,12 +759,15 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					String((obj.content as { file?: string }).file || '').length > 0
 			)
 		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(false)
-		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoopB)).toBe(false)
-		const cam = timeline.find((obj) => obj.layer === CasparCGLayers.CasparCGPgmCameraB)
+		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoopB)).toBe(true)
+		const cam = timeline.find(
+			(obj) =>
+				obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file !== 'EMPTY'
+		)
 		expect(cam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
-			mixer: { fill: { ...PGM_FULLSCREEN_CAMERA_FILL } },
+			mixer: { fill: { ...PGM_DOUBLEBOX_CAMERA_FILL } },
 		})
 		expect(
 			timeline.some(
@@ -778,16 +786,13 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		const route = findLivePgmRouteObj([{ content: { timelineObjects: timeline } }])
 		expect(route?.content).toMatchObject({ file: 'route://4' })
 
-		// Stray DoubleBox kill: EMPTY look A db_loop / ILU / CAM / L3D for the part.
+		// Other-slot ILU EMPTYs still fire under the sting so bg_pocasie cannot linger.
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece).toBeDefined()
 		const lookAEmpties = (clearPiece?.content.timelineObjects ?? []).filter(
 			(obj) => (obj.content as { file?: string }).file === 'EMPTY'
 		)
 		const emptyLayers = new Set(lookAEmpties.map((obj) => obj.layer))
-		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(true)
 		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmIluPlayer)).toBe(true)
-		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmCamera)).toBe(true)
-		expect(emptyLayers.has(CasparCGLayers.CasparCGGraphicsPgmLowerThird)).toBe(true)
 	})
 })

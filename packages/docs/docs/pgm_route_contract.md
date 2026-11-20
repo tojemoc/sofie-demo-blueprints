@@ -38,7 +38,7 @@ Baseline pre-warms **both** look channels with `bg_loop` + `route://5` so the fi
 | Privítanie (Cam) | idle look | opacity swap | — | Fullscreen cam + L3D |
 | Tema N ILU (open) | DoubleBox | opacity→`route://N` at air cut | wipe on **PGM 205–208** from Take | Overlay at 0; route mixer swaps at air cut |
 | Tema N SYN | Full | opacity swap | hard cut | L3D ADD after short `L3D_OUT_MS`; clip on **111** (bg_loop stays on **110**) |
-| ZAVER + AVIZO | Full | opacity swap | hard cut / wipe | LED: windowed `ilu-zaver`; PGM: CAM + L3DO |
+| ZAVER + AVIZO | DoubleBox | opacity→`route://N` at air cut | hard cut / wipe | db_loop shell; LED + look ILU: windowed `ilu-zaver`; CAM `route://5` |
 | Outro | Full | hold | `outro.mov` on PGM 210 | beds muted OutOnRundownEnd |
 
 **LED:** baseline `loops/bg_loop` fullscreen; tema / SJV / ŠPORT parts apply a

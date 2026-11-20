@@ -103,8 +103,8 @@ export function generateVOPart(
 				externalId: `${part.payload.externalId}_vmix_mic_ramp`,
 				name: 'VMix mic ramp (SYN)',
 				lifespan: PieceLifespan.WithinPart,
-				sourceLayerId: SourceLayer.AudioBed,
-				outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+				sourceLayerId: SourceLayer.VmixMicRamp,
+				outputLayerId: getOutputLayerForSourceLayer(SourceLayer.VmixMicRamp),
 				content: {
 					timelineObjects: createVmixMicRampDownTimelineObjects(config, 0, 1),
 				},

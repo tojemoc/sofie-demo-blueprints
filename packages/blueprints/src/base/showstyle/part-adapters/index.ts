@@ -16,6 +16,7 @@ import { PartContext } from '../../../common/context.js'
 import { SomeObject } from '../../../common/definitions/objects.js'
 import { literal, t } from '../../../common/util.js'
 import { TimelineBlueprintExt } from '../../studio/customTypes.js'
+import { CasparCGLayers } from '../../studio/layers.js'
 import { BlueprintUserOperationTypes } from '../../studio/userEditOperations/types.js'
 import { getOutputLayerForSourceLayer, SourceLayer } from '../applyconfig/layers.js'
 import {
@@ -50,6 +51,7 @@ import {
 	partShouldPersistCountupMute,
 } from '../helpers/countupReveal.js'
 import { createVmixDbLoopOpacityZeroObject, DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
+import { createLastHeadlineHoldPiece, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlineClearPiece,
@@ -318,6 +320,12 @@ export function generateParts(
 		if (floatedOrSkipped) {
 			newPart.part.floated = true
 		}
+		// Resolved part type for runtime hooks — `onSetAsNext` reads it to arm the
+		// dormant headline hold only when the actual next part is the intro.
+		newPart.part.privateData = {
+			...(newPart.part.privateData as Record<string, unknown> | undefined),
+			partType: rawPart.type,
+		}
 		// Add userEditOperations to any part (include the segment ones?):
 		newPart.part.userEditOperations = [...userEditOperationsOnSegment]
 
@@ -465,6 +473,41 @@ export function generateParts(
 		}
 	}
 
+	// Every headline part carries a DORMANT `_headline_hold` piece — which part is
+	// "last before intro" is only known at runtime (the intro may sit in the next
+	// segment), so `onSetAsNext` arms it with a PAUSE object when the actual next
+	// part is the intro. Until armed the empty piece is a no-op and the clip's
+	// baked slide-out plays normally.
+	for (let i = 0; i < parts.length; i++) {
+		const generated = parts[i]
+		const rawPart = intermediateSegment.parts[i]
+		if (generated.part.invalid || generated.part.floated) continue
+		if (!partHasHeadlineIlu(rawPart.objects ?? [])) continue
+		const iluObject = generated.pieces
+			.flatMap((piece) => piece.content.timelineObjects ?? [])
+			.find(
+				(obj) =>
+					String(obj.layer) === (CasparCGLayers.CasparCGIluPlayer as string) &&
+					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+					(obj.content as { file?: string }).file !== 'EMPTY' &&
+					(obj.priority ?? 0) < 10 // scheduled only — ad-lib headline ILU media is +10
+			)
+		if (!iluObject) continue // ad-lib-only headline: nothing on air to freeze
+		// shortcut: +3.5 s assumes the mov's in-anim ends ~1.5 s into the clip and
+		// its baked slide-out starts no earlier than ~4.5 s; if headline files move
+		// the out-anim earlier, freeze earlier or measure per file.
+		const clipStartMs =
+			typeof iluObject.enable === 'object' &&
+			!Array.isArray(iluObject.enable) &&
+			typeof iluObject.enable.start === 'number'
+				? iluObject.enable.start
+				: 0
+		const freezeAtMs = clipStartMs + 3500
+		const durationMs = Number(rawPart.payload?.duration) || 0
+		if (durationMs > 0 && freezeAtMs >= durationMs) continue // part ends before the clip's hold
+		generated.pieces.push(createLastHeadlineHoldPiece(rawPart.payload.externalId, freezeAtMs))
+	}
+
 	// Sofie holds previous look only for piece.postrollDuration into the next Take's
 	// previousPartKeepaliveDuration. Raise each part to the following on-air wipe's
 	// editorial cutPoint when that exceeds the per-part default sting floor (2500 ms).
@@ -522,7 +565,14 @@ export function generateParts(
 		const zaverEntrancePart = parts[zaverEntranceIdx] ?? parts[0]
 		const zaverEntranceRaw = intermediateSegment.parts[zaverEntranceIdx] ?? intermediateSegment.parts[0]
 		zaverEntrancePart.pieces.push(
-			createZaverBackgroundMusicPiece(context, studioConfig, zaverEntranceRaw?.payload.externalId ?? 'zaver')
+			// Wiped swaps get their bed restart from the wipe mute's unmute —
+			// only an unwiped Záver Take restarts the A-bed at its opening here.
+			createZaverBackgroundMusicPiece(
+				context,
+				studioConfig,
+				zaverEntranceRaw?.payload.externalId ?? 'zaver',
+				Boolean(findWipeVideoObject(zaverEntranceRaw?.objects ?? []))
+			)
 		)
 	}
 

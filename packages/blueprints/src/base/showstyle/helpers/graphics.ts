@@ -381,6 +381,63 @@ function getHeadlineIluMediaObject(
 	return [createHeadlineIluMediaTimelineObject(iluFile, mode, isAdlib, resolveIluVolume(object))]
 }
 
+/**
+ * The HEADLINEx.mov slide-out is baked into the clip — for the headline that
+ * sits on screen into the intro, PAUSE it inside its hold so the frame freezes
+ * instead of sliding left. `playing:false` + `noStarttime` makes casparcg-state
+ * emit `PAUSE` on the same media; when the piece's postroll ends (~1 s into the
+ * intro) the layer removal hard-clears it — no slide.
+ *
+ * Which headline is "last" is only knowable at runtime (segment-scoped
+ * generation cannot see the next segment's intro), so every headline part ships
+ * this piece DORMANT — empty timelineObjects, no-op until `onSetAsNext` arms it
+ * via `updatePieceInstance` when the actual next part is the intro (same
+ * pattern as {@link createIdleLookPreviewPiece}).
+ */
+export const LAST_HEADLINE_HOLD_INTO_INTRO_MS = 1000
+
+export const LAST_HEADLINE_HOLD_PIECE_SUFFIX = '_headline_hold'
+
+export function createLastHeadlineHoldPiece(partExternalId: string, freezeAtMs: number): IBlueprintPiece {
+	return literal<IBlueprintPiece>({
+		enable: { start: freezeAtMs },
+		externalId: `${partExternalId}${LAST_HEADLINE_HOLD_PIECE_SUFFIX}`,
+		name: 'Last headline hold',
+		lifespan: PieceLifespan.WithinPart,
+		// Carry across the segment boundary: the next part is the intro.
+		postrollDuration: LAST_HEADLINE_HOLD_INTO_INTRO_MS,
+		sourceLayerId: SourceLayer.PgmLayerClear,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.PgmLayerClear),
+		content: {
+			timelineObjects: [] as TimelineBlueprintExt[],
+		},
+	})
+}
+
+/**
+ * The PAUSE object `onSetAsNext` writes into the dormant hold piece — same file
+ * and mixer as the live headline ILU so the producer swap is a bare `PAUSE`.
+ */
+export function createLastHeadlineHoldMediaObject(
+	casparFile: string,
+	mixer?: object
+): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
+	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+		id: '',
+		enable: { start: 0 },
+		layer: CasparCGLayers.CasparCGIluPlayer,
+		priority: 2,
+		content: {
+			deviceType: TSR.DeviceType.CASPARCG,
+			type: TSR.TimelineContentTypeCasparCg.MEDIA,
+			file: casparFile,
+			playing: false,
+			noStarttime: true,
+			...(mixer ? { mixer } : {}),
+		},
+	})
+}
+
 function createDoubleboxIluMediaTimelineObject(
 	iluFile: string,
 	isAdlib?: boolean,
@@ -430,6 +487,14 @@ function getIluZaverTimelineObjects(
 	}
 
 	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not fullscreen.
+	// The same window also plays on the look channel's ILU layer (under db_loop) so
+	// ZAVER+AVIZO shows the avízo clip in the DoubleBox shell's left cutout on PGM.
+	const iluMixer = {
+		crop: { ...PGM_DOUBLEBOX_ILU_CROP },
+		fill: { ...PGM_DOUBLEBOX_ILU_FILL },
+		volume: resolveIluVolume(object),
+		opacity: 1,
+	}
 	return [
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
@@ -441,12 +506,20 @@ function getIluZaverTimelineObjects(
 				type: TSR.TimelineContentTypeCasparCg.MEDIA,
 				file: toCasparPlayPath(iluFile),
 				loop: false,
-				mixer: {
-					crop: { ...PGM_DOUBLEBOX_ILU_CROP },
-					fill: { ...PGM_DOUBLEBOX_ILU_FILL },
-					volume: resolveIluVolume(object),
-					opacity: 1,
-				},
+				mixer: { ...iluMixer },
+			},
+		}),
+		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+			id: '',
+			enable: { start: 0 },
+			layer: CasparCGLayers.CasparCGPgmIluPlayer,
+			priority: 1 + (isAdlib ? 10 : 0),
+			content: {
+				deviceType: TSR.DeviceType.CASPARCG,
+				type: TSR.TimelineContentTypeCasparCg.MEDIA,
+				file: toCasparPlayPath(iluFile),
+				loop: false,
+				mixer: { ...iluMixer },
 			},
 		}),
 	]

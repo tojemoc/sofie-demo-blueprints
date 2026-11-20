@@ -43,7 +43,7 @@ export function partUsesDoubleBoxCamera(part: PartProps<CameraProps>): boolean {
  * layer (plus the NDI feed layer) on `lookSlot`; on ATEM/Caspar it is the
  * `pgmCameraProducer` route with the mode's FILL.
  */
-function createPgmCameraTimelineObjects(
+export function createPgmCameraTimelineObjects(
 	config: StudioConfig,
 	mode: 'fullscreen' | 'doublebox',
 	lookSlot: LookSlot = 'A'
