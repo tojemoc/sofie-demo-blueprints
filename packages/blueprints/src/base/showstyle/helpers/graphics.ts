@@ -420,7 +420,8 @@ export function createLastHeadlineHoldPiece(partExternalId: string, freezeAtMs: 
  */
 export function createLastHeadlineHoldMediaObject(
 	casparFile: string,
-	mixer?: object
+	mixer?: object,
+	seekMs?: number
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -432,7 +433,7 @@ export function createLastHeadlineHoldMediaObject(
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: casparFile,
 			playing: false,
-			noStarttime: true,
+			...(seekMs !== undefined && seekMs > 0 ? { seek: seekMs } : { noStarttime: true }),
 			...(mixer ? { mixer } : {}),
 		},
 	})

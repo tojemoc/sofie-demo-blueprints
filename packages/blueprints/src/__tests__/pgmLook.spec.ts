@@ -496,12 +496,13 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		)
 		expect(outgoingHeadlinePiece?.postrollDuration).toBeGreaterThanOrEqual(L3D_OUT_MS)
-		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
-		// keepalive-end CG STOP cannot animate out stacked under the incoming template.
+		// Previous part's L3D lived on look A — EMPTY it at keepalive end (the
+		// outgoing picture still feeds PGM until then; clearing at Take would make
+		// the strap vanish before the hard cut actually switches).
 		const otherSlotL3dEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(otherSlotL3dEmpty?.enable).toEqual({ start: 0 })
+		expect(otherSlotL3dEmpty?.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS })
 		// Look ILU CLEAR rides the same piece when the part has no bg_pocasie.
 		expect(
 			l3dClear?.content.timelineObjects?.some(
