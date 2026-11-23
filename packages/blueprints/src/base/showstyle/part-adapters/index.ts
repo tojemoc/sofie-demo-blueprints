@@ -486,25 +486,26 @@ export function generateParts(
 		const rawPart = intermediateSegment.parts[i]
 		if (generated.part.invalid || generated.part.floated) continue
 		if (!partHasHeadlineIlu(rawPart.objects ?? [])) continue
-		const iluObject = generated.pieces
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
+		const iluEntry = generated.pieces
+			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
 			.find(
-				(obj) =>
+				({ obj }) =>
 					String(obj.layer) === (CasparCGLayers.CasparCGIluPlayer as string) &&
 					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
 					(obj.content as { file?: string }).file !== 'EMPTY' &&
 					(obj.priority ?? 0) < 10 // scheduled only — ad-lib headline ILU media is +10
 			)
-		if (!iluObject) continue // ad-lib-only headline: nothing on air to freeze
+		if (!iluEntry) continue // ad-lib-only headline: nothing on air to freeze
 		// shortcut: +3.5 s assumes the mov's in-anim ends ~1.5 s into the clip;
 		// there is no out-anim, so every later clip time is the static hold and
 		// 3.5 s freezes a full-hold frame. Re-measure if headline files change.
 		const clipStartMs =
-			typeof iluObject.enable === 'object' &&
-			!Array.isArray(iluObject.enable) &&
-			typeof iluObject.enable.start === 'number'
-				? iluObject.enable.start
-				: 0
+			(typeof iluEntry.piece.enable?.start === 'number' ? iluEntry.piece.enable.start : 0) +
+			(typeof iluEntry.obj.enable === 'object' &&
+			!Array.isArray(iluEntry.obj.enable) &&
+			typeof iluEntry.obj.enable.start === 'number'
+				? iluEntry.obj.enable.start
+				: 0)
 		const freezeAtMs = clipStartMs + 3500
 		const durationMs = Number(rawPart.payload?.duration) || 0
 		if (durationMs > 0 && freezeAtMs >= durationMs) continue // part ends before the clip's hold

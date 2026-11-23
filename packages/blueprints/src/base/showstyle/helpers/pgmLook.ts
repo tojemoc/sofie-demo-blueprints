@@ -1221,7 +1221,11 @@ export function finalizeHypercomposedPart(
 	// The outgoing look stays on PGM through the transition (sting cover / hard-cut
 	// keepalive) — clearing its L3D at Take makes it vanish before the picture
 	// switches, so align the clear with the cut, not the Take.
-	const l3dClearStartMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : hasWipe ? wipeRouteCutMs : 0
+	// Incoming-slot EMPTY clears stale CG from Take (the layer may hold a previous
+	// strap that would gap-fill or flash at the route flip). Only the *outgoing*
+	// slot's clear waits for the picture cut (otherSlotL3dClearStartMs below);
+	// leave-weather ZAVER additionally holds the incoming clear until cover.
+	const l3dClearStartMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : 0
 	const previousLookKeepaliveMs = hasWipe
 		? leaveWeatherHideMs
 		: previousLookSlot !== undefined
@@ -2008,6 +2012,11 @@ function applyL3dTakeOffsets(
 					)
 					const objEnable = obj.enable as { start?: number | string | null } | undefined
 					if (objEnable && !Array.isArray(obj.enable) && typeof objEnable.start === 'number') {
+						// Piece already at ≤400 ms: the ADD lands later than its
+						// original slot — pad the finite piece window like the
+						// generic path so the template keeps its declared duration.
+						const addDelayMs = rebasedStart - objEnable.start
+						if (addDelayMs > 0) l3dDurationPadMs = Math.max(l3dDurationPadMs, addDelayMs)
 						objEnable.start = rebasedStart
 					}
 					continue
@@ -2647,9 +2656,9 @@ export async function armLastHeadlineHoldForNext(
 
 	// The live headline ILU on LED 115 (scheduled media — the armed hold's own
 	// clone matches it too, but file/mixer are identical by construction).
-	const iluObject = currentPieces
-		.flatMap((instance) => instance.piece.content?.timelineObjects ?? [])
-		.find((obj) => {
+	const iluEntry = currentPieces
+		.flatMap((instance) => (instance.piece.content?.timelineObjects ?? []).map((obj) => ({ instance, obj })))
+		.find(({ obj }) => {
 			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) return false
 			if ((obj.priority ?? 0) >= 10) return false
 			const content = obj.content as { type?: string; file?: string } | undefined
@@ -2660,17 +2669,20 @@ export async function armLastHeadlineHoldForNext(
 				content.file !== 'EMPTY'
 			)
 		})
-	const iluContent = iluObject?.content as { file?: string; mixer?: object } | undefined
+	const iluContent = iluEntry?.obj.content as { file?: string; mixer?: object } | undefined
 
 	// Freeze frame = the clip-time at the piece's scheduled start minus the clip's
 	// own start. `seek` makes the PAUSE land on a known static-hold frame even
 	// when arming happens after the piece's start already passed (a bare PAUSE
 	// would freeze whatever the clip was doing at arm time — mid-anim frames).
 	const holdStartMs = typeof holdInstance.piece.enable?.start === 'number' ? holdInstance.piece.enable.start : 0
+	// Clip-time start = owning piece's scheduled start + the media object's own
+	// offset inside it (headline ILU objects start after the slide-out window).
 	const clipStartMs =
-		iluObject && typeof iluObject.enable === 'object' && !Array.isArray(iluObject.enable)
-			? (iluObject.enable.start as number) || 0
-			: 0
+		(typeof iluEntry?.instance.piece.enable?.start === 'number' ? iluEntry.instance.piece.enable.start : 0) +
+		(iluEntry && typeof iluEntry.obj.enable === 'object' && !Array.isArray(iluEntry.obj.enable)
+			? (iluEntry.obj.enable.start as number) || 0
+			: 0)
 	const seekMs = Math.max(0, holdStartMs - clipStartMs)
 
 	// Armed: keep the frozen frame on the LED wall for the whole intro — the
