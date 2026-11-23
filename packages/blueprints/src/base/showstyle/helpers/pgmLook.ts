@@ -47,6 +47,7 @@ import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
 	createLastHeadlineHoldMediaObject,
+	HEADLINE_HOLD_CLIP_FRAME_MS,
 	LAST_HEADLINE_HOLD_INTO_INTRO_MS,
 	LAST_HEADLINE_HOLD_PIECE_SUFFIX,
 } from './graphics.js'
@@ -2671,19 +2672,10 @@ export async function armLastHeadlineHoldForNext(
 		})
 	const iluContent = iluEntry?.obj.content as { file?: string; mixer?: object } | undefined
 
-	// Freeze frame = the clip-time at the piece's scheduled start minus the clip's
-	// own start. `seek` makes the PAUSE land on a known static-hold frame even
-	// when arming happens after the piece's start already passed (a bare PAUSE
-	// would freeze whatever the clip was doing at arm time — mid-anim frames).
-	const holdStartMs = typeof holdInstance.piece.enable?.start === 'number' ? holdInstance.piece.enable.start : 0
-	// Clip-time start = owning piece's scheduled start + the media object's own
-	// offset inside it (headline ILU objects start after the slide-out window).
-	const clipStartMs =
-		(typeof iluEntry?.instance.piece.enable?.start === 'number' ? iluEntry.instance.piece.enable.start : 0) +
-		(iluEntry && typeof iluEntry.obj.enable === 'object' && !Array.isArray(iluEntry.obj.enable)
-			? (iluEntry.obj.enable.start as number) || 0
-			: 0)
-	const seekMs = Math.max(0, holdStartMs - clipStartMs)
+	// The frozen frame is always the static-hold clip frame — fixed, so a
+	// clamped hold start on a short part cannot pull the seek into the in-anim
+	// or zero it into a bare non-deterministic PAUSE.
+	const seekMs = HEADLINE_HOLD_CLIP_FRAME_MS
 
 	// Armed: keep the frozen frame on the LED wall for the whole intro — the
 	// clip has no out-anim and must not be cut mid-intro, so the hold lives as

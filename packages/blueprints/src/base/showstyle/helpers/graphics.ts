@@ -415,6 +415,10 @@ function getHeadlineIluMediaObject(
  */
 export const LAST_HEADLINE_HOLD_INTO_INTRO_MS = 1000
 
+// Clip-time of the static-hold frame the armed PAUSE seeks to — fixed so a
+// clamped hold start (short part) cannot pull the seek into the in-anim.
+export const HEADLINE_HOLD_CLIP_FRAME_MS = 3500
+
 export const LAST_HEADLINE_HOLD_PIECE_SUFFIX = '_headline_hold'
 
 export function createLastHeadlineHoldPiece(partExternalId: string, freezeAtMs: number): IBlueprintPiece {

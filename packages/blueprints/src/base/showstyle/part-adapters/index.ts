@@ -51,7 +51,7 @@ import {
 	partShouldPersistCountupMute,
 } from '../helpers/countupReveal.js'
 import { createVmixDbLoopOpacityZeroObject, DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
-import { createLastHeadlineHoldPiece, partHasHeadlineIlu } from '../helpers/graphics.js'
+import { createLastHeadlineHoldPiece, HEADLINE_HOLD_CLIP_FRAME_MS, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlineClearPiece,
@@ -67,13 +67,14 @@ import {
 	getLookSlotSequenceForGeneration,
 	isDoubleBoxLook,
 	isPgmRouteLayer,
+	LOOK_HARD_CUT_KEEPALIVE_MS,
 	LookSlot,
 	LookSlotSequence,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
 import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
-import { usesVmixProgram } from '../helpers/visionMixer.js'
+import { usesVmixProgram, VMIX_STINGER_PREVIEW_LEAD_MS } from '../helpers/visionMixer.js'
 import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
@@ -506,12 +507,14 @@ export function generateParts(
 			typeof iluEntry.obj.enable.start === 'number'
 				? iluEntry.obj.enable.start
 				: 0)
-		const durationMs = Number(rawPart.payload?.duration) || 0
+		const durationMs = Number(rawPart.payload?.duration) || generated.part.expectedDuration || 0
 		// Short part: freeze on the latest reachable frame (1f before part end)
-		// rather than skipping the hold — a short headline before intro still
-		// must stay up, it just freezes earlier in the static-hold window.
+		// rather than skipping the hold — the armed seek stays on the fixed
+		// HEADLINE_HOLD_CLIP_FRAME_MS static frame regardless of this start.
 		const freezeAtMs =
-			durationMs > 0 ? Math.min(clipStartMs + 3500, Math.max(0, durationMs - 20)) : clipStartMs + 3500
+			durationMs > 0
+				? Math.min(clipStartMs + HEADLINE_HOLD_CLIP_FRAME_MS, Math.max(0, durationMs - 20))
+				: clipStartMs + HEADLINE_HOLD_CLIP_FRAME_MS
 		generated.pieces.push(createLastHeadlineHoldPiece(rawPart.payload.externalId, freezeAtMs))
 	}
 
@@ -541,20 +544,30 @@ export function generateParts(
 	// Zoom pieces are attached after finalize — shift them to the route-flip
 	// keyframe finalize already placed (wipe air cut / hard-cut keepalive end),
 	// so the LED move lands with the picture cut, not the wipe start.
+	const isVmixProgram = usesVmixProgram(studioConfig)
 	for (const part of parts) {
 		if (!part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.LedBgLoopZoom as string))) continue
 		let routeFlipMs = 0
-		for (const piece of part.pieces) {
-			for (const obj of piece.content.timelineObjects ?? []) {
-				if (!isPgmRouteLayer(String(obj.layer))) continue
-				for (const kf of obj.keyframes ?? []) {
-					const kfEnable = kf.enable as { start?: number } | undefined
-					if (
-						!Array.isArray(kf.enable) &&
-						typeof kfEnable?.start === 'number' &&
-						(kf.content as { mixer?: unknown } | undefined)?.mixer !== undefined
-					) {
-						routeFlipMs = Math.max(routeFlipMs, kfEnable.start)
+		if (isVmixProgram) {
+			// vMix carries no route:// keyframes — the picture cut is the stinger
+			// PROGRAM (fires VMIX_STINGER_PREVIEW_LEAD_MS after Take) or the hard
+			// Cut at LOOK_HARD_CUT_KEEPALIVE_MS.
+			routeFlipMs = part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
+				? VMIX_STINGER_PREVIEW_LEAD_MS
+				: LOOK_HARD_CUT_KEEPALIVE_MS
+		} else {
+			for (const piece of part.pieces) {
+				for (const obj of piece.content.timelineObjects ?? []) {
+					if (!isPgmRouteLayer(String(obj.layer))) continue
+					for (const kf of obj.keyframes ?? []) {
+						const kfEnable = kf.enable as { start?: number } | undefined
+						if (
+							!Array.isArray(kf.enable) &&
+							typeof kfEnable?.start === 'number' &&
+							(kf.content as { mixer?: unknown } | undefined)?.mixer !== undefined
+						) {
+							routeFlipMs = Math.max(routeFlipMs, kfEnable.start)
+						}
 					}
 				}
 			}
