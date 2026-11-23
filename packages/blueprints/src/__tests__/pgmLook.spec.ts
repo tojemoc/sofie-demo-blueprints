@@ -496,12 +496,13 @@ describe('pgmLook look-kind channels + route', () => {
 			)
 		)
 		expect(outgoingHeadlinePiece?.postrollDuration).toBeGreaterThanOrEqual(L3D_OUT_MS)
-		// Previous part's L3D lived on look A — EMPTY it at Take (open-ended) so its
-		// keepalive-end CG STOP cannot animate out stacked under the incoming template.
+		// Previous part's L3D lived on look A — EMPTY it at keepalive end (the
+		// outgoing picture still feeds PGM until then; clearing at Take would make
+		// the strap vanish before the hard cut actually switches).
 		const otherSlotL3dEmpty = l3dClear?.content.timelineObjects?.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		expect(otherSlotL3dEmpty?.enable).toEqual({ start: 0 })
+		expect(otherSlotL3dEmpty?.enable).toEqual({ start: LOOK_HARD_CUT_KEEPALIVE_MS })
 		// Look ILU CLEAR rides the same piece when the part has no bg_pocasie.
 		expect(
 			l3dClear?.content.timelineObjects?.some(
@@ -547,7 +548,7 @@ describe('pgmLook look-kind channels + route', () => {
 		for (const part of headlines.parts) {
 			const hold = part.pieces.find((piece) => piece.externalId?.endsWith('_headline_hold'))
 			expect(hold).toBeDefined()
-			expect(hold?.enable).toEqual({ start: 3500 })
+			expect(hold?.enable).toEqual({ start: 4100 })
 			expect(hold?.postrollDuration).toBe(LAST_HEADLINE_HOLD_INTO_INTRO_MS)
 			expect(hold?.lifespan).toBe(PieceLifespan.WithinPart)
 			expect(hold?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
@@ -578,12 +579,15 @@ describe('pgmLook look-kind channels + route', () => {
 		const holdMedia = (armed?.piece?.content?.timelineObjects ?? [])[0] as
 			{ layer?: unknown; priority?: number; content?: unknown } | undefined
 		expect(holdMedia?.layer).toBe(CasparCGLayers.CasparCGIluPlayer)
+		// Freeze lands at clip-time 3.5 s: hold piece starts at 4100, the armed
+		// clip began at 600 (post-slide-out window) → seek 4100 − 600 = 3500.
 		expect(holdMedia?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'clips/HEADLINE3',
 			playing: false,
-			noStarttime: true,
+			seek: 3500,
 		})
+		expect(holdMedia?.content).not.toHaveProperty('noStarttime')
 		expect(holdMedia?.priority).toBe(2)
 
 		// Next = another headline → the hold stays dormant (baked slide-out plays).

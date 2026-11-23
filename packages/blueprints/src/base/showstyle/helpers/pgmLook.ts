@@ -47,6 +47,7 @@ import { DOUBLEBOX_LOOP_FILE } from './doubleboxLoop.js'
 import { createFullBgLoopPiece } from './fullBgLoop.js'
 import {
 	createLastHeadlineHoldMediaObject,
+	HEADLINE_HOLD_CLIP_FRAME_MS,
 	LAST_HEADLINE_HOLD_INTO_INTRO_MS,
 	LAST_HEADLINE_HOLD_PIECE_SUFFIX,
 } from './graphics.js'
@@ -1210,7 +1211,7 @@ export function finalizeHypercomposedPart(
 	const l3dOnAirMs = (earliestObjectTimeMs: number): number =>
 		hasWipe
 			? wipePocasie
-				? POCASIE_L3D_PRELOAD_MS + earliestObjectTimeMs
+				? POCASIE_L3D_PRELOAD_MS
 				: Math.max(wipeDurationMs, earliestObjectTimeMs)
 			: L3D_OUT_MS + earliestObjectTimeMs
 	const l3dClearDurationMs = hasIncomingLookL3d ? l3dOnAirMs(earliestLookL3dObjectTimeMs) : undefined
@@ -1218,6 +1219,13 @@ export function finalizeHypercomposedPart(
 	// not cleared at Take while wipe overlay is still loading. Wipe-only GFX shells
 	// keep L3D CLEAR at Take. Require an *active* on-air ilu-zaver piece — an
 	// ad-lib-only ingest hit must not delay L3D CLEAR on unrelated wiped GFX.
+	// The outgoing look stays on PGM through the transition (sting cover / hard-cut
+	// keepalive) — clearing its L3D at Take makes it vanish before the picture
+	// switches, so align the clear with the cut, not the Take.
+	// Incoming-slot EMPTY clears stale CG from Take (the layer may hold a previous
+	// strap that would gap-fill or flash at the route flip). Only the *outgoing*
+	// slot's clear waits for the picture cut (otherSlotL3dClearStartMs below);
+	// leave-weather ZAVER additionally holds the incoming clear until cover.
 	const l3dClearStartMs = leaveWeatherUnderWipe ? leaveWeatherHideMs : 0
 	const previousLookKeepaliveMs = hasWipe
 		? leaveWeatherHideMs
@@ -1262,9 +1270,7 @@ export function finalizeHypercomposedPart(
 		// claimed again later. On wiped Takes hold it with the outgoing picture until
 		// the route cut under cover — same rule as the other-slot clears below.
 		const otherSlotL3dClearStartMs =
-			hasWipe && previousLookSlot !== undefined && previousLookSlot === idleOtherSlot
-				? wipeRouteCutMs
-				: l3dClearStartMs
+			previousLookSlot !== undefined ? (hasWipe ? wipeRouteCutMs : LOOK_HARD_CUT_KEEPALIVE_MS) : l3dClearStartMs
 		clearObjects.push(...buildL3dLayerClearObjects(idleOtherSlot, undefined, otherSlotL3dClearStartMs))
 	}
 	// Full wipe onto a *new* look channel: EMPTY stale CAM / db_loop on the incoming
@@ -1993,13 +1999,32 @@ function applyL3dTakeOffsets(
 			const content = obj.content as { type?: string; file?: string; seek?: number; playing?: boolean }
 
 			if (L3D_TEMPLATE_LAYERS.has(layer) && isCasparTemplate(content)) {
+				if (hasWipe && wipePocasie) {
+					// Weather GFX ADDs early — its CEF load + card cascade runs
+					// under the wipe cover so the board is complete at the air cut.
+					// Rebase both the piece and the object: the WX piece's editorial
+					// start sits ~2 s in, which would push the ADD past the reveal.
+					if (typeof piece.enable?.start === 'number' && piece.enable.start > POCASIE_L3D_PRELOAD_MS) {
+						piece.enable.start = POCASIE_L3D_PRELOAD_MS
+					}
+					const rebasedStart = Math.max(
+						0,
+						POCASIE_L3D_PRELOAD_MS - Math.max(0, (piece.enable as { start?: number })?.start ?? 0)
+					)
+					const objEnable = obj.enable as { start?: number | string | null } | undefined
+					if (objEnable && !Array.isArray(obj.enable) && typeof objEnable.start === 'number') {
+						// Piece already at ≤400 ms: the ADD lands later than its
+						// original slot — pad the finite piece window like the
+						// generic path so the template keeps its declared duration.
+						const addDelayMs = rebasedStart - objEnable.start
+						if (addDelayMs > 0) l3dDurationPadMs = Math.max(l3dDurationPadMs, addDelayMs)
+						objEnable.start = rebasedStart
+					}
+					continue
+				}
 				let l3dInDelay = L3D_OUT_MS
 				if (hasWipe) {
-					if (wipePocasie) {
-						// Weather GFX ADDs early — its CEF load + card cascade runs
-						// under the wipe cover so the board is complete at the air cut.
-						l3dInDelay = POCASIE_L3D_PRELOAD_MS
-					} else if (pieceStartMs === 0) {
+					if (pieceStartMs === 0) {
 						// After the sting ends.
 						l3dInDelay = wipeDurationMs
 					} else if (pieceStartMs < wipeDurationMs) {
@@ -2632,9 +2657,9 @@ export async function armLastHeadlineHoldForNext(
 
 	// The live headline ILU on LED 115 (scheduled media — the armed hold's own
 	// clone matches it too, but file/mixer are identical by construction).
-	const iluObject = currentPieces
-		.flatMap((instance) => instance.piece.content?.timelineObjects ?? [])
-		.find((obj) => {
+	const iluEntry = currentPieces
+		.flatMap((instance) => (instance.piece.content?.timelineObjects ?? []).map((obj) => ({ instance, obj })))
+		.find(({ obj }) => {
 			if (String(obj.layer) !== (CasparCGLayers.CasparCGIluPlayer as string)) return false
 			if ((obj.priority ?? 0) >= 10) return false
 			const content = obj.content as { type?: string; file?: string } | undefined
@@ -2645,13 +2670,36 @@ export async function armLastHeadlineHoldForNext(
 				content.file !== 'EMPTY'
 			)
 		})
-	const iluContent = iluObject?.content as { file?: string; mixer?: object } | undefined
+	const iluContent = iluEntry?.obj.content as { file?: string; mixer?: object } | undefined
 
+	// The frozen frame is always the static-hold clip frame — fixed, so a
+	// clamped hold start on a short part cannot pull the seek into the in-anim
+	// or zero it into a bare non-deterministic PAUSE.
+	const seekMs = HEADLINE_HOLD_CLIP_FRAME_MS
+
+	// Armed: keep the frozen frame on the LED wall for the whole intro — the
+	// clip has no out-anim and must not be cut mid-intro, so the hold lives as
+	// long as the intro part (fallback = the fixed 1 s cover when the next
+	// part carries no expectedDuration).
+	const introCoverMs =
+		nextIsIntro &&
+		typeof nextPartInstance?.part.expectedDuration === 'number' &&
+		nextPartInstance.part.expectedDuration > 0
+			? nextPartInstance.part.expectedDuration
+			: LAST_HEADLINE_HOLD_INTO_INTRO_MS
 	const targetObjects =
-		nextIsIntro && iluContent?.file ? [createLastHeadlineHoldMediaObject(iluContent.file, iluContent.mixer)] : []
+		nextIsIntro && iluContent?.file
+			? [createLastHeadlineHoldMediaObject(iluContent.file, iluContent.mixer, seekMs)]
+			: []
 	const existingObjects = holdInstance.piece.content?.timelineObjects ?? []
-	if (existingObjects.length === 0 && targetObjects.length === 0) return
+	if (
+		existingObjects.length === 0 &&
+		targetObjects.length === 0 &&
+		holdInstance.piece.postrollDuration === introCoverMs
+	)
+		return
 	await context.updatePieceInstance(holdInstance._id, {
+		postrollDuration: nextIsIntro ? introCoverMs : LAST_HEADLINE_HOLD_INTO_INTRO_MS,
 		content: { ...holdInstance.piece.content, timelineObjects: targetObjects },
 	})
 }
@@ -2753,6 +2801,12 @@ export function applyLookMediaPostroll(pieces: IBlueprintPiece[], postrollMs: nu
 		// part's media — holding them past the take would shadow the incoming
 		// part's own objects on the same layers.
 		if (piece.sourceLayerId === (SourceLayer.LookIdlePreview as string)) continue
+		// LED tema-zoom rides the transition too — an outgoing zoomed `bg_loop`
+		// must survive until the cut, not snap to fullscreen at the wipe start.
+		if (piece.sourceLayerId === (SourceLayer.LedBgLoopZoom as string)) {
+			piece.postrollDuration = Math.max(piece.postrollDuration ?? 0, minPostroll)
+			continue
+		}
 		const objects = piece.content.timelineObjects ?? []
 		const keepPicture = objects.some((obj) => {
 			const layer = String(obj.layer)
@@ -2840,6 +2894,24 @@ export function raiseLookMediaPostrollForCrossSegmentWipe(
 		if (part.invalid || part.floated) continue
 		applyLookMediaPostroll(parts[i].pieces, LOOK_MEDIA_POSTROLL_MS)
 		break
+	}
+}
+
+/**
+ * LED `bg_loop` tema-zoom pieces ({@link SourceLayer.LedBgLoopZoom}) switch at
+ * `wipeCutPointMs` — the move must land with the picture cut, not at Take while
+ * the sting is still open. Zoom pieces are attached after finalize, so callers
+ * pass the route-flip time read back off the generated route object.
+ */
+export function delayLedBgLoopZoomToWipeCut(pieces: IBlueprintPiece[], wipeCutPointMs: number): void {
+	if (wipeCutPointMs <= 0) return
+	for (const piece of pieces) {
+		if (piece.sourceLayerId !== (SourceLayer.LedBgLoopZoom as string)) continue
+		for (const obj of piece.content.timelineObjects ?? []) {
+			const content = obj.content as { type?: string; file?: string }
+			if (!isCasparMedia(content) || content.file === 'EMPTY') continue
+			shiftEnableStartIfAtTake(obj, wipeCutPointMs)
+		}
 	}
 }
 

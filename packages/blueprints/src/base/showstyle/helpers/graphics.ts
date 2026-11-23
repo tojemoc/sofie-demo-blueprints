@@ -335,6 +335,14 @@ function resolveIluVolume(object: GraphicObjectBase): number {
 	return parseClipVolume(typeof raw === 'number' ? raw : Number(raw))
 }
 
+/**
+ * The clip has only an IN-anim; the slide-out-left on TAKE comes from this
+ * PUSH — the piece ends at the boundary and casparcg-state replays the layer
+ * as `PLAY … "empty" PUSH <dur> LEFT`. The next headline's object starts
+ * after this window so the old clip is gone when it rolls in (baked in-anim).
+ */
+export const HEADLINE_ILU_SLIDE_OUT_MS = 600
+
 function createHeadlineIluMediaTimelineObject(
 	iluFile: string,
 	mode: 'slot' | 'fullscreen',
@@ -345,7 +353,7 @@ function createHeadlineIluMediaTimelineObject(
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
 		enable: {
-			start: 0,
+			start: isAdlib ? 0 : HEADLINE_ILU_SLIDE_OUT_MS,
 		},
 		// Dedicated ILU layer (115) — never ClipPlayer1 (110), so FILL does not affect the bg loop.
 		layer: CasparCGLayers.CasparCGIluPlayer,
@@ -354,6 +362,15 @@ function createHeadlineIluMediaTimelineObject(
 			deviceType: TSR.DeviceType.CASPARCG,
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: toCasparPlayPath(iluFile),
+			// No baked out-anim in the clip — the slide-out-left comes from this
+			// PUSH on removal (casparcg-state plays "empty" over it).
+			transitions: {
+				outTransition: {
+					type: TSR.Transition.PUSH,
+					direction: TSR.Direction.LEFT,
+					duration: HEADLINE_ILU_SLIDE_OUT_MS,
+				},
+			},
 			// Hold last frame when the clip is shorter than the part — never CLEAR to blank.
 			loop: false,
 			mixer: {
@@ -382,11 +399,13 @@ function getHeadlineIluMediaObject(
 }
 
 /**
- * The HEADLINEx.mov slide-out is baked into the clip — for the headline that
- * sits on screen into the intro, PAUSE it inside its hold so the frame freezes
- * instead of sliding left. `playing:false` + `noStarttime` makes casparcg-state
- * emit `PAUSE` on the same media; when the piece's postroll ends (~1 s into the
- * intro) the layer removal hard-clears it — no slide.
+ * Normal headline TAKEs slide the clip out left via its PUSH outTransition
+ * (see {@link HEADLINE_ILU_SLIDE_OUT_MS}). The headline before the intro must
+ * instead stay on screen — PAUSE it inside its hold so the frame freezes,
+ * no slide and no cut. `playing:false` + `seek` makes casparcg-state pause
+ * the same media at the deterministic hold frame; when the piece's postroll
+ * ends (extended to the intro's expectedDuration at arm time) the layer
+ * removal hard-clears it — no slide.
  *
  * Which headline is "last" is only knowable at runtime (segment-scoped
  * generation cannot see the next segment's intro), so every headline part ships
@@ -395,6 +414,10 @@ function getHeadlineIluMediaObject(
  * pattern as {@link createIdleLookPreviewPiece}).
  */
 export const LAST_HEADLINE_HOLD_INTO_INTRO_MS = 1000
+
+// Clip-time of the static-hold frame the armed PAUSE seeks to — fixed so a
+// clamped hold start (short part) cannot pull the seek into the in-anim.
+export const HEADLINE_HOLD_CLIP_FRAME_MS = 3500
 
 export const LAST_HEADLINE_HOLD_PIECE_SUFFIX = '_headline_hold'
 
@@ -420,7 +443,8 @@ export function createLastHeadlineHoldPiece(partExternalId: string, freezeAtMs: 
  */
 export function createLastHeadlineHoldMediaObject(
 	casparFile: string,
-	mixer?: object
+	mixer?: object,
+	seekMs?: number
 ): TimelineBlueprintExt<TSR.TimelineContentCCGMedia> {
 	return literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 		id: '',
@@ -432,7 +456,7 @@ export function createLastHeadlineHoldMediaObject(
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: casparFile,
 			playing: false,
-			noStarttime: true,
+			...(seekMs !== undefined && seekMs > 0 ? { seek: seekMs } : { noStarttime: true }),
 			...(mixer ? { mixer } : {}),
 		},
 	})

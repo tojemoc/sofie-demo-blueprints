@@ -144,7 +144,7 @@ export const PGM_DOUBLEBOX_CAMERA_FILL = {
 export const PGM_DOUBLEBOX_ILU_FILL = {
 	x: 0.0219,
 	y: 0.062,
-	xScale: 0.698,
+	xScale: 0.686,
 	yScale: 0.7,
 } as const
 

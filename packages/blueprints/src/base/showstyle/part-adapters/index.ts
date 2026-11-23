@@ -51,7 +51,7 @@ import {
 	partShouldPersistCountupMute,
 } from '../helpers/countupReveal.js'
 import { createVmixDbLoopOpacityZeroObject, DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
-import { createLastHeadlineHoldPiece, partHasHeadlineIlu } from '../helpers/graphics.js'
+import { createLastHeadlineHoldPiece, HEADLINE_HOLD_CLIP_FRAME_MS, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlineClearPiece,
@@ -61,16 +61,20 @@ import {
 import {
 	createIdleLookPreviewPiece,
 	createLookAudioResetPiece,
+	delayLedBgLoopZoomToWipeCut,
 	findWipeVideoObject,
 	getLookLayers,
 	getLookSlotSequenceForGeneration,
+	isDoubleBoxLook,
+	isPgmRouteLayer,
+	LOOK_HARD_CUT_KEEPALIVE_MS,
 	LookSlot,
 	LookSlotSequence,
 	raiseLookMediaPostrollForCrossSegmentWipe,
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
 import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
-import { usesVmixProgram } from '../helpers/visionMixer.js'
+import { usesVmixProgram, vmixProgramCutMs } from '../helpers/visionMixer.js'
 import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
@@ -477,35 +481,97 @@ export function generateParts(
 	// "last before intro" is only known at runtime (the intro may sit in the next
 	// segment), so `onSetAsNext` arms it with a PAUSE object when the actual next
 	// part is the intro. Until armed the empty piece is a no-op and the clip's
-	// baked slide-out plays normally.
+	// PUSH slide-out plays on removal.
 	for (let i = 0; i < parts.length; i++) {
 		const generated = parts[i]
 		const rawPart = intermediateSegment.parts[i]
 		if (generated.part.invalid || generated.part.floated) continue
 		if (!partHasHeadlineIlu(rawPart.objects ?? [])) continue
-		const iluObject = generated.pieces
-			.flatMap((piece) => piece.content.timelineObjects ?? [])
+		const iluEntry = generated.pieces
+			.flatMap((piece) => (piece.content.timelineObjects ?? []).map((obj) => ({ piece, obj })))
 			.find(
-				(obj) =>
+				({ obj }) =>
 					String(obj.layer) === (CasparCGLayers.CasparCGIluPlayer as string) &&
 					(obj.content as { type?: string; file?: string }).type === TSR.TimelineContentTypeCasparCg.MEDIA &&
 					(obj.content as { file?: string }).file !== 'EMPTY' &&
 					(obj.priority ?? 0) < 10 // scheduled only — ad-lib headline ILU media is +10
 			)
-		if (!iluObject) continue // ad-lib-only headline: nothing on air to freeze
-		// shortcut: +3.5 s assumes the mov's in-anim ends ~1.5 s into the clip and
-		// its baked slide-out starts no earlier than ~4.5 s; if headline files move
-		// the out-anim earlier, freeze earlier or measure per file.
+		if (!iluEntry) continue // ad-lib-only headline: nothing on air to freeze
+		// shortcut: +3.5 s assumes the mov's in-anim ends ~1.5 s into the clip;
+		// there is no out-anim, so every later clip time is the static hold and
+		// 3.5 s freezes a full-hold frame. Re-measure if headline files change.
 		const clipStartMs =
-			typeof iluObject.enable === 'object' &&
-			!Array.isArray(iluObject.enable) &&
-			typeof iluObject.enable.start === 'number'
-				? iluObject.enable.start
-				: 0
-		const freezeAtMs = clipStartMs + 3500
-		const durationMs = Number(rawPart.payload?.duration) || 0
-		if (durationMs > 0 && freezeAtMs >= durationMs) continue // part ends before the clip's hold
+			(typeof iluEntry.piece.enable?.start === 'number' ? iluEntry.piece.enable.start : 0) +
+			(typeof iluEntry.obj.enable === 'object' &&
+			!Array.isArray(iluEntry.obj.enable) &&
+			typeof iluEntry.obj.enable.start === 'number'
+				? iluEntry.obj.enable.start
+				: 0)
+		const durationMs = Number(rawPart.payload?.duration) || generated.part.expectedDuration || 0
+		// Short part: freeze on the latest reachable frame (1f before part end)
+		// rather than skipping the hold — the armed seek stays on the fixed
+		// HEADLINE_HOLD_CLIP_FRAME_MS static frame regardless of this start.
+		const freezeAtMs =
+			durationMs > 0
+				? Math.min(clipStartMs + HEADLINE_HOLD_CLIP_FRAME_MS, Math.max(0, durationMs - 20))
+				: clipStartMs + HEADLINE_HOLD_CLIP_FRAME_MS
 		generated.pieces.push(createLastHeadlineHoldPiece(rawPart.payload.externalId, freezeAtMs))
+	}
+
+	// `db_loop` is OutOnSegmentEnd so DB→DB chains keep the frame up — but it must
+	// die with the part when the NEXT part isn't DoubleBox (e.g. AVIZO's shell
+	// bleeding into the Outro, or a one-off DB into a Full look). Postroll still
+	// carries it through the incoming transition's keepalive.
+	for (let i = 0; i < parts.length; i++) {
+		const dbLoopPieces = parts[i].pieces.filter(
+			(piece) => piece.sourceLayerId === (SourceLayer.PgmDoubleBoxLoop as string)
+		)
+		if (!dbLoopPieces.length) continue
+		let nextIsDoubleBox = false
+		for (let j = i + 1; j < parts.length; j++) {
+			const next = parts[j].part
+			const nextRaw = intermediateSegment.parts[j]
+			if (next.invalid || next.floated) continue
+			nextIsDoubleBox = isDoubleBoxLook(nextRaw?.rawType, nextRaw?.objects ?? [])
+			break
+		}
+		if (nextIsDoubleBox) continue
+		for (const piece of dbLoopPieces) {
+			piece.lifespan = PieceLifespan.WithinPart
+		}
+	}
+
+	// Zoom pieces are attached after finalize — shift them to the route-flip
+	// keyframe finalize already placed (wipe air cut / hard-cut keepalive end),
+	// so the LED move lands with the picture cut, not the wipe start.
+	const isVmixProgram = usesVmixProgram(studioConfig)
+	for (const part of parts) {
+		if (!part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.LedBgLoopZoom as string))) continue
+		let routeFlipMs = 0
+		if (isVmixProgram) {
+			// vMix carries no route:// keyframes — the picture cut is the stinger
+			// reaching its cut point (LEAD + stingerCutPointMs) or the hard Cut
+			// at LOOK_HARD_CUT_KEEPALIVE_MS.
+			const hasWipeTake = part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
+			routeFlipMs = vmixProgramCutMs(studioConfig, hasWipeTake, LOOK_HARD_CUT_KEEPALIVE_MS)
+		} else {
+			for (const piece of part.pieces) {
+				for (const obj of piece.content.timelineObjects ?? []) {
+					if (!isPgmRouteLayer(String(obj.layer))) continue
+					for (const kf of obj.keyframes ?? []) {
+						const kfEnable = kf.enable as { start?: number } | undefined
+						if (
+							!Array.isArray(kf.enable) &&
+							typeof kfEnable?.start === 'number' &&
+							(kf.content as { mixer?: unknown } | undefined)?.mixer !== undefined
+						) {
+							routeFlipMs = Math.max(routeFlipMs, kfEnable.start)
+						}
+					}
+				}
+			}
+		}
+		delayLedBgLoopZoomToWipeCut(part.pieces, routeFlipMs)
 	}
 
 	// Sofie holds previous look only for piece.postrollDuration into the next Take's
