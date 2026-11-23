@@ -74,7 +74,7 @@ import {
 	raiseLookMediaPostrollForNextKeepalive,
 } from '../helpers/pgmLook.js'
 import { createStudioCalibrationClearPiece } from '../helpers/studioCalibration.js'
-import { usesVmixProgram, VMIX_STINGER_PREVIEW_LEAD_MS } from '../helpers/visionMixer.js'
+import { usesVmixProgram, vmixProgramCutMs } from '../helpers/visionMixer.js'
 import { generateCameraPart } from './camera.js'
 import { generateDVEPart } from './dve.js'
 import { generateGfxPart } from './gfx.js'
@@ -550,11 +550,10 @@ export function generateParts(
 		let routeFlipMs = 0
 		if (isVmixProgram) {
 			// vMix carries no route:// keyframes — the picture cut is the stinger
-			// PROGRAM (fires VMIX_STINGER_PREVIEW_LEAD_MS after Take) or the hard
-			// Cut at LOOK_HARD_CUT_KEEPALIVE_MS.
-			routeFlipMs = part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
-				? VMIX_STINGER_PREVIEW_LEAD_MS
-				: LOOK_HARD_CUT_KEEPALIVE_MS
+			// reaching its cut point (LEAD + stingerCutPointMs) or the hard Cut
+			// at LOOK_HARD_CUT_KEEPALIVE_MS.
+			const hasWipeTake = part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.PgmWipe as string))
+			routeFlipMs = vmixProgramCutMs(studioConfig, hasWipeTake, LOOK_HARD_CUT_KEEPALIVE_MS)
 		} else {
 			for (const piece of part.pieces) {
 				for (const obj of piece.content.timelineObjects ?? []) {
