@@ -2673,13 +2673,29 @@ export async function armLastHeadlineHoldForNext(
 			: 0
 	const seekMs = Math.max(0, holdStartMs - clipStartMs)
 
+	// Armed: keep the frozen frame on the LED wall for the whole intro — the
+	// clip has no out-anim and must not be cut mid-intro, so the hold lives as
+	// long as the intro part (fallback = the fixed 1 s cover when the next
+	// part carries no expectedDuration).
+	const introCoverMs =
+		nextIsIntro &&
+		typeof nextPartInstance?.part.expectedDuration === 'number' &&
+		nextPartInstance.part.expectedDuration > 0
+			? nextPartInstance.part.expectedDuration
+			: LAST_HEADLINE_HOLD_INTO_INTRO_MS
 	const targetObjects =
 		nextIsIntro && iluContent?.file
 			? [createLastHeadlineHoldMediaObject(iluContent.file, iluContent.mixer, seekMs)]
 			: []
 	const existingObjects = holdInstance.piece.content?.timelineObjects ?? []
-	if (existingObjects.length === 0 && targetObjects.length === 0) return
+	if (
+		existingObjects.length === 0 &&
+		targetObjects.length === 0 &&
+		holdInstance.piece.postrollDuration === introCoverMs
+	)
+		return
 	await context.updatePieceInstance(holdInstance._id, {
+		postrollDuration: nextIsIntro ? introCoverMs : LAST_HEADLINE_HOLD_INTO_INTRO_MS,
 		content: { ...holdInstance.piece.content, timelineObjects: targetObjects },
 	})
 }

@@ -480,7 +480,7 @@ export function generateParts(
 	// "last before intro" is only known at runtime (the intro may sit in the next
 	// segment), so `onSetAsNext` arms it with a PAUSE object when the actual next
 	// part is the intro. Until armed the empty piece is a no-op and the clip's
-	// baked slide-out plays normally.
+	// PUSH slide-out plays on removal.
 	for (let i = 0; i < parts.length; i++) {
 		const generated = parts[i]
 		const rawPart = intermediateSegment.parts[i]
@@ -496,9 +496,9 @@ export function generateParts(
 					(obj.priority ?? 0) < 10 // scheduled only — ad-lib headline ILU media is +10
 			)
 		if (!iluObject) continue // ad-lib-only headline: nothing on air to freeze
-		// shortcut: +3.5 s assumes the mov's in-anim ends ~1.5 s into the clip and
-		// its baked slide-out starts no earlier than ~4.5 s; if headline files move
-		// the out-anim earlier, freeze earlier or measure per file.
+		// shortcut: +3.5 s assumes the mov's in-anim ends ~1.5 s into the clip;
+		// there is no out-anim, so every later clip time is the static hold and
+		// 3.5 s freezes a full-hold frame. Re-measure if headline files change.
 		const clipStartMs =
 			typeof iluObject.enable === 'object' &&
 			!Array.isArray(iluObject.enable) &&
