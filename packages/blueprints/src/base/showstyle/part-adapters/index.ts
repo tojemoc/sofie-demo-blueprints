@@ -510,7 +510,8 @@ export function generateParts(
 		// Short part: freeze on the latest reachable frame (1f before part end)
 		// rather than skipping the hold — a short headline before intro still
 		// must stay up, it just freezes earlier in the static-hold window.
-		const freezeAtMs = durationMs > 0 ? Math.min(clipStartMs + 3500, Math.max(0, durationMs - 20)) : clipStartMs + 3500
+		const freezeAtMs =
+			durationMs > 0 ? Math.min(clipStartMs + 3500, Math.max(0, durationMs - 20)) : clipStartMs + 3500
 		generated.pieces.push(createLastHeadlineHoldPiece(rawPart.payload.externalId, freezeAtMs))
 	}
 
