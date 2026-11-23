@@ -61,9 +61,12 @@ import {
 import {
 	createIdleLookPreviewPiece,
 	createLookAudioResetPiece,
+	delayLedBgLoopZoomToWipeCut,
 	findWipeVideoObject,
 	getLookLayers,
 	getLookSlotSequenceForGeneration,
+	isDoubleBoxLook,
+	isPgmRouteLayer,
 	LookSlot,
 	LookSlotSequence,
 	raiseLookMediaPostrollForCrossSegmentWipe,
@@ -506,6 +509,53 @@ export function generateParts(
 		const durationMs = Number(rawPart.payload?.duration) || 0
 		if (durationMs > 0 && freezeAtMs >= durationMs) continue // part ends before the clip's hold
 		generated.pieces.push(createLastHeadlineHoldPiece(rawPart.payload.externalId, freezeAtMs))
+	}
+
+	// `db_loop` is OutOnSegmentEnd so DB→DB chains keep the frame up — but it must
+	// die with the part when the NEXT part isn't DoubleBox (e.g. AVIZO's shell
+	// bleeding into the Outro, or a one-off DB into a Full look). Postroll still
+	// carries it through the incoming transition's keepalive.
+	for (let i = 0; i < parts.length; i++) {
+		const dbLoopPieces = parts[i].pieces.filter(
+			(piece) => piece.sourceLayerId === (SourceLayer.PgmDoubleBoxLoop as string)
+		)
+		if (!dbLoopPieces.length) continue
+		let nextIsDoubleBox = false
+		for (let j = i + 1; j < parts.length; j++) {
+			const next = parts[j].part
+			const nextRaw = intermediateSegment.parts[j]
+			if (next.invalid || next.floated) continue
+			nextIsDoubleBox = isDoubleBoxLook(nextRaw?.rawType, nextRaw?.objects ?? [])
+			break
+		}
+		if (nextIsDoubleBox) continue
+		for (const piece of dbLoopPieces) {
+			piece.lifespan = PieceLifespan.WithinPart
+		}
+	}
+
+	// Zoom pieces are attached after finalize — shift them to the route-flip
+	// keyframe finalize already placed (wipe air cut / hard-cut keepalive end),
+	// so the LED move lands with the picture cut, not the wipe start.
+	for (const part of parts) {
+		if (!part.pieces.some((piece) => piece.sourceLayerId === (SourceLayer.LedBgLoopZoom as string))) continue
+		let routeFlipMs = 0
+		for (const piece of part.pieces) {
+			for (const obj of piece.content.timelineObjects ?? []) {
+				if (!isPgmRouteLayer(String(obj.layer))) continue
+				for (const kf of obj.keyframes ?? []) {
+					const kfEnable = kf.enable as { start?: number } | undefined
+					if (
+						!Array.isArray(kf.enable) &&
+						typeof kfEnable?.start === 'number' &&
+						(kf.content as { mixer?: unknown } | undefined)?.mixer !== undefined
+					) {
+						routeFlipMs = Math.max(routeFlipMs, kfEnable.start)
+					}
+				}
+			}
+		}
+		delayLedBgLoopZoomToWipeCut(part.pieces, routeFlipMs)
 	}
 
 	// Sofie holds previous look only for piece.postrollDuration into the next Take's
