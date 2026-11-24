@@ -37,8 +37,10 @@ import {
 	createZaverBackgroundMusicPiece,
 	duckAudioBedPieceDuringWipe,
 	getWipeSfxStartMs,
+	isPocasieSegmentName,
 	isSportSegmentName,
 	isZaverSegmentName,
+	previousSegmentNameForGeneration,
 	setVmixActiveBedForGeneration,
 } from '../helpers/backgroundMusic.js'
 import { normalizeLayeredVideoFileName, partHasOutroOverlay, resolveWipeDurationMs } from '../helpers/clips.js'
@@ -51,7 +53,13 @@ import {
 	partShouldPersistCountupMute,
 } from '../helpers/countupReveal.js'
 import { createVmixDbLoopOpacityZeroObject, DOUBLEBOX_LOOP_FILE } from '../helpers/doubleboxLoop.js'
-import { createLastHeadlineHoldPiece, HEADLINE_HOLD_CLIP_FRAME_MS, partHasHeadlineIlu } from '../helpers/graphics.js'
+import {
+	createLastHeadlineHoldPiece,
+	HEADLINE_HOLD_CLIP_FRAME_MS,
+	partHasHeadlineIlu,
+	partHasIluZaverObject,
+	partHasPocasieMedia,
+} from '../helpers/graphics.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlineClearPiece,
@@ -158,6 +166,26 @@ export function generateParts(
 	]
 
 	const partLookSlots: Array<LookSlot | undefined> = []
+	// Objects of the previous on-air look-bearing part — ZAVER's leave-weather
+	// teardown must know whether a wiped Take actually leaves Počasie, not just
+	// that the incoming part carries ilu-zaver (ZAVER Cam/SYN interleaves).
+	// For the segment's first look-bearing part the answer comes from segment
+	// history: was the immediately preceding segment the Počasie segment.
+	const previousSegmentName = previousSegmentNameForGeneration(
+		context.rundownId,
+		intermediateSegment.payload.externalId,
+		intermediateSegment.payload.name ?? '',
+		intermediateSegment.payload.rank
+	)
+	const segmentStartedAfterWeather = previousSegmentName !== undefined && isPocasieSegmentName(previousSegmentName)
+	// The ilu-zaver avízo is OutOnRundownEnd — once any on-air part played it,
+	// later záver parts must not re-delay it under a wipe (EMPTY gap on the
+	// wall). Seeded from a preceding záver segment since the piece continues.
+	// shortcut: never cleared, so an LED headline clip between záver parts
+	// would keep it "on air" — editorial nonsense in this show; worst case the
+	// avízo re-PLAYs at Take instead of the air cut.
+	let ledAvizoOnAir = previousSegmentName !== undefined && isZaverSegmentName(previousSegmentName)
+	let previousOnAirObjects: SomeObject[] | undefined
 	const parts = intermediateSegment.parts.map((rawPart): BlueprintResultPart => {
 		const partContext = new PartContext(context, rawPart.payload.externalId)
 		// Editorial skip / float — never on-air; leave lookSlots unchanged for DB→DB peek.
@@ -167,6 +195,9 @@ export function generateParts(
 		// first look-bearing Take claims idle A and LOADBGs off-air before the route flips.
 		// Until the first claim, previousLookSlot is undefined (baseline underlay only).
 		const previousLookSlot = lookSlots.hasClaimed() ? lookSlots.peek() : undefined
+		const previousPartHadWeather =
+			previousOnAirObjects === undefined ? segmentStartedAfterWeather : partHasPocasieMedia(previousOnAirObjects)
+		const iluZaverAlreadyOnAir = ledAvizoOnAir
 		const lookSlot = resolveLookSlotForPart(
 			rawPart.type,
 			rawPart.objects,
@@ -184,7 +215,9 @@ export function generateParts(
 					rawPart as unknown as PartProps<CameraProps>,
 					countupRevealClaim,
 					lookSlot,
-					previousLookSlot
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
 				)
 				break
 			case PartType.Remote:
@@ -192,7 +225,9 @@ export function generateParts(
 					partContext,
 					rawPart as unknown as PartProps<CameraProps>,
 					lookSlot,
-					previousLookSlot
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
 				)
 				break
 			case PartType.VT:
@@ -200,7 +235,9 @@ export function generateParts(
 					partContext,
 					rawPart as unknown as PartProps<VTProps>,
 					lookSlot,
-					previousLookSlot
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
 				)
 				break
 			case PartType.VO:
@@ -208,7 +245,9 @@ export function generateParts(
 					partContext,
 					rawPart as unknown as PartProps<VOProps>,
 					lookSlot,
-					previousLookSlot
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
 				)
 				break
 			case PartType.Titles:
@@ -226,7 +265,9 @@ export function generateParts(
 					partContext,
 					rawPart as unknown as PartProps<IntroProps>,
 					introLook,
-					previousLookSlot
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
 				)
 				break
 			}
@@ -238,11 +279,20 @@ export function generateParts(
 					partContext,
 					rawPart as unknown as PartProps<GfxProps>,
 					lookSlot,
-					previousLookSlot
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
 				)
 				break
 			case PartType.LayeredVideo:
-				newPart = generateLayeredVideoPart(partContext, rawPart, lookSlot, previousLookSlot)
+				newPart = generateLayeredVideoPart(
+					partContext,
+					rawPart,
+					lookSlot,
+					previousLookSlot,
+					previousPartHadWeather,
+					iluZaverAlreadyOnAir
+				)
 				break
 			case PartType.Invalid:
 				newPart = {
@@ -273,6 +323,12 @@ export function generateParts(
 					adLibPieces: [],
 					actions: [],
 				}
+		}
+		if ((isLookBearingPartType(rawPart.type) || rawPart.type === PartType.Intro) && !floatedOrSkipped) {
+			previousOnAirObjects = rawPart.objects
+		}
+		if (!floatedOrSkipped && partHasIluZaverObject(rawPart.objects)) {
+			ledAvizoOnAir = true
 		}
 		appendCountupSustainIfRevealed(
 			partContext,

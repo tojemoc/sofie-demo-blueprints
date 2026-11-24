@@ -62,6 +62,36 @@ function isPocasieGraphic(object: GraphicObjectBase): boolean {
 	return clip === 'gfx/pocasie' || clip === 'gfx/weather'
 }
 
+/**
+ * True when this part's ingest objects carry an *active* (non-adlib)
+ * `gfx/ilu-zaver` — the LED avízo is OutOnRundownEnd, so one scheduled
+ * ilu-zaver object means the avízo keeps playing until rundown end.
+ */
+export function partHasIluZaverObject(objects: SomeObject[]): boolean {
+	return objects.some(
+		(object) =>
+			!object.isAdlib &&
+			typeof object.clipName === 'string' &&
+			normalizeGraphicClipName(object.clipName) === 'gfx/ilu-zaver' &&
+			Boolean((object.attributes as { iluFile?: unknown } | undefined)?.iluFile)
+	)
+}
+
+/**
+ * True when this part's ingest objects carry weather media (`gfx/pocasie` or a
+ * `bg_pocasie` clip) — used to know whether a wiped ilu-zaver Take actually
+ * leaves Počasie on the outgoing look, not just that ZAVER follows a wipe.
+ */
+export function partHasPocasieMedia(objects: SomeObject[]): boolean {
+	return objects.some((object) => {
+		if (object.isAdlib) return false // ad-libbed weather on a non-Počasie part must not gate the teardown
+		const clipName = typeof object.clipName === 'string' ? normalizeGraphicClipName(object.clipName) : ''
+		if (clipName === 'gfx/pocasie' || clipName === 'gfx/weather') return true
+		const fileName = (object.attributes as { fileName?: unknown } | undefined)?.fileName
+		return typeof fileName === 'string' && /bg_pocasie/i.test(fileName)
+	})
+}
+
 function isDoubleboxIlu(object: GraphicObjectBase): boolean {
 	return normalizeGraphicClipName(object.clipName) === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
 }
@@ -510,9 +540,10 @@ function getIluZaverTimelineObjects(
 		return []
 	}
 
-	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not fullscreen.
-	// The same window also plays on the look channel's ILU layer (under db_loop) so
-	// ZAVER+AVIZO shows the avízo clip in the DoubleBox shell's left cutout on PGM.
+	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not
+	// fullscreen. LED-only — the look is a plain fullscreen CAM + odporúčanie
+	// L3D; a copy on the look ILU layer was the DoubleBox shell's left cutout
+	// and floated over the cam once the frame left.
 	const iluMixer = {
 		crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 		fill: { ...PGM_DOUBLEBOX_ILU_FILL },
@@ -524,19 +555,6 @@ function getIluZaverTimelineObjects(
 			id: '',
 			enable: { start: 0 },
 			layer: CasparCGLayers.CasparCGIluPlayer,
-			priority: 1 + (isAdlib ? 10 : 0),
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: toCasparPlayPath(iluFile),
-				loop: false,
-				mixer: { ...iluMixer },
-			},
-		}),
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			enable: { start: 0 },
-			layer: CasparCGLayers.CasparCGPgmIluPlayer,
 			priority: 1 + (isAdlib ? 10 : 0),
 			content: {
 				deviceType: TSR.DeviceType.CASPARCG,

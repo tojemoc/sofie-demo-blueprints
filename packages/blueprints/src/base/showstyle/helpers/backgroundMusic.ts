@@ -438,7 +438,14 @@ export function createBackgroundMusicHitPiece(config: StudioConfig): IBlueprintP
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.BgMusicHit),
 		content: {
 			fileName: BG_MUSIC_A_FILE,
-			timelineObjects: vmixBedRestartEnvelope(config, 'A', 0, 1.8),
+			timelineObjects: [
+				// Seek-0 restart rides this one-shot piece — the vMix input may be
+				// mid-loop from a rehearsal. A restart key on the re-armed start
+				// piece would re-fire RESTART_INPUT every time a wipe's unmute
+				// object yielded the layer back.
+				vmixBedPlayObject('A', { start: 0 }, 1.8, 'first_take_bg_music_a'),
+				...vmixBedRestartEnvelope(config, 'A', 0, 1.8),
+			],
 		},
 		expectedPackages: [],
 	})
@@ -569,8 +576,8 @@ export function createBackgroundMusicMutePiece(
 		externalId: `${partExternalId}_bg_music_mute`,
 		name: `BG music mute (${label})`,
 		lifespan: persistAfterPart ? PieceLifespan.OutOnRundownEnd : PieceLifespan.WithinPart,
-		sourceLayerId: SourceLayer.AudioBed,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		sourceLayerId: SourceLayer.BgMusicFx,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.BgMusicFx),
 		content: {
 			fileName: label === 'Wipe' ? 'EMPTY' : BG_MUSIC_A_FILE,
 			ignoreAudioFormat: true,
@@ -832,6 +839,48 @@ export function isSportSegmentName(name: string): boolean {
 export function isZaverSegmentName(name: string): boolean {
 	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
 	return /^(?:zaver|avizo)(?:\b|$)/u.test(normalized)
+}
+
+/** True for the weather segment ("POČASIE") — predecessor check for the leave-weather teardown. */
+export function isPocasieSegmentName(name: string): boolean {
+	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+	return /^pocasie(?:\b|$)/u.test(normalized)
+}
+
+/**
+ * Name of the segment immediately before this one (editorial rank order), or
+ * undefined when there is none. Segment-name checks (Počasie/Záver) answer
+ * cross-segment questions at a segment's first part — within a segment the
+ * loop sees the previous part's objects directly.
+ */
+export function previousSegmentNameForGeneration(
+	rundownId: string,
+	segmentExternalId: string | undefined,
+	segmentName: string,
+	rank?: number
+): string | undefined {
+	const state = vmixBedGenerationByRundownId.get(rundownId)
+	if (!state) return undefined
+	const selfKey = segmentExternalId ?? segmentName
+	const self = state.segments.get(selfKey)
+	const selfRank = rank ?? self?.rank ?? Number.MAX_SAFE_INTEGER
+	const selfOrder = self?.order ?? Number.MAX_SAFE_INTEGER
+	let previous: { rank: number; order: number; name: string } | undefined
+	for (const [key, rec] of state.segments) {
+		if (key === selfKey) continue
+		// Precedes in editorial order: lower rank wins; rank ties (test
+		// fixtures rank everything 0) fall back to first-seen order.
+		const precedes =
+			rec.rank < selfRank ||
+			(rec.rank === selfRank && selfRank !== Number.MAX_SAFE_INTEGER && rec.order < selfOrder)
+		if (
+			precedes &&
+			(!previous || rec.rank > previous.rank || (rec.rank === previous.rank && rec.order > previous.order))
+		) {
+			previous = rec
+		}
+	}
+	return previous?.name
 }
 
 /** Sisyfos ForceMute channel entries for every configured Playback source. */

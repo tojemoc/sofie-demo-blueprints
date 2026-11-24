@@ -98,6 +98,12 @@ export enum SourceLayer {
 	 */
 	BgMusicHit = 'bg_music_hit',
 	/**
+	 * Hidden one-shot bed transients (headline SFX, intro/wipe/outro mutes) —
+	 * dedicated layer so the `AudioBed` bed-state infinites can never prune
+	 * them at the same start.
+	 */
+	BgMusicFx = 'bg_music_fx',
+	/**
 	 * Hidden vMix mic ramp-down (SYN VO) — dedicated layer so it never shares
 	 * `AudioBed` with bed pieces Core could prune it against.
 	 */
@@ -148,6 +154,7 @@ export function getOutputLayerForSourceLayer(layer: SourceLayer): OutputLayer {
 		case SourceLayer.LookIdlePreview:
 		case SourceLayer.LookAudioReset:
 		case SourceLayer.BgMusicHit:
+		case SourceLayer.BgMusicFx:
 		case SourceLayer.VmixMicRamp:
 			return OutputLayer.Aux
 		default:

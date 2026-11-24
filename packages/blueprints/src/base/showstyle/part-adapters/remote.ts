@@ -20,7 +20,9 @@ export function generateRemotePart(
 	context: PartContext,
 	part: PartProps<RemoteProps>,
 	lookSlot: LookSlot = 'A',
-	previousLookSlot?: LookSlot
+	previousLookSlot?: LookSlot,
+	previousPartHadWeather: boolean = false,
+	iluZaverOnAir: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
@@ -87,7 +89,9 @@ export function generateRemotePart(
 		lookSlot,
 		previousLookSlot,
 		part.rawType,
-		result.adLibPieces
+		result.adLibPieces,
+		previousPartHadWeather,
+		iluZaverOnAir
 	)
 	return result
 }

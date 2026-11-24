@@ -8,6 +8,8 @@ import { getAudioObjectOnLayer } from '../base/showstyle/helpers/audio.js'
 import {
 	BG_MUSIC_A_FILE,
 	BG_MUSIC_C_FILE,
+	createBackgroundMusicHitPiece,
+	createBackgroundMusicStartPiece,
 	createIntroBackgroundMusicMutePiece,
 	createVmixMicRampDownTimelineObjects,
 	createWipeBackgroundMusicMutePiece,
@@ -908,6 +910,17 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		const settle = bedAudio.find((obj) => obj.content.volume === 70 && obj.content.muted === false)
 		expect(settle?.enable).toMatchObject({ start: PREROLL + 2340 + 400 + 300 })
 		expect(settle?.content.fade).toBe(1500)
+	})
+
+	it('fires the bed-A seek-0 restart once — on the one-shot hit piece, never on the re-armed start piece', () => {
+		const restartKeys = (piece: IBlueprintPiece | undefined) =>
+			objectsOf(piece ? [piece] : [])
+				.filter((obj) => obj.layer === VMixLayers.VMixBedA)
+				.map((obj) => (obj.content as { restart?: string }).restart)
+		expect(restartKeys(createBackgroundMusicHitPiece(vmixStudioConfig))).toContain('first_take_bg_music_a')
+		// A standing restart key here would re-fire RESTART_INPUT every time a
+		// wipe's restart:<part> unmute object yields the layer back.
+		expect(restartKeys(createBackgroundMusicStartPiece(vmixContext(), vmixStudioConfig))).toEqual([undefined])
 	})
 
 	it('restarts the active C bed after a wipe inside Šport', () => {

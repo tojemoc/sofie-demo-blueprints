@@ -13,6 +13,7 @@ import {
 	SegmentType,
 	VOProps,
 } from '../base/showstyle/definitions/index.js'
+import { beginVmixBedGeneration } from '../base/showstyle/helpers/backgroundMusic.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { LAST_HEADLINE_HOLD_INTO_INTRO_MS } from '../base/showstyle/helpers/graphics.js'
@@ -49,7 +50,7 @@ import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-ad
 import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { PGM_DOUBLEBOX_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { PGM_FULLSCREEN_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { SourceType } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
@@ -175,8 +176,8 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(lookSlotForKind('full')).toBe('B')
 		expect(isDoubleBoxLook('DoubleBox', [])).toBe(true)
 		expect(isDoubleBoxLook('Cam', [])).toBe(false)
-		// ZAVER+AVIZO shares the DoubleBox shell (db_loop frame + windowed avízo ILU).
-		expect(isDoubleBoxLook('ILU-ZAVER', [])).toBe(true)
+		// ZAVER+AVIZO is Full — windowed avízo over cam, no db_loop frame.
+		expect(isDoubleBoxLook('ILU-ZAVER', [])).toBe(false)
 		expect(isDoubleBoxLook('Záver', [])).toBe(false)
 		expect(
 			isDoubleBoxLook('Cam', [
@@ -201,7 +202,7 @@ describe('pgmLook look-kind channels + route', () => {
 					attributes: {},
 				} as never,
 			])
-		).toBe(true)
+		).toBe(false)
 		expect(
 			isDoubleBoxLook('Cam', [
 				{
@@ -1353,10 +1354,15 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 	})
 
-	it('ZAVER + AVIZO composes the DoubleBox shell on idle look: db_loop frame, windowed avízo ILU, cam right', () => {
+	it('ZAVER + AVIZO composes the Full look on idle look: no db_loop frame, windowed avízo ILU, fullscreen cam', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
+		// Segment history: leave-weather teardown needs Počasie as ranked predecessor.
+		beginVmixBedGeneration(
+			'spravy-v3-smoke',
+			exportData.segments.map((segment) => ({ externalId: segment.id, rank: 0, name: segment.name }))
+		)
 		const generated = generateParts(
 			mockSegmentContext(),
 			intermediate,
@@ -1380,7 +1386,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaverIngest).toBeDefined()
 		if (!zaverIngest) return
 
-		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(true)
+		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
 
 		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		// Fresh sequence: first look-bearing claims idle A → route://3.
@@ -1394,10 +1400,10 @@ describe('pgmLook look-kind channels + route', () => {
 					(obj.content as { file?: string }).file !== 'EMPTY' &&
 					String((obj.content as { file?: string }).file || '').length > 0
 			)
-		// The shell: db_loop frame on the claimed slot — not on the off-air slot.
-		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(true)
+		// No shell: ZAVER is a Full look — db_loop frame stays off on both slots.
+		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(false)
 		expect(liveDbLoop(LOOK_B_LAYERS.doubleBoxLoop)).toBe(false)
-		// Look CAM sits in the DoubleBox right window (route://5), not fullscreen.
+		// Look CAM is fullscreen (route://5) — the look is a plain Full cam.
 		const lookACam = timeline.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file !== 'EMPTY'
 		)
@@ -1405,15 +1411,15 @@ describe('pgmLook look-kind channels + route', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
 		})
-		expect((lookACam?.content as { mixer?: { fill?: unknown } }).mixer?.fill).toEqual(PGM_DOUBLEBOX_CAMERA_FILL)
-		// Avízo clip fills the left cutout on the look ILU layer under the frame.
+		expect((lookACam?.content as { mixer?: { fill?: unknown } }).mixer?.fill).toEqual(PGM_FULLSCREEN_CAMERA_FILL)
+		// Avízo is LED-only: no clip on the look ILU layer over the cam.
 		const lookIlu = timeline.find(
 			(obj) =>
 				obj.layer === LOOK_A_LAYERS.ilu &&
 				(obj.content as { file?: string }).file !== 'EMPTY' &&
 				String((obj.content as { file?: string }).file || '').length > 0
 		)
-		expect(lookIlu, 'ZAVER avízo must play on the look ILU layer inside the shell').toBeDefined()
+		expect(lookIlu, 'ZAVER avízo must not play on the look ILU layer').toBeUndefined()
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
@@ -1538,9 +1544,153 @@ describe('pgmLook look-kind channels + route', () => {
 			},
 		]
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
-		finalizeHypercomposedPart(context, hybridCasparConfig, part, 'zaver-wiped', objects as never, pieces, 'B')
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part,
+			'zaver-wiped',
+			objects as never,
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			undefined,
+			true
+		)
 		const led = pieces[0].content.timelineObjects?.[0]
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
+	})
+
+	it('wipe into ZAVER with avízo already on LED keeps it playing (Cam/SYN interleave)', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'zaver-wiped', title: 'ZAVER' }
+		const zaverIlu = {
+			enable: { start: 0 },
+			externalId: 'zaver-ilu',
+			name: ' gfx/ilu-zaver | ILU AVIZO',
+			lifespan: PieceLifespan.OutOnRundownEnd,
+			sourceLayerId: SourceLayer.LowerThird,
+			outputLayerId: 'pgm',
+			content: {
+				fileName: 'clips/ILU AVIZO.mp4',
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGIluPlayer,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/ILU AVIZO.mp4',
+						},
+					},
+				],
+			},
+		}
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+			{
+				id: 'zaver',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO.mp4' },
+			},
+		]
+		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
+		// iluZaverOnAir=true — a wipe between záver blocks must not EMPTY the
+		// on-air LED clip: identical content at 0 diffs to a TSR no-op.
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part,
+			'zaver-wiped',
+			objects as never,
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			undefined,
+			false,
+			true
+		)
+		const led = pieces[0].content.timelineObjects?.[0]
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(0)
+	})
+
+	it('wipe into ZAVER without previous Počasie lands a fresh avízo at the air cut', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'zaver-wiped', title: 'ZAVER' }
+		const zaverIlu = {
+			enable: { start: 0 },
+			externalId: 'zaver-ilu',
+			name: ' gfx/ilu-zaver | ILU AVIZO',
+			lifespan: PieceLifespan.OutOnRundownEnd,
+			sourceLayerId: SourceLayer.LowerThird,
+			outputLayerId: 'pgm',
+			content: {
+				fileName: 'clips/ILU AVIZO.mp4',
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGIluPlayer,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/ILU AVIZO.mp4',
+						},
+					},
+				],
+			},
+		}
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+			{
+				id: 'zaver',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO.mp4' },
+			},
+		]
+		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
+		// No leave-weather teardown, avízo not yet on the wall — it appears
+		// with the picture cut, not at Take 0 mid-wipe.
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part,
+			'zaver-wiped',
+			objects as never,
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			undefined,
+			false,
+			false
+		)
+		const led = pieces[0].content.timelineObjects?.[0]
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS)
 	})
 
 	for (const [previousSlot, otherLayers] of [
@@ -1551,6 +1701,11 @@ describe('pgmLook look-kind channels + route', () => {
 			const exportData = loadSmokeRundownExport()
 			const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 			const intermediate = convertIngestData(mockIngestContext, ingest)
+			// Segment history: leave-weather teardown needs Počasie as ranked predecessor.
+			beginVmixBedGeneration(
+				'spravy-v3-smoke',
+				exportData.segments.map((segment) => ({ externalId: segment.id, rank: 0, name: segment.name }))
+			)
 			// Previous look was DoubleBox (ch3 on PGM) — claim the slot before generating ZAVER.
 			const lookSlots = createLookSlotSequence()
 			lookSlots.claim(previousSlot)

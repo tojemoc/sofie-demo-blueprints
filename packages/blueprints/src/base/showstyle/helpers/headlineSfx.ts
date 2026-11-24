@@ -69,8 +69,8 @@ export function createHeadlineSfxPiece(
 		externalId: `${partExternalId}_headline_sfx`,
 		name: 'Headline SFX',
 		lifespan: PieceLifespan.WithinPart,
-		sourceLayerId: SourceLayer.AudioBed,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		sourceLayerId: SourceLayer.BgMusicFx,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.BgMusicFx),
 		content: {
 			fileName: HEADLINE_SFX_FILE,
 			ignoreMediaObjectStatus: true,

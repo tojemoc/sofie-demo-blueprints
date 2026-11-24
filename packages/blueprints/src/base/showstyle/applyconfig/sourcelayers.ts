@@ -210,6 +210,14 @@ export function getSourceLayer(): ISourceLayer[] {
 			isHidden: true,
 		},
 		{
+			_id: SourceLayer.BgMusicFx,
+			type: SourceLayerType.AUDIO,
+			_rank: 215,
+			name: 'BG music fx',
+			abbreviation: 'Bfx',
+			isHidden: true,
+		},
+		{
 			_id: SourceLayer.VmixMicRamp,
 			type: SourceLayerType.AUDIO,
 			_rank: 214,

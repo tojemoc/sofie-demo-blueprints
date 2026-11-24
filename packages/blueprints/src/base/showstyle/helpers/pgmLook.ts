@@ -295,14 +295,12 @@ export function lookKindForPart(rawType: string | undefined, objects: SomeObject
 
 /** True when this part should compose with the DoubleBox frame (FILL + db_loop). */
 export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
-	if (/doublebox|double-box|ilu-zaver/i.test(rawType || '')) return true
-	// ZAVER / závěr avízo uses the same shell as DoubleBox: db_loop frame over a
-	// windowed avízo ILU (look ILU layer) + look CAM in the right window.
+	if (/doublebox|double-box/i.test(rawType || '')) return true
 	return objects.some((obj) => {
 		if (obj.objectType !== ObjectType.Graphic) return false
 		if ((obj as { isAdlib?: boolean }).isAdlib) return false
 		const clip = String((obj as GraphicObject).clipName || '').toLowerCase()
-		return clip === 'gfx/doublebox-ilu' || clip === 'gfx/ilu-zaver'
+		return clip === 'gfx/doublebox-ilu'
 	})
 }
 
@@ -1024,7 +1022,11 @@ export function finalizeHypercomposedPart(
 	/** Editorial layout; defaults from ingest objects / DoubleBox ILU graphic. */
 	rawType?: string,
 	/** Ad-lib pieces generated for this part — remapped onto `lookSlot` like scheduled pieces. */
-	adLibPieces?: IBlueprintAdLibPiece[]
+	adLibPieces?: IBlueprintAdLibPiece[],
+	/** The previous on-air part carried Počasie media — gates the leave-weather teardown. */
+	previousPartHadWeather: boolean = false,
+	/** The ilu-zaver avízo is already on the LED (continued OutOnRundownEnd piece) — do not re-gap it. */
+	iluZaverOnAir: boolean = false
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
@@ -1088,8 +1090,11 @@ export function finalizeHypercomposedPart(
 	// incomplete — and not same-slot lead, which made Počasie→AVIZO 6f early).
 	// ZAVER now owns look ILU media (the avízo window) — `partHasLookIluMedia`
 	// alone can no longer exclude it. Only the active ilu-zaver LED piece marks a
-	// wiped ZAVER take; weather parts never carry one.
-	const leaveWeatherUnderWipe = Boolean(hasWipe && partHasActiveIluZaver(pieces))
+	// wiped ZAVER take; weather parts never carry one. The teardown must only
+	// run when the outgoing part was actually Počasie — a wipe between záver
+	// blocks (ZAVER Cam/SYN → wipe → ZAVER Cam) must not delay the LED avízo or
+	// the clears, that would restart the on-air clip mid-part.
+	const leaveWeatherUnderWipe = Boolean(hasWipe && partHasActiveIluZaver(pieces) && previousPartHadWeather)
 	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
 	// After look ping-pong this path is rare — every look-bearing Take claims idle.
 	// Lead the look cut so first frame meets cover — except leave-weather, which lags
@@ -1246,8 +1251,11 @@ export function finalizeHypercomposedPart(
 	if (hasIncomingL3d || hasWipe || previousLookSlot !== undefined) {
 		// Keep EMPTY through the outgoing-look keepalive (or until the delayed CG ADD,
 		// when that is later), but end it afterwards so an ad-lib L3D later in the part
-		// can still play.
-		clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
+		// can still play. wipe_pocasie skips it — the idle-preview's armed template
+		// would be killed before the Take's CG UPDATE reaches it.
+		if (!wipePocasie) {
+			clearObjects.push(...buildL3dLayerClearObjects(lookSlot, l3dClearHoldMs, l3dClearStartMs))
+		}
 		// An incoming headline keeps the dedicated channel TEMPLATE→TEMPLATE so its
 		// Take is a CG UPDATE (l3d-headline.update() animates the swap); an EMPTY here
 		// would force a fresh CEF ADD that briefly replays the previous text.
@@ -1327,7 +1335,8 @@ export function finalizeHypercomposedPart(
 	}
 	// Leaving Počasie: clear bg_pocasie under wipe cover. Finite EMPTY through wipe end
 	// let weather postroll flash one frame after sting CLEAR — leave-weather ZAVER uses
-	// open-ended WithinPart EMPTY instead (safe: next Take is Outro, not weather).
+	// open-ended EMPTY instead (safe: bg_pocasie is WithinPart, it cannot resurrect
+	// two parts later — ZAVER may be followed by SYN/Cam parts, not only Outro).
 	// Leave-weather / non-ILU Takes: EMPTY look ILU so `bg_pocasie` cannot linger
 	// into ZAVER (Full) or the next story. DoubleBox Takes without look ILU also CLEAR
 	// the other channel's ILU so a lingering weather map dies under the sting.
@@ -1387,14 +1396,19 @@ export function finalizeHypercomposedPart(
 		preloadIdleLookMedia: hasWipe && !sameLookChannel,
 		wipeAirCutMs: wipeRouteCutMs,
 		// vMix holds the outgoing look until the stinger cut — clip/ILU RESUME at
-		// Take so the first frame is already running when the cut lands.
-		resumeClipIluAtTake: vmixProgram,
+		// Take so the first frame is already running when the cut lands. Except
+		// bg_pocasie: its in-anim must start *at* the cut, synced with the GFX
+		// unroll — a Take-resume leaves it mid-animation at the reveal.
+		resumeClipIluAtTake: vmixProgram && !wipePocasie,
 	})
 
 	// Wiped ZAVER: LED `ilu-zaver` lands at leaveWeatherHideMs under cover — with the
 	// WX hide and route flip, not at Take before wipe frame 0. Ad-lib-only ingest
 	// must not delay other LED ILU (e.g. headline) sitting on the same Caspar layer.
-	if (hasWipe && partHasActiveIluZaver(pieces)) {
+	// When the avízo is already on the LED (zaver Cam/SYN interleave — the piece is
+	// OutOnRundownEnd and continues through non-zaver parts), delaying would EMPTY
+	// the wall until the cut: keep it at 0 so the identical content diffs to no-op.
+	if (hasWipe && partHasActiveIluZaver(pieces) && !iluZaverOnAir) {
 		// Land the LED window with the rest of the leave-weather teardown — the
 		// route flip, WX hide and look ILU PLAY all share leaveWeatherHideMs.
 		delayLedIluZaverToWipeCut(pieces, leaveWeatherHideMs)
@@ -1993,6 +2007,7 @@ function applyL3dTakeOffsets(
 				? Math.max(0, Math.floor(piece.enable.start))
 				: 0
 		let l3dDurationPadMs = 0
+		const pocasieReplayObjects: TimelineBlueprintExt[] = []
 
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
@@ -2005,7 +2020,9 @@ function applyL3dTakeOffsets(
 					// Rebase both the piece and the object: the WX piece's editorial
 					// start sits ~2 s in, which would push the ADD past the reveal.
 					if (typeof piece.enable?.start === 'number' && piece.enable.start > POCASIE_L3D_PRELOAD_MS) {
-						piece.enable.start = POCASIE_L3D_PRELOAD_MS
+						// 0, not POCASIE_L3D_PRELOAD_MS — the armed template needs the
+						// incoming object live from Take or the gap CG STOPs it.
+						piece.enable.start = 0
 					}
 					const rebasedStart = Math.max(
 						0,
@@ -2018,7 +2035,31 @@ function applyL3dTakeOffsets(
 						// generic path so the template keeps its declared duration.
 						const addDelayMs = rebasedStart - objEnable.start
 						if (addDelayMs > 0) l3dDurationPadMs = Math.max(l3dDurationPadMs, addDelayMs)
-						objEnable.start = rebasedStart
+						// Start at Take — the idle-preview-armed template dies with
+						// the preview piece; any gap would CG STOP it and force a
+						// cold re-ADD. At Take it just CG UPDATEs into a hidden
+						// replay; the _replay object below restarts it at the cut.
+						objEnable.start = 0
+					}
+					// Second copy at the air cut forces a CG UPDATE on the template
+					// the idle-preview armed — pocasie.update() replays the cascade so
+					// the unroll runs on air instead of having finished under cover.
+					if (wipeAirCutMs > 0 && (content as { name?: string }).name === 'gfx/pocasie') {
+						pocasieReplayObjects.push(
+							literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+								id: '',
+								enable: { start: wipeAirCutMs },
+								layer: obj.layer,
+								priority: obj.priority,
+								content: {
+									...(content as TSR.TimelineContentCCGTemplate),
+									data: {
+										...((content as TSR.TimelineContentCCGTemplate).data ?? {}),
+										_replay: wipeAirCutMs,
+									},
+								},
+							})
+						)
 					}
 					continue
 				}
@@ -2076,6 +2117,10 @@ function applyL3dTakeOffsets(
 			// Live look channel (same-slot wipe): delayed PLAY only — do not LOAD/PAUSE
 			// over the on-air outgoing clip under the sting.
 			shiftEnableStartIfAtTake(obj, lookMediaDelay)
+		}
+
+		if (pocasieReplayObjects.length > 0) {
+			piece.content.timelineObjects = [...(piece.content.timelineObjects ?? []), ...pocasieReplayObjects]
 		}
 
 		// The shifted ADD eats into a finite piece window — pad it so the strap still
@@ -2500,6 +2545,26 @@ export async function armIdleLookPreviewForNext(
 				)
 			}
 
+			// Pocasie cold-loads its CEF for ~5 s — arm it on the idle channel with
+			// empty data so the cascade warms hidden. The Take's own object then
+			// diffs into a CG UPDATE that replays the unroll on air (no re-ADD).
+			const l3dLayer = String(getLookLayers(nextSlot).lowerThird)
+			for (const obj of nextObjects) {
+				if (String(obj.layer) !== l3dLayer || seenLayers.has(l3dLayer)) continue
+				const content = obj.content as TSR.TimelineContentCCGTemplate | undefined
+				if (!isCasparTemplate(content ?? {}) || content?.name !== 'gfx/pocasie') continue
+				seenLayers.add(l3dLayer)
+				previewObjects.push(
+					literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
+						id: '',
+						enable: { start: previewStartMs },
+						layer: obj.layer,
+						priority: previewPriority,
+						content: { ...content, data: {} },
+					})
+				)
+			}
+
 			// vMix: also clone the next part's look-INPUT object onto the target input
 			// at the same start so the camera is pre-positioned off-air with the media.
 			if (vmixProgram) {
@@ -2677,16 +2742,10 @@ export async function armLastHeadlineHoldForNext(
 	// or zero it into a bare non-deterministic PAUSE.
 	const seekMs = HEADLINE_HOLD_CLIP_FRAME_MS
 
-	// Armed: keep the frozen frame on the LED wall for the whole intro — the
-	// clip has no out-anim and must not be cut mid-intro, so the hold lives as
-	// long as the intro part (fallback = the fixed 1 s cover when the next
-	// part carries no expectedDuration).
-	const introCoverMs =
-		nextIsIntro &&
-		typeof nextPartInstance?.part.expectedDuration === 'number' &&
-		nextPartInstance.part.expectedDuration > 0
-			? nextPartInstance.part.expectedDuration
-			: LAST_HEADLINE_HOLD_INTO_INTRO_MS
+	// The frozen frame must release during the intro, not ride it whole —
+	// a postroll sized to the intro's expectedDuration outlived the intro on
+	// air (early takes) and flashed the headline into the MOD cam shot.
+	const holdIntoIntroMs = LAST_HEADLINE_HOLD_INTO_INTRO_MS
 	const targetObjects =
 		nextIsIntro && iluContent?.file
 			? [createLastHeadlineHoldMediaObject(iluContent.file, iluContent.mixer, seekMs)]
@@ -2695,11 +2754,11 @@ export async function armLastHeadlineHoldForNext(
 	if (
 		existingObjects.length === 0 &&
 		targetObjects.length === 0 &&
-		holdInstance.piece.postrollDuration === introCoverMs
+		holdInstance.piece.postrollDuration === holdIntoIntroMs
 	)
 		return
 	await context.updatePieceInstance(holdInstance._id, {
-		postrollDuration: nextIsIntro ? introCoverMs : LAST_HEADLINE_HOLD_INTO_INTRO_MS,
+		postrollDuration: holdIntoIntroMs,
 		content: { ...holdInstance.piece.content, timelineObjects: targetObjects },
 	})
 }
