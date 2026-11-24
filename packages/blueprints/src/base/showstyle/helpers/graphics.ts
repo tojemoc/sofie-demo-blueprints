@@ -510,9 +510,10 @@ function getIluZaverTimelineObjects(
 		return []
 	}
 
-	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not fullscreen.
-	// The same window also plays on the look channel's ILU layer (under db_loop) so
-	// ZAVER+AVIZO shows the avízo clip in the DoubleBox shell's left cutout on PGM.
+	// LED 115 with the pre-#100 DoubleBox window geometry (~68% ≈ “60%”), not
+	// fullscreen. LED-only — the look is a plain fullscreen CAM + odporúčanie
+	// L3D; a copy on the look ILU layer was the DoubleBox shell's left cutout
+	// and floated over the cam once the frame left.
 	const iluMixer = {
 		crop: { ...PGM_DOUBLEBOX_ILU_CROP },
 		fill: { ...PGM_DOUBLEBOX_ILU_FILL },
@@ -524,19 +525,6 @@ function getIluZaverTimelineObjects(
 			id: '',
 			enable: { start: 0 },
 			layer: CasparCGLayers.CasparCGIluPlayer,
-			priority: 1 + (isAdlib ? 10 : 0),
-			content: {
-				deviceType: TSR.DeviceType.CASPARCG,
-				type: TSR.TimelineContentTypeCasparCg.MEDIA,
-				file: toCasparPlayPath(iluFile),
-				loop: false,
-				mixer: { ...iluMixer },
-			},
-		}),
-		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
-			id: '',
-			enable: { start: 0 },
-			layer: CasparCGLayers.CasparCGPgmIluPlayer,
 			priority: 1 + (isAdlib ? 10 : 0),
 			content: {
 				deviceType: TSR.DeviceType.CASPARCG,

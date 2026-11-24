@@ -713,7 +713,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 	})
 
-	it('ZAVER uses the Full look on look B: LED + look ilu-zaver windowed, fullscreen cam route://5, no db_loop frame; PGM route://4', () => {
+	it('ZAVER uses the Full look on look B: LED-only ilu-zaver windowed, fullscreen cam route://5, no db_loop frame; PGM route://4', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		const zaver = segment.parts.find((p) => p.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver'))
 		expect(zaver).toBeDefined()
@@ -738,19 +738,14 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		// Hang through Outro — outro.mov wipe-IN needs the LED filled until cover.
 		expect(ledIluPiece?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
-		// The same avízo window also plays on the look ILU layer inside the shell.
+		// Avízo is LED-only — the look is plain fullscreen cam, no clip on look ILU.
 		const lookIlu = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB &&
+				String((obj.content as { file?: string }).file || '').length > 0 &&
 				(obj.content as { file?: string }).file !== 'EMPTY'
 		)
-		expect(lookIlu?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			mixer: {
-				fill: { ...PGM_DOUBLEBOX_ILU_FILL },
-				crop: { ...PGM_DOUBLEBOX_ILU_CROP },
-			},
-		})
+		expect(lookIlu).toBeUndefined()
 		const liveDbLoop = (layer: CasparCGLayers) =>
 			timeline.some(
 				(obj) =>

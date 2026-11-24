@@ -1397,7 +1397,7 @@ describe('pgmLook look-kind channels + route', () => {
 		// No shell: ZAVER is a Full look — db_loop frame stays off on both slots.
 		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(false)
 		expect(liveDbLoop(LOOK_B_LAYERS.doubleBoxLoop)).toBe(false)
-		// Look CAM is fullscreen (route://5) under the windowed avízo.
+		// Look CAM is fullscreen (route://5) — the look is a plain Full cam.
 		const lookACam = timeline.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file !== 'EMPTY'
 		)
@@ -1406,14 +1406,14 @@ describe('pgmLook look-kind channels + route', () => {
 			file: 'route://5',
 		})
 		expect((lookACam?.content as { mixer?: { fill?: unknown } }).mixer?.fill).toEqual(PGM_FULLSCREEN_CAMERA_FILL)
-		// Avízo clip still plays windowed on the look ILU layer over the cam.
+		// Avízo is LED-only: no clip on the look ILU layer over the cam.
 		const lookIlu = timeline.find(
 			(obj) =>
 				obj.layer === LOOK_A_LAYERS.ilu &&
 				(obj.content as { file?: string }).file !== 'EMPTY' &&
 				String((obj.content as { file?: string }).file || '').length > 0
 		)
-		expect(lookIlu, 'ZAVER avízo must play on the look ILU layer inside the shell').toBeDefined()
+		expect(lookIlu, 'ZAVER avízo must not play on the look ILU layer').toBeUndefined()
 
 		const clearPiece = zaver.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		expect(clearPiece?.sourceLayerId).toBe(SourceLayer.PgmLayerClear)
