@@ -84,6 +84,7 @@ export function partHasIluZaverObject(objects: SomeObject[]): boolean {
  */
 export function partHasPocasieMedia(objects: SomeObject[]): boolean {
 	return objects.some((object) => {
+		if (object.isAdlib) return false // ad-libbed weather on a non-Počasie part must not gate the teardown
 		const clipName = typeof object.clipName === 'string' ? normalizeGraphicClipName(object.clipName) : ''
 		if (clipName === 'gfx/pocasie' || clipName === 'gfx/weather') return true
 		const fileName = (object.attributes as { fileName?: unknown } | undefined)?.fileName
