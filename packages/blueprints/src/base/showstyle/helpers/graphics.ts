@@ -63,6 +63,21 @@ function isPocasieGraphic(object: GraphicObjectBase): boolean {
 }
 
 /**
+ * True when this part's ingest objects carry an *active* (non-adlib)
+ * `gfx/ilu-zaver` — the LED avízo is OutOnRundownEnd, so one scheduled
+ * ilu-zaver object means the avízo keeps playing until rundown end.
+ */
+export function partHasIluZaverObject(objects: SomeObject[]): boolean {
+	return objects.some(
+		(object) =>
+			!object.isAdlib &&
+			typeof object.clipName === 'string' &&
+			normalizeGraphicClipName(object.clipName) === 'gfx/ilu-zaver' &&
+			Boolean((object.attributes as { iluFile?: unknown } | undefined)?.iluFile)
+	)
+}
+
+/**
  * True when this part's ingest objects carry weather media (`gfx/pocasie` or a
  * `bg_pocasie` clip) — used to know whether a wiped ilu-zaver Take actually
  * leaves Počasie on the outgoing look, not just that ZAVER follows a wipe.

@@ -20,7 +20,8 @@ export function generateGfxPart(
 	part: PartProps<GfxProps>,
 	lookSlot: LookSlot = 'B',
 	previousLookSlot?: LookSlot,
-	previousPartHadWeather: boolean = false
+	previousPartHadWeather: boolean = false,
+	iluZaverOnAir: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -96,7 +97,8 @@ export function generateGfxPart(
 		previousLookSlot,
 		part.rawType,
 		result.adLibPieces,
-		previousPartHadWeather
+		previousPartHadWeather,
+		iluZaverOnAir
 	)
 	return result
 }

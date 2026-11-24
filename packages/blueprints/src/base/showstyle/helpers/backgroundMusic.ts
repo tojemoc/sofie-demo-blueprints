@@ -848,19 +848,19 @@ export function isPocasieSegmentName(name: string): boolean {
 }
 
 /**
- * Did the segment immediately before this one (editorial rank order) carry
- * Počasie? Gates ZAVER's leave-weather teardown for the *first* part of a
- * segment — within a segment the loop sees the previous part's objects
- * directly, across segments only the persisted name/rank snapshot is left.
+ * Name of the segment immediately before this one (editorial rank order), or
+ * undefined when there is none. Segment-name checks (Počasie/Záver) answer
+ * cross-segment questions at a segment's first part — within a segment the
+ * loop sees the previous part's objects directly.
  */
-export function previousSegmentHadPocasieForGeneration(
+export function previousSegmentNameForGeneration(
 	rundownId: string,
 	segmentExternalId: string | undefined,
 	segmentName: string,
 	rank?: number
-): boolean {
+): string | undefined {
 	const state = vmixBedGenerationByRundownId.get(rundownId)
-	if (!state) return false
+	if (!state) return undefined
 	const selfKey = segmentExternalId ?? segmentName
 	const self = state.segments.get(selfKey)
 	const selfRank = rank ?? self?.rank ?? Number.MAX_SAFE_INTEGER
@@ -880,7 +880,7 @@ export function previousSegmentHadPocasieForGeneration(
 			previous = rec
 		}
 	}
-	return previous !== undefined && isPocasieSegmentName(previous.name)
+	return previous?.name
 }
 
 /** Sisyfos ForceMute channel entries for every configured Playback source. */

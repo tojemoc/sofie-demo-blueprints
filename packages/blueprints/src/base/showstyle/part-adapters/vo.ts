@@ -28,7 +28,8 @@ export function generateVOPart(
 	part: PartProps<VOProps>,
 	lookSlot: LookSlot = 'B',
 	previousLookSlot?: LookSlot,
-	previousPartHadWeather: boolean = false
+	previousPartHadWeather: boolean = false,
+	iluZaverOnAir: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const atemInput = getClipPlayerInput(config)
@@ -146,7 +147,8 @@ export function generateVOPart(
 		previousLookSlot,
 		part.rawType,
 		result.adLibPieces,
-		previousPartHadWeather
+		previousPartHadWeather,
+		iluZaverOnAir
 	)
 	return result
 }

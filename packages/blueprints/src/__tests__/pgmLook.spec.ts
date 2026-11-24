@@ -1561,7 +1561,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
 	})
 
-	it('wipe into ZAVER without previous Počasie does not delay LED avízo (Cam/SYN interleave)', () => {
+	it('wipe into ZAVER with avízo already on LED keeps it playing (Cam/SYN interleave)', () => {
 		const context = mockSegmentContext()
 		const part = { externalId: 'zaver-wiped', title: 'ZAVER' }
 		const zaverIlu = {
@@ -1607,8 +1607,8 @@ describe('pgmLook look-kind channels + route', () => {
 			},
 		]
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
-		// previousPartHadWeather=false — a wipe between záver blocks must not
-		// restart the on-air LED clip mid-part.
+		// iluZaverOnAir=true — a wipe between záver blocks must not EMPTY the
+		// on-air LED clip: identical content at 0 diffs to a TSR no-op.
 		finalizeHypercomposedPart(
 			context,
 			hybridCasparConfig,
@@ -1620,10 +1620,77 @@ describe('pgmLook look-kind channels + route', () => {
 			undefined,
 			undefined,
 			undefined,
-			false
+			false,
+			true
 		)
 		const led = pieces[0].content.timelineObjects?.[0]
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(0)
+	})
+
+	it('wipe into ZAVER without previous Počasie lands a fresh avízo at the air cut', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'zaver-wiped', title: 'ZAVER' }
+		const zaverIlu = {
+			enable: { start: 0 },
+			externalId: 'zaver-ilu',
+			name: ' gfx/ilu-zaver | ILU AVIZO',
+			lifespan: PieceLifespan.OutOnRundownEnd,
+			sourceLayerId: SourceLayer.LowerThird,
+			outputLayerId: 'pgm',
+			content: {
+				fileName: 'clips/ILU AVIZO.mp4',
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGIluPlayer,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/ILU AVIZO.mp4',
+						},
+					},
+				],
+			},
+		}
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+			{
+				id: 'zaver',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO.mp4' },
+			},
+		]
+		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
+		// No leave-weather teardown, avízo not yet on the wall — it appears
+		// with the picture cut, not at Take 0 mid-wipe.
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part,
+			'zaver-wiped',
+			objects as never,
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			undefined,
+			false,
+			false
+		)
+		const led = pieces[0].content.timelineObjects?.[0]
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS)
 	})
 
 	for (const [previousSlot, otherLayers] of [

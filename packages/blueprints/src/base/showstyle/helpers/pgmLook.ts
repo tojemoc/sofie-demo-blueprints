@@ -1024,7 +1024,9 @@ export function finalizeHypercomposedPart(
 	/** Ad-lib pieces generated for this part — remapped onto `lookSlot` like scheduled pieces. */
 	adLibPieces?: IBlueprintAdLibPiece[],
 	/** The previous on-air part carried Počasie media — gates the leave-weather teardown. */
-	previousPartHadWeather: boolean = false
+	previousPartHadWeather: boolean = false,
+	/** The ilu-zaver avízo is already on the LED (continued OutOnRundownEnd piece) — do not re-gap it. */
+	iluZaverOnAir: boolean = false
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
@@ -1403,7 +1405,10 @@ export function finalizeHypercomposedPart(
 	// Wiped ZAVER: LED `ilu-zaver` lands at leaveWeatherHideMs under cover — with the
 	// WX hide and route flip, not at Take before wipe frame 0. Ad-lib-only ingest
 	// must not delay other LED ILU (e.g. headline) sitting on the same Caspar layer.
-	if (hasWipe && partHasActiveIluZaver(pieces)) {
+	// When the avízo is already on the LED (zaver Cam/SYN interleave — the piece is
+	// OutOnRundownEnd and continues through non-zaver parts), delaying would EMPTY
+	// the wall until the cut: keep it at 0 so the identical content diffs to no-op.
+	if (hasWipe && partHasActiveIluZaver(pieces) && !iluZaverOnAir) {
 		// Land the LED window with the rest of the leave-weather teardown — the
 		// route flip, WX hide and look ILU PLAY all share leaveWeatherHideMs.
 		delayLedIluZaverToWipeCut(pieces, leaveWeatherHideMs)

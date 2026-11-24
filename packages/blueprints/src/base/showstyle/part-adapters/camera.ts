@@ -78,7 +78,8 @@ export function generateCameraPart(
 	countupRevealClaim: CountupRevealClaim,
 	lookSlot: LookSlot = 'A',
 	previousLookSlot?: LookSlot,
-	previousPartHadWeather: boolean = false
+	previousPartHadWeather: boolean = false,
+	iluZaverOnAir: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
@@ -163,7 +164,8 @@ export function generateCameraPart(
 		previousLookSlot,
 		part.rawType,
 		result.adLibPieces,
-		previousPartHadWeather
+		previousPartHadWeather,
+		iluZaverOnAir
 	)
 	return result
 }
