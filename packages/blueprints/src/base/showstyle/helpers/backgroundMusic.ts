@@ -395,7 +395,9 @@ export function createBackgroundMusicStartPiece(context: ICommonContext, config:
 				: (['A', 'C'] as const)
 						.filter(() => hasVmixBeds(config))
 						.flatMap((bed) => [
-							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 0)] : []),
+							// `restart` reseeks the loop to 0 when this object first enters
+							// the timeline — the vMix input may be mid-loop from a rehearsal.
+							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 0, 'first_take_bg_music_a')] : []),
 							// Constant state — this piece is re-armed into every nexted part,
 							// so time-bounded envelope objects would replay on every Take.
 							// The first-Take hit is a separate one-shot piece (see below).
@@ -569,8 +571,8 @@ export function createBackgroundMusicMutePiece(
 		externalId: `${partExternalId}_bg_music_mute`,
 		name: `BG music mute (${label})`,
 		lifespan: persistAfterPart ? PieceLifespan.OutOnRundownEnd : PieceLifespan.WithinPart,
-		sourceLayerId: SourceLayer.AudioBed,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
+		sourceLayerId: SourceLayer.BgMusicFx,
+		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.BgMusicFx),
 		content: {
 			fileName: label === 'Wipe' ? 'EMPTY' : BG_MUSIC_A_FILE,
 			ignoreAudioFormat: true,
