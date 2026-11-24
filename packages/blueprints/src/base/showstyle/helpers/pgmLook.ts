@@ -304,6 +304,17 @@ export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject
 	})
 }
 
+/** True when the part is a ZÁVER avízo look — Full kind, but a GFX-only part still wants the fullscreen look CAM under the windowed ILU. */
+export function isIluZaverLook(rawType: string | undefined, objects: SomeObject[]): boolean {
+	if (/ilu-zaver/i.test(rawType || '')) return true
+	return objects.some((obj) => {
+		if (obj.objectType !== ObjectType.Graphic) return false
+		if ((obj as { isAdlib?: boolean }).isAdlib) return false
+		const clip = String((obj as GraphicObject).clipName || '').toLowerCase()
+		return clip === 'gfx/ilu-zaver'
+	})
+}
+
 /**
  * Tracks the last on-air look slot so non-look parts (Remote / Titles / DVE) can
  * peek a stable underlay. Look-bearing Takes claim the **idle** opposite of peek

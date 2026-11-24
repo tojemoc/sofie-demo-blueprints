@@ -10,7 +10,7 @@ import { parseConfig } from '../helpers/config.js'
 import { createDoubleBoxLoopPiece } from '../helpers/doubleboxLoop.js'
 import { parseGraphicsFromObjects, partHasHeadlineIlu } from '../helpers/graphics.js'
 import { createHeadlineSfxPiece } from '../helpers/headlineSfx.js'
-import { finalizeHypercomposedPart, isDoubleBoxLook, LookSlot } from '../helpers/pgmLook.js'
+import { finalizeHypercomposedPart, isDoubleBoxLook, isIluZaverLook, LookSlot } from '../helpers/pgmLook.js'
 import { createScriptPiece } from '../helpers/script.js'
 import { createPgmCameraTimelineObjects } from './camera.js'
 
@@ -33,9 +33,11 @@ export function generateGfxPart(
 	if (layeredVideos.length) pieces.push(...layeredVideos)
 
 	// Scheduled ZÁVER / avízo parts carry `gfx/ilu-zaver` and land here because
-	// they have no camera piece — emit the same DoubleBox shell a camera part
-	// would: `db_loop` frame + the right-window look CAM.
-	if (isDoubleBoxLook(part.rawType, part.objects)) {
+	// they have no camera piece — emit the look CAM a camera part would:
+	// right-window + `db_loop` frame for DoubleBox, fullscreen for ZÁVER
+	// (a Full look since the frame left).
+	const doubleBox = isDoubleBoxLook(part.rawType, part.objects)
+	if (doubleBox || isIluZaverLook(part.rawType, part.objects)) {
 		pieces.push({
 			enable: { start: 0 },
 			externalId: `${part.payload.externalId}_look_cam`,
@@ -44,10 +46,14 @@ export function generateGfxPart(
 			sourceLayerId: SourceLayer.Camera,
 			outputLayerId: getOutputLayerForSourceLayer(SourceLayer.Camera),
 			content: {
-				timelineObjects: createPgmCameraTimelineObjects(config, 'doublebox', lookSlot),
+				timelineObjects: createPgmCameraTimelineObjects(
+					config,
+					doubleBox ? 'doublebox' : 'fullscreen',
+					lookSlot
+				),
 			},
 		})
-		pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
+		if (doubleBox) pieces.push(createDoubleBoxLoopPiece(context, config, part.payload.externalId))
 	}
 
 	const scriptPiece = createScriptPiece(part.payload.script, part.payload.externalId)

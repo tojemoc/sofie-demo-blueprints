@@ -395,9 +395,7 @@ export function createBackgroundMusicStartPiece(context: ICommonContext, config:
 				: (['A', 'C'] as const)
 						.filter(() => hasVmixBeds(config))
 						.flatMap((bed) => [
-							// `restart` reseeks the loop to 0 when this object first enters
-							// the timeline — the vMix input may be mid-loop from a rehearsal.
-							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 0, 'first_take_bg_music_a')] : []),
+							...(bed === 'A' ? [vmixBedPlayObject('A', { while: 1 }, 0)] : []),
 							// Constant state — this piece is re-armed into every nexted part,
 							// so time-bounded envelope objects would replay on every Take.
 							// The first-Take hit is a separate one-shot piece (see below).
@@ -440,7 +438,14 @@ export function createBackgroundMusicHitPiece(config: StudioConfig): IBlueprintP
 		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.BgMusicHit),
 		content: {
 			fileName: BG_MUSIC_A_FILE,
-			timelineObjects: vmixBedRestartEnvelope(config, 'A', 0, 1.8),
+			timelineObjects: [
+				// Seek-0 restart rides this one-shot piece — the vMix input may be
+				// mid-loop from a rehearsal. A restart key on the re-armed start
+				// piece would re-fire RESTART_INPUT every time a wipe's unmute
+				// object yielded the layer back.
+				vmixBedPlayObject('A', { start: 0 }, 1.8, 'first_take_bg_music_a'),
+				...vmixBedRestartEnvelope(config, 'A', 0, 1.8),
+			],
 		},
 		expectedPackages: [],
 	})
