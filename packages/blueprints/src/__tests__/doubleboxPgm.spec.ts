@@ -16,6 +16,7 @@ import {
 	PGM_DOUBLEBOX_CAMERA_FILL,
 	PGM_DOUBLEBOX_ILU_CROP,
 	PGM_DOUBLEBOX_ILU_FILL,
+	PGM_FULLSCREEN_CAMERA_FILL,
 	PgmChannelLayers,
 } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
@@ -712,13 +713,13 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		})
 	})
 
-	it('ZAVER uses the DoubleBox shell on look B: LED + look ilu-zaver, DB cam route://5, db_loop frame; PGM route://4', () => {
+	it('ZAVER uses the Full look on look B: LED + look ilu-zaver windowed, fullscreen cam route://5, no db_loop frame; PGM route://4', () => {
 		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
 		const zaver = segment.parts.find((p) => p.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver'))
 		expect(zaver).toBeDefined()
 		if (!zaver) return
 		expect(zaver.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver')).toBe(true)
-		expect(isDoubleBoxLook(zaver.rawType, zaver.objects)).toBe(true)
+		expect(isDoubleBoxLook(zaver.rawType, zaver.objects)).toBe(false)
 
 		const partContext = new PartContext(mockSegmentContext(), zaver.payload.externalId)
 		const result = generateCameraPart(partContext, zaver as PartProps<CameraProps>, createCountupRevealClaim(), 'B')
@@ -759,7 +760,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 					String((obj.content as { file?: string }).file || '').length > 0
 			)
 		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoop)).toBe(false)
-		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoopB)).toBe(true)
+		expect(liveDbLoop(CasparCGLayers.CasparCGPgmDoubleBoxLoopB)).toBe(false)
 		const cam = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file !== 'EMPTY'
@@ -767,7 +768,7 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		expect(cam?.content).toMatchObject({
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
-			mixer: { fill: { ...PGM_DOUBLEBOX_CAMERA_FILL } },
+			mixer: { fill: { ...PGM_FULLSCREEN_CAMERA_FILL } },
 		})
 		expect(
 			timeline.some(

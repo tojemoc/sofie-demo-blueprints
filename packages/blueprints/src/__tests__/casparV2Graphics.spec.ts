@@ -6,11 +6,7 @@ import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
-import {
-	LOOK_B_LAYERS,
-	POCASIE_L3D_PRELOAD_MS,
-	SAME_SLOT_WIPE_AIR_CUT_LEAD_MS,
-} from '../base/showstyle/helpers/pgmLook.js'
+import { LOOK_B_LAYERS, SAME_SLOT_WIPE_AIR_CUT_LEAD_MS } from '../base/showstyle/helpers/pgmLook.js'
 import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { getBaseline } from '../base/showstyle/rundown/baseline.js'
@@ -657,15 +653,24 @@ describe('casparV2Graphics', () => {
 				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		const l3dPiece = result.pieces.find((piece) =>
-			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
-		)
-		// wipe_pocasie: weather GFX preloads early so its cascade finishes under cover.
-		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(POCASIE_L3D_PRELOAD_MS)
+		// wipe_pocasie: the template enters at Take so the idle-preview-armed
+		// warm CEF load stays live; a _replay UPDATE at the air cut replays the
+		// card cascade on air.
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(0)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
+		const weatherL3dReplay = timeline.find(
+			(obj) =>
+				obj !== weatherL3d &&
+				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
+		)
+		expect(weatherL3dReplay?.enable).toEqual({ start: POCASIE_WIPE_AIR_CUT_MS })
+		expect(
+			((weatherL3dReplay?.content as TSR.TimelineContentCCGTemplate).data as { _replay?: number })?._replay
+		).toBe(POCASIE_WIPE_AIR_CUT_MS)
+		// No incoming-slot L3D EMPTY — it would CG STOP the armed warm template.
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
-		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0
-		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: POCASIE_L3D_PRELOAD_MS + l3dObjectTime })
+		expect(l3dEmpty).toBeUndefined()
 	})
 
 	it('same-slot wipe_pocasie keeps weather L3D at full air cut (look MEDIA leads)', () => {
@@ -695,17 +700,21 @@ describe('casparV2Graphics', () => {
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		const l3dPiece = result.pieces.find((piece) =>
-			(piece.content.timelineObjects ?? []).some((obj) => obj === weatherL3d)
+		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(0)
+		const weatherL3dReplay = timeline.find(
+			(obj) =>
+				obj !== weatherL3d &&
+				obj.layer === LOOK_B_LAYERS.lowerThird &&
+				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(POCASIE_L3D_PRELOAD_MS)
+		expect(weatherL3dReplay?.enable).toEqual({ start: POCASIE_WIPE_AIR_CUT_MS })
 
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const l3dEmpty = (clearPiece?.content.timelineObjects ?? []).find(
 			(obj) => obj.layer === LOOK_B_LAYERS.lowerThird && (obj.content as { file?: string }).file === 'EMPTY'
 		)
-		const l3dObjectTime = typeof l3dPiece?.enable?.start === 'number' ? l3dPiece.enable.start : 0
-		expect(l3dEmpty?.enable).toEqual({ start: 0, duration: POCASIE_L3D_PRELOAD_MS + l3dObjectTime })
+		// No incoming-slot L3D EMPTY — it would CG STOP the armed warm template.
+		expect(l3dEmpty).toBeUndefined()
 	})
 
 	it('mutes kolíska beds while the outro overlay plays', () => {

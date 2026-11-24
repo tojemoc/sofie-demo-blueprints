@@ -49,7 +49,7 @@ import { generateParts, resolveLookSlotForPart } from '../base/showstyle/part-ad
 import { generateIntroPart } from '../base/showstyle/part-adapters/intro.js'
 import { generateVOPart } from '../base/showstyle/part-adapters/vo.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
-import { PGM_DOUBLEBOX_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
+import { PGM_FULLSCREEN_CAMERA_FILL } from '../base/studio/applyConfig/mappings/casparcgLayers.js'
 import { SourceType } from '../base/studio/helpers/config.js'
 import { CasparCGLayers } from '../base/studio/layers.js'
 import { PartContext } from '../common/context.js'
@@ -175,8 +175,8 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(lookSlotForKind('full')).toBe('B')
 		expect(isDoubleBoxLook('DoubleBox', [])).toBe(true)
 		expect(isDoubleBoxLook('Cam', [])).toBe(false)
-		// ZAVER+AVIZO shares the DoubleBox shell (db_loop frame + windowed avízo ILU).
-		expect(isDoubleBoxLook('ILU-ZAVER', [])).toBe(true)
+		// ZAVER+AVIZO is Full — windowed avízo over cam, no db_loop frame.
+		expect(isDoubleBoxLook('ILU-ZAVER', [])).toBe(false)
 		expect(isDoubleBoxLook('Záver', [])).toBe(false)
 		expect(
 			isDoubleBoxLook('Cam', [
@@ -201,7 +201,7 @@ describe('pgmLook look-kind channels + route', () => {
 					attributes: {},
 				} as never,
 			])
-		).toBe(true)
+		).toBe(false)
 		expect(
 			isDoubleBoxLook('Cam', [
 				{
@@ -1353,7 +1353,7 @@ describe('pgmLook look-kind channels + route', () => {
 		}
 	})
 
-	it('ZAVER + AVIZO composes the DoubleBox shell on idle look: db_loop frame, windowed avízo ILU, cam right', () => {
+	it('ZAVER + AVIZO composes the Full look on idle look: no db_loop frame, windowed avízo ILU, fullscreen cam', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
@@ -1380,7 +1380,7 @@ describe('pgmLook look-kind channels + route', () => {
 		expect(zaverIngest).toBeDefined()
 		if (!zaverIngest) return
 
-		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(true)
+		expect(isDoubleBoxLook(zaverIngest.rawType, zaverIngest.objects)).toBe(false)
 
 		const timeline = zaver.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
 		// Fresh sequence: first look-bearing claims idle A → route://3.
@@ -1394,10 +1394,10 @@ describe('pgmLook look-kind channels + route', () => {
 					(obj.content as { file?: string }).file !== 'EMPTY' &&
 					String((obj.content as { file?: string }).file || '').length > 0
 			)
-		// The shell: db_loop frame on the claimed slot — not on the off-air slot.
-		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(true)
+		// No shell: ZAVER is a Full look — db_loop frame stays off on both slots.
+		expect(liveDbLoop(LOOK_A_LAYERS.doubleBoxLoop)).toBe(false)
 		expect(liveDbLoop(LOOK_B_LAYERS.doubleBoxLoop)).toBe(false)
-		// Look CAM sits in the DoubleBox right window (route://5), not fullscreen.
+		// Look CAM is fullscreen (route://5) under the windowed avízo.
 		const lookACam = timeline.find(
 			(obj) => obj.layer === LOOK_A_LAYERS.camera && (obj.content as { file?: string }).file !== 'EMPTY'
 		)
@@ -1405,8 +1405,8 @@ describe('pgmLook look-kind channels + route', () => {
 			type: TSR.TimelineContentTypeCasparCg.MEDIA,
 			file: 'route://5',
 		})
-		expect((lookACam?.content as { mixer?: { fill?: unknown } }).mixer?.fill).toEqual(PGM_DOUBLEBOX_CAMERA_FILL)
-		// Avízo clip fills the left cutout on the look ILU layer under the frame.
+		expect((lookACam?.content as { mixer?: { fill?: unknown } }).mixer?.fill).toEqual(PGM_FULLSCREEN_CAMERA_FILL)
+		// Avízo clip still plays windowed on the look ILU layer over the cam.
 		const lookIlu = timeline.find(
 			(obj) =>
 				obj.layer === LOOK_A_LAYERS.ilu &&
