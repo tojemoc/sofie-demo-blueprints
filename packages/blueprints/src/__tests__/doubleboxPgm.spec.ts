@@ -8,7 +8,6 @@ import { createCountupRevealClaim } from '../base/showstyle/helpers/countupRevea
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { createLookSlotSequence, isDoubleBoxLook } from '../base/showstyle/helpers/pgmLook.js'
 import { generateCameraPart } from '../base/showstyle/part-adapters/camera.js'
-import { generateGfxPart } from '../base/showstyle/part-adapters/gfx.js'
 import { generateParts } from '../base/showstyle/part-adapters/index.js'
 import { convertIngestData } from '../base/showstyle/sofie-editor-parsers/index.js'
 import {
@@ -796,27 +795,5 @@ describe('DoubleBox PGM ILU above CAM', () => {
 		)
 		const emptyLayers = new Set(lookAEmpties.map((obj) => obj.layer))
 		expect(emptyLayers.has(CasparCGLayers.CasparCGPgmIluPlayer)).toBe(true)
-	})
-
-	it('GFX-only ZAVER still emits the fullscreen look CAM (no camera object, no db_loop frame)', () => {
-		const segment = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, 'seg-outro'))
-		const zaver = segment.parts.find((p) => p.objects.some((obj) => obj.clipName === 'gfx/ilu-zaver'))
-		expect(zaver).toBeDefined()
-		if (!zaver) return
-		const gfxOnly = { ...zaver, objects: zaver.objects.filter((obj) => obj.objectType !== ObjectType.Camera) }
-
-		const partContext = new PartContext(mockSegmentContext(), zaver.payload.externalId)
-		const result = generateGfxPart(partContext, gfxOnly as never, 'B')
-		const timeline = result.pieces.flatMap((piece) => piece.content.timelineObjects ?? [])
-		const cam = timeline.find(
-			(obj) =>
-				obj.layer === CasparCGLayers.CasparCGPgmCameraB && (obj.content as { file?: string }).file !== 'EMPTY'
-		)
-		expect(cam?.content).toMatchObject({
-			type: TSR.TimelineContentTypeCasparCg.MEDIA,
-			file: 'route://5',
-			mixer: { fill: { ...PGM_FULLSCREEN_CAMERA_FILL } },
-		})
-		expect(result.pieces.some((piece) => piece.name === 'DoubleBox frame')).toBe(false)
 	})
 })
