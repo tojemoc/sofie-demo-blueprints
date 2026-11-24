@@ -841,6 +841,48 @@ export function isZaverSegmentName(name: string): boolean {
 	return /^(?:zaver|avizo)(?:\b|$)/u.test(normalized)
 }
 
+/** True for the weather segment ("POČASIE") — predecessor check for the leave-weather teardown. */
+export function isPocasieSegmentName(name: string): boolean {
+	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+	return /^pocasie(?:\b|$)/u.test(normalized)
+}
+
+/**
+ * Did the segment immediately before this one (editorial rank order) carry
+ * Počasie? Gates ZAVER's leave-weather teardown for the *first* part of a
+ * segment — within a segment the loop sees the previous part's objects
+ * directly, across segments only the persisted name/rank snapshot is left.
+ */
+export function previousSegmentHadPocasieForGeneration(
+	rundownId: string,
+	segmentExternalId: string | undefined,
+	segmentName: string,
+	rank?: number
+): boolean {
+	const state = vmixBedGenerationByRundownId.get(rundownId)
+	if (!state) return false
+	const selfKey = segmentExternalId ?? segmentName
+	const self = state.segments.get(selfKey)
+	const selfRank = rank ?? self?.rank ?? Number.MAX_SAFE_INTEGER
+	const selfOrder = self?.order ?? Number.MAX_SAFE_INTEGER
+	let previous: { rank: number; order: number; name: string } | undefined
+	for (const [key, rec] of state.segments) {
+		if (key === selfKey) continue
+		// Precedes in editorial order: lower rank wins; rank ties (test
+		// fixtures rank everything 0) fall back to first-seen order.
+		const precedes =
+			rec.rank < selfRank ||
+			(rec.rank === selfRank && selfRank !== Number.MAX_SAFE_INTEGER && rec.order < selfOrder)
+		if (
+			precedes &&
+			(!previous || rec.rank > previous.rank || (rec.rank === previous.rank && rec.order > previous.order))
+		) {
+			previous = rec
+		}
+	}
+	return previous !== undefined && isPocasieSegmentName(previous.name)
+}
+
 /** Sisyfos ForceMute channel entries for every configured Playback source. */
 export function getPlaybackForceMuteChannels(
 	config: StudioConfig

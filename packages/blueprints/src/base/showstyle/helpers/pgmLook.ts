@@ -1022,7 +1022,9 @@ export function finalizeHypercomposedPart(
 	/** Editorial layout; defaults from ingest objects / DoubleBox ILU graphic. */
 	rawType?: string,
 	/** Ad-lib pieces generated for this part — remapped onto `lookSlot` like scheduled pieces. */
-	adLibPieces?: IBlueprintAdLibPiece[]
+	adLibPieces?: IBlueprintAdLibPiece[],
+	/** The previous on-air part carried Počasie media — gates the leave-weather teardown. */
+	previousPartHadWeather: boolean = false
 ): void {
 	if (!isHypercomposedStudio(config)) return
 
@@ -1086,8 +1088,11 @@ export function finalizeHypercomposedPart(
 	// incomplete — and not same-slot lead, which made Počasie→AVIZO 6f early).
 	// ZAVER now owns look ILU media (the avízo window) — `partHasLookIluMedia`
 	// alone can no longer exclude it. Only the active ilu-zaver LED piece marks a
-	// wiped ZAVER take; weather parts never carry one.
-	const leaveWeatherUnderWipe = Boolean(hasWipe && partHasActiveIluZaver(pieces))
+	// wiped ZAVER take; weather parts never carry one. The teardown must only
+	// run when the outgoing part was actually Počasie — a wipe between záver
+	// blocks (ZAVER Cam/SYN → wipe → ZAVER Cam) must not delay the LED avízo or
+	// the clears, that would restart the on-air clip mid-part.
+	const leaveWeatherUnderWipe = Boolean(hasWipe && partHasActiveIluZaver(pieces) && previousPartHadWeather)
 	// Same-slot wiped Takes cold-PLAY look MEDIA at the cut (cannot LOADBG over on-air).
 	// After look ping-pong this path is rare — every look-bearing Take claims idle.
 	// Lead the look cut so first frame meets cover — except leave-weather, which lags
@@ -1328,7 +1333,8 @@ export function finalizeHypercomposedPart(
 	}
 	// Leaving Počasie: clear bg_pocasie under wipe cover. Finite EMPTY through wipe end
 	// let weather postroll flash one frame after sting CLEAR — leave-weather ZAVER uses
-	// open-ended WithinPart EMPTY instead (safe: next Take is Outro, not weather).
+	// open-ended EMPTY instead (safe: bg_pocasie is WithinPart, it cannot resurrect
+	// two parts later — ZAVER may be followed by SYN/Cam parts, not only Outro).
 	// Leave-weather / non-ILU Takes: EMPTY look ILU so `bg_pocasie` cannot linger
 	// into ZAVER (Full) or the next story. DoubleBox Takes without look ILU also CLEAR
 	// the other channel's ILU so a lingering weather map dies under the sting.

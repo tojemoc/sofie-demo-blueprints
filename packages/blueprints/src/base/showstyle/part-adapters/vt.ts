@@ -26,7 +26,8 @@ export function generateVTPart(
 	context: PartContext,
 	part: PartProps<VTProps>,
 	lookSlot: LookSlot = 'B',
-	previousLookSlot?: LookSlot
+	previousLookSlot?: LookSlot,
+	previousPartHadWeather: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const visionMixerInput = getClipPlayerInput(config)
@@ -119,7 +120,8 @@ export function generateVTPart(
 		lookSlot,
 		previousLookSlot,
 		part.rawType,
-		result.adLibPieces
+		result.adLibPieces,
+		previousPartHadWeather
 	)
 	return result
 }

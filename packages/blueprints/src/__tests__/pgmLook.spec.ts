@@ -13,6 +13,7 @@ import {
 	SegmentType,
 	VOProps,
 } from '../base/showstyle/definitions/index.js'
+import { beginVmixBedGeneration } from '../base/showstyle/helpers/backgroundMusic.js'
 import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { LAST_HEADLINE_HOLD_INTO_INTRO_MS } from '../base/showstyle/helpers/graphics.js'
@@ -1357,6 +1358,11 @@ describe('pgmLook look-kind channels + route', () => {
 		const exportData = loadSmokeRundownExport()
 		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 		const intermediate = convertIngestData(mockIngestContext, ingest)
+		// Segment history: leave-weather teardown needs Počasie as ranked predecessor.
+		beginVmixBedGeneration(
+			'spravy-v3-smoke',
+			exportData.segments.map((segment) => ({ externalId: segment.id, rank: 0, name: segment.name }))
+		)
 		const generated = generateParts(
 			mockSegmentContext(),
 			intermediate,
@@ -1538,9 +1544,86 @@ describe('pgmLook look-kind channels + route', () => {
 			},
 		]
 		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
-		finalizeHypercomposedPart(context, hybridCasparConfig, part, 'zaver-wiped', objects as never, pieces, 'B')
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part,
+			'zaver-wiped',
+			objects as never,
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			undefined,
+			true
+		)
 		const led = pieces[0].content.timelineObjects?.[0]
 		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
+	})
+
+	it('wipe into ZAVER without previous Počasie does not delay LED avízo (Cam/SYN interleave)', () => {
+		const context = mockSegmentContext()
+		const part = { externalId: 'zaver-wiped', title: 'ZAVER' }
+		const zaverIlu = {
+			enable: { start: 0 },
+			externalId: 'zaver-ilu',
+			name: ' gfx/ilu-zaver | ILU AVIZO',
+			lifespan: PieceLifespan.OutOnRundownEnd,
+			sourceLayerId: SourceLayer.LowerThird,
+			outputLayerId: 'pgm',
+			content: {
+				fileName: 'clips/ILU AVIZO.mp4',
+				timelineObjects: [
+					{
+						id: '',
+						enable: { start: 0 },
+						layer: CasparCGLayers.CasparCGIluPlayer,
+						content: {
+							deviceType: TSR.DeviceType.CASPARCG,
+							type: TSR.TimelineContentTypeCasparCg.MEDIA,
+							file: 'clips/ILU AVIZO.mp4',
+						},
+					},
+				],
+			},
+		}
+		const objects = [
+			{
+				id: 'wipe',
+				objectType: ObjectType.Video,
+				clipName: 'wipes/wipe',
+				objectTime: 0,
+				duration: 2500,
+				attributes: { fileName: 'wipes/wipe.mov', playLayer: 'wipe', cutPoint: 380 },
+			},
+			{
+				id: 'zaver',
+				objectType: ObjectType.Graphic,
+				clipName: 'gfx/ilu-zaver',
+				objectTime: 0,
+				duration: 19000,
+				isAdlib: false,
+				attributes: { iluFile: 'clips/ILU AVIZO.mp4' },
+			},
+		]
+		const pieces = [zaverIlu] as never as Parameters<typeof finalizeHypercomposedPart>[5]
+		// previousPartHadWeather=false — a wipe between záver blocks must not
+		// restart the on-air LED clip mid-part.
+		finalizeHypercomposedPart(
+			context,
+			hybridCasparConfig,
+			part,
+			'zaver-wiped',
+			objects as never,
+			pieces,
+			'B',
+			undefined,
+			undefined,
+			undefined,
+			false
+		)
+		const led = pieces[0].content.timelineObjects?.[0]
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(0)
 	})
 
 	for (const [previousSlot, otherLayers] of [
@@ -1551,6 +1634,11 @@ describe('pgmLook look-kind channels + route', () => {
 			const exportData = loadSmokeRundownExport()
 			const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
 			const intermediate = convertIngestData(mockIngestContext, ingest)
+			// Segment history: leave-weather teardown needs Počasie as ranked predecessor.
+			beginVmixBedGeneration(
+				'spravy-v3-smoke',
+				exportData.segments.map((segment) => ({ externalId: segment.id, rank: 0, name: segment.name }))
+			)
 			// Previous look was DoubleBox (ch3 on PGM) — claim the slot before generating ZAVER.
 			const lookSlots = createLookSlotSequence()
 			lookSlots.claim(previousSlot)

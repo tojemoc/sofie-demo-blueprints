@@ -62,6 +62,20 @@ function isPocasieGraphic(object: GraphicObjectBase): boolean {
 	return clip === 'gfx/pocasie' || clip === 'gfx/weather'
 }
 
+/**
+ * True when this part's ingest objects carry weather media (`gfx/pocasie` or a
+ * `bg_pocasie` clip) — used to know whether a wiped ilu-zaver Take actually
+ * leaves Počasie on the outgoing look, not just that ZAVER follows a wipe.
+ */
+export function partHasPocasieMedia(objects: SomeObject[]): boolean {
+	return objects.some((object) => {
+		const clipName = typeof object.clipName === 'string' ? normalizeGraphicClipName(object.clipName) : ''
+		if (clipName === 'gfx/pocasie' || clipName === 'gfx/weather') return true
+		const fileName = (object.attributes as { fileName?: unknown } | undefined)?.fileName
+		return typeof fileName === 'string' && /bg_pocasie/i.test(fileName)
+	})
+}
+
 function isDoubleboxIlu(object: GraphicObjectBase): boolean {
 	return normalizeGraphicClipName(object.clipName) === 'gfx/doublebox-ilu' && !!object.attributes.iluFile
 }

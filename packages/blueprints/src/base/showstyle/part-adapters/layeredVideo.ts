@@ -16,7 +16,8 @@ export function generateLayeredVideoPart(
 	context: PartContext,
 	part: PartProps<LayeredVideoProps>,
 	lookSlot: LookSlot = 'B',
-	previousLookSlot?: LookSlot
+	previousLookSlot?: LookSlot,
+	previousPartHadWeather: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -61,7 +62,8 @@ export function generateLayeredVideoPart(
 		lookSlot,
 		previousLookSlot,
 		part.rawType,
-		result.adLibPieces
+		result.adLibPieces,
+		previousPartHadWeather
 	)
 	return result
 }

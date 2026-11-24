@@ -21,7 +21,8 @@ export function generateIntroPart(
 	context: PartContext,
 	part: PartProps<IntroProps>,
 	lookSlot: LookSlot = 'B',
-	previousLookSlot?: LookSlot
+	previousLookSlot?: LookSlot,
+	previousPartHadWeather: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -81,7 +82,8 @@ export function generateIntroPart(
 		lookSlot,
 		previousLookSlot,
 		part.rawType,
-		result.adLibPieces
+		result.adLibPieces,
+		previousPartHadWeather
 	)
 	return result
 }
