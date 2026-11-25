@@ -23,6 +23,8 @@ import {
 	finalizeHypercomposedPart,
 	getLookLayers,
 	IDLE_LOOK_PREVIEW_REARM_DELAY_MS,
+	idleLookMediaLayers,
+	liveLookSlotsForPieces,
 	LOOK_HARD_CUT_KEEPALIVE_MS,
 } from '../base/showstyle/helpers/pgmLook.js'
 import {
@@ -791,8 +793,38 @@ describe('vMix feed mode (look feed inputs)', () => {
 				feedConfig
 			)
 
+			// An arm is expected exactly when the impl's own guards pass: the
+			// current part carries the preview placeholder, the next part has
+			// real look MEDIA claiming a slot, and that slot is not live on the
+			// current part (same-slot Takes legitimately skip). Computed before
+			// inspecting updates so a missing preview fails instead of being
+			// skipped by the empty-preview continue.
+			const hasPlaceholder = current.pieces.some(
+				(piece) => piece.sourceLayerId === (SourceLayer.LookIdlePreview as string)
+			)
+			const nextMediaSlot = (['A', 'B'] as const).find((slot) =>
+				objectsOf(next.pieces).some((obj) => {
+					const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+					return (
+						idleLookMediaLayers(slot, true).map(String).includes(String(obj.layer)) &&
+						content?.deviceType === TSR.DeviceType.CASPARCG &&
+						content.type === TSR.TimelineContentTypeCasparCg.MEDIA &&
+						!!content.file &&
+						content.file !== 'EMPTY'
+					)
+				})
+			)
+			const liveSlots = liveLookSlotsForPieces(
+				current.pieces.filter((piece) => piece.sourceLayerId !== (SourceLayer.LookIdlePreview as string)),
+				true,
+				{ a: feedConfig.vmixProgram?.lookAInput, b: feedConfig.vmixProgram?.lookBInput }
+			)
+			const armExpected = hasPlaceholder && !!nextMediaSlot && !(nextMediaSlot && liveSlots.has(nextMediaSlot))
+
 			const arm = updates.find((update) => update.id.endsWith('_lookidlepreview'))
 			const previewObjects = (arm?.piece.content?.timelineObjects ?? []) as TimelineBlueprintExt[]
+			const missingArm = armExpected && previewObjects.length === 0
+			expect(missingArm, `part ${next.part.externalId} should arm the idle look preview`).toBe(false)
 			if (previewObjects.length === 0) continue
 			arms++
 

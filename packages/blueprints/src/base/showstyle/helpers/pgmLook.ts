@@ -2362,7 +2362,7 @@ export function createLookAudioResetPiece(partExternalId: string, slot: LookSlot
 }
 
 /** Clip / ILU / `db_loop` layers a preview may clone on `slot` (vMix drops db_loop — it is phase-locked). */
-function idleLookMediaLayers(slot: LookSlot, vmixProgram: boolean): CasparCGLayers[] {
+export function idleLookMediaLayers(slot: LookSlot, vmixProgram: boolean): CasparCGLayers[] {
 	const layers = getLookLayers(slot)
 	return vmixProgram ? [layers.clip, layers.ilu] : [layers.clip, layers.ilu, layers.doubleBoxLoop]
 }
@@ -2375,7 +2375,7 @@ function idleLookMediaLayers(slot: LookSlot, vmixProgram: boolean): CasparCGLaye
  * vMix input directly), so a `vmix_me_program` object targeting a look input
  * marks that slot live too.
  */
-function liveLookSlotsForPieces(
+export function liveLookSlotsForPieces(
 	pieces: ReadonlyArray<{
 		content?: { timelineObjects?: ReadonlyArray<{ layer?: unknown; content?: unknown }> }
 	}>,

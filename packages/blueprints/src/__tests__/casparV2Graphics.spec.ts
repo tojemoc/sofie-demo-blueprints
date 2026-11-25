@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { PieceLifespan, TSR } from '@sofie-automation/blueprints-integration'
 
 import { SourceLayer } from '../base/showstyle/applyconfig/layers.js'
-import { resolveWipeAirCutMs, resolveWipeDurationMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
+import { resolveWipeAirCutMs, WIPE_CUT_POINT_MS } from '../base/showstyle/helpers/clips.js'
 import { createCountupRevealClaim } from '../base/showstyle/helpers/countupReveal.js'
 import { parseGraphicsFromObjects } from '../base/showstyle/helpers/graphics.js'
 import { LOOK_B_LAYERS, SAME_SLOT_WIPE_AIR_CUT_LEAD_MS } from '../base/showstyle/helpers/pgmLook.js'
@@ -23,7 +23,9 @@ import {
 } from './helpers/smokeRundownIngest.js'
 
 const POCASIE_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_pocasie')
-const POCASIE_WIPE_END_MS = resolveWipeDurationMs(2500, 'wipes/wipe_pocasie')
+// wipe_pocasie is capped at the file's real 2000 ms — pinned as a literal so the
+// specs fail if THEMED_WIPE_ANIMATION_MS drifts back to the generic 2340/2500.
+const POCASIE_WIPE_END_MS = 2000
 const POCASIE_SAME_SLOT_LOOK_CUT_MS = POCASIE_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
 
 const hybridCasparConfig: StudioConfig = {
@@ -626,7 +628,7 @@ describe('casparV2Graphics', () => {
 		// Themed wipe_pocasie is shorter than the generic 2500 ms RE default (no frozen last frame).
 		expect(clipEmpty?.enable).toEqual({
 			start: 0,
-			duration: resolveWipeDurationMs(2500, 'wipes/wipe_pocasie'),
+			duration: POCASIE_WIPE_END_MS,
 		})
 		// Weather owns look ILU — do not EMPTY bg_pocasie on the weather Take itself.
 		expect(emptyObjs.some((obj) => obj.layer === CasparCGLayers.CasparCGPgmIluPlayerB)).toBe(false)

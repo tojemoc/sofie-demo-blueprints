@@ -70,6 +70,7 @@ function isPocasieGraphic(object: GraphicObjectBase): boolean {
 export function partHasIluZaverObject(objects: SomeObject[]): boolean {
 	return objects.some(
 		(object) =>
+			object.objectType === ObjectType.Graphic &&
 			!object.isAdlib &&
 			typeof object.clipName === 'string' &&
 			normalizeGraphicClipName(object.clipName) === 'gfx/ilu-zaver' &&
