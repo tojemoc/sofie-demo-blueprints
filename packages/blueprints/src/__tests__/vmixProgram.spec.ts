@@ -751,13 +751,18 @@ describe('vMix feed mode (look feed inputs)', () => {
 			generatedParts.push(...generateParts(ctx, intermediate, undefined, seq).parts)
 		}
 
+		// A DoubleBox part emits opacity-1 db_loop on BOTH slots — claimed at Take
+		// (start 0), other-slot reveal at offAirMs — so the claimed slot is the one
+		// whose frame object starts at 0.
 		const claimedFrameSlot = (pieces: IBlueprintPiece[]): 'A' | 'B' | undefined =>
 			(['A', 'B'] as const).find((slot) =>
 				objectsOf(pieces).some(
 					(obj) =>
 						String(obj.layer) === String(getLookLayers(slot).doubleBoxLoop) &&
 						(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/db_loop' &&
-						(obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity === 1
+						(obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity === 1 &&
+						!Array.isArray(obj.enable) &&
+						(obj.enable as { start?: number }).start === 0
 				)
 			)
 
