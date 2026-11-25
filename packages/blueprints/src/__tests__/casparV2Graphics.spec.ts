@@ -23,6 +23,7 @@ import {
 } from './helpers/smokeRundownIngest.js'
 
 const POCASIE_WIPE_AIR_CUT_MS = resolveWipeAirCutMs({ cutPoint: WIPE_CUT_POINT_MS }, 2500, 'wipes/wipe_pocasie')
+const POCASIE_WIPE_END_MS = resolveWipeDurationMs(2500, 'wipes/wipe_pocasie')
 const POCASIE_SAME_SLOT_LOOK_CUT_MS = POCASIE_WIPE_AIR_CUT_MS - SAME_SLOT_WIPE_AIR_CUT_LEAD_MS
 
 const hybridCasparConfig: StudioConfig = {
@@ -654,7 +655,7 @@ describe('casparV2Graphics', () => {
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
 		// wipe_pocasie: the template enters at Take so the idle-preview-armed
-		// warm CEF load stays live; a _replay UPDATE at the air cut replays the
+		// warm CEF load stays live; a _replay UPDATE at the wipe's end replays the
 		// card cascade on air.
 		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(0)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
@@ -664,10 +665,10 @@ describe('casparV2Graphics', () => {
 				obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		expect(weatherL3dReplay?.enable).toEqual({ start: POCASIE_WIPE_AIR_CUT_MS })
+		expect(weatherL3dReplay?.enable).toEqual({ start: POCASIE_WIPE_END_MS })
 		expect(
 			((weatherL3dReplay?.content as TSR.TimelineContentCCGTemplate).data as { _replay?: number })?._replay
-		).toBe(POCASIE_WIPE_AIR_CUT_MS)
+		).toBe(POCASIE_WIPE_END_MS)
 		// No incoming-slot L3D EMPTY — it would CG STOP the armed warm template.
 		const l3dEmpty = emptyObjs.find((obj) => obj.layer === CasparCGLayers.CasparCGGraphicsPgmLowerThirdB)
 		expect(l3dEmpty).toBeUndefined()
@@ -707,7 +708,7 @@ describe('casparV2Graphics', () => {
 				obj.layer === LOOK_B_LAYERS.lowerThird &&
 				(obj.content as TSR.TimelineContentCCGTemplate).type === TSR.TimelineContentTypeCasparCg.TEMPLATE
 		)
-		expect(weatherL3dReplay?.enable).toEqual({ start: POCASIE_WIPE_AIR_CUT_MS })
+		expect(weatherL3dReplay?.enable).toEqual({ start: POCASIE_WIPE_END_MS })
 
 		const clearPiece = result.pieces.find((piece) => piece.externalId?.endsWith('_l3d_clear'))
 		const l3dEmpty = (clearPiece?.content.timelineObjects ?? []).find(

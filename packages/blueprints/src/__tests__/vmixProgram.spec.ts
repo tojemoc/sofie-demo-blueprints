@@ -738,6 +738,78 @@ describe('vMix feed mode (look feed inputs)', () => {
 		expect(previews).toBeGreaterThan(0)
 	})
 
+	it('arms revealed db_loop on the idle slot only when the next part owns the DoubleBox frame', async () => {
+		// The off-air channel should stay dressed during prep: when the next part
+		// claims a slot with a phase-locked db_loop (opacity 1), the preview arm
+		// must reveal it there — otherwise the frame pops on at the Take's wipe.
+		const exportData = loadSmokeRundownExport()
+		const seq = createLookSlotSequence()
+		const ctx = vmixContext(feedConfig)
+		const generatedParts: Array<{ part: IBlueprintPart; pieces: IBlueprintPiece[] }> = []
+		for (const segId of [...new Set(exportData.parts.map((p) => p.segmentId))]) {
+			const intermediate = convertIngestData(mockIngestContext, smokeExportToIngestSegment(exportData, segId))
+			generatedParts.push(...generateParts(ctx, intermediate, undefined, seq).parts)
+		}
+
+		const claimedFrameSlot = (pieces: IBlueprintPiece[]): 'A' | 'B' | undefined =>
+			(['A', 'B'] as const).find((slot) =>
+				objectsOf(pieces).some(
+					(obj) =>
+						String(obj.layer) === String(getLookLayers(slot).doubleBoxLoop) &&
+						(obj.content as TSR.TimelineContentCCGMedia).file === 'loops/db_loop' &&
+						(obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity === 1
+				)
+			)
+
+		let arms = 0
+		let reveals = 0
+		for (let i = 0; i < generatedParts.length - 1; i++) {
+			const current = generatedParts[i]
+			const next = generatedParts[i + 1]
+			if (current.part.invalid || current.part.floated || next.part.invalid || next.part.floated) continue
+
+			const updates: Array<{ id: string; piece: { content?: { timelineObjects?: unknown[] } } }> = []
+			const toInstances = (part: { pieces: IBlueprintPiece[] }) =>
+				part.pieces.map((piece, idx) => ({ _id: piece.externalId ?? `piece-${idx}`, piece }))
+			await armIdleLookPreviewForNext(
+				{
+					getPartInstance: async (which: 'current' | 'next') => ({
+						part: (which === 'current' ? current : next).part,
+					}),
+					getPieceInstances: async (which: 'current' | 'next') =>
+						toInstances(which === 'current' ? current : next),
+					updatePieceInstance: async (id: string, piece: { content?: { timelineObjects?: unknown[] } }) => {
+						updates.push({ id, piece })
+						return {}
+					},
+				} as never,
+				feedConfig
+			)
+
+			const arm = updates.find((update) => update.id.endsWith('_lookidlepreview'))
+			const previewObjects = (arm?.piece.content?.timelineObjects ?? []) as TimelineBlueprintExt[]
+			if (previewObjects.length === 0) continue
+			arms++
+
+			const dbLoopObjects = previewObjects.filter((obj) =>
+				[String(getLookLayers('A').doubleBoxLoop), String(getLookLayers('B').doubleBoxLoop)].includes(
+					String(obj.layer)
+				)
+			)
+			const nextSlot = claimedFrameSlot(next.pieces)
+			expect(
+				dbLoopObjects.map((obj) => [
+					String(obj.layer),
+					(obj.content as TSR.TimelineContentCCGMedia).mixer?.opacity,
+				]),
+				`part ${next.part.externalId} db_loop reveal`
+			).toEqual(nextSlot ? [[String(getLookLayers(nextSlot).doubleBoxLoop), 1]] : [])
+			if (nextSlot) reveals++
+		}
+		expect(arms).toBeGreaterThan(0)
+		expect(reveals).toBeGreaterThan(0)
+	})
+
 	it('does not arm the preview onto a look input that is on program without Caspar MEDIA', async () => {
 		const placeholder = createIdleLookPreviewPiece('part-current')
 		// Stale armed clone — the guard must clear it, not re-arm onto the live input.

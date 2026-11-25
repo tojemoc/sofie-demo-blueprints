@@ -50,6 +50,7 @@ import {
 	HEADLINE_HOLD_CLIP_FRAME_MS,
 	LAST_HEADLINE_HOLD_INTO_INTRO_MS,
 	LAST_HEADLINE_HOLD_PIECE_SUFFIX,
+	partHasIluZaverObject,
 } from './graphics.js'
 import { createMediaFileExpectedPackage, toCasparPlayPath } from './mediaPackages.js'
 import { createLookCameraClearTimelineObject, createVMixLookCameraTimelineObjects } from './pgmCamera.js'
@@ -295,6 +296,9 @@ export function lookKindForPart(rawType: string | undefined, objects: SomeObject
 
 /** True when this part should compose with the DoubleBox frame (FILL + db_loop). */
 export function isDoubleBoxLook(rawType: string | undefined, objects: SomeObject[]): boolean {
+	// ZAVER+AVIZO: an active `gfx/ilu-zaver` marks the closing avízo — always a Full
+	// look. A stray `doublebox` type / `doublebox-ilu` object must not resurrect the shell.
+	if (partHasIluZaverObject(objects)) return false
 	if (/doublebox|double-box/i.test(rawType || '')) return true
 	return objects.some((obj) => {
 		if (obj.objectType !== ObjectType.Graphic) return false
@@ -2041,21 +2045,21 @@ function applyL3dTakeOffsets(
 						// replay; the _replay object below restarts it at the cut.
 						objEnable.start = 0
 					}
-					// Second copy at the air cut forces a CG UPDATE on the template
+					// Second copy at the wipe's end forces a CG UPDATE on the template
 					// the idle-preview armed — pocasie.update() replays the cascade so
 					// the unroll runs on air instead of having finished under cover.
-					if (wipeAirCutMs > 0 && (content as { name?: string }).name === 'gfx/pocasie') {
+					if (wipeDurationMs > 0 && (content as { name?: string }).name === 'gfx/pocasie') {
 						pocasieReplayObjects.push(
 							literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
 								id: '',
-								enable: { start: wipeAirCutMs },
+								enable: { start: wipeDurationMs },
 								layer: obj.layer,
 								priority: obj.priority,
 								content: {
 									...(content as TSR.TimelineContentCCGTemplate),
 									data: {
 										...((content as TSR.TimelineContentCCGTemplate).data ?? {}),
-										_replay: wipeAirCutMs,
+										_replay: wipeDurationMs,
 									},
 								},
 							})
@@ -2543,6 +2547,42 @@ export async function armIdleLookPreviewForNext(
 						},
 					})
 				)
+			}
+
+			// vMix phase-lock: when the next part owns the DoubleBox frame on its
+			// claimed slot, reveal db_loop there during the preview window — the
+			// off-air channel is already dressed through prep instead of popping
+			// the frame on at the Take's wipe. Opacity 1 distinguishes the claimed
+			// frame object from a non-frame part's opacity-0 _db_loop_hold.
+			if (vmixProgram) {
+				const frameLayer = String(getLookLayers(nextSlot).doubleBoxLoop)
+				const ownsFrame = nextObjects.some((obj) => {
+					if (String(obj.layer) !== frameLayer || seenLayers.has(frameLayer)) return false
+					const content = obj.content as TSR.TimelineContentCCGMedia | undefined
+					return (
+						isCasparMedia(content ?? {}) &&
+						content?.file === toCasparPlayPath(DOUBLEBOX_LOOP_FILE) &&
+						content?.mixer?.opacity === 1
+					)
+				})
+				if (ownsFrame) {
+					seenLayers.add(frameLayer)
+					previewObjects.push(
+						literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
+							id: '',
+							enable: { start: previewStartMs },
+							layer: getLookLayers(nextSlot).doubleBoxLoop,
+							priority: previewPriority,
+							content: {
+								deviceType: TSR.DeviceType.CASPARCG,
+								type: TSR.TimelineContentTypeCasparCg.MEDIA,
+								file: toCasparPlayPath(DOUBLEBOX_LOOP_FILE),
+								loop: true,
+								mixer: { opacity: 1 },
+							},
+						})
+					)
+				}
 			}
 
 			// Pocasie cold-loads its CEF for ~5 s — arm it on the idle channel with
