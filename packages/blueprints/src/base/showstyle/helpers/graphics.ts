@@ -70,6 +70,7 @@ function isPocasieGraphic(object: GraphicObjectBase): boolean {
 export function partHasIluZaverObject(objects: SomeObject[]): boolean {
 	return objects.some(
 		(object) =>
+			object.objectType === ObjectType.Graphic &&
 			!object.isAdlib &&
 			typeof object.clipName === 'string' &&
 			normalizeGraphicClipName(object.clipName) === 'gfx/ilu-zaver' &&
@@ -917,9 +918,14 @@ export function parseGraphicsFromObjects(
 	context?: ICommonContext
 ): GraphicsResult {
 	const graphicsObjects = objects.filter((o): o is GraphicObject => o.objectType === ObjectType.Graphic)
+	// ZAVER+AVIZO veto: an active ilu-zaver marks the closing avízo (Full look) —
+	// a leftover doublebox-ilu object must not draw the shell's left window on PGM.
+	const hasIluZaver = partHasIluZaverObject(objects)
 
 	return {
-		pieces: graphicsObjects.filter((o) => !o.isAdlib).map((o) => parseGraphic(config, o, context)),
+		pieces: graphicsObjects
+			.filter((o) => !o.isAdlib && !(hasIluZaver && isDoubleboxIlu(o)))
+			.map((o) => parseGraphic(config, o, context)),
 		adLibPieces: graphicsObjects.filter((o) => !!o.isAdlib).map((o, i) => parseAdlibGraphic(config, o, i, context)),
 	}
 }

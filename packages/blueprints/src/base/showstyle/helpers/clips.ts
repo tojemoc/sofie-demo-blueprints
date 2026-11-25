@@ -124,7 +124,7 @@ export const DEFAULT_WIPE_PREROLL_MS = 3000
 export const THEMED_WIPE_ANIMATION_MS: Readonly<Record<string, number>> = {
 	'wipes/wipe_sjv': 2500 - 7 * 20, // 2360 — 7 frames of freeze on last frame
 	'wipes/wipe_sport': 2500 - 8 * 20, // 2340
-	'wipes/wipe_pocasie': 2500 - 8 * 20, // 2340
+	'wipes/wipe_pocasie': 2000, // wipe_pocasie.mov ends at 50 frames @25fps
 }
 
 function normalizeWipePlayPath(fileName: string | undefined): string | undefined {
