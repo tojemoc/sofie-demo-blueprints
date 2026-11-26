@@ -34,7 +34,6 @@ import {
 } from '../definitions/index.js'
 import {
 	createSportBackgroundMusicPiece,
-	createZaverBackgroundMusicPiece,
 	duckAudioBedPieceDuringWipe,
 	getWipeSfxStartMs,
 	isPocasieSegmentName,
@@ -675,27 +674,6 @@ export function generateParts(
 			)
 		}
 		entrancePart.pieces.push(sportMusic)
-	}
-
-	if (isZaverSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
-		// Back to kolíska A for ZAVER+AVIZO (C owned the bed since Šport). Put it
-		// on the first playable part so the swap lands with the first ZAVER Take.
-		const zaverEntranceIdx = Math.max(
-			0,
-			parts.findIndex((part) => !part.part.invalid && !part.part.floated)
-		)
-		const zaverEntrancePart = parts[zaverEntranceIdx] ?? parts[0]
-		const zaverEntranceRaw = intermediateSegment.parts[zaverEntranceIdx] ?? intermediateSegment.parts[0]
-		zaverEntrancePart.pieces.push(
-			// Wiped swaps get their bed restart from the wipe mute's unmute —
-			// only an unwiped Záver Take restarts the A-bed at its opening here.
-			createZaverBackgroundMusicPiece(
-				context,
-				studioConfig,
-				zaverEntranceRaw?.payload.externalId ?? 'zaver',
-				Boolean(findWipeVideoObject(zaverEntranceRaw?.objects ?? []))
-			)
-		)
 	}
 
 	return {
