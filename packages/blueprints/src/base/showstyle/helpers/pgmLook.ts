@@ -2019,8 +2019,8 @@ function applyL3dTakeOffsets(
 
 			if (L3D_TEMPLATE_LAYERS.has(layer) && isCasparTemplate(content)) {
 				if (hasWipe && wipePocasie) {
-					// Weather GFX ADDs early — its CEF load + card cascade runs
-					// under the wipe cover so the board is complete at the air cut.
+					// Weather GFX ADDs early — only its CEF load warms under the
+					// wipe cover; the _replay copy below owns the on-air cascade.
 					// Rebase both the piece and the object: the WX piece's editorial
 					// start sits ~2 s in, which would push the ADD past the reveal.
 					if (typeof piece.enable?.start === 'number' && piece.enable.start > POCASIE_L3D_PRELOAD_MS) {
@@ -2049,6 +2049,7 @@ function applyL3dTakeOffsets(
 					// the idle-preview armed — pocasie.update() replays the cascade so
 					// the unroll runs on air instead of having finished under cover.
 					if (wipeDurationMs > 0 && (content as { name?: string }).name === 'gfx/pocasie') {
+						const templateContent = content as TSR.TimelineContentCCGTemplate
 						pocasieReplayObjects.push(
 							literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
 								id: '',
@@ -2056,14 +2057,18 @@ function applyL3dTakeOffsets(
 								layer: obj.layer,
 								priority: obj.priority,
 								content: {
-									...(content as TSR.TimelineContentCCGTemplate),
+									...templateContent,
 									data: {
-										...((content as TSR.TimelineContentCCGTemplate).data ?? {}),
+										...(templateContent.data ?? {}),
 										_replay: wipeDurationMs,
 									},
 								},
 							})
 						)
+						// update() always calls play() — blank the Take object's payload
+						// so the air-cut UPDATE cannot cascade under the wipe cover (the
+						// armed {} diff stays silent); the _replay copy owns the unroll.
+						templateContent.data = {}
 					}
 					continue
 				}

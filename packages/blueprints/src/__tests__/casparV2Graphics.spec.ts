@@ -661,6 +661,10 @@ describe('casparV2Graphics', () => {
 		// card cascade on air.
 		expect(!Array.isArray(weatherL3d?.enable) && weatherL3d?.enable.start).toBe(0)
 		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).useStopCommand).toBe(true)
+		// Take object stays silent — pocasie.update() always replays, so real data
+		// at the air cut would cascade under the cover and show half-grown cards
+		// at the wipe's clear before _replay resets them.
+		expect((weatherL3d?.content as TSR.TimelineContentCCGTemplate).data).toEqual({})
 		const weatherL3dReplay = timeline.find(
 			(obj) =>
 				obj !== weatherL3d &&
