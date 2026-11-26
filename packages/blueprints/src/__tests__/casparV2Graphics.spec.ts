@@ -763,7 +763,11 @@ describe('casparV2Graphics', () => {
 		expect(
 			(outroVideo?.content.timelineObjects?.[0]?.content as TSR.TimelineContentCCGMedia | undefined)?.loop
 		).toBe(false)
-		const countupMute = generatedOutro?.pieces.find((piece) => piece.externalId?.endsWith('_countup_mute'))
+		// The mute infinite is emitted once per reveal and continues into Outro —
+		// it is not re-pushed on every later part.
+		const countupMute = generated.parts
+			.flatMap((part) => part.pieces)
+			.find((piece) => piece.externalId?.endsWith('_countup_mute'))
 		expect(countupMute).toBeDefined()
 		expect(countupMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 	})

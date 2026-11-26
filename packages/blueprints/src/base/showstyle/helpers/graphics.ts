@@ -664,6 +664,10 @@ function getGraphicTlObject(
 					type: TSR.TimelineContentTypeCasparCg.MEDIA,
 					file: toCasparPlayPath(DEFAULT_POCASIE_BG_FILE),
 					loop: true,
+					// bg_pocasie is a visual bed — pin 0 so rampVmixLookClipAudio
+					// ramps to 0 (unset volume would ramp the .mov's audio to 1
+					// and play it under the beds for the whole weather part).
+					mixer: { volume: 0 },
 				},
 			}),
 			literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({

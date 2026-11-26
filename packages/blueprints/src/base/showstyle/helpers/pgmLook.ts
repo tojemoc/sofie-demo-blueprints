@@ -1412,7 +1412,10 @@ export function finalizeHypercomposedPart(
 	// When the avízo is already on the LED (zaver Cam/SYN interleave — the piece is
 	// OutOnRundownEnd and continues through non-zaver parts), delaying would EMPTY
 	// the wall until the cut: keep it at 0 so the identical content diffs to no-op.
-	if (hasWipe && partHasActiveIluZaver(pieces) && !iluZaverOnAir) {
+	// Leave-weather needs no delay at all: the fullscreen weather board keeps the
+	// LED wall off-camera through the pre-cover window, so PLAY at Take starts the
+	// clip during the sting — landing it at the cut left it ~4f after pull-out.
+	if (hasWipe && partHasActiveIluZaver(pieces) && !iluZaverOnAir && !previousPartHadWeather) {
 		// Land the LED window with the rest of the leave-weather teardown — the
 		// route flip, WX hide and look ILU PLAY all share leaveWeatherHideMs.
 		delayLedIluZaverToWipeCut(pieces, leaveWeatherHideMs)

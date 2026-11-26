@@ -567,7 +567,10 @@ export function createBackgroundMusicMutePiece(
 								// per-part string: RESTART_INPUT only fires on a truthy value
 								// change, while seek:0 would emit nothing on a second
 								// identical wipe (SET_POSITION diffs by value).
-								...(restartBeds
+								// Only the ACTIVE bed restarts: Restart/PLAY on a muted input
+								// can re-route its audio out-of-band (vMix AudioAuto) while
+								// TSR's cached state still says muted — the bed resurrects.
+								...(restartBeds && bed === activeBed
 									? [
 											literal<TimelineBlueprintExt<TSR.TimelineContentVMixInput>>({
 												id: '',
