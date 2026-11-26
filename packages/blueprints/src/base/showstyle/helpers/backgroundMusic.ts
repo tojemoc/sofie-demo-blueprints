@@ -280,10 +280,11 @@ export function setVmixActiveBedForGeneration(
 	state.segments.set(segmentExternalId ?? segmentName, record)
 
 	const ordered = [...state.segments.values()].sort((a, b) => a.rank - b.rank || a.order - b.order)
+	// C owns the bed from the first Šport segment until the Outro mute — no
+	// re-swap at ZÁVER (that flip-flop was the "A comes back mid-sport" family).
 	let bed: VmixBed = 'A'
 	for (const seg of ordered.slice(0, ordered.indexOf(record) + 1)) {
 		if (isSportSegmentName(seg.name)) bed = 'C'
-		else if (isZaverSegmentName(seg.name)) bed = 'A'
 	}
 	state.currentBed = bed
 }
@@ -452,65 +453,8 @@ export function createBackgroundMusicHitPiece(config: StudioConfig): IBlueprintP
 }
 
 /**
- * Back to the A-bed for ZAVER+AVIZO (C plays from Šport onward). Priority 1.5:
- * above the sport C objects (1) and the first-Take A objects (0), below the
- * WithinPart wipe / headline / outro mutes (2). The A media diff also re-PLAYs
- * the file from 0 with the kolíska hit→duck envelope.
- */
-export function createZaverBackgroundMusicPiece(
-	context: ICommonContext,
-	config: StudioConfig,
-	partExternalId: string,
-	wiped = false
-): IBlueprintPiece {
-	return literal<IBlueprintPiece>({
-		enable: { start: 0 },
-		externalId: `${partExternalId}_bg_music_a`,
-		name: 'BG music A (ZAVER+AVIZO)',
-		lifespan: PieceLifespan.OutOnRundownEnd,
-		sourceLayerId: SourceLayer.AudioBed,
-		outputLayerId: getOutputLayerForSourceLayer(SourceLayer.AudioBed),
-		content: {
-			fileName: BG_MUSIC_A_FILE,
-			timelineObjects: casparOwnsMusicBeds(config)
-				? createDualChannelAudioBedTimelineObjects(BG_MUSIC_A_FILE, {
-						volume: KOLISKA_HIT_VOLUME,
-						priority: 1.5,
-						keyframes: koliskaMixerKeyframes(),
-					})
-				: (['A', 'C'] as const)
-						.filter(() => hasVmixBeds(config))
-						.flatMap((bed) => [
-							// A stayed muted-but-playing since Šport — `playing:true` alone
-							// resumes mid-loop, so unwiped swaps restart the track at its
-							// opening here. Wiped swaps get their restart from the wipe
-							// mute's unmute object instead (a restart at Take + one at
-							// unmute would re-seek the bed twice).
-							...(bed === 'A'
-								? [vmixBedPlayObject('A', { while: 1 }, 1.5, wiped ? undefined : partExternalId)]
-								: []),
-							...(bed === 'A'
-								? vmixBedRestartEnvelope(config, 'A', 0, 1.5)
-								: [vmixBedAudioObject(bed, { while: 1 }, 1.5, { muted: true })]),
-						]),
-		},
-		expectedPackages: !casparOwnsMusicBeds(config)
-			? []
-			: [
-					createMediaFileExpectedPackage(
-						context,
-						BG_MUSIC_A_FILE,
-						[CasparCGLayers.CasparCGAudioBed, CasparCGLayers.CasparCGAudioBedPgm],
-						{ includeSideEffects: true }
-					),
-				],
-		prerollDuration: config.casparcgLatency,
-	})
-}
-
-/**
  * Mute LED+PGM kolíska beds (A and C) while an overlay owns the soundtrack.
- * Priority 2 beats the ZAVER A-bed (1.5), C-bed (1) and the first-Take A-bed (0).
+ * Priority 2 beats the C-bed (1) and the first-Take A-bed (0).
  *
  * Outro mute is OutOnRundownEnd so beds stay quiet after the jingle (no restart).
  * Intro mute is WithinPart so the first DoubleBox reveal can bring audio back.

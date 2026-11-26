@@ -98,7 +98,7 @@ describe('koliska bed envelope', () => {
 		}
 	})
 
-	it('detects ZAVER+AVIZO segment names for the C→A bed swap', () => {
+	it('detects ZAVER+AVIZO segment names', () => {
 		expect(isZaverSegmentName('ZÁVER + AVIZO')).toBe(true)
 		expect(isZaverSegmentName('Zaver')).toBe(true)
 		expect(isZaverSegmentName('POČASIE')).toBe(false)

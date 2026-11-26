@@ -241,10 +241,17 @@ async function ensureBgMusicAStartPiece(
 ): Promise<void> {
 	if (!partInstance) return
 	const nextPieces = await context.getPieceInstances('next')
+	const currentPieces = await context.getPieceInstances('current')
 	// Any audioBed piece already owns the bed slot (a continued start piece, or a
-	// generated swap like Šport C / ZAVER A). Re-arming after a swap would let the
-	// dynamically-inserted copy prune the local bed piece back to bed A.
-	if (nextPieces.some((instance) => instance.piece.sourceLayerId === (SourceLayer.AudioBed as string))) return
+	// generated swap like Šport C). Check 'current' too — the swap piece lives on
+	// the sport entrance part and may not surface in 'next', and re-arming after
+	// a swap would let the dynamically-inserted copy prune it back to bed A.
+	if (
+		[...nextPieces, ...currentPieces].some(
+			(instance) => instance.piece.sourceLayerId === (SourceLayer.AudioBed as string)
+		)
+	)
+		return
 	await context.insertPiece('next', createBackgroundMusicStartPiece(context, studioConfig))
 }
 
