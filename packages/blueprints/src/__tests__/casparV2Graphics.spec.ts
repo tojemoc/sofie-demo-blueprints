@@ -772,6 +772,23 @@ describe('casparV2Graphics', () => {
 		expect(countupMute?.lifespan).toBe(PieceLifespan.OutOnRundownEnd)
 	})
 
+	it('re-emits the countup mute when the outro segment regenerates', () => {
+		const exportData = loadSmokeRundownExport()
+		const ingest = smokeExportToIngestSegment(exportData, 'seg-outro')
+		const segment = convertIngestData(mockIngestContext, ingest)
+		const claim = createCountupRevealClaim()
+		claim.claim('spravy-v3-smoke')
+		// First generation suppresses further same-mode copies; a regeneration of
+		// the same segment must emit again or the mute infinite is lost.
+		generateParts(mockSegmentContext(), segment, claim)
+		const regenerated = generateParts(mockSegmentContext(), segment, claim)
+		expect(
+			regenerated.parts
+				.flatMap((part) => part.pieces)
+				.some((piece) => piece.externalId?.endsWith('_countup_mute'))
+		).toBe(true)
+	})
+
 	it('decodes legacy cities JSON for gfx/pocasie template data', () => {
 		const result = parseGraphicsFromObjects(hybridCasparConfig, [
 			{

@@ -46,11 +46,17 @@ export interface CountupRevealClaim {
 	 * was WithinPart (dead). */
 	lastEmitted(): { mode: 'sustain' | 'mute'; persistent: boolean } | undefined
 	markEmitted(mode: 'sustain' | 'mute', persistent: boolean): void
+	/** A segment is about to generate. When the segment already generated in this
+	 * claim it is a regeneration — its earlier copies are being replaced, so the
+	 * suppression resets and the mute/sustain re-emits. A new segment keeps
+	 * suppression: the earlier infinite continues into it. */
+	beginSegment(segmentExternalId: string): void
 }
 
 /** Fresh claim set for one generation — the first claimant wins the reveal, later ones are told it is already revealed. */
 export function createCountupRevealClaim(): CountupRevealClaim {
 	const claimedRundownIds = new Set<string>()
+	const generatedSegmentIds = new Set<string>()
 	let emitted: { mode: 'sustain' | 'mute'; persistent: boolean } | undefined
 	return {
 		claim(rundownId: string): boolean {
@@ -66,6 +72,10 @@ export function createCountupRevealClaim(): CountupRevealClaim {
 		},
 		markEmitted(mode: 'sustain' | 'mute', persistent: boolean) {
 			emitted = { mode, persistent }
+		},
+		beginSegment(segmentExternalId: string) {
+			if (generatedSegmentIds.has(segmentExternalId)) emitted = undefined
+			generatedSegmentIds.add(segmentExternalId)
 		},
 	}
 }

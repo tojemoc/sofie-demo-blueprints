@@ -204,7 +204,7 @@ function hasVmixBeds(config: StudioConfig): boolean {
  * before it — regenerating Počasie keeps C, regenerating an early story gets A.
  */
 interface VmixBedGenerationState {
-	segments: Map<string, { rank: number; order: number; name: string }>
+	segments: Map<string, { rank: number; order: number; name: string; producedC?: boolean }>
 	currentBed: VmixBed
 	nextOrder: number
 }
@@ -213,7 +213,7 @@ const vmixBedGenerationByRundownId = new Map<string, VmixBedGenerationState>()
 /** Fresh slate for a full rundown regeneration, seeded with the ingest segment order (called from getRundown). */
 export function beginVmixBedGeneration(
 	rundownId: string,
-	segments: ReadonlyArray<{ externalId: string; rank: number; name: string }>
+	segments: ReadonlyArray<{ externalId: string; rank: number; name: string; producesC?: boolean }>
 ): void {
 	const state: VmixBedGenerationState = { segments: new Map(), currentBed: 'A', nextOrder: 0 }
 	vmixBedGenerationByRundownId.set(rundownId, state)
@@ -222,7 +222,7 @@ export function beginVmixBedGeneration(
 
 function seedVmixBedSegments(
 	state: VmixBedGenerationState,
-	segments: ReadonlyArray<{ externalId: string; rank: number; name: string }>
+	segments: ReadonlyArray<{ externalId: string; rank: number; name: string; producesC?: boolean }>
 ): void {
 	for (const seg of [...segments].sort((a, b) => a.rank - b.rank)) {
 		const existing = state.segments.get(seg.externalId)
@@ -232,7 +232,12 @@ function seedVmixBedSegments(
 			// are generation bookkeeping, not editorial position: keep them.
 			existing.rank = seg.rank
 		} else {
-			state.segments.set(seg.externalId, { rank: seg.rank, order: state.nextOrder++, name: seg.name })
+			state.segments.set(seg.externalId, {
+				rank: seg.rank,
+				order: state.nextOrder++,
+				name: seg.name,
+				producedC: seg.producesC,
+			})
 		}
 	}
 }
@@ -276,17 +281,33 @@ export function setVmixActiveBedForGeneration(
 		rank: rank ?? existing?.rank ?? Number.MAX_SAFE_INTEGER,
 		order: existing?.order ?? state.nextOrder++,
 		name: segmentName,
+		producedC: existing?.producedC,
 	}
 	state.segments.set(segmentExternalId ?? segmentName, record)
 
 	const ordered = [...state.segments.values()].sort((a, b) => a.rank - b.rank || a.order - b.order)
 	// C owns the bed from the first Šport segment until the Outro mute — no
 	// re-swap at ZÁVER (that flip-flop was the "A comes back mid-sport" family).
+	// The segment being generated is promoted optimistically (its own wipe
+	// pieces need C before its parts exist); prior segments count only once
+	// they actually emitted a C piece — an empty Šport segment must not leave
+	// C active for ZÁVER to restart+unmute a bed that never started.
 	let bed: VmixBed = 'A'
 	for (const seg of ordered.slice(0, ordered.indexOf(record) + 1)) {
-		if (isSportSegmentName(seg.name)) bed = 'C'
+		if (isSportSegmentName(seg.name) && (seg === record || seg.producedC)) bed = 'C'
 	}
 	state.currentBed = bed
+}
+
+/** Record whether a Šport segment emitted its C bed piece — later segments promote to C only behind a produced segment. */
+export function markVmixSportBedEmitted(
+	rundownId: string,
+	segmentExternalId: string | undefined,
+	segmentName: string,
+	emitted: boolean
+): void {
+	const record = vmixBedGenerationByRundownId.get(rundownId)?.segments.get(segmentExternalId ?? segmentName)
+	if (record) record.producedC = emitted
 }
 
 export function getVmixActiveBedForGeneration(rundownId: string | undefined): VmixBed {

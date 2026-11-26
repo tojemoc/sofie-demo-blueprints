@@ -2133,6 +2133,12 @@ function applyL3dTakeOffsets(
 
 		if (pocasieReplayObjects.length > 0) {
 			piece.content.timelineObjects = [...(piece.content.timelineObjects ?? []), ...pocasieReplayObjects]
+			// The _replay copy sits at wipeDurationMs — a finite piece ending
+			// before that would kill the replay object with it and the unroll
+			// never reaches air.
+			if (typeof piece.enable?.duration === 'number' && piece.enable.duration < wipeDurationMs + WIPE_FRAME_MS) {
+				l3dDurationPadMs = Math.max(l3dDurationPadMs, wipeDurationMs + WIPE_FRAME_MS - piece.enable.duration)
+			}
 		}
 
 		// The shifted ADD eats into a finite piece window — pad it so the strap still

@@ -39,6 +39,7 @@ import {
 	isPocasieSegmentName,
 	isSportSegmentName,
 	isZaverSegmentName,
+	markVmixSportBedEmitted,
 	previousSegmentNameForGeneration,
 	setVmixActiveBedForGeneration,
 } from '../helpers/backgroundMusic.js'
@@ -152,6 +153,9 @@ export function generateParts(
 		intermediateSegment.payload.name ?? '',
 		intermediateSegment.payload.rank
 	)
+	// Segment regeneration replaces its earlier countup copies — the claim must
+	// re-emit the mute/sustain instead of suppressing against the stale mark.
+	countupRevealClaim.beginSegment(intermediateSegment.payload.externalId ?? intermediateSegment.payload.name ?? '')
 	// Create Segment UserEditOperations:
 	const userEditOperationsOnSegment: UserEditingDefinitionAction[] = [
 		{
@@ -637,6 +641,16 @@ export function generateParts(
 	// on-air part through a full sting so cross-segment wiped Takes keep picture.
 	raiseLookMediaPostrollForCrossSegmentWipe(parts)
 
+	if (isSportSegmentName(intermediateSegment.payload.name)) {
+		// C ownership sticks only for segments that emit the piece — an empty
+		// Šport segment leaves the live bed alone for ZÁVER's restart/unmute.
+		markVmixSportBedEmitted(
+			context.rundownId,
+			intermediateSegment.payload.externalId,
+			intermediateSegment.payload.name ?? '',
+			parts.length > 0
+		)
+	}
 	if (isSportSegmentName(intermediateSegment.payload.name) && parts.length > 0) {
 		// Prefer the wipe-entrance Take (first VO / wipe host), not a skipped open GFX shell.
 		const sportEntranceIdx = Math.max(
