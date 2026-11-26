@@ -236,7 +236,9 @@ function seedVmixBedSegments(
 				rank: seg.rank,
 				order: state.nextOrder++,
 				name: seg.name,
-				producedC: seg.producesC,
+				// Snapshots predating producesC fall back to name — matches the
+				// pre-flag behavior (better C-for-a-real-sport than A-for-everything).
+				producedC: seg.producesC ?? isSportSegmentName(seg.name),
 			})
 		}
 	}

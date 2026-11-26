@@ -2053,10 +2053,16 @@ function applyL3dTakeOffsets(
 					// the unroll runs on air instead of having finished under cover.
 					if (wipeDurationMs > 0 && (content as { name?: string }).name === 'gfx/pocasie') {
 						const templateContent = content as TSR.TimelineContentCCGTemplate
+						// enable.start is piece-relative: a piece that kept a
+						// sub-preload start would push the replay past the cut.
+						const replayStartMs = Math.max(
+							0,
+							wipeDurationMs - Math.max(0, (piece.enable as { start?: number })?.start ?? 0)
+						)
 						pocasieReplayObjects.push(
 							literal<TimelineBlueprintExt<TSR.TimelineContentCCGTemplate>>({
 								id: '',
-								enable: { start: wipeDurationMs },
+								enable: { start: replayStartMs },
 								layer: obj.layer,
 								priority: obj.priority,
 								content: {
@@ -2133,12 +2139,11 @@ function applyL3dTakeOffsets(
 
 		if (pocasieReplayObjects.length > 0) {
 			piece.content.timelineObjects = [...(piece.content.timelineObjects ?? []), ...pocasieReplayObjects]
-			// The _replay copy sits at wipeDurationMs — a finite piece ending
-			// before that would kill the replay object with it and the unroll
-			// never reaches air.
-			if (typeof piece.enable?.duration === 'number' && piece.enable.duration < wipeDurationMs + WIPE_FRAME_MS) {
-				l3dDurationPadMs = Math.max(l3dDurationPadMs, wipeDurationMs + WIPE_FRAME_MS - piece.enable.duration)
-			}
+			// The board only becomes visible when the _replay cascades at the
+			// cut — pad by the wipe so a finite piece still shows its full
+			// declared duration on air (barely covering the cut would CG-stop
+			// it mid-cascade).
+			l3dDurationPadMs = Math.max(l3dDurationPadMs, wipeDurationMs)
 		}
 
 		// The shifted ADD eats into a finite piece window — pad it so the strap still
