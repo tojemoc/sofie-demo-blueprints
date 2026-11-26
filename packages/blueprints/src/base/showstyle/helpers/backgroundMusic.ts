@@ -377,10 +377,12 @@ export function createVmixMicRampDownTimelineObjects(
  * (same pattern as the vMix recording piece). The bed must not play from
  * Activate/Rehearsal — it begins exactly when the first part goes on air.
  */
+export const BG_MUSIC_A_START_EXTERNAL_ID = 'first_take_bg_music_a'
+
 export function createBackgroundMusicStartPiece(context: ICommonContext, config: StudioConfig): IBlueprintPiece {
 	return literal<IBlueprintPiece>({
 		enable: { start: 0 },
-		externalId: 'first_take_bg_music_a',
+		externalId: BG_MUSIC_A_START_EXTERNAL_ID,
 		name: 'BG music A (first Take)',
 		lifespan: PieceLifespan.OutOnRundownEnd,
 		sourceLayerId: SourceLayer.AudioBed,

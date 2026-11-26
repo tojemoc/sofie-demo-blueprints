@@ -24,7 +24,11 @@ import { getAbResolverConfiguration } from './getAbResolverConfiguration.js'
 import { getAdlibItem } from './getAdlibItem.js'
 import { getSegment } from './getSegment.js'
 import { getShowStyleVariantId } from './getShowStyleVariantId.js'
-import { createBackgroundMusicHitPiece, createBackgroundMusicStartPiece } from './helpers/backgroundMusic.js'
+import {
+	BG_MUSIC_A_START_EXTERNAL_ID,
+	createBackgroundMusicHitPiece,
+	createBackgroundMusicStartPiece,
+} from './helpers/backgroundMusic.js'
 import { isOutroVideoFile } from './helpers/clips.js'
 import { parseConfig, ShowStyleConfig } from './helpers/config.js'
 import { COUNTUP_HOLD_EXTERNAL_ID_SUFFIX, createCountupHoldPiece } from './helpers/countupReveal.js'
@@ -242,13 +246,18 @@ async function ensureBgMusicAStartPiece(
 	if (!partInstance) return
 	const nextPieces = await context.getPieceInstances('next')
 	const currentPieces = await context.getPieceInstances('current')
-	// Any audioBed piece already owns the bed slot (a continued start piece, or a
-	// generated swap like Šport C). Check 'current' too — the swap piece lives on
-	// the sport entrance part and may not surface in 'next', and re-arming after
-	// a swap would let the dynamically-inserted copy prune it back to bed A.
+	const isAudioBed = (instance: IBlueprintPieceInstance): boolean =>
+		instance.piece.sourceLayerId === (SourceLayer.AudioBed as string)
+	// 'next' already carrying an audioBed piece owns the bed slot. 'current'
+	// blocks only on a *different* bed piece — the Šport-C swap lives on the
+	// sport entrance part and may not surface in 'next', and re-arming would
+	// let the dynamically-inserted copy prune it back to bed A. The A piece
+	// itself in 'current' is the normal transition case and must re-arm, or
+	// the bed dies with the part.
 	if (
-		[...nextPieces, ...currentPieces].some(
-			(instance) => instance.piece.sourceLayerId === (SourceLayer.AudioBed as string)
+		nextPieces.some(isAudioBed) ||
+		currentPieces.some(
+			(instance) => isAudioBed(instance) && instance.piece.externalId !== BG_MUSIC_A_START_EXTERNAL_ID
 		)
 	)
 		return
