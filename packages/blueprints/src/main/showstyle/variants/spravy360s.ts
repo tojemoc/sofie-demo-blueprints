@@ -4,21 +4,21 @@ import { ShowStyleConfig } from '../../../base/showstyle/helpers/config.js'
 
 type VariantsConfig = Pick<ShowStyleConfig, 'dvePresets'>
 
-export const demoVariants: Record<string, IShowStyleVariantConfigPreset<VariantsConfig>> = {
-	demo1: {
-		name: 'Demo-1',
+export const spravy360sVariants: Record<string, IShowStyleVariantConfigPreset<VariantsConfig>> = {
+	s360_1: {
+		name: 'S360-1',
 		config: {
 			dvePresets: {},
 		},
 	},
-	demo2: {
-		name: 'Demo-2',
+	s360_2: {
+		name: 'S360-2',
 		config: {
 			dvePresets: {},
 		},
 	},
-	demo3: {
-		name: 'Demo-3',
+	s360_3: {
+		name: 'S360-3',
 		config: {
 			dvePresets: {},
 		},

@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { JSONSchema } from '@sofie-automation/blueprints-integration'
 
 import { getVmixLookFeedInput } from '../base/showstyle/helpers/visionMixer.js'
-import { DemoStudioConfig } from '../main/studio/configs/demo.js'
+import { Studio360Config } from '../main/studio/configs/studio360.js'
 
 interface JsonSchemaObject {
 	[key: string]: unknown
@@ -88,8 +88,8 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 		expect(schema.required).toEqual(expect.arrayContaining(['vmixProgram']))
 	})
 
-	it('DemoStudioConfig carries the vmixProgram defaults', () => {
-		expect(DemoStudioConfig.vmixProgram).toEqual({
+	it('Studio360Config carries the vmixProgram defaults', () => {
+		expect(Studio360Config.vmixProgram).toEqual({
 			cameraInput: 1,
 			lookAInput: 7,
 			lookBInput: 8,
@@ -103,12 +103,12 @@ describe('studioConfigSchema (dereferenced manifest schema)', () => {
 	})
 
 	it('getVmixLookFeedInput resolves the feed layer for each look slot', () => {
-		expect(getVmixLookFeedInput(DemoStudioConfig, 'A')).toBe(2)
-		expect(getVmixLookFeedInput(DemoStudioConfig, 'B')).toBe(3)
+		expect(getVmixLookFeedInput(Studio360Config, 'A')).toBe(2)
+		expect(getVmixLookFeedInput(Studio360Config, 'B')).toBe(3)
 		// A feed equal to its look input — or 0/unset — disables the overlay.
 		const feedEqualsLook = {
-			...DemoStudioConfig,
-			vmixProgram: { ...DemoStudioConfig.vmixProgram, lookAFeedInput: 7, lookBFeedInput: 0 },
+			...Studio360Config,
+			vmixProgram: { ...Studio360Config.vmixProgram, lookAFeedInput: 7, lookBFeedInput: 0 },
 		}
 		expect(getVmixLookFeedInput(feedEqualsLook, 'A')).toBe(0)
 		expect(getVmixLookFeedInput(feedEqualsLook, 'B')).toBe(0)

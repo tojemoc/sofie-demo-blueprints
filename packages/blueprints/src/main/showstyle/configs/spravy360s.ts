@@ -1,5 +1,5 @@
 import { ShowStyleConfig } from '../../../base/showstyle/helpers/config.js'
 
-export const demoShowStyleConfigDefaults: ShowStyleConfig = {
+export const spravy360sShowStyleConfigDefaults: ShowStyleConfig = {
 	dvePresets: {},
 }

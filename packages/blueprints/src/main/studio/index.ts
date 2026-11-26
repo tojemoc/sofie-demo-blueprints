@@ -7,7 +7,7 @@ import { StudioConfigPresets } from './configs/index.js'
 const manifest: StudioBlueprintManifest<StudioConfig> = {
 	...baseManifest,
 
-	blueprintId: 'demo-main-studio',
+	blueprintId: 'studio360',
 
 	configPresets: StudioConfigPresets,
 }

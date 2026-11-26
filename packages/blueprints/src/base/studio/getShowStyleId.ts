@@ -8,7 +8,7 @@ export function getShowStyleId(
 	_ingestRundown: IngestRundown
 ): string | null {
 	const showStyle =
-		showStyles.find((s) => s._id === 'demo-main-showstyle' || s.blueprintId === 'sofie-showstyle') || showStyles[0]
+		showStyles.find((s) => s._id === 'spravy360s' || s.blueprintId === 'sofie-showstyle') || showStyles[0]
 	if (showStyle) {
 		return showStyle._id
 	}

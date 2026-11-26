@@ -1,6 +1,6 @@
 import { SourceType, StudioConfig, VisionMixerDevice } from '../../../base/studio/helpers/config.js'
 
-export const DemoStudioConfig: StudioConfig = {
+export const Studio360Config: StudioConfig = {
 	previewRenderer: 'sofie',
 	casparcgLatency: 0,
 	casparcgMediaFolder: 'y:/360-ingest/sofie-demo-media',

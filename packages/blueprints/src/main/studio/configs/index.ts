@@ -1,15 +1,15 @@
 import { IStudioConfigPreset } from '@sofie-automation/blueprints-integration'
 
 import { StudioConfig } from '../../../base/studio/helpers/config.js'
-import { DemoStudioConfig } from './demo.js'
+import { Studio360Config } from './studio360.js'
 
-export const demoStudioConfigPresets: Record<string, IStudioConfigPreset<StudioConfig>> = {
-	demo: {
-		name: 'Demo Main Studio',
-		config: DemoStudioConfig,
+export const studio360ConfigPresets: Record<string, IStudioConfigPreset<StudioConfig>> = {
+	studio360: {
+		name: 'Studio 360',
+		config: Studio360Config,
 	},
 }
 
 export const StudioConfigPresets: Record<string, IStudioConfigPreset<StudioConfig>> = {
-	...demoStudioConfigPresets,
+	...studio360ConfigPresets,
 }
