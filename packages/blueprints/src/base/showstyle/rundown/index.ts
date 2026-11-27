@@ -30,7 +30,9 @@ export function getRundown(
 		name: segment.name,
 		// Empty Šport segments promote C by name but emit no bed piece — the
 		// restored snapshot must not leave them counting toward C ownership.
-		producesC: isSportSegmentName(segment.name ?? '') && (segment.parts?.length ?? 0) > 0,
+		// Converters yield zero parts without a segment payload, so gate on it too.
+		producesC:
+			isSportSegmentName(segment.name ?? '') && Boolean(segment.payload) && (segment.parts?.length ?? 0) > 0,
 	}))
 	beginCountupRevealGeneration(ingestRundown.externalId)
 	beginLookSlotGeneration(ingestRundown.externalId)
