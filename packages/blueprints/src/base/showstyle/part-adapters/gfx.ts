@@ -21,7 +21,8 @@ export function generateGfxPart(
 	lookSlot: LookSlot = 'B',
 	previousLookSlot?: LookSlot,
 	previousPartHadWeather: boolean = false,
-	iluZaverOnAir: boolean = false
+	iluZaverOnAir: boolean = false,
+	headlineSfxDelayMs?: number
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 
@@ -56,7 +57,7 @@ export function generateGfxPart(
 	if (scriptPiece) pieces.push(scriptPiece)
 
 	if (partHasHeadlineIlu(part.objects)) {
-		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId))
+		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId, headlineSfxDelayMs))
 	}
 
 	if (partHasOutroOverlay(part.objects)) {

@@ -79,7 +79,8 @@ export function generateCameraPart(
 	lookSlot: LookSlot = 'A',
 	previousLookSlot?: LookSlot,
 	previousPartHadWeather: boolean = false,
-	iluZaverOnAir: boolean = false
+	iluZaverOnAir: boolean = false,
+	headlineSfxDelayMs?: number
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const sourceInfo = getSourceInfoFromRaw(config, part.payload.input)
@@ -132,7 +133,7 @@ export function generateCameraPart(
 	}
 
 	if (partHasHeadlineIlu(part.objects)) {
-		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId))
+		pieces.push(createHeadlineSfxPiece(context, config, part.payload.externalId, headlineSfxDelayMs))
 	}
 
 	const guestObj = part.objects.find((p): p is StudioGuestObject => p.objectType === ObjectType.StudioGuest)

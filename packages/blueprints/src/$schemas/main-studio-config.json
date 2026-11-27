@@ -370,7 +370,7 @@
 				"bedHitVolume": {
 					"type": "integer",
 					"ui:title": "Bed hit volume (0–100)",
-					"ui:description": "vMix AUDIO volume the kolíska bed ramps UP to right after each reset (first Take, wipe unmute, A/C swap), before fading back down to Bed volume.",
+					"ui:description": "vMix AUDIO volume the kolíska bed jumps to right after each reset (first Take, wipe unmute, A/C swap), before fading back down to Bed volume.",
 					"minimum": 0,
 					"maximum": 100,
 					"default": 100
@@ -378,23 +378,23 @@
 				"bedRampUpMs": {
 					"type": "integer",
 					"ui:title": "Bed ramp-up (ms)",
-					"ui:description": "vMix SetVolumeFade length for the ramp up to Bed hit volume when a bed (re)starts.",
+					"ui:description": "vMix SetVolumeFade length for the ramp up to Bed hit volume when a bed (re)starts. 0 = the bed starts at hit volume instantly.",
 					"minimum": 0,
-					"default": 400
+					"default": 0
 				},
 				"bedHitHoldMs": {
 					"type": "integer",
 					"ui:title": "Bed hit hold (ms)",
 					"ui:description": "How long the bed stays at Bed hit volume before fading back down.",
 					"minimum": 0,
-					"default": 300
+					"default": 1000
 				},
 				"bedRampDownMs": {
 					"type": "integer",
 					"ui:title": "Bed ramp-down (ms)",
 					"ui:description": "vMix SetVolumeFade length for the fade from Bed hit volume down to Bed volume.",
 					"minimum": 0,
-					"default": 1500
+					"default": 1000
 				},
 				"wipeSfxStartMs": {
 					"type": "object",

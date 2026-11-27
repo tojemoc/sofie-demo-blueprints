@@ -644,6 +644,29 @@ describe('vMix feed mode (look feed inputs)', () => {
 		expect(ramps).toBeGreaterThan(0)
 	})
 
+	it('SYN clip objects carry no volume ramp — wiped or not', () => {
+		let synClips = 0
+		for (const { pieces } of parts) {
+			for (const piece of pieces) {
+				if (piece.sourceLayerId !== (SourceLayer.VO as string)) continue
+				for (const obj of objectsOf([piece])) {
+					if (!CLIP_ILU_LAYERS.has(String(obj.layer))) continue
+					const content = obj.content as TSR.TimelineContentCCGMedia
+					if (content?.type !== TSR.TimelineContentTypeCasparCg.MEDIA || content.file === 'EMPTY') continue
+					// Not muted to 0 at Take and no ramp keyframe — SYN audio stays at its editorial level.
+					expect(content.mixer?.volume).not.toBe(0)
+					expect(
+						(obj.keyframes ?? []).filter(
+							(kf) => (kf.content as { mixer?: { volume?: number } }).mixer?.volume !== undefined
+						)
+					).toHaveLength(0)
+					synClips++
+				}
+			}
+		}
+		expect(synClips).toBeGreaterThan(0)
+	})
+
 	it('no look bg_loop outside the weather part', () => {
 		const bgLoopLayers = new Set<string>([CasparCGLayers.CasparCGLookBgLoop, CasparCGLayers.CasparCGLookBgLoopB])
 		for (const { externalId, pieces } of parts) {
@@ -1012,13 +1035,15 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		const seek0 = objectsOf([piece]).find((obj) => obj.layer === VMixLayers.VMixBedA)
 		expect(seek0?.enable).toMatchObject({ start: PREROLL + 2340 })
 
+		// No fade-up: the bed jumps to hit volume, holds ~1s, then one 1s linear
+		// fade to the underscore level.
 		const hit = bedAudio.find((obj) => obj.content.volume === 100)
 		expect(hit?.enable).toMatchObject({ start: PREROLL + 2340 })
-		expect(hit?.content).toMatchObject({ muted: false, fade: 400, audioBuses: 'M,B' })
+		expect(hit?.content).toMatchObject({ muted: false, fade: 0, audioBuses: 'M,B' })
 
 		const settle = bedAudio.find((obj) => obj.content.volume === 70 && obj.content.muted === false)
-		expect(settle?.enable).toMatchObject({ start: PREROLL + 2340 + 400 + 300 })
-		expect(settle?.content.fade).toBe(1500)
+		expect(settle?.enable).toMatchObject({ start: PREROLL + 2340 + 0 + 1000 })
+		expect(settle?.content.fade).toBe(1000)
 	})
 
 	it('fires the bed-A seek-0 restart once — on the one-shot hit piece, never on the re-armed start piece', () => {
@@ -1176,6 +1201,23 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		const micRamp = audioOnLayer(syn?.pieces ?? [], VMixLayers.VMixMicAudio).find((obj) => obj.content.volume === 0)
 		expect(micRamp?.enable).toMatchObject({ start: 150 })
 		expect(micRamp?.content).toMatchObject({ muted: false, volume: 0, fade: 150, audioBuses: 'M' })
+	})
+
+	it('never ramps the mic down on SJV / ŠPORT SYNs — live read over a muted ILU bed', () => {
+		const parts = generateSmokeRundown(MIC_CONFIG)
+		for (const externalId of [
+			'part-sjv-1-litva',
+			'part-sjv-2-huliak',
+			'part-sport-1-hokej',
+			'part-sport-2-seria-a',
+		]) {
+			const part = parts.find(({ externalId: id }) => id === externalId)
+			expect(part, `missing part ${externalId}`).toBeDefined()
+			expect(
+				audioOnLayer(part?.pieces ?? [], VMixLayers.VMixMicAudio),
+				`mic ramp object found on ${externalId}`
+			).toHaveLength(0)
+		}
 	})
 
 	it('un-mutes look inputs onto bus A + Master', () => {
