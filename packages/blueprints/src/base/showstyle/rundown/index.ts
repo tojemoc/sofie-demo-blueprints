@@ -9,7 +9,7 @@ import {
 
 import { SpreadsheetIngestRundown } from '../../../code-copy/spreadsheet-gateway/index.js'
 import { literal } from '../../../common/util.js'
-import { beginVmixBedGeneration } from '../helpers/backgroundMusic.js'
+import { beginVmixBedGeneration, isSportSegmentName } from '../helpers/backgroundMusic.js'
 import { beginCountupRevealGeneration } from '../helpers/countupReveal.js'
 import { RundownMetadata } from '../helpers/metadata.js'
 import { beginLookSlotGeneration } from '../helpers/pgmLook.js'
@@ -28,6 +28,11 @@ export function getRundown(
 		externalId: segment.externalId,
 		rank: segment.rank,
 		name: segment.name,
+		// Empty Šport segments promote C by name but emit no bed piece — the
+		// restored snapshot must not leave them counting toward C ownership.
+		// Converters yield zero parts without a segment payload, so gate on it too.
+		producesC:
+			isSportSegmentName(segment.name ?? '') && Boolean(segment.payload) && (segment.parts?.length ?? 0) > 0,
 	}))
 	beginCountupRevealGeneration(ingestRundown.externalId)
 	beginLookSlotGeneration(ingestRundown.externalId)

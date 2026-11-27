@@ -1085,6 +1085,25 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 		)
 	})
 
+	it('keeps bed A when a Šport-named segment emits no C piece (empty segment)', () => {
+		resetVmixBedGenerationForTests()
+		const exportData = loadSmokeRundownExport()
+		const ctx = vmixContext()
+		const seq = createLookSlotSequence()
+		// An empty Šport segment promotes C by name but generates no C piece —
+		// leaving C active would restart+unmute a never-started bed at ZÁVER.
+		const emptySport = smokeExportToIngestSegment(exportData, 'seg-sport')
+		emptySport.rank = 8
+		emptySport.parts = []
+		generateParts(ctx, convertIngestData(mockIngestContext, emptySport), undefined, seq)
+		const weather = smokeExportToIngestSegment(exportData, 'seg-weather')
+		weather.rank = 9
+		const pieces = generateParts(ctx, convertIngestData(mockIngestContext, weather), undefined, seq).parts.flatMap(
+			(p) => p.pieces
+		)
+		expect(bedLayersWithHitEnvelope(pieces)).toEqual(new Set([VMixLayers.VMixBedAAudio]))
+	})
+
 	it('restores bed history from rundown privateData for a lone regenerated segment', () => {
 		// Worker restart: module state is empty — getSegment must rehydrate the
 		// editorial order persisted by getRundown, or Počasie resolves A.
@@ -1100,7 +1119,8 @@ describe('vMix bed envelope, wipe SFX offset and mic ramp', () => {
 				name: seg.name,
 				rank,
 				payload: {},
-				parts: [],
+				// Stub part — the bed snapshot marks C ownership by part count.
+				parts: [{}],
 				userEditStates: {},
 			})),
 		} as unknown as Parameters<typeof getRundown>[1])

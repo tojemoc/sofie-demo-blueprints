@@ -39,11 +39,25 @@ export function getCountupVolume(config: StudioConfig): number {
 export interface CountupRevealClaim {
 	claim(rundownId: string): boolean
 	isRevealed(rundownId: string): boolean
+	/** Last sustain/mute mode emitted this generation — the emitted piece is an
+	 * OutOnRundownEnd infinite, so a same-mode copy in every part makes Core swap
+	 * the infinite each boundary: CLEAR + PLAY ... SEEK 0 flickers the bug and
+	 * restarts the count. Re-emit only when the mode changes or the last copy
+	 * was WithinPart (dead). */
+	lastEmitted(): { mode: 'sustain' | 'mute'; persistent: boolean } | undefined
+	markEmitted(mode: 'sustain' | 'mute', persistent: boolean): void
+	/** A segment is about to generate. When the segment already generated in this
+	 * claim it is a regeneration — its earlier copies are being replaced, so the
+	 * suppression resets and the mute/sustain re-emits. A new segment keeps
+	 * suppression: the earlier infinite continues into it. */
+	beginSegment(segmentExternalId: string): void
 }
 
 /** Fresh claim set for one generation — the first claimant wins the reveal, later ones are told it is already revealed. */
 export function createCountupRevealClaim(): CountupRevealClaim {
 	const claimedRundownIds = new Set<string>()
+	const generatedSegmentIds = new Set<string>()
+	let emitted: { mode: 'sustain' | 'mute'; persistent: boolean } | undefined
 	return {
 		claim(rundownId: string): boolean {
 			if (claimedRundownIds.has(rundownId)) return false
@@ -52,6 +66,16 @@ export function createCountupRevealClaim(): CountupRevealClaim {
 		},
 		isRevealed(rundownId: string): boolean {
 			return claimedRundownIds.has(rundownId)
+		},
+		lastEmitted() {
+			return emitted
+		},
+		markEmitted(mode: 'sustain' | 'mute', persistent: boolean) {
+			emitted = { mode, persistent }
+		},
+		beginSegment(segmentExternalId: string) {
+			if (generatedSegmentIds.has(segmentExternalId)) emitted = undefined
+			generatedSegmentIds.add(segmentExternalId)
 		},
 	}
 }
@@ -304,11 +328,18 @@ export function appendCountupSustainIfRevealed(
 ): void {
 	if (!countupRevealClaim.isRevealed(context.rundownId)) return
 	if (pieces.some((piece) => piece.externalId?.includes('_countup_'))) return
+	const mode = options?.mute ? 'mute' : 'sustain'
+	const persistent = !options?.mute || Boolean(options.persistMute)
+	// Skip same-mode copies — the persistent infinite already holds the layer;
+	// a fresh one per part makes Core swap it at every boundary (CLEAR+PLAY flicker).
+	const last = countupRevealClaim.lastEmitted()
+	if (last?.mode === mode && last.persistent) return
 	if (options?.mute) {
 		pieces.push(createCountupMutePiece(context, config, partExternalId, { persist: options.persistMute }))
-		return
+	} else {
+		pieces.push(createCountupSustainPiece(context, config, partExternalId))
 	}
-	pieces.push(createCountupSustainPiece(context, config, partExternalId))
+	countupRevealClaim.markEmitted(mode, persistent)
 }
 
 /** externalId suffix for the hold piece (no `_countup_` substring — sustain pieces must still be generated). */

@@ -1434,9 +1434,9 @@ describe('pgmLook look-kind channels + route', () => {
 				(obj.content as { file?: string }).file !== 'EMPTY' &&
 				String((obj.content as { file?: string }).file || '').length > 0
 		)
-		// LED window lands with the leave-weather teardown (route flip + WX hide),
-		// not the bare air cut.
-		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
+		// Post-weather LED starts at Take — the fullscreen board keeps the wall
+		// off-camera, and landing at the cut left the window ~4f after pull-out.
+		expect(!Array.isArray(ledZaver?.enable) && ledZaver?.enable.start).toBe(0)
 		const wipeOverlay = timeline.find(
 			(obj) =>
 				obj.layer === CasparCGLayers.CasparCGPgmEffectsPlayer &&
@@ -1555,10 +1555,10 @@ describe('pgmLook look-kind channels + route', () => {
 			undefined,
 			undefined,
 			undefined,
-			true
+			false
 		)
 		const led = pieces[0].content.timelineObjects?.[0]
-		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(LEAVE_WEATHER_HIDE_MS)
+		expect(!Array.isArray(led?.enable) && led?.enable.start).toBe(WIPE_AIR_CUT_MS)
 	})
 
 	it('wipe into ZAVER with avízo already on LED keeps it playing (Cam/SYN interleave)', () => {
