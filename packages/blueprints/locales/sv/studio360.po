@@ -1,0 +1,444 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: i18next-conv\n"
+"mime-version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"Language: sv\n"
+
+msgid "Atem Outputs"
+msgstr ""
+
+msgid "Atem Sources"
+msgstr ""
+
+msgid "Audio levels"
+msgstr ""
+
+msgid "Audio Mixer Device Configuration"
+msgstr ""
+
+msgid "Audio Mixer Device ID"
+msgstr ""
+
+msgid "Audio Mixer Device ID (E.G. audioMixer)"
+msgstr ""
+
+msgid "Base URL for the Package Manager HTTP proxy used for previews and thumbnails"
+msgstr ""
+
+msgid "Bed A input"
+msgstr ""
+
+msgid "Bed C input"
+msgstr ""
+
+msgid "Bed hit hold (ms)"
+msgstr ""
+
+msgid "Bed hit volume (0–100)"
+msgstr ""
+
+msgid "Bed ramp-down (ms)"
+msgstr ""
+
+msgid "Bed ramp-up (ms)"
+msgstr ""
+
+msgid "Bed volume (0–100)"
+msgstr ""
+
+msgid "BG look channel A"
+msgstr ""
+
+msgid "BG look channel B"
+msgstr ""
+
+msgid "BG look preroll (ms)"
+msgstr ""
+
+msgid "CAM ingest channel"
+msgstr ""
+
+msgid "Camera input"
+msgstr ""
+
+msgid ""
+"Caspar mixer volume (0–1) for the 360 countup SFX (assets/countup). Unset: "
+"0.5 on vMix-program studios, 1 on other studios."
+msgstr ""
+
+msgid ""
+"Caspar mixer volume (0–1) for wipe stings (wipes/wipe*) on the PGM "
+"EffectsPlayer. Unset: 1 (full). vMix stinger audio lives inside the vMix "
+"inputs — this does not affect vMix-program studios."
+msgstr ""
+
+msgid ""
+"Caspar producer for CAM1 from this field only (never hardcoded). Opened "
+"once on camIngestChannel (default 5); look layers use MEDIA route://5 with "
+"FILL — never a second DECKLINK/dshow on 3-115/4-115. dshow://video=… → "
+"MEDIA on ingest. DECKLINK DEVICE N FORMAT … → TSR INPUT on ingest "
+"(PlayDecklink). AMCP must include DEVICE — sofie-core Yarn-patches "
+"casparcg-connection so PlayDecklink emits DECKLINK DEVICE <n>; "
+"rebuild/restart playout-gateway to pick that up (blueprint re-upload alone "
+"is not enough). After any change: re-upload blueprints if needed, then "
+"Reset Rundown / re-activate so ingest baseline + look routes regenerate."
+msgstr ""
+
+msgid ""
+"CasparCG channel routed to the LED output consumer (graphics + primary clip "
+"stack)"
+msgstr ""
+
+msgid ""
+"CasparCG channel with the route bus + persistent overlays (logo-bug, "
+"intro). Story looks are composed on BG A/B, not here. vMix studios: "
+"clean-GFX channel only (logo, countup, intro/outro, look L3Ds) keyed over "
+"the vMix program — no routes or wipes."
+msgstr ""
+
+msgid "CasparCG Device Configuration"
+msgstr ""
+
+msgid "CasparCG Latency"
+msgstr ""
+
+msgid "CasparCG media folder"
+msgstr ""
+
+msgid "Clean GFX input"
+msgstr ""
+
+msgid "Countup volume"
+msgstr ""
+
+msgid "Debug channel labels"
+msgstr ""
+
+msgid "Delay in ms before SDI signal hits the mixer"
+msgstr ""
+
+msgid ""
+"Delay into SYN / Intro / Outro before the mic starts ramping down — keeps "
+"the tail of a finishing syllable instead of cutting it."
+msgstr ""
+
+msgid "Description of Atem inputs i.e. cameras, remotes etc."
+msgstr ""
+
+msgid "Description of Atem outputs / auxes"
+msgstr ""
+
+msgid ""
+"Description of generic vMix inputs i.e. cameras, remotes, mediaplayers, "
+"multiview etc. — used by adlibs and generic source adapters. The "
+"program/look/bed inputs are configured separately under vMix program inputs."
+msgstr ""
+
+msgid "Description of Sisyfos channels"
+msgstr ""
+
+msgid "Device"
+msgstr ""
+
+msgid ""
+"Folder used to verify editor ingest paths. Prefer the same path as CasparCG "
+"media folder. Package Manager will not write or delete files here. Use "
+"forward slashes only."
+msgstr ""
+
+msgid "Graphics preview renderer URL"
+msgstr ""
+
+msgid "Headline SFX volume"
+msgstr ""
+
+msgid "Here in validateConfig you can add check for e.g. Atem/VMix"
+msgstr ""
+
+msgid "Host Ip"
+msgstr ""
+
+msgid "Host IP of CasparCG"
+msgstr ""
+
+msgid "Host IP of Sisyfos"
+msgstr ""
+
+msgid "Host IP of the vision mixer (E.G. 0.0.0.0)"
+msgstr ""
+
+msgid "How long the bed stays at Bed hit volume before fading back down."
+msgstr ""
+
+msgid ""
+"How long wiped Takes wait so the next BG look can cue CEF + clips. v1 uses "
+"this fixed preroll (lookahead PRELOAD also fills the idle BG channel). Set "
+"0 to rely on lookahead only."
+msgstr ""
+
+msgid "HTTP proxy base URL"
+msgstr ""
+
+msgid "Hypercomposed output channels"
+msgstr ""
+
+msgid "Ingest media folder"
+msgstr ""
+
+msgid "LED channel"
+msgstr ""
+
+msgid ""
+"Local/NAS folder CasparCG plays from. Package Manager only checks that "
+"files exist here (read-only) — it will not copy or delete. Use forward "
+"slashes only (e.g. Y:/360-ingest/sofie-demo-media)."
+msgstr ""
+
+msgid "Look A feed input"
+msgstr ""
+
+msgid "Look A input"
+msgstr ""
+
+msgid "Look B feed input"
+msgstr ""
+
+msgid "Look B input"
+msgstr ""
+
+msgid "Mic ramp (ms)"
+msgstr ""
+
+msgid "Mic ramp delay (ms)"
+msgstr ""
+
+msgid "Moderator mic input"
+msgstr ""
+
+msgid ""
+"Offset (ms from stinger start) where each wipe's audio SFX actually begins "
+"— beds stay live until then and mute only for the SFX window."
+msgstr ""
+
+msgid ""
+"Open-loop Caspar PLAY→first-frame lag after LOADBG, added to RE cutPoint + "
+"½-frame cover bias. Default 380 with cutPoint 380 snaps air cut to Resolve "
+"cover centre (~780 ms; source wipe frames 19–20 @25fps = 760–840 ms "
+"timeline). Same value for Full↔DB and same-slot wipes — tune here only if "
+"ALL wipes drift; do not pad RE cutPoint."
+msgstr ""
+
+msgid ""
+"Optional libavfilter for the CAM ingest producer (Caspar VF), e.g. "
+"scale=1280:720. Applied on the ingest channel only."
+msgstr ""
+
+msgid "PGM camera producer"
+msgstr ""
+
+msgid "PGM camera video filter (VF)"
+msgstr ""
+
+msgid "PGM channel"
+msgstr ""
+
+msgid "Port"
+msgstr ""
+
+msgid "Port of CasparCG (default is 5250)"
+msgstr ""
+
+msgid "Port of Sisyfos (default is 1176)"
+msgstr ""
+
+msgid "Port of the vision mixer (ATEM 9910, vMix TCP API 8099)"
+msgstr ""
+
+msgid "Preview Renderer"
+msgstr ""
+
+msgid ""
+"Render-only Caspar channel that pre-builds look A (e.g. DoubleBox). No "
+"Screen/NDI/SDI consumer in caspar.config."
+msgstr ""
+
+msgid ""
+"Render-only Caspar channel that pre-builds look B (e.g. fullscreen SYN/VT). "
+"Ping-pongs with A so the on-air look is never rebuilt under the PGM route."
+msgstr ""
+
+msgid ""
+"Render-only helper that permanently holds DeckLink / dshow (sole "
+"EnableVideoInput). Look A/B camera layers PLAY route://N from this channel. "
+"caspar.config needs ≥5 channels or PLAY/LOADBG on this index returns 400. "
+"Unused on vMix studios (vMix owns the camera)."
+msgstr ""
+
+msgid "Sisyfos Sources"
+msgstr ""
+
+msgid "Stinger cut point (ms)"
+msgstr ""
+
+msgid ""
+"Testing only: burn-in labels on layer 990 of each Caspar channel (1. LED / "
+"2. PGM / 3. DoubleBox / 4. Full / 5. CAM) via gfx/debug-channel-label. Copy "
+"the megarepo template into Caspar template-path before enabling."
+msgstr ""
+
+msgid ""
+"Time from the stinger PROGRAM command to the vMix stinger's program cut, "
+"measured on the studio (~960 ms). Drives the outgoing off-air point for "
+"wiped Takes."
+msgstr ""
+
+msgid "Vision Mixer Device"
+msgstr ""
+
+msgid "Vision Mixer Device Configuration"
+msgstr ""
+
+msgid "Vision Mixer Device ID"
+msgstr ""
+
+msgid "Vision Mixer Device ID (E.G. visionMixer)"
+msgstr ""
+
+msgid ""
+"vMix AUDIO volume for the kolíska beds (A and C) while unmuted — the "
+"quieter underscore level the beds sit at for most of the rundown."
+msgstr ""
+
+msgid ""
+"vMix AUDIO volume the kolíska bed ramps UP to right after each reset (first "
+"Take, wipe unmute, A/C swap), before fading back down to Bed volume."
+msgstr ""
+
+msgid ""
+"vMix input number fed (e.g. via NDI) by the Caspar BG look A channel — "
+"placed on layer 2 of lookAInput ABOVE the camera layer so graphics key over "
+"the camera through the transparent cutout. Set 0 — or the same value as "
+"lookAInput — to disable the feed overlay (legacy: camera layers on top of "
+"the look feed)."
+msgstr ""
+
+msgid ""
+"vMix input number fed (e.g. via NDI) by the Caspar BG look B channel — "
+"placed on layer 2 of lookBInput above the camera. Set 0 — or the same value "
+"as lookBInput — to disable (legacy cam-on-top mode)."
+msgstr ""
+
+msgid ""
+"vMix input number fed (e.g. via NDI) by the Caspar PGM / clean-GFX channel. "
+"Keyed as the baseline Overlay 1."
+msgstr ""
+
+msgid ""
+"vMix input number of the moderator mic (Audio In). Ramped down under SYN / "
+"Intro / Outro. 0 disables mic ducking."
+msgstr ""
+
+msgid ""
+"vMix input number the PROGRAM bus switches to for look A. When "
+"lookAFeedInput is set, this must be a composite (Virtual / multiview) input "
+"— blueprints place the camera on layer 1 and the NDI look feed on layer 2 "
+"above it. When lookAFeedInput is 0, this input is the NDI feed itself and "
+"the camera sits on layer 1 above it (legacy mode)."
+msgstr ""
+
+msgid ""
+"vMix input number the PROGRAM bus switches to for look B. Same "
+"composite-input contract as lookAInput (camera layer 1 under the NDI feed "
+"on layer 2 when lookBFeedInput is set)."
+msgstr ""
+
+msgid ""
+"vMix input numbers that own the program bus. Used only when "
+"visionMixer.type = Vmix with Caspar hypercomposed output (vMix switches "
+"between the Caspar-rendered looks, keys clean GFX as Overlay 1, and plays "
+"the kolíska beds)."
+msgstr ""
+
+msgid "vMix program inputs"
+msgstr ""
+
+msgid ""
+"vMix SetVolumeFade length for the fade from Bed hit volume down to Bed "
+"volume."
+msgstr ""
+
+msgid ""
+"vMix SetVolumeFade length for the mic ramp-down (and the ramp back up when "
+"the piece ends)."
+msgstr ""
+
+msgid ""
+"vMix SetVolumeFade length for the ramp up to Bed hit volume when a bed "
+"(re)starts."
+msgstr ""
+
+msgid "vMix Sources"
+msgstr ""
+
+msgid "Wipe playout latency (ms)"
+msgstr ""
+
+msgid "Wipe SFX start offsets (ms)"
+msgstr ""
+
+msgid "Wipe SFX volume"
+msgstr ""
+
+msgid "wipe.mov"
+msgstr ""
+
+msgid "wipe.mov SFX starts around frame 10/11."
+msgstr ""
+
+msgctxt ""
+"sfx) on the PGM + LED bed layers. Unset: 0.5 on vMix-program studios, 1 on "
+"other studios."
+msgid "Caspar mixer volume (0–1) for the headline sting (assets/headline"
+msgstr ""
+
+msgctxt "a)"
+msgid "vMix input number for the kolíska bed A music (bg_music"
+msgstr ""
+
+msgctxt "c, Šport)"
+msgid "vMix input number for the kolíska bed C music (bg_music"
+msgstr ""
+
+msgctxt "loop instead of going black)."
+msgid ""
+"vMix input number of the camera, placed as a layer under the look input. "
+"Set 0 to disable the vMix look camera entirely (no layer-1 camera keying; "
+"DoubleBox panes keep bg"
+msgstr ""
+
+msgctxt "pocasie.mov"
+msgid "wipe"
+msgstr ""
+
+msgctxt "pocasie.mov SFX starts on the second frame."
+msgid "wipe"
+msgstr ""
+
+msgctxt "sjv.mov"
+msgid "wipe"
+msgstr ""
+
+msgctxt "sjv.mov SFX starts on the second frame."
+msgid "wipe"
+msgstr ""
+
+msgctxt "sport.mov"
+msgid "wipe"
+msgstr ""
+
+msgctxt "sport.mov SFX starts on the first frame."
+msgid "wipe"
+msgstr ""

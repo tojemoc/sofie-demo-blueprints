@@ -1,0 +1,76 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: i18next-conv\n"
+"mime-version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"Language: en\n"
+
+msgid "Control Graphic Step"
+msgstr ""
+
+msgid "Could not find camera for guest part"
+msgstr ""
+
+msgid "DVE Presets"
+msgstr ""
+
+msgid "Here you can add validation for your showstyle config"
+msgstr ""
+
+msgid "Intro overlay video is missing file name"
+msgstr ""
+
+msgid "Last DVE"
+msgstr ""
+
+msgid "Last Remote"
+msgstr ""
+
+msgid "Lock Segment for NRCS Updates"
+msgstr ""
+
+msgid "Next Slide"
+msgstr ""
+
+msgid "No camera object"
+msgstr ""
+
+msgid "No graphic object"
+msgstr ""
+
+msgid ""
+"No graphic object. Add an L3D/graphic piece, or use an Intro part for "
+"overlay video that plays on top of everything."
+msgstr ""
+
+msgid "No guest object"
+msgstr ""
+
+msgid "No intro overlay video. Add an Intro piece (plays on top of everything)."
+msgstr ""
+
+msgid "No remote input object"
+msgstr ""
+
+msgid "No video object"
+msgstr ""
+
+msgid "No wipe or bg-loop video on part"
+msgstr ""
+
+msgid "Outro part requires an outro overlay video piece."
+msgstr ""
+
+msgid "Previous Slide"
+msgstr ""
+
+msgid "this is a description"
+msgstr ""
+
+msgid "Unknown part type"
+msgstr ""
+
+msgid "Video clip is missing file name"
+msgstr ""

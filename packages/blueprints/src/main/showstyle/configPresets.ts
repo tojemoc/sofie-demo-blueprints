@@ -1,14 +1,14 @@
 import { IShowStyleConfigPreset, IShowStyleVariantConfigPreset } from '@sofie-automation/blueprints-integration'
 
 import { ShowStyleConfig } from '../../base/showstyle/helpers/config.js'
-import { demoShowStyleConfigDefaults } from './configs/demo.js'
-import { demoVariants } from './variants/demo.js'
+import { spravy360sShowStyleConfigDefaults } from './configs/spravy360s.js'
+import { spravy360sVariants } from './variants/spravy360s.js'
 
 export const ShowStyleConfigPreset: Record<string, IShowStyleConfigPreset<ShowStyleConfig>> = {
-	demo: {
-		name: 'Demo',
-		config: demoShowStyleConfigDefaults,
-		variants: demoVariants,
+	spravy360s: {
+		name: 'Správy 360',
+		config: spravy360sShowStyleConfigDefaults,
+		variants: spravy360sVariants,
 	},
 }
 

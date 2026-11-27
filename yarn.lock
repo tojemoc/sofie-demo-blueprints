@@ -16243,22 +16243,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sofie-demo-blueprints@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "sofie-demo-blueprints@workspace:."
-  dependencies:
-    "@eslint/js": "npm:^10.0.1"
-    "@sofie-automation/code-standard-preset": "npm:4.0.3"
-    "@typescript/native": "npm:typescript@~7.0.0"
-    eslint: "npm:^10.0.0"
-    husky: "npm:^9.1.7"
-    lint-staged: "npm:^17.0.0"
-    prettier: "npm:^3.7.4"
-    typescript: "npm:@typescript/typescript6@~6.0.2"
-    zx: "npm:^8.8.5"
-  languageName: unknown
-  linkType: soft
-
 "sort-css-media-queries@npm:2.2.0":
   version: 2.2.0
   resolution: "sort-css-media-queries@npm:2.2.0"
@@ -16416,6 +16400,22 @@ __metadata:
   checksum: 10c0/983509c0be9d06fd00bb9dff713c5b5d35d3ffd720db869acdd5ad7aa6fc0e02c2318b58f75328957d8ff772acdf1f7d19382b6047df342044ff3e2d6805ccdf
   languageName: node
   linkType: hard
+
+"spravy360s@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "spravy360s@workspace:."
+  dependencies:
+    "@eslint/js": "npm:^10.0.1"
+    "@sofie-automation/code-standard-preset": "npm:4.0.3"
+    "@typescript/native": "npm:typescript@~7.0.0"
+    eslint: "npm:^10.0.0"
+    husky: "npm:^9.1.7"
+    lint-staged: "npm:^17.0.0"
+    prettier: "npm:^3.7.4"
+    typescript: "npm:@typescript/typescript6@~6.0.2"
+    zx: "npm:^8.8.5"
+  languageName: unknown
+  linkType: soft
 
 "sprintf-js@npm:^1.1.1, sprintf-js@npm:^1.1.3":
   version: 1.1.3

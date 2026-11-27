@@ -18,7 +18,7 @@ export function getTriggeredActions(): IBlueprintTriggeredActions[] {
 	const triggeredActions = [
 		// Take action with spacebar
 		{
-			_id: 'demo_take_space',
+			_id: 'spravy360s_take_space',
 			_rank: ++rankCounter * 1000,
 			name: 'Take (Space)',
 			actions: {

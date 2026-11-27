@@ -3,7 +3,7 @@ import { BlueprintManifestType, SystemBlueprintManifest } from '@sofie-automatio
 const manifest: SystemBlueprintManifest = {
 	blueprintType: BlueprintManifestType.SYSTEM,
 
-	blueprintId: 'sofie-demo-system',
+	blueprintId: 'spravy360s-system',
 	blueprintVersion: __VERSION__,
 	integrationVersion: __VERSION_INTEGRATION__,
 	TSRVersion: __VERSION_TSR__,

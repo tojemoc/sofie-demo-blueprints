@@ -1,9 +1,9 @@
 export const BlueprintEntrypoints = {
-	demoshowstyle: './src/main/showstyle/index.ts',
-	demostudio: './src/main/studio/index.ts',
+	spravy360s: './src/main/showstyle/index.ts',
+	studio360: './src/main/studio/index.ts',
 	system: './src/system/index.ts',
 }
 
 export const BlueprintBundles = {
-	show: ['demoshowstyle', 'demostudio', 'system'],
+	show: ['spravy360s', 'studio360', 'system'],
 }
