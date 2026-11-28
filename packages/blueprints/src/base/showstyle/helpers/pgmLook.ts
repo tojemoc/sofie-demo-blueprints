@@ -1807,6 +1807,9 @@ const VMIX_WIPE_AUDIO_RAMP_KEYFRAME_MS = 40
 function rampVmixLookClipAudio(pieces: IBlueprintPiece[], stingCoverMs: number): void {
 	const transition: TSR.CasparCGTransitionInner = { duration: stingCoverMs, easing: TSR.Ease.LINEAR }
 	for (const piece of pieces) {
+		// SYN clips carry no volume ramping — the bite/bed plays at its editorial
+		// level from Take (SJV/ŠPORT ILU beds must not fade in under the live read).
+		if (piece.sourceLayerId === (SourceLayer.VO as string)) continue
 		for (const obj of piece.content.timelineObjects ?? []) {
 			const layer = String(obj.layer)
 			const content = obj.content as TSR.TimelineContentCCGMedia | undefined

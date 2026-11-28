@@ -29,7 +29,9 @@ export function generateVOPart(
 	lookSlot: LookSlot = 'B',
 	previousLookSlot?: LookSlot,
 	previousPartHadWeather: boolean = false,
-	iluZaverOnAir: boolean = false
+	iluZaverOnAir: boolean = false,
+	/** SJV/ŠPORT: the SYN is a muted video bed under a live moderator read — never duck the mic. */
+	micStaysLive: boolean = false
 ): BlueprintResultPart {
 	const config = parseConfig(context).studio
 	const atemInput = getClipPlayerInput(config)
@@ -59,7 +61,8 @@ export function generateVOPart(
 	]
 
 	// Mic is an input under SYN — keep Host ForceMuted for the Take (Guest stays open).
-	const hostMutes = getHostForceMuteChannels(config)
+	// SJV/ŠPORT SYNs ride a muted ILU bed under a live read — the mic must stay up.
+	const hostMutes = micStaysLive ? [] : getHostForceMuteChannels(config)
 	if (hostMutes.length > 0) {
 		timelineObjects.push(getAudioObjectOnLayer(config, SisyfosLayers.ForceMute, hostMutes))
 	}
@@ -95,7 +98,7 @@ export function generateVOPart(
 	}
 
 	const pieces = [cameraPiece]
-	if (usesVmixProgram(config)) {
+	if (usesVmixProgram(config) && !micStaysLive) {
 		// vMix mic ramps down micRampDelayMs into the SYN — never an abrupt mute.
 		// WithinPart with no look-compose media → no postroll; the baseline
 		// volume-100 object restores the mic exactly at the part boundary.

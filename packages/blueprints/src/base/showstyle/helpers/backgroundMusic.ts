@@ -69,22 +69,22 @@ export function getVmixBedHitVolume(config: StudioConfig): number {
 	return 100
 }
 
-/** SetVolumeFade length for the ramp up to hit volume — `vmixProgram.bedRampUpMs` (default 400). */
+/** SetVolumeFade length for the ramp up to hit volume — `vmixProgram.bedRampUpMs` (default 0 = starts at hit volume, no fade-up). */
 export function getVmixBedRampUpMs(config: StudioConfig): number {
 	const raw = config.vmixProgram?.bedRampUpMs
-	return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 400
+	return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0
 }
 
-/** Hold at hit volume before fading down — `vmixProgram.bedHitHoldMs` (default 300). */
+/** Hold at hit volume before fading down — `vmixProgram.bedHitHoldMs` (default 1000). */
 export function getVmixBedHitHoldMs(config: StudioConfig): number {
 	const raw = config.vmixProgram?.bedHitHoldMs
-	return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 300
+	return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 1000
 }
 
-/** SetVolumeFade length for the hit → bed-volume fade — `vmixProgram.bedRampDownMs` (default 1500). */
+/** SetVolumeFade length for the hit → bed-volume fade — `vmixProgram.bedRampDownMs` (default 1000). */
 export function getVmixBedRampDownMs(config: StudioConfig): number {
 	const raw = config.vmixProgram?.bedRampDownMs
-	return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 1500
+	return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 1000
 }
 
 /** Default SFX audio start per wipe file (ms from stinger start — measured on the studio files). */
@@ -164,9 +164,10 @@ function vmixBedAudioObject(
 }
 
 /**
- * Restart envelope for an audible vMix bed: fade up to `bedHitVolume` over
- * `bedRampUpMs`, hold `bedHitHoldMs`, then fade down to `bedVolume` over
- * `bedRampDownMs`. Called on every bed (re)start — first Take, wipe unmute, A/C swap.
+ * Restart envelope for an audible vMix bed: jump to `bedHitVolume` (the fade-up
+ * is `bedRampUpMs`, default 0 — the bed restarts at the hit level), hold
+ * `bedHitHoldMs`, then fade down to `bedVolume` over `bedRampDownMs`.
+ * Called on every bed (re)start — first Take, wipe unmute, A/C swap.
  */
 function vmixBedRestartEnvelope(
 	config: StudioConfig,
@@ -798,6 +799,12 @@ function mixerVolumeAtOrBefore(
 		}
 	}
 	return volume
+}
+
+/** True for the "SPRÁVY JEDNOU VETOU" segment — its SYNs carry a live moderator read, so the mic stays up. */
+export function isSjvSegmentName(name: string): boolean {
+	const normalized = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+	return /^spravy jednou/u.test(normalized)
 }
 
 /** True when the segment name starts with "sport" (accent-insensitive) — the Šport bed-swap segment. */

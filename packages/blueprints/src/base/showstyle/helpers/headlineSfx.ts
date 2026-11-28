@@ -21,6 +21,11 @@ const HEADLINE_SFX_PACKAGE_FILE = 'assets/headline_sfx.wav'
  */
 export const HEADLINE_SFX_DURATION_MS = 2500
 
+/** Take-relative delay for the first headline Take's sting (the show is still settling). */
+export const HEADLINE_SFX_FIRST_DELAY_MS = 400
+/** Take-relative delay for every later headline Take's sting. */
+export const HEADLINE_SFX_NEXT_DELAY_MS = 300
+
 /**
  * Studio `audioLevels.headlineSfxVolume` (0–1 Caspar mixer). vMix-program
  * studios default to 0.5 (the sting rides the clean-GFX feed and reads loud);
@@ -42,7 +47,8 @@ export function getHeadlineSfxVolume(config: StudioConfig): number {
 export function createHeadlineSfxPiece(
 	context: ICommonContext,
 	config: StudioConfig,
-	partExternalId: string
+	partExternalId: string,
+	delayMs: number = HEADLINE_SFX_NEXT_DELAY_MS
 ): IBlueprintPiece {
 	const file = toCasparPlayPath(HEADLINE_SFX_FILE)
 	const timelineObjects: TimelineBlueprintExt<TSR.TimelineContentCCGMedia>[] = [
@@ -51,7 +57,7 @@ export function createHeadlineSfxPiece(
 	].map((layer) =>
 		literal<TimelineBlueprintExt<TSR.TimelineContentCCGMedia>>({
 			id: '',
-			enable: { start: 0, duration: HEADLINE_SFX_DURATION_MS },
+			enable: { start: delayMs, duration: HEADLINE_SFX_DURATION_MS },
 			layer,
 			priority: 2,
 			content: {
@@ -65,7 +71,7 @@ export function createHeadlineSfxPiece(
 	)
 
 	return literal<IBlueprintPiece>({
-		enable: { start: 0, duration: HEADLINE_SFX_DURATION_MS },
+		enable: { start: 0, duration: delayMs + HEADLINE_SFX_DURATION_MS },
 		externalId: `${partExternalId}_headline_sfx`,
 		name: 'Headline SFX',
 		lifespan: PieceLifespan.WithinPart,

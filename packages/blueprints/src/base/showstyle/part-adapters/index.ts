@@ -37,6 +37,7 @@ import {
 	duckAudioBedPieceDuringWipe,
 	getWipeSfxStartMs,
 	isPocasieSegmentName,
+	isSjvSegmentName,
 	isSportSegmentName,
 	isZaverSegmentName,
 	markVmixSportBedEmitted,
@@ -60,6 +61,7 @@ import {
 	partHasIluZaverObject,
 	partHasPocasieMedia,
 } from '../helpers/graphics.js'
+import { HEADLINE_SFX_FIRST_DELAY_MS, HEADLINE_SFX_NEXT_DELAY_MS } from '../helpers/headlineSfx.js'
 import { createLedBgLoopZoomPiece, segmentUsesLedBgLoopZoom } from '../helpers/ledBgLoopZoom.js'
 import {
 	createLedPodHeadlineClearPiece,
@@ -168,6 +170,12 @@ export function generateParts(
 		},
 	]
 
+	// SJV / ŠPORT SYNs are muted ILU beds under a live moderator read — the mic never ducks there.
+	const synMicStaysLive =
+		isSjvSegmentName(intermediateSegment.payload.name ?? '') ||
+		isSportSegmentName(intermediateSegment.payload.name ?? '')
+	// First headline SFX of the segment lands later (+400) than the rest (+300).
+	let headlineSfxEmitted = false
 	const partLookSlots: Array<LookSlot | undefined> = []
 	// Objects of the previous on-air look-bearing part — ZAVER's leave-weather
 	// teardown must know whether a wiped Take actually leaves Počasie, not just
@@ -209,6 +217,16 @@ export function generateParts(
 			floatedOrSkipped
 		)
 		partLookSlots.push(lookSlot)
+		const hasHeadlineSfx =
+			!floatedOrSkipped &&
+			(rawPart.type === PartType.Camera || rawPart.type === PartType.GFX) &&
+			partHasHeadlineIlu(rawPart.objects ?? [])
+		const headlineSfxDelayMs = hasHeadlineSfx
+			? headlineSfxEmitted
+				? HEADLINE_SFX_NEXT_DELAY_MS
+				: HEADLINE_SFX_FIRST_DELAY_MS
+			: undefined
+		if (hasHeadlineSfx) headlineSfxEmitted = true
 		let newPart: BlueprintResultPart
 
 		switch (rawPart.type) {
@@ -220,7 +238,8 @@ export function generateParts(
 					lookSlot,
 					previousLookSlot,
 					previousPartHadWeather,
-					iluZaverAlreadyOnAir
+					iluZaverAlreadyOnAir,
+					headlineSfxDelayMs
 				)
 				break
 			case PartType.Remote:
@@ -250,7 +269,8 @@ export function generateParts(
 					lookSlot,
 					previousLookSlot,
 					previousPartHadWeather,
-					iluZaverAlreadyOnAir
+					iluZaverAlreadyOnAir,
+					synMicStaysLive
 				)
 				break
 			case PartType.Titles:
@@ -284,7 +304,8 @@ export function generateParts(
 					lookSlot,
 					previousLookSlot,
 					previousPartHadWeather,
-					iluZaverAlreadyOnAir
+					iluZaverAlreadyOnAir,
+					headlineSfxDelayMs
 				)
 				break
 			case PartType.LayeredVideo:
